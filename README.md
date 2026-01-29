@@ -18,7 +18,7 @@ Arbiter is a research-grade TypeScript/Node CLI for studying LLM behavior as a *
 - **Append-only artifacts** during execution; finalization is atomic.
 
 ## Repo layout
-- `docs/` — spec snapshot and design notes
+- `docs/` — spec snapshot and design notes (see `docs/spec.md`)
 - `schemas/` — JSON Schemas (source of truth)
 - `src/` — TypeScript source
   - `cli/` `config/` `engine/` `openrouter/` `clustering/` `artifacts/` `events/` `ui/` `generated/`

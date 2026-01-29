@@ -44,3 +44,8 @@ Always produced (per run directory under `runs/`):
 Conditional (if online clustering enabled):
 - `clusters_online.state.json`
 - `clusters_online.assignments.jsonl`
+
+## Schema versioning & type generation
+- Current schema version: `1.0.0` (v1 catalog).
+- Generate types: `npm run gen:types` (outputs to `src/generated/`).
+- Verify generated types: `npm run check:types`.
