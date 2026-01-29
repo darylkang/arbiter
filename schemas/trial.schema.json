@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbiter.dev/schemas/v1/trial.schema.json",
+  "title": "Arbiter Trial Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["trial_id", "status", "assigned_config"],
+  "$defs": {
+    "decode_params": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "temperature": { "type": "number" },
+        "top_p": { "type": "number" },
+        "max_tokens": { "type": "integer" },
+        "presence_penalty": { "type": "number" },
+        "frequency_penalty": { "type": "number" }
+      }
+    }
+  },
+  "properties": {
+    "trial_id": { "type": "integer", "minimum": 0 },
+    "status": {
+      "type": "string",
+      "enum": ["success", "error", "model_unavailable", "timeout_exhausted"]
+    },
+    "assigned_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "persona", "protocol"],
+      "properties": {
+        "model": { "type": "string", "minLength": 1 },
+        "persona": { "type": "string", "minLength": 1 },
+        "protocol": { "type": "string", "minLength": 1 },
+        "decode": { "$ref": "#/$defs/decode_params" }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "started_at": { "type": "string", "format": "date-time" },
+        "completed_at": { "type": "string", "format": "date-time" },
+        "latency_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "message": { "type": "string" },
+        "code": { "type": "string" },
+        "retryable": { "type": "boolean" }
+      }
+    },
+    "raw_assistant_text": { "type": "string" },
+    "metadata": { "type": "object" }
+  }
+}

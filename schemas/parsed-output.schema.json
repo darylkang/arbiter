@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbiter.dev/schemas/v1/parsed-output.schema.json",
+  "title": "Arbiter Parsed Output Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["trial_id", "parse_status"],
+  "properties": {
+    "trial_id": { "type": "integer", "minimum": 0 },
+    "parse_status": { "type": "string", "enum": ["success", "failed"] },
+    "outcome": { "type": "string" },
+    "rationale": { "type": "string" },
+    "trace_summary": { "type": "string" },
+    "raw_assistant_text": { "type": "string" },
+    "parser_version": { "type": "string" },
+    "parse_error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "message": { "type": "string" },
+        "code": { "type": "string" }
+      }
+    }
+  }
+}

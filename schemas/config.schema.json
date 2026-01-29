@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbiter.dev/schemas/v1/config.schema.json",
+  "title": "Arbiter Resolved Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run",
+    "question",
+    "sampling",
+    "execution",
+    "measurement",
+    "output"
+  ],
+  "$defs": {
+    "seed": {
+      "oneOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "string", "minLength": 1 }
+      ]
+    },
+    "weighted_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "weight"],
+      "properties": {
+        "model": { "type": "string", "minLength": 1 },
+        "weight": { "type": "number", "minimum": 0 }
+      }
+    },
+    "weighted_persona": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["persona", "weight"],
+      "properties": {
+        "persona": { "type": "string", "minLength": 1 },
+        "weight": { "type": "number", "minimum": 0 }
+      }
+    },
+    "weighted_protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "weight"],
+      "properties": {
+        "protocol": { "type": "string", "minLength": 1 },
+        "weight": { "type": "number", "minimum": 0 }
+      }
+    },
+    "number_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      }
+    },
+    "integer_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "integer" },
+        "max": { "type": "integer" }
+      }
+    },
+    "number_or_range": {
+      "oneOf": [
+        { "type": "number" },
+        { "$ref": "#/$defs/number_range" }
+      ]
+    },
+    "integer_or_range": {
+      "oneOf": [
+        { "type": "integer" },
+        { "$ref": "#/$defs/integer_range" }
+      ]
+    }
+  },
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "seed"],
+      "properties": {
+        "run_id": { "type": "string", "minLength": 1 },
+        "seed": { "$ref": "#/$defs/seed" }
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "question_id": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 }
+      }
+    },
+    "sampling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["models", "personas", "protocols"],
+      "properties": {
+        "models": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/weighted_model" }
+        },
+        "personas": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/weighted_persona" }
+        },
+        "protocols": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/weighted_protocol" }
+        },
+        "decode": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "temperature": { "$ref": "#/$defs/number_or_range" },
+            "top_p": { "$ref": "#/$defs/number_or_range" },
+            "max_tokens": { "$ref": "#/$defs/integer_or_range" },
+            "presence_penalty": { "$ref": "#/$defs/number_or_range" },
+            "frequency_penalty": { "$ref": "#/$defs/number_or_range" }
+          }
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "k_max",
+        "batch_size",
+        "workers",
+        "retry_policy",
+        "stop_mode",
+        "k_min",
+        "k_min_count_rule"
+      ],
+      "properties": {
+        "k_max": { "type": "integer", "minimum": 1 },
+        "batch_size": { "type": "integer", "minimum": 1 },
+        "workers": { "type": "integer", "minimum": 1 },
+        "timeout_ms": { "type": "integer", "minimum": 1 },
+        "retry_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max_retries"],
+          "properties": {
+            "max_retries": { "type": "integer", "minimum": 0 },
+            "backoff_ms": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "stop_mode": { "type": "string", "enum": ["advisor", "enforcer"] },
+        "k_min": { "type": "integer", "minimum": 0 },
+        "k_min_count_rule": {
+          "type": "string",
+          "enum": ["k_eligible", "k_attempted"]
+        }
+      }
+    },
+    "measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "embedding_model",
+        "embed_text_strategy",
+        "novelty_threshold",
+        "clustering"
+      ],
+      "properties": {
+        "embedding_model": { "type": "string", "minLength": 1 },
+        "embed_text_strategy": {
+          "type": "string",
+          "enum": ["outcome_only", "outcome_or_raw_assistant"]
+        },
+        "novelty_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "clustering": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "algorithm",
+            "threshold_tau",
+            "centroid_update_rule"
+          ],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "algorithm": { "type": "string", "enum": ["leader"] },
+            "threshold_tau": { "type": "number", "minimum": 0, "maximum": 1 },
+            "centroid_update_rule": {
+              "type": "string",
+              "enum": ["fixed_leader", "incremental_mean"]
+            }
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runs_dir"],
+      "properties": {
+        "runs_dir": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

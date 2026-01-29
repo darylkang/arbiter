@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbiter.dev/schemas/v1/aggregates.schema.json",
+  "title": "Arbiter Aggregates",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["k_attempted", "k_eligible", "novelty_rate", "mean_max_sim_to_prior"],
+  "properties": {
+    "schema_version": { "type": "string", "minLength": 1 },
+    "k_attempted": { "type": "integer", "minimum": 0 },
+    "k_eligible": { "type": "integer", "minimum": 0 },
+    "novelty_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "mean_max_sim_to_prior": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "cluster_count": { "type": ["integer", "null"], "minimum": 0 },
+    "entropy": { "type": ["number", "null"], "minimum": 0 }
+  }
+}

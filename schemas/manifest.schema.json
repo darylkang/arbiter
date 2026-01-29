@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbiter.dev/schemas/v1/manifest.schema.json",
+  "title": "Arbiter Run Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "arbiter_version",
+    "run_id",
+    "started_at",
+    "stop_reason",
+    "incomplete",
+    "k_attempted",
+    "k_eligible",
+    "k_min",
+    "k_min_count_rule"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "arbiter_version": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "stop_reason": {
+      "type": "string",
+      "enum": ["completed", "converged", "k_max_reached", "user_interrupt", "error"]
+    },
+    "incomplete": { "type": "boolean" },
+    "k_attempted": { "type": "integer", "minimum": 0 },
+    "k_eligible": { "type": "integer", "minimum": 0 },
+    "k_min": { "type": "integer", "minimum": 0 },
+    "k_min_count_rule": {
+      "type": "string",
+      "enum": ["k_eligible", "k_attempted"]
+    },
+    "notes": { "type": "string" }
+  }
+}

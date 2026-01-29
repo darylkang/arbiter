@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbiter.dev/schemas/v1/embedding.schema.json",
+  "title": "Arbiter Embedding Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["trial_id", "embedding_status", "embedding_model"],
+  "properties": {
+    "trial_id": { "type": "integer", "minimum": 0 },
+    "embedding_status": {
+      "type": "string",
+      "enum": ["success", "failed", "skipped"]
+    },
+    "embedding_model": { "type": "string", "minLength": 1 },
+    "embedding": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 1
+    },
+    "dimensions": { "type": "integer", "minimum": 1 },
+    "embed_text": { "type": "string" },
+    "skip_reason": {
+      "type": "string",
+      "enum": ["empty_embed_text", "other"]
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "message": { "type": "string" },
+        "code": { "type": "string" },
+        "retryable": { "type": "boolean" }
+      }
+    },
+    "truncation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applied", "original_length", "final_length", "unit"],
+      "properties": {
+        "applied": { "type": "boolean" },
+        "original_length": { "type": "integer", "minimum": 0 },
+        "final_length": { "type": "integer", "minimum": 0 },
+        "unit": { "type": "string", "enum": ["chars", "tokens"] }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "embedding_status": { "const": "success" } }
+      },
+      "then": { "required": ["embedding", "dimensions"] }
+    },
+    {
+      "if": {
+        "properties": { "embedding_status": { "const": "failed" } }
+      },
+      "then": { "required": ["error"] }
+    },
+    {
+      "if": {
+        "properties": { "embedding_status": { "const": "skipped" } }
+      },
+      "then": { "required": ["skip_reason"] }
+    }
+  ]
+}
