@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "hash_algorithm": "sha256",
+  "entries": [
+    {
+      "id": "persona.neutral",
+      "type": "participant_persona",
+      "path": "prompts/personas/neutral.txt",
+      "sha256": "fbd7617710802c73cf4285b88368e4e065d8fedf835e29a07b11410eed4e86ed",
+      "description": "Neutral assistant persona."
+    },
+    {
+      "id": "persona.expert",
+      "type": "participant_persona",
+      "path": "prompts/personas/expert.txt",
+      "sha256": "3c32ad4fb2cd66faa50ce2c1ed876733b8bb0f34e7499f1700822d7b6349ec22",
+      "description": "Expert assistant persona."
+    },
+    {
+      "id": "protocol.independent_sampling",
+      "type": "participant_protocol_template",
+      "path": "prompts/protocols/independent_sampling.txt",
+      "sha256": "a0e46ebff9a99d87dedf26d077fa14c3f02d0bb8d18d4110024b001fcda237a3",
+      "description": "Independent sampling protocol."
+    }
+  ]
+}
