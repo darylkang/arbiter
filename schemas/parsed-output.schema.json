@@ -12,6 +12,7 @@
     "rationale": { "type": "string" },
     "trace_summary": { "type": "string" },
     "raw_assistant_text": { "type": "string" },
+    "embed_text": { "type": "string" },
     "parser_version": { "type": "string" },
     "parse_error": {
       "type": "object",

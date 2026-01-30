@@ -4,7 +4,13 @@
   "title": "Arbiter Trial Record",
   "type": "object",
   "additionalProperties": false,
-  "required": ["trial_id", "status", "assigned_config"],
+  "required": [
+    "trial_id",
+    "status",
+    "assigned_config",
+    "requested_model_slug",
+    "actual_model"
+  ],
   "$defs": {
     "decode_params": {
       "type": "object",
@@ -20,6 +26,8 @@
   },
   "properties": {
     "trial_id": { "type": "integer", "minimum": 0 },
+    "requested_model_slug": { "type": "string", "minLength": 1 },
+    "actual_model": { "type": ["string", "null"] },
     "status": {
       "type": "string",
       "enum": ["success", "error", "model_unavailable", "timeout_exhausted"]
@@ -54,6 +62,8 @@
       }
     },
     "raw_assistant_text": { "type": "string" },
+    "request_payload": { "type": "object" },
+    "response_payload": { "type": "object" },
     "metadata": { "type": "object" }
   }
 }

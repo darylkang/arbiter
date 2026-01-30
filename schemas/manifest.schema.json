@@ -34,6 +34,11 @@
       "type": "string",
       "enum": ["k_eligible", "k_attempted"]
     },
-    "notes": { "type": "string" }
+    "notes": { "type": "string" },
+    "git_sha": { "type": "string", "minLength": 7 },
+    "model_catalog_version": { "type": "string", "minLength": 1 },
+    "model_catalog_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "prompt_manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "hash_algorithm": { "const": "sha256" }
   }
 }

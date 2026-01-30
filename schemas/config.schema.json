@@ -32,19 +32,23 @@
     "weighted_persona": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["persona", "weight"],
+      "required": ["persona", "weight", "sha256", "text"],
       "properties": {
         "persona": { "type": "string", "minLength": 1 },
-        "weight": { "type": "number", "minimum": 0 }
+        "weight": { "type": "number", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "text": { "type": "string", "minLength": 1 }
       }
     },
     "weighted_protocol": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["protocol", "weight"],
+      "required": ["protocol", "weight", "sha256", "text"],
       "properties": {
         "protocol": { "type": "string", "minLength": 1 },
-        "weight": { "type": "number", "minimum": 0 }
+        "weight": { "type": "number", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "text": { "type": "string", "minLength": 1 }
       }
     },
     "number_range": {
