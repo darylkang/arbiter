@@ -15,6 +15,7 @@ Arbiter is a research-grade CLI for studying LLM behavior as a **distribution** 
 - **Engine/UI boundary**: engine must not import UI code.
 - **Artifacts** are append-only during execution with atomic finalization.
 - **Measurement procedure M** is locked per run and fully recorded in provenance.
+- **Model Catalog + Prompt Bank** are repo-committed inputs; runs must record their versions and hashes.
 
 ## Determinism invariants
 - `trial_id` is assigned deterministically *before* async execution (0..K_max-1 in scheduled order).
@@ -28,6 +29,8 @@ Arbiter is a research-grade CLI for studying LLM behavior as a **distribution** 
 - **Empty embed_text**: skip embedding; record `embedding_status=skipped` with reason `empty_embed_text`.
 - **Deterministic truncation**: keep prefix; record original/final sizes and truncation flag.
 - **Graceful shutdown**: SIGINT/SIGTERM yields schema-valid partial artifacts with `incomplete=true` and `stop_reason=user_interrupt`.
+- **Actual model logging**: record OpenRouter `x-model` response header per trial (requested vs actual may differ).
+- **Prompt embedding**: `config.resolved.json` must include full prompt text used with IDs and sha256.
 
 ## Artifact set
 Always produced (per run directory under `runs/`):
@@ -40,6 +43,7 @@ Always produced (per run directory under `runs/`):
 - `embeddings.provenance.json`
 - `convergence_trace.jsonl`
 - `aggregates.json`
+- `catalog_snapshot.json`
 
 Conditional (if online clustering enabled):
 - `clusters_online.state.json`
