@@ -13,4 +13,9 @@ export interface ArbiterRunManifest {
   k_min: number;
   k_min_count_rule: "k_eligible" | "k_attempted";
   notes?: string;
+  git_sha?: string;
+  model_catalog_version?: string;
+  model_catalog_sha256?: string;
+  prompt_manifest_sha256?: string;
+  hash_algorithm?: "sha256";
 }

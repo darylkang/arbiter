@@ -7,6 +7,7 @@ export interface ArbiterParsedOutputRecord {
   rationale?: string;
   trace_summary?: string;
   raw_assistant_text?: string;
+  embed_text?: string;
   parser_version?: string;
   parse_error?: {
     message?: string;

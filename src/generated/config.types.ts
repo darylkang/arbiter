@@ -71,10 +71,14 @@ export interface WeightedModel {
 export interface WeightedPersona {
   persona: string;
   weight: number;
+  sha256: string;
+  text: string;
 }
 export interface WeightedProtocol {
   protocol: string;
   weight: number;
+  sha256: string;
+  text: string;
 }
 export interface NumberRange {
   min: number;
