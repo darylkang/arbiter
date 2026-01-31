@@ -6,6 +6,7 @@ import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
 import type { ArbiterPromptManifest } from "../generated/prompt-manifest.types.js";
 import { writeJsonAtomic, touchFile } from "./io.js";
+import { buildResolveOnlyProvenance } from "./embeddings-provenance.js";
 
 export interface ResolveArtifactsOptions {
   runDir: string;
@@ -54,7 +55,6 @@ export const writeResolveArtifacts = (
   touchFile(trialsPath);
   touchFile(parsedPath);
   touchFile(convergencePath);
-  touchFile(embeddingsArrowPath);
 
   const aggregates: ArbiterAggregates = {
     schema_version: "1.0.0",
@@ -68,11 +68,7 @@ export const writeResolveArtifacts = (
 
   writeJsonAtomic(aggregatesPath, aggregates);
 
-  const embeddingsProvenance = {
-    primary_format: "none",
-    status: "not_produced",
-    note: "resolve_only run; embeddings not computed"
-  };
+  const embeddingsProvenance = buildResolveOnlyProvenance();
   writeJsonAtomic(embeddingsProvenancePath, embeddingsProvenance);
 
   const result: ResolveArtifactsResult = {
