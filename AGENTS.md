@@ -19,6 +19,11 @@ Purpose: This file defines mandatory rules for AI coding agents working in this 
 ## When uncertain
 Consult in this order: `docs/spec.md` → `schemas/` → conservative behavior. Document assumptions in your end-of-round summary.
 
+## Stub content policy
+- Catalog/prompt bank content may be in **dev** stage during development.
+- Stub prompt IDs are **not stable**; do not reference them in examples, tutorials, or tests.
+- Tests must assert invariants (schema validity, non-empty prompt text, hash matches content), not specific IDs or wording.
+
 ## Session protocol
 - Start with a quick repo scan (`ls`, `rg --files`, `rg` as needed).
 - Identify and track files you touch.
