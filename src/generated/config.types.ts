@@ -1,10 +1,8 @@
 /* This file is generated. Do not edit. */
 
-export type Seed = number | string;
-export type NumberOrRange = number | NumberRange;
-export type IntegerOrRange = number | IntegerRange;
-
-export interface ArbiterResolvedConfig {
+export type ArbiterResolvedConfig = {
+  [k: string]: unknown;
+} & {
   schema_version: "1.0.0";
   run: {
     run_id: string;
@@ -37,6 +35,19 @@ export interface ArbiterResolvedConfig {
       frequency_penalty?: NumberOrRange;
     };
   };
+  protocol: {
+    type: "independent" | "debate_v1";
+    timeouts: {
+      per_call_timeout_ms: number;
+      per_call_max_retries: number;
+      total_trial_timeout_ms: number;
+    };
+    prompts?: {
+      proposer_system: EmbeddedPrompt;
+      critic_system: EmbeddedPrompt;
+      proposer_final_system: EmbeddedPrompt;
+    };
+  };
   execution: {
     k_max: number;
     batch_size: number;
@@ -66,7 +77,11 @@ export interface ArbiterResolvedConfig {
   output: {
     runs_dir: string;
   };
-}
+};
+export type Seed = number | string;
+export type NumberOrRange = number | NumberRange;
+export type IntegerOrRange = number | IntegerRange;
+
 export interface WeightedModel {
   model: string;
   weight: number;
@@ -96,4 +111,9 @@ export interface NumberRange {
 export interface IntegerRange {
   min: number;
   max: number;
+}
+export interface EmbeddedPrompt {
+  id: string;
+  sha256: string;
+  text: string;
 }
