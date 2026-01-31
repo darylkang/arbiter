@@ -14,6 +14,7 @@ import { encodeFloat32Base64 } from "../utils/float32-base64.js";
 import type { OpenRouterMessage } from "../openrouter/client.js";
 import { chatCompletion, embedText, OpenRouterError } from "../openrouter/client.js";
 import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
+import { buildDebateMessages, buildDebateParsedOutput } from "./debate-v1.js";
 
 export interface LiveRunOptions {
   bus: EventBus;
@@ -63,6 +64,32 @@ const buildMessages = (
   }
   messages.push({ role: "user", content: config.question.text });
   return messages;
+};
+
+const createTimeoutSignal = (
+  timeoutMs: number,
+  parentSignal?: AbortSignal
+): { signal: AbortSignal; cancel: () => void; didTimeout: () => boolean } => {
+  let timedOut = false;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  if (parentSignal) {
+    if (parentSignal.aborted) {
+      controller.abort();
+    } else {
+      parentSignal.addEventListener("abort", () => controller.abort(), { once: true });
+    }
+  }
+
+  return {
+    signal: controller.signal,
+    cancel: () => clearTimeout(timeout),
+    didTimeout: () => timedOut
+  };
 };
 
 const extractAssistantText = (responseBody: unknown): string => {
@@ -191,11 +218,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
 
   const executeTrial = async (entry: TrialPlanEntry): Promise<TrialResult> => {
     const assigned = entry.assigned_config;
-    const persona = personaMap.get(assigned.persona);
-    const protocol = protocolMap.get(assigned.protocol);
-    if (!persona || !protocol) {
-      throw new Error(`Missing persona/protocol for trial ${entry.trial_id}`);
-    }
+    const attemptStarted = new Date().toISOString();
 
     bus.emit({
       type: "trial.planned",
@@ -205,8 +228,381 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       }
     });
 
+    if (entry.protocol === "debate_v1") {
+      const roleAssignments = entry.role_assignments;
+      if (!roleAssignments) {
+        throw new Error(`Missing role assignments for debate trial ${entry.trial_id}`);
+      }
+      const proposerPersona = roleAssignments.proposer.persona_id
+        ? personaMap.get(roleAssignments.proposer.persona_id)
+        : undefined;
+      const criticPersona = roleAssignments.critic.persona_id
+        ? personaMap.get(roleAssignments.critic.persona_id)
+        : undefined;
+      if (!resolvedConfig.protocol.prompts) {
+        throw new Error("Debate prompts are missing from resolved config");
+      }
+
+      const protocolPrompts = resolvedConfig.protocol.prompts;
+      const calls: NonNullable<ArbiterTrialRecord["calls"]> = [];
+      const transcript: NonNullable<ArbiterTrialRecord["transcript"]> = [];
+      const trialStartedMs = Date.now();
+      const totalTimeoutMs = resolvedConfig.protocol.timeouts.total_trial_timeout_ms;
+      const perCallTimeoutMs = resolvedConfig.protocol.timeouts.per_call_timeout_ms;
+      const perCallMaxRetries = resolvedConfig.protocol.timeouts.per_call_max_retries;
+      const backoffMs = resolvedConfig.execution.retry_policy.backoff_ms ?? 0;
+
+      const runCall = async (input: {
+        callIndex: number;
+        turn: 0 | 1 | 2;
+        role: "proposer" | "critic";
+        systemPrompt: string;
+        personaPrompt?: string | null;
+        proposerTurn?: string;
+        criticTurn?: string;
+      }): Promise<{
+        content?: string;
+        modelActual?: string | null;
+        error?: OpenRouterError | Error;
+        errorCode?: string;
+      }> => {
+        const elapsed = Date.now() - trialStartedMs;
+        const remaining = totalTimeoutMs - elapsed;
+        if (remaining <= 0) {
+          return { error: new Error("Total trial timeout exhausted"), errorCode: "timeout_exhausted" };
+        }
+
+        const callStarted = new Date().toISOString();
+        const messages = buildDebateMessages({
+          turn: input.turn,
+          question: resolvedConfig.question.text,
+          systemPrompt: input.systemPrompt,
+          personaPrompt: input.personaPrompt,
+          proposerTurn: input.proposerTurn,
+          criticTurn: input.criticTurn
+        });
+
+        const timeout = createTimeoutSignal(Math.min(perCallTimeoutMs, remaining), abortSignal);
+        let result: Awaited<ReturnType<typeof chatCompletion>> | null = null;
+        let error: OpenRouterError | Error | null = null;
+
+        try {
+          result = await chatCompletion({
+            model: roleAssignments[input.role].model_slug,
+            messages,
+            params: roleAssignments[input.role].decode,
+            options: {
+              retry: { maxRetries: perCallMaxRetries, backoffMs },
+              signal: timeout.signal
+            }
+          });
+        } catch (err) {
+          error = err instanceof OpenRouterError ? err : (err as Error);
+        } finally {
+          timeout.cancel();
+        }
+
+        if (result) {
+          const content = extractAssistantText(result.responseBody);
+          calls.push({
+            call_index: input.callIndex,
+            turn: input.turn,
+            role: input.role,
+            model_requested: roleAssignments[input.role].model_slug,
+            model_actual: result.modelHeader ?? null,
+            request_payload: result.requestPayload,
+            response_payload: asObject(result.responseBody) ?? null,
+            attempt: {
+              started_at: callStarted,
+              completed_at: new Date().toISOString(),
+              latency_ms: result.latencyMs,
+              retry_count: result.retryCount
+            },
+            error_message: null
+          });
+          transcript.push({ turn: input.turn, role: input.role, content });
+          return { content, modelActual: result.modelHeader ?? null };
+        }
+
+        const errorMessage =
+          error instanceof OpenRouterError
+            ? error.message
+            : error?.message ?? "OpenRouter request failed";
+        const retryCount = error instanceof OpenRouterError ? error.retryCount : 0;
+        const latencyMs = error instanceof OpenRouterError ? error.latencyMs ?? 0 : 0;
+        const responsePayload =
+          error instanceof OpenRouterError ? error.responseBody : undefined;
+        const modelActual =
+          error instanceof OpenRouterError ? error.headers?.["x-model"] ?? null : null;
+        const timeoutCode = timeout.didTimeout() ? "timeout_exhausted" : undefined;
+
+        calls.push({
+          call_index: input.callIndex,
+          turn: input.turn,
+          role: input.role,
+          model_requested: roleAssignments[input.role].model_slug,
+          model_actual: modelActual,
+          request_payload:
+            error instanceof OpenRouterError ? (error.requestPayload ?? {}) : {},
+          response_payload: asObject(responsePayload) ?? null,
+          attempt: {
+            started_at: callStarted,
+            completed_at: new Date().toISOString(),
+            latency_ms: latencyMs,
+            retry_count: retryCount
+          },
+          error_message: errorMessage
+        });
+
+        return { error: error ?? new Error(errorMessage), errorCode: timeoutCode };
+      };
+
+      const proposerPersonaText = proposerPersona?.text ?? "";
+      const criticPersonaText = criticPersona?.text ?? "";
+
+      const turn0 = await runCall({
+        callIndex: 0,
+        turn: 0,
+        role: "proposer",
+        systemPrompt: protocolPrompts.proposer_system.text,
+        personaPrompt: proposerPersonaText
+      });
+      if (!turn0.content) {
+        const errorCode = turn0.errorCode ?? (shouldStop() ? "shutdown_abort" : null);
+        const status =
+          turn0.error instanceof OpenRouterError && turn0.error.modelUnavailable
+            ? "model_unavailable"
+            : "error";
+        const trialRecord: ArbiterTrialRecord = {
+          trial_id: entry.trial_id,
+          requested_model_slug: assigned.model,
+          actual_model: null,
+          protocol: "debate_v1",
+          status,
+          assigned_config: assigned,
+          role_assignments: roleAssignments,
+          calls,
+          transcript,
+          error: {
+            message: turn0.error?.message ?? "Debate call failed",
+            code: turn0.error instanceof OpenRouterError ? turn0.error.code : undefined,
+            retryable:
+              turn0.error instanceof OpenRouterError ? turn0.error.retryable : false
+          },
+          error_code: errorCode
+        };
+        bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+        bus.emit({
+          type: "parsed.output",
+          payload: {
+            parsed_record: {
+              trial_id: entry.trial_id,
+              parse_status: "failed",
+              parser_version: "debate-v1"
+            }
+          }
+        });
+        bus.emit({
+          type: "embedding.recorded",
+          payload: {
+            embedding_record: buildSkippedEmbedding(entry.trial_id, "trial_not_success")
+          }
+        });
+        return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
+      }
+
+      const turn1 = await runCall({
+        callIndex: 1,
+        turn: 1,
+        role: "critic",
+        systemPrompt: protocolPrompts.critic_system.text,
+        personaPrompt: criticPersonaText,
+        proposerTurn: turn0.content
+      });
+      if (!turn1.content) {
+        const errorCode = turn1.errorCode ?? (shouldStop() ? "shutdown_abort" : null);
+        const status =
+          turn1.error instanceof OpenRouterError && turn1.error.modelUnavailable
+            ? "model_unavailable"
+            : "error";
+        const trialRecord: ArbiterTrialRecord = {
+          trial_id: entry.trial_id,
+          requested_model_slug: assigned.model,
+          actual_model: null,
+          protocol: "debate_v1",
+          status,
+          assigned_config: assigned,
+          role_assignments: roleAssignments,
+          calls,
+          transcript,
+          error: {
+            message: turn1.error?.message ?? "Debate call failed",
+            code: turn1.error instanceof OpenRouterError ? turn1.error.code : undefined,
+            retryable:
+              turn1.error instanceof OpenRouterError ? turn1.error.retryable : false
+          },
+          error_code: errorCode
+        };
+        bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+        bus.emit({
+          type: "parsed.output",
+          payload: {
+            parsed_record: {
+              trial_id: entry.trial_id,
+              parse_status: "failed",
+              parser_version: "debate-v1"
+            }
+          }
+        });
+        bus.emit({
+          type: "embedding.recorded",
+          payload: {
+            embedding_record: buildSkippedEmbedding(entry.trial_id, "trial_not_success")
+          }
+        });
+        return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
+      }
+
+      const turn2 = await runCall({
+        callIndex: 2,
+        turn: 2,
+        role: "proposer",
+        systemPrompt: protocolPrompts.proposer_final_system.text,
+        personaPrompt: proposerPersonaText,
+        proposerTurn: turn0.content,
+        criticTurn: turn1.content
+      });
+
+      if (!turn2.content) {
+        const errorCode = turn2.errorCode ?? (shouldStop() ? "shutdown_abort" : null);
+        const status =
+          turn2.error instanceof OpenRouterError && turn2.error.modelUnavailable
+            ? "model_unavailable"
+            : "error";
+        const trialRecord: ArbiterTrialRecord = {
+          trial_id: entry.trial_id,
+          requested_model_slug: assigned.model,
+          actual_model: null,
+          protocol: "debate_v1",
+          status,
+          assigned_config: assigned,
+          role_assignments: roleAssignments,
+          calls,
+          transcript,
+          error: {
+            message: turn2.error?.message ?? "Debate call failed",
+            code: turn2.error instanceof OpenRouterError ? turn2.error.code : undefined,
+            retryable:
+              turn2.error instanceof OpenRouterError ? turn2.error.retryable : false
+          },
+          error_code: errorCode
+        };
+        bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+        bus.emit({
+          type: "parsed.output",
+          payload: {
+            parsed_record: {
+              trial_id: entry.trial_id,
+              parse_status: "failed",
+              parser_version: "debate-v1"
+            }
+          }
+        });
+        bus.emit({
+          type: "embedding.recorded",
+          payload: {
+            embedding_record: buildSkippedEmbedding(entry.trial_id, "trial_not_success")
+          }
+        });
+        return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
+      }
+
+      const parsedRecord = buildDebateParsedOutput(entry.trial_id, turn2.content);
+      const trialRecord: ArbiterTrialRecord = {
+        trial_id: entry.trial_id,
+        requested_model_slug: assigned.model,
+        actual_model: turn2.modelActual ?? null,
+        protocol: "debate_v1",
+        status: "success",
+        assigned_config: assigned,
+        role_assignments: roleAssignments,
+        calls,
+        transcript,
+        raw_assistant_text: turn2.content
+      };
+
+      bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+      bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+
+      const embedTextValue = parsedRecord.embed_text ?? "";
+      if (!embedTextValue) {
+        bus.emit({
+          type: "embedding.recorded",
+          payload: {
+            embedding_record: buildSkippedEmbedding(entry.trial_id, "empty_embed_text")
+          }
+        });
+        return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
+      }
+
+      try {
+        const embedResult = await embedText({
+          model: resolvedConfig.measurement.embedding_model,
+          text: embedTextValue,
+          options: {
+            retry: {
+              maxRetries: resolvedConfig.execution.retry_policy.max_retries,
+              backoffMs: resolvedConfig.execution.retry_policy.backoff_ms ?? 0
+            },
+            signal: abortSignal
+          }
+        });
+
+        if (embeddingDimensions === null) {
+          embeddingDimensions = embedResult.vector.length;
+        } else if (embeddingDimensions !== embedResult.vector.length) {
+          throw new Error(
+            `Embedding dimensions mismatch: expected ${embeddingDimensions}, got ${embedResult.vector.length}`
+          );
+        }
+
+        bus.emit({
+          type: "embedding.recorded",
+          payload: {
+            embedding_record: buildSuccessEmbedding(
+              entry.trial_id,
+              embedResult.vector,
+              embedTextValue
+            )
+          }
+        });
+        return {
+          trial_id: entry.trial_id,
+          embedding: { status: "success", vector: embedResult.vector }
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        bus.emit({
+          type: "embedding.recorded",
+          payload: {
+            embedding_record: buildFailedEmbedding(entry.trial_id, message, embedTextValue)
+          }
+        });
+        return { trial_id: entry.trial_id, embedding: { status: "failed" } };
+      }
+    }
+
+    const persona = personaMap.get(assigned.persona);
+    const protocol = protocolMap.get(assigned.protocol);
+    if (!persona || !protocol) {
+      throw new Error(`Missing persona/protocol for trial ${entry.trial_id}`);
+    }
+
     const messages = buildMessages(resolvedConfig, persona.text ?? "", protocol.text ?? "");
-    const attemptStarted = new Date().toISOString();
+    const timeout = createTimeoutSignal(
+      resolvedConfig.protocol.timeouts.per_call_timeout_ms,
+      abortSignal
+    );
 
     let trialRecord: ArbiterTrialRecord;
     let rawAssistantText = "";
@@ -223,10 +619,10 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         params: assigned.decode,
         options: {
           retry: {
-            maxRetries: resolvedConfig.execution.retry_policy.max_retries,
+            maxRetries: resolvedConfig.protocol.timeouts.per_call_max_retries,
             backoffMs: resolvedConfig.execution.retry_policy.backoff_ms ?? 0
           },
-          signal: abortSignal
+          signal: timeout.signal
         }
       });
 
@@ -240,6 +636,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         trial_id: entry.trial_id,
         requested_model_slug: assigned.model,
         actual_model: actualModel ?? null,
+        protocol: "independent",
         status: "success",
         assigned_config: assigned,
         attempt: {
@@ -265,6 +662,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         trial_id: entry.trial_id,
         requested_model_slug: assigned.model,
         actual_model: actualModel ?? null,
+        protocol: "independent",
         status,
         assigned_config: assigned,
         attempt: {
@@ -278,9 +676,12 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
           code: chatError?.code,
           retryable: chatError?.retryable ?? false
         },
+        error_code: timeout.didTimeout() ? "timeout_exhausted" : null,
         request_payload: asObject(chatError?.requestPayload),
         response_payload: asObject(responsePayload)
       };
+    } finally {
+      timeout.cancel();
     }
 
     bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });

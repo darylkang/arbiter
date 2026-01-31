@@ -13,6 +13,7 @@ import { sha256Hex } from "../utils/hash.js";
 import { encodeFloat32Base64 } from "../utils/float32-base64.js";
 import { createRngForTrial } from "../utils/seeded-rng.js";
 import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
+import { buildDebateParsedOutput } from "./debate-v1.js";
 
 export interface MockRunOptions {
   bus: EventBus;
@@ -37,7 +38,7 @@ export interface MockRunResult {
   embeddingsArrowPath?: string;
 }
 
-const buildParsedOutput = (
+const buildIndependentParsedOutput = (
   trialId: number,
   outcome: string,
   rawAssistantText: string,
@@ -100,33 +101,104 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       }
     });
 
-    const outcomeVariant = entry.trial_id % 3;
-    const outcome = `Answer variant ${outcomeVariant}`;
-    const rawAssistantText = `${outcome}\n`;
-    const embedTextValue =
-      resolvedConfig.measurement.embed_text_strategy === "outcome_only"
-        ? outcome
-        : outcome || rawAssistantText;
+  const outcomeVariant = entry.trial_id % 3;
+  const outcome = `Answer variant ${outcomeVariant}`;
+  const rawAssistantText = `${outcome}\n`;
+
+  if (entry.protocol === "debate_v1") {
+    const proposerIntro = `Proposer opening ${entry.trial_id}`;
+    const criticReply = `Critic response ${entry.trial_id}`;
+    const finalPayload =
+      entry.trial_id % 3 === 0
+        ? `Here is the decision:\n\`\`\`json\n${JSON.stringify({
+            decision: `Decision ${entry.trial_id}`,
+            confidence: "medium",
+            reasoning: "Mock reasoning"
+          })}\n\`\`\``
+        : entry.trial_id % 3 === 1
+          ? `${JSON.stringify({
+              decision: `Decision ${entry.trial_id}`,
+              confidence: "low",
+              reasoning: "Mock reasoning unfenced"
+            })}`
+          : `Raw final content ${entry.trial_id}`;
+
+    const calls: NonNullable<ArbiterTrialRecord["calls"]> = [
+      {
+        call_index: 0,
+        turn: 0,
+        role: "proposer",
+        model_requested: entry.assigned_config.model,
+        model_actual: entry.assigned_config.model,
+        request_payload: { mock: true, turn: 0 },
+        response_payload: { content: proposerIntro },
+        attempt: {
+          started_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+          latency_ms: 0,
+          retry_count: 0
+        },
+        error_message: null
+      },
+      {
+        call_index: 1,
+        turn: 1,
+        role: "critic",
+        model_requested: entry.assigned_config.model,
+        model_actual: entry.assigned_config.model,
+        request_payload: { mock: true, turn: 1 },
+        response_payload: { content: criticReply },
+        attempt: {
+          started_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+          latency_ms: 0,
+          retry_count: 0
+        },
+        error_message: null
+      },
+      {
+        call_index: 2,
+        turn: 2,
+        role: "proposer",
+        model_requested: entry.assigned_config.model,
+        model_actual: entry.assigned_config.model,
+        request_payload: { mock: true, turn: 2 },
+        response_payload: { content: finalPayload },
+        attempt: {
+          started_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+          latency_ms: 0,
+          retry_count: 0
+        },
+        error_message: null
+      }
+    ];
+
+    const transcript: NonNullable<ArbiterTrialRecord["transcript"]> = [
+      { turn: 0, role: "proposer", content: proposerIntro },
+      { turn: 1, role: "critic", content: criticReply },
+      { turn: 2, role: "proposer", content: finalPayload }
+    ];
 
     const trialRecord: ArbiterTrialRecord = {
       trial_id: entry.trial_id,
       requested_model_slug: entry.assigned_config.model,
       actual_model: entry.assigned_config.model,
+      protocol: "debate_v1",
       status: "success",
       assigned_config: entry.assigned_config,
-      raw_assistant_text: rawAssistantText
+      role_assignments: entry.role_assignments,
+      calls,
+      transcript,
+      raw_assistant_text: finalPayload
     };
 
     bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
 
-    const parsedRecord = buildParsedOutput(
-      entry.trial_id,
-      outcome,
-      rawAssistantText,
-      embedTextValue
-    );
+    const parsedRecord = buildDebateParsedOutput(entry.trial_id, finalPayload);
     bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
 
+    const embedTextValue = parsedRecord.embed_text ?? "";
     const vector = Array.from({ length: embeddingDimensions }, () => embedRng());
     const embeddingRecord: ArbiterDebugEmbeddingJSONLRecord = {
       trial_id: entry.trial_id,
@@ -140,7 +212,47 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
     bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
 
     return { trial_id: entry.trial_id, vector };
+  }
+
+  const embedTextValue =
+    resolvedConfig.measurement.embed_text_strategy === "outcome_only"
+      ? outcome
+      : outcome || rawAssistantText;
+
+  const trialRecord: ArbiterTrialRecord = {
+    trial_id: entry.trial_id,
+    requested_model_slug: entry.assigned_config.model,
+    actual_model: entry.assigned_config.model,
+    protocol: "independent",
+    status: "success",
+    assigned_config: entry.assigned_config,
+    raw_assistant_text: rawAssistantText
   };
+
+  bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+
+  const parsedRecord = buildIndependentParsedOutput(
+    entry.trial_id,
+    outcome,
+    rawAssistantText,
+    embedTextValue
+  );
+  bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+
+  const vector = Array.from({ length: embeddingDimensions }, () => embedRng());
+  const embeddingRecord: ArbiterDebugEmbeddingJSONLRecord = {
+    trial_id: entry.trial_id,
+    embedding_status: "success",
+    vector_b64: encodeFloat32Base64(vector),
+    dtype: "float32",
+    encoding: "float32le_base64",
+    dimensions: embeddingDimensions,
+    embed_text_sha256: sha256Hex(embedTextValue)
+  };
+  bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
+
+  return { trial_id: entry.trial_id, vector };
+};
 
   const runBatch = async (entries: TrialPlanEntry[]): Promise<TrialResult[]> => {
     const results: TrialResult[] = [];

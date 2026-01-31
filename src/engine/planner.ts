@@ -8,7 +8,9 @@ type WeightedItem<T> = { weight: number } & T;
 
 export type TrialPlanEntry = {
   trial_id: number;
+  protocol: "independent" | "debate_v1";
   assigned_config: ArbiterTrialRecord["assigned_config"];
+  role_assignments?: ArbiterTrialRecord["role_assignments"];
 };
 
 const sampleWeighted = <T>(items: Array<WeightedItem<T>>, rng: () => number): T => {
@@ -78,19 +80,48 @@ export const generateTrialPlan = (
     const decodeRng = createRngForTrial(config.run.seed, "decode", trialId);
 
     const model = sampleWeighted(config.sampling.models, planRng);
-    const persona = sampleWeighted(config.sampling.personas, planRng);
-    const protocol = sampleWeighted(config.sampling.protocols, planRng);
     const decode = resolveDecodeParams(config.sampling.decode, decodeRng);
 
-    plan.push({
-      trial_id: trialId,
-      assigned_config: {
-        model: model.model,
-        persona: persona.persona,
-        protocol: protocol.protocol,
-        decode
-      }
-    });
+    if (config.protocol.type === "debate_v1") {
+      const proposerPersona = sampleWeighted(config.sampling.personas, planRng);
+      const criticPersona = sampleWeighted(config.sampling.personas, planRng);
+
+      plan.push({
+        trial_id: trialId,
+        protocol: "debate_v1",
+        assigned_config: {
+          model: model.model,
+          persona: proposerPersona.persona,
+          protocol: "debate_v1",
+          decode
+        },
+        role_assignments: {
+          proposer: {
+            model_slug: model.model,
+            persona_id: proposerPersona.persona,
+            decode
+          },
+          critic: {
+            model_slug: model.model,
+            persona_id: criticPersona.persona,
+            decode
+          }
+        }
+      });
+    } else {
+      const persona = sampleWeighted(config.sampling.personas, planRng);
+      const protocol = sampleWeighted(config.sampling.protocols, planRng);
+      plan.push({
+        trial_id: trialId,
+        protocol: "independent",
+        assigned_config: {
+          model: model.model,
+          persona: persona.persona,
+          protocol: protocol.protocol,
+          decode
+        }
+      });
+    }
   }
 
   const planSha256 = sha256Hex(canonicalStringify(plan));
