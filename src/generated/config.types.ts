@@ -28,6 +28,7 @@ export interface ArbiterResolvedConfig {
      * @minItems 1
      */
     protocols: [WeightedProtocol, ...WeightedProtocol[]];
+    instruments?: InstrumentPrompt[];
     decode?: {
       temperature?: NumberOrRange;
       top_p?: NumberOrRange;
@@ -67,18 +68,24 @@ export interface ArbiterResolvedConfig {
 export interface WeightedModel {
   model: string;
   weight: number;
+  catalog_status?: "known" | "unknown_to_catalog";
 }
 export interface WeightedPersona {
   persona: string;
   weight: number;
-  sha256: string;
-  text: string;
+  sha256?: string;
+  text?: string;
 }
 export interface WeightedProtocol {
   protocol: string;
   weight: number;
-  sha256: string;
-  text: string;
+  sha256?: string;
+  text?: string;
+}
+export interface InstrumentPrompt {
+  instrument: string;
+  sha256?: string;
+  text?: string;
 }
 export interface NumberRange {
   min: number;

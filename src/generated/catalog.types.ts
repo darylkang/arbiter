@@ -5,6 +5,9 @@ export interface ArbiterModelCatalog {
   catalog_version: string;
   catalog_stage: "dev" | "curated" | "research";
   metadata_complete: boolean;
+  hash_algorithm?: "sha256";
+  model_catalog_sha256?: string;
+  unknown_model_slugs?: string[];
   /**
    * @minItems 1
    */

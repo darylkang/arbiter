@@ -26,13 +26,17 @@
       "required": ["model", "weight"],
       "properties": {
         "model": { "type": "string", "minLength": 1 },
-        "weight": { "type": "number", "minimum": 0 }
+        "weight": { "type": "number", "minimum": 0 },
+        "catalog_status": {
+          "type": "string",
+          "enum": ["known", "unknown_to_catalog"]
+        }
       }
     },
     "weighted_persona": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["persona", "weight", "sha256", "text"],
+      "required": ["persona", "weight"],
       "properties": {
         "persona": { "type": "string", "minLength": 1 },
         "weight": { "type": "number", "minimum": 0 },
@@ -43,10 +47,20 @@
     "weighted_protocol": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["protocol", "weight", "sha256", "text"],
+      "required": ["protocol", "weight"],
       "properties": {
         "protocol": { "type": "string", "minLength": 1 },
         "weight": { "type": "number", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "text": { "type": "string", "minLength": 1 }
+      }
+    },
+    "instrument_prompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instrument"],
+      "properties": {
+        "instrument": { "type": "string", "minLength": 1 },
         "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "text": { "type": "string", "minLength": 1 }
       }
@@ -122,6 +136,10 @@
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/weighted_protocol" }
+        },
+        "instruments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/instrument_prompt" }
         },
         "decode": {
           "type": "object",

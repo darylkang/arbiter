@@ -4,6 +4,7 @@ export interface ArbiterPromptManifest {
   schema_version: "1.0.0";
   hash_algorithm: "sha256";
   prompt_bank_stage?: "dev" | "curated" | "research";
+  prompt_manifest_sha256?: string;
   /**
    * @minItems 1
    */
