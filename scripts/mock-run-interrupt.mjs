@@ -1,11 +1,14 @@
-import { execSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { tableFromIPC } from "apache-arrow";
-import { validateManifest } from "../dist/config/schema-validation.js";
+import {
+  validateClusterAssignment,
+  validateClusterState,
+  validateManifest
+} from "../dist/config/schema-validation.js";
 
-const tempRoot = resolve(tmpdir(), `arbiter-mock-run-${Date.now()}`);
+const tempRoot = resolve(tmpdir(), `arbiter-mock-interrupt-${Date.now()}`);
 const runsDir = resolve(tempRoot, "runs");
 mkdirSync(runsDir, { recursive: true });
 
@@ -20,13 +23,13 @@ const protocols = promptManifest.entries.filter(
 );
 
 if (catalog.models.length < 1 || personas.length < 2 || protocols.length < 1) {
-  throw new Error("Not enough catalog/prompt entries for mock-run smoke test");
+  throw new Error("Not enough catalog/prompt entries for interrupt smoke test");
 }
 
 const config = {
   schema_version: "1.0.0",
   run: { run_id: "pending", seed: 424242 },
-  question: { text: "Smoke test prompt", question_id: "mock_q_1" },
+  question: { text: "Interrupt smoke prompt", question_id: "mock_interrupt_q1" },
   sampling: {
     models: [{ model: catalog.models[0].slug, weight: 1 }],
     personas: [
@@ -36,9 +39,9 @@ const config = {
     protocols: [{ protocol: protocols[0].id, weight: 1 }]
   },
   execution: {
-    k_max: 5,
-    batch_size: 2,
-    workers: 3,
+    k_max: 40,
+    batch_size: 5,
+    workers: 2,
     retry_policy: { max_retries: 0, backoff_ms: 0 },
     stop_mode: "advisor",
     k_min: 0,
@@ -49,12 +52,12 @@ const config = {
     embed_text_strategy: "outcome_only",
     novelty_threshold: 0.85,
     clustering: {
-      enabled: false,
+      enabled: true,
       algorithm: "online_leader",
-      tau: 0.9,
+      tau: 0.75,
       centroid_update_rule: "fixed_leader",
-      cluster_limit: 500,
-      stop_mode: "disabled"
+      cluster_limit: 10,
+      stop_mode: "advisory"
     }
   },
   output: { runs_dir: "runs" }
@@ -63,10 +66,24 @@ const config = {
 const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
-execSync(
-  `node dist/cli/index.js mock-run --config ${configPath} --out ${runsDir} --debug`,
-  { stdio: "inherit" }
+const child = spawn(
+  "node",
+  ["dist/cli/index.js", "mock-run", "--config", configPath, "--out", runsDir, "--debug"],
+  {
+    stdio: "inherit",
+    env: { ...process.env, ARBITER_MOCK_DELAY_MS: "25" }
+  }
 );
+
+setTimeout(() => child.kill("SIGINT"), 150);
+
+const exitCode = await new Promise((resolve) => {
+  child.on("exit", (code) => resolve(code ?? 1));
+});
+
+if (exitCode !== 0) {
+  throw new Error(`mock-run interrupt smoke failed with code ${exitCode}`);
+}
 
 const runDirs = readdirSync(runsDir);
 if (runDirs.length !== 1) {
@@ -74,38 +91,32 @@ if (runDirs.length !== 1) {
 }
 
 const runDir = resolve(runsDir, runDirs[0]);
-const requiredPaths = [
-  "config.resolved.json",
-  "manifest.json",
-  "trials.jsonl",
-  "parsed.jsonl",
-  "convergence_trace.jsonl",
-  "embeddings.provenance.json",
-  "embeddings.arrow",
-  "aggregates.json",
-  "debug/embeddings.jsonl"
-];
-
-for (const relPath of requiredPaths) {
-  const fullPath = resolve(runDir, relPath);
-  try {
-    readFileSync(fullPath);
-  } catch {
-    throw new Error(`Missing required artifact: ${relPath}`);
-  }
-}
-
 const manifestPath = resolve(runDir, "manifest.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 if (!validateManifest(manifest)) {
-  throw new Error("Manifest failed schema validation in mock-run smoke test");
+  throw new Error("Manifest failed schema validation after interrupt");
+}
+if (manifest.stop_reason !== "user_interrupt" || manifest.incomplete !== true) {
+  throw new Error("Manifest did not record user_interrupt with incomplete=true");
 }
 
-const arrowBuffer = readFileSync(resolve(runDir, "embeddings.arrow"));
-const table = tableFromIPC(arrowBuffer);
-if (table.numRows !== 5) {
-  throw new Error(`Expected 5 embeddings rows, got ${table.numRows}`);
+const statePath = resolve(runDir, "clusters/online.state.json");
+const state = JSON.parse(readFileSync(statePath, "utf8"));
+if (!validateClusterState(state)) {
+  throw new Error("Cluster state failed schema validation after interrupt");
+}
+
+const assignmentsPath = resolve(runDir, "clusters/online.assignments.jsonl");
+const assignmentLines = readFileSync(assignmentsPath, "utf8")
+  .trim()
+  .split("\n")
+  .filter(Boolean);
+for (const line of assignmentLines) {
+  const record = JSON.parse(line);
+  if (!validateClusterAssignment(record)) {
+    throw new Error("Cluster assignment failed schema validation after interrupt");
+  }
 }
 
 rmSync(tempRoot, { recursive: true, force: true });
-console.log("Mock-run smoke test OK");
+console.log("Mock-run interrupt smoke test OK");
