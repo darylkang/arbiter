@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbiter.dev/schemas/v1/protocol.schema.json",
+  "title": "Arbiter Protocol Spec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "protocol_id",
+    "roles",
+    "turns",
+    "prompts",
+    "outcome_extraction"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "protocol_id": { "const": "debate_v1" },
+    "roles": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["proposer", "critic"] }
+    },
+    "turns": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["turn", "role"],
+        "properties": {
+          "turn": { "type": "integer", "minimum": 0, "maximum": 2 },
+          "role": { "type": "string", "enum": ["proposer", "critic"] }
+        }
+      }
+    },
+    "prompts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proposer_system",
+        "critic_system",
+        "proposer_final_system"
+      ],
+      "properties": {
+        "proposer_system": { "type": "string", "minLength": 1 },
+        "critic_system": { "type": "string", "minLength": 1 },
+        "proposer_final_system": { "type": "string", "minLength": 1 }
+      }
+    },
+    "outcome_extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "properties": {
+        "method": { "const": "debate_v1_decision_contract" }
+      }
+    }
+  }
+}

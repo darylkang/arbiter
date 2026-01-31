@@ -7,6 +7,7 @@
   "required": [
     "trial_id",
     "status",
+    "protocol",
     "assigned_config",
     "requested_model_slug",
     "actual_model"
@@ -22,12 +23,69 @@
         "presence_penalty": { "type": "number" },
         "frequency_penalty": { "type": "number" }
       }
+    },
+    "role_assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_slug", "persona_id"],
+      "properties": {
+        "model_slug": { "type": "string", "minLength": 1 },
+        "persona_id": { "type": ["string", "null"], "minLength": 1 },
+        "decode": { "$ref": "#/$defs/decode_params" }
+      }
+    },
+    "call_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "call_index",
+        "turn",
+        "role",
+        "model_requested",
+        "model_actual",
+        "request_payload",
+        "response_payload",
+        "attempt",
+        "error_message"
+      ],
+      "properties": {
+        "call_index": { "type": "integer", "minimum": 0 },
+        "turn": { "type": "integer", "minimum": 0 },
+        "role": { "type": "string", "enum": ["proposer", "critic"] },
+        "model_requested": { "type": "string", "minLength": 1 },
+        "model_actual": { "type": ["string", "null"] },
+        "request_payload": { "type": "object" },
+        "response_payload": { "type": ["object", "null"] },
+        "attempt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["started_at", "completed_at", "latency_ms", "retry_count"],
+          "properties": {
+            "started_at": { "type": "string", "format": "date-time" },
+            "completed_at": { "type": "string", "format": "date-time" },
+            "latency_ms": { "type": "integer", "minimum": 0 },
+            "retry_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "error_message": { "type": ["string", "null"] }
+      }
+    },
+    "transcript_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["turn", "role", "content"],
+      "properties": {
+        "turn": { "type": "integer", "minimum": 0 },
+        "role": { "type": "string", "enum": ["proposer", "critic"] },
+        "content": { "type": "string" }
+      }
     }
   },
   "properties": {
     "trial_id": { "type": "integer", "minimum": 0 },
     "requested_model_slug": { "type": "string", "minLength": 1 },
     "actual_model": { "type": ["string", "null"] },
+    "protocol": { "type": "string", "minLength": 1 },
     "status": {
       "type": "string",
       "enum": ["success", "error", "model_unavailable", "timeout_exhausted"]
@@ -62,9 +120,27 @@
         "retryable": { "type": "boolean" }
       }
     },
+    "error_code": { "type": ["string", "null"] },
     "raw_assistant_text": { "type": "string" },
     "request_payload": { "type": "object" },
     "response_payload": { "type": "object" },
+    "role_assignments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proposer", "critic"],
+      "properties": {
+        "proposer": { "$ref": "#/$defs/role_assignment" },
+        "critic": { "$ref": "#/$defs/role_assignment" }
+      }
+    },
+    "calls": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/call_record" }
+    },
+    "transcript": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/transcript_entry" }
+    },
     "metadata": { "type": "object" }
   }
 }

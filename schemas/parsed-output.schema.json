@@ -7,7 +7,16 @@
   "required": ["trial_id", "parse_status"],
   "properties": {
     "trial_id": { "type": "integer", "minimum": 0 },
-    "parse_status": { "type": "string", "enum": ["success", "failed"] },
+    "parse_status": { "type": "string", "enum": ["success", "failed", "fallback"] },
+    "extraction_method": {
+      "type": "string",
+      "enum": ["fenced", "unfenced", "raw"]
+    },
+    "embed_text_source": {
+      "type": "string",
+      "enum": ["decision", "raw_content"]
+    },
+    "confidence": { "type": ["string", "null"], "enum": ["low", "medium", "high", null] },
     "outcome": { "type": "string" },
     "rationale": { "type": "string" },
     "trace_summary": { "type": "string" },

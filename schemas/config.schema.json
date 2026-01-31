@@ -9,6 +9,7 @@
     "run",
     "question",
     "sampling",
+    "protocol",
     "execution",
     "measurement",
     "output"
@@ -94,6 +95,16 @@
         { "type": "integer" },
         { "$ref": "#/$defs/integer_range" }
       ]
+    },
+    "embedded_prompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256", "text"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "text": { "type": "string", "minLength": 1 }
+      }
     }
   },
   "properties": {
@@ -150,6 +161,42 @@
             "max_tokens": { "$ref": "#/$defs/integer_or_range" },
             "presence_penalty": { "$ref": "#/$defs/number_or_range" },
             "frequency_penalty": { "$ref": "#/$defs/number_or_range" }
+          }
+        }
+      }
+    },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "timeouts"],
+      "properties": {
+        "type": { "type": "string", "enum": ["independent", "debate_v1"] },
+        "timeouts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "per_call_timeout_ms",
+            "per_call_max_retries",
+            "total_trial_timeout_ms"
+          ],
+          "properties": {
+            "per_call_timeout_ms": { "type": "integer", "minimum": 1 },
+            "per_call_max_retries": { "type": "integer", "minimum": 0 },
+            "total_trial_timeout_ms": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "prompts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "proposer_system",
+            "critic_system",
+            "proposer_final_system"
+          ],
+          "properties": {
+            "proposer_system": { "$ref": "#/$defs/embedded_prompt" },
+            "critic_system": { "$ref": "#/$defs/embedded_prompt" },
+            "proposer_final_system": { "$ref": "#/$defs/embedded_prompt" }
           }
         }
       }
@@ -244,5 +291,33 @@
         "runs_dir": { "type": "string", "minLength": 1 }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "object",
+            "properties": {
+              "type": { "const": "debate_v1" }
+            },
+            "required": ["type"]
+          }
+        },
+        "required": ["protocol"]
+      },
+      "then": {
+        "properties": {
+          "protocol": {
+            "type": "object",
+            "required": ["prompts"],
+            "properties": {
+              "prompts": {}
+            }
+          }
+        }
+      }
+    }
+  ]
 }
