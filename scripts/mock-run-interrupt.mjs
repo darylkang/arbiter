@@ -118,5 +118,35 @@ for (const line of assignmentLines) {
   }
 }
 
+const convergencePath = resolve(runDir, "convergence_trace.jsonl");
+const convergenceLines = readFileSync(convergencePath, "utf8")
+  .trim()
+  .split("\n")
+  .filter(Boolean);
+let sawDistribution = false;
+for (const line of convergenceLines) {
+  const record = JSON.parse(line);
+  if (record.cluster_distribution !== undefined) {
+    if (!Array.isArray(record.cluster_distribution)) {
+      throw new Error("cluster_distribution is not an array");
+    }
+    if (record.cluster_count !== record.cluster_distribution.length) {
+      throw new Error("cluster_distribution length does not match cluster_count");
+    }
+    const sum = record.cluster_distribution.reduce((acc, value) => acc + value, 0);
+    if (sum !== record.k_eligible) {
+      throw new Error("cluster_distribution sum does not match k_eligible");
+    }
+    if (!sawDistribution) {
+      if (record.js_divergence !== null) {
+        throw new Error("Expected js_divergence null for first distribution");
+      }
+      sawDistribution = true;
+    } else if (typeof record.js_divergence !== "number") {
+      throw new Error("Expected js_divergence to be a number after first batch");
+    }
+  }
+}
+
 rmSync(tempRoot, { recursive: true, force: true });
 console.log("Mock-run interrupt smoke test OK");

@@ -31,4 +31,11 @@ if (forcedCount === 0) {
   throw new Error("Expected forced assignments after hitting cluster limit");
 }
 
+const totals = clustering.getTotals();
+if (totals.forcedAssignments !== forcedCount) {
+  throw new Error(
+    `Forced assignment totals mismatch: expected ${forcedCount}, got ${totals.forcedAssignments}`
+  );
+}
+
 console.log("Clustering cluster-limit test OK");
