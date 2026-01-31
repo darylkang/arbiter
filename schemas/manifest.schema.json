@@ -22,10 +22,19 @@
     "run_id": { "type": "string", "minLength": 1 },
     "started_at": { "type": "string", "format": "date-time" },
     "completed_at": { "type": "string", "format": "date-time" },
+    "timestamps": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "started_at": { "type": "string", "format": "date-time" },
+        "completed_at": { "type": "string", "format": "date-time" }
+      }
+    },
     "stop_reason": {
       "type": "string",
       "enum": ["completed", "converged", "k_max_reached", "user_interrupt", "error"]
     },
+    "stopping_mode": { "type": "string" },
     "incomplete": { "type": "boolean" },
     "k_attempted": { "type": "integer", "minimum": 0 },
     "k_eligible": { "type": "integer", "minimum": 0 },
@@ -39,6 +48,39 @@
     "model_catalog_version": { "type": "string", "minLength": 1 },
     "model_catalog_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "prompt_manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "hash_algorithm": { "const": "sha256" }
+    "hash_algorithm": { "const": "sha256" },
+    "config_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "arbiter_version": { "type": "string", "minLength": 1 },
+        "git_sha": { "type": "string", "minLength": 7 },
+        "config_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "model_catalog_version": { "type": "string", "minLength": 1 },
+        "model_catalog_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "prompt_manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "hash_algorithm": { "const": "sha256" }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "record_count": { "type": "integer", "minimum": 0 },
+              "note": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
   }
 }

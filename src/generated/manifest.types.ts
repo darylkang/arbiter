@@ -6,7 +6,12 @@ export interface ArbiterRunManifest {
   run_id: string;
   started_at: string;
   completed_at?: string;
+  timestamps?: {
+    started_at?: string;
+    completed_at?: string;
+  };
   stop_reason: "completed" | "converged" | "k_max_reached" | "user_interrupt" | "error";
+  stopping_mode?: string;
   incomplete: boolean;
   k_attempted: number;
   k_eligible: number;
@@ -18,4 +23,21 @@ export interface ArbiterRunManifest {
   model_catalog_sha256?: string;
   prompt_manifest_sha256?: string;
   hash_algorithm?: "sha256";
+  config_sha256?: string;
+  provenance?: {
+    arbiter_version?: string;
+    git_sha?: string;
+    config_sha256?: string;
+    model_catalog_version?: string;
+    model_catalog_sha256?: string;
+    prompt_manifest_sha256?: string;
+    hash_algorithm?: "sha256";
+  };
+  artifacts?: {
+    entries?: {
+      path: string;
+      record_count?: number;
+      note?: string;
+    }[];
+  };
 }
