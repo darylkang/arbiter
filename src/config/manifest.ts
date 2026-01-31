@@ -68,7 +68,6 @@ export const buildResolveManifest = (inputs: ManifestInputs): ArbiterRunManifest
         { path: "trials.jsonl", record_count: 0 },
         { path: "parsed.jsonl", record_count: 0 },
         { path: "convergence_trace.jsonl", record_count: 0 },
-        { path: "embeddings.arrow", note: "placeholder" },
         { path: "embeddings.provenance.json" },
         { path: "aggregates.json" }
       ]
