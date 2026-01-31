@@ -33,21 +33,24 @@ Arbiter is a research-grade CLI for studying LLM behavior as a **distribution** 
 - **Prompt embedding**: `config.resolved.json` must include full prompt text used with IDs and sha256.
 
 ## Artifact set
-Always produced (per run directory under `runs/`):
+Run directory uses `runs/<run_id>/` with `run_id` format: `YYYYMMDDTHHMMSSZ_<random6>` (UTC).
+
+Always produced (per run directory under `runs/<run_id>/`):
 - `config.resolved.json`
 - `manifest.json`
-- `question.json`
 - `trials.jsonl`
 - `parsed.jsonl`
-- `embeddings.*` (reproducible format)
+- `embeddings.arrow` (primary finalized format)
 - `embeddings.provenance.json`
 - `convergence_trace.jsonl`
 - `aggregates.json`
-- `catalog_snapshot.json`
 
 Conditional (if online clustering enabled):
-- `clusters_online.state.json`
-- `clusters_online.assignments.jsonl`
+- `clusters/online.state.json`
+- `clusters/online.assignments.jsonl`
+
+Debug-only (optional):
+- `debug/embeddings.jsonl` (append-only, base64 float32le vectors)
 
 ## Schema versioning & type generation
 - Current schema version: `1.0.0` (v1 catalog).
