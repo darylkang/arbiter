@@ -1,72 +1,55 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://arbiter.dev/schemas/v1/cluster-state.schema.json",
-  "title": "Arbiter Online Clustering Records",
-  "oneOf": [
-    { "$ref": "#/$defs/state_snapshot" },
-    { "$ref": "#/$defs/assignment_record" }
-  ],
-  "$defs": {
-    "cluster": {
+  "title": "Arbiter Online Clustering State",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "algorithm", "params", "clusters", "totals"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "algorithm": { "const": "online_leader" },
+    "params": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["cluster_id", "size", "centroid"],
+      "required": ["tau", "centroid_update_rule", "ordering_rule", "cluster_limit"],
       "properties": {
-        "cluster_id": { "type": "string", "minLength": 1 },
-        "size": { "type": "integer", "minimum": 1 },
-        "centroid": {
-          "type": "array",
-          "items": { "type": "number" },
-          "minItems": 1
-        }
-      }
-    },
-    "state_snapshot": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "record_type",
-        "run_id",
-        "updated_at",
-        "algorithm",
-        "threshold_tau",
-        "centroid_update_rule",
-        "clusters"
-      ],
-      "properties": {
-        "record_type": { "const": "state_snapshot" },
-        "run_id": { "type": "string", "minLength": 1 },
-        "updated_at": { "type": "string", "format": "date-time" },
-        "algorithm": { "type": "string", "enum": ["leader"] },
-        "threshold_tau": { "type": "number", "minimum": 0, "maximum": 1 },
+        "tau": { "type": "number", "minimum": 0, "maximum": 1 },
         "centroid_update_rule": {
           "type": "string",
           "enum": ["fixed_leader", "incremental_mean"]
         },
-        "clusters": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/cluster" }
+        "ordering_rule": { "const": "trial_id_asc" },
+        "cluster_limit": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "clusters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cluster_id",
+          "exemplar_trial_id",
+          "member_count",
+          "discovered_at_batch"
+        ],
+        "properties": {
+          "cluster_id": { "type": "integer", "minimum": 0 },
+          "exemplar_trial_id": { "type": "integer", "minimum": 0 },
+          "member_count": { "type": "integer", "minimum": 1 },
+          "discovered_at_batch": { "type": "integer", "minimum": 0 },
+          "centroid_vector_b64": { "type": "string", "minLength": 1 }
         }
       }
     },
-    "assignment_record": {
+    "totals": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "record_type",
-        "trial_id",
-        "cluster_id",
-        "similarity",
-        "created_new_cluster"
-      ],
+      "required": ["total_assigned", "total_excluded", "forced_assignments"],
       "properties": {
-        "record_type": { "const": "assignment" },
-        "trial_id": { "type": "integer", "minimum": 0 },
-        "cluster_id": { "type": "string", "minLength": 1 },
-        "similarity": { "type": "number", "minimum": -1, "maximum": 1 },
-        "created_new_cluster": { "type": "boolean" },
-        "algorithm": { "type": "string", "enum": ["leader"] },
-        "threshold_tau": { "type": "number", "minimum": 0, "maximum": 1 }
+        "total_assigned": { "type": "integer", "minimum": 0 },
+        "total_excluded": { "type": "integer", "minimum": 0 },
+        "forced_assignments": { "type": "integer", "minimum": 0 }
       }
     }
   }

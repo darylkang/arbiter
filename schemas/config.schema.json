@@ -214,16 +214,23 @@
           "required": [
             "enabled",
             "algorithm",
-            "threshold_tau",
-            "centroid_update_rule"
+            "tau",
+            "centroid_update_rule",
+            "cluster_limit",
+            "stop_mode"
           ],
           "properties": {
             "enabled": { "type": "boolean" },
-            "algorithm": { "type": "string", "enum": ["leader"] },
-            "threshold_tau": { "type": "number", "minimum": 0, "maximum": 1 },
+            "algorithm": { "type": "string", "enum": ["online_leader"] },
+            "tau": { "type": "number", "minimum": 0, "maximum": 1 },
             "centroid_update_rule": {
               "type": "string",
               "enum": ["fixed_leader", "incremental_mean"]
+            },
+            "cluster_limit": { "type": "integer", "minimum": 1 },
+            "stop_mode": {
+              "type": "string",
+              "enum": ["disabled", "advisory", "enforced"]
             }
           }
         }

@@ -18,6 +18,20 @@
     "k_eligible": { "type": "integer", "minimum": 0 },
     "novelty_rate": { "type": "number", "minimum": 0, "maximum": 1 },
     "mean_max_sim_to_prior": { "type": "number", "minimum": 0, "maximum": 1 },
+    "cluster_count": { "type": "integer", "minimum": 0 },
+    "new_clusters_this_batch": { "type": "integer", "minimum": 0 },
+    "largest_cluster_share": { "type": "number", "minimum": 0, "maximum": 1 },
+    "cluster_distribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[0-9]+$": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "js_divergence": { "type": ["number", "null"], "minimum": 0 },
+    "entropy": { "type": "number", "minimum": 0 },
+    "effective_cluster_count": { "type": "number", "minimum": 0 },
+    "singleton_count": { "type": "integer", "minimum": 0 },
     "recorded_at": { "type": "string", "format": "date-time" },
     "stop": {
       "type": "object",
