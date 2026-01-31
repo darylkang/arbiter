@@ -9,14 +9,17 @@ export interface ArbiterConvergenceTraceRecord {
   cluster_count?: number;
   new_clusters_this_batch?: number;
   largest_cluster_share?: number;
-  cluster_distribution?: {
-    /**
-     * This interface was referenced by `undefined`'s JSON-Schema definition
-     * via the `patternProperty` "^[0-9]+$".
-     */
-    [k: string]: number;
-  };
+  /**
+   * Dense cumulative counts aligned to cluster_id; cluster_distribution[i] is count for cluster_id i.
+   */
+  cluster_distribution?: number[];
+  /**
+   * Jensen-Shannon divergence (log2) between current cumulative distribution and previous cumulative distribution; null when prior undefined.
+   */
   js_divergence?: number | null;
+  cluster_limit_hit?: boolean;
+  forced_assignments_this_batch?: number;
+  forced_assignments_cumulative?: number;
   entropy?: number;
   effective_cluster_count?: number;
   singleton_count?: number;
