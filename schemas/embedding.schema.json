@@ -1,67 +1,72 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://arbiter.dev/schemas/v1/embedding.schema.json",
-  "title": "Arbiter Embedding Record",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["trial_id", "embedding_status", "embedding_model"],
-  "properties": {
-    "trial_id": { "type": "integer", "minimum": 0 },
-    "embedding_status": {
-      "type": "string",
-      "enum": ["success", "failed", "skipped"]
-    },
-    "embedding_model": { "type": "string", "minLength": 1 },
-    "embedding": {
-      "type": "array",
-      "items": { "type": "number" },
-      "minItems": 1
-    },
-    "dimensions": { "type": "integer", "minimum": 1 },
-    "embed_text": { "type": "string" },
-    "skip_reason": {
-      "type": "string",
-      "enum": ["empty_embed_text", "other"]
-    },
-    "error": {
+  "title": "Arbiter Debug Embedding JSONL Record",
+  "oneOf": [
+    {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "trial_id",
+        "embedding_status",
+        "vector_b64",
+        "dtype",
+        "encoding",
+        "dimensions"
+      ],
       "properties": {
-        "message": { "type": "string" },
-        "code": { "type": "string" },
-        "retryable": { "type": "boolean" }
+        "trial_id": { "type": "integer", "minimum": 0 },
+        "embedding_status": { "const": "success" },
+        "vector_b64": { "type": "string", "minLength": 1 },
+        "dtype": { "const": "float32" },
+        "encoding": { "const": "float32le_base64" },
+        "dimensions": { "type": "integer", "minimum": 1 },
+        "embed_text_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
       }
     },
-    "truncation": {
+    {
       "type": "object",
       "additionalProperties": false,
-      "required": ["applied", "original_length", "final_length", "unit"],
+      "required": [
+        "trial_id",
+        "embedding_status",
+        "vector_b64",
+        "dtype",
+        "encoding",
+        "error"
+      ],
       "properties": {
-        "applied": { "type": "boolean" },
-        "original_length": { "type": "integer", "minimum": 0 },
-        "final_length": { "type": "integer", "minimum": 0 },
-        "unit": { "type": "string", "enum": ["chars", "tokens"] }
+        "trial_id": { "type": "integer", "minimum": 0 },
+        "embedding_status": { "const": "failed" },
+        "vector_b64": { "type": "null" },
+        "dtype": { "const": "float32" },
+        "encoding": { "const": "float32le_base64" },
+        "error": { "type": "string", "minLength": 1 },
+        "dimensions": { "type": "integer", "minimum": 1 },
+        "embed_text_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
       }
-    }
-  },
-  "allOf": [
-    {
-      "if": {
-        "properties": { "embedding_status": { "const": "success" } }
-      },
-      "then": { "required": ["embedding", "dimensions"] }
     },
     {
-      "if": {
-        "properties": { "embedding_status": { "const": "failed" } }
-      },
-      "then": { "required": ["error"] }
-    },
-    {
-      "if": {
-        "properties": { "embedding_status": { "const": "skipped" } }
-      },
-      "then": { "required": ["skip_reason"] }
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trial_id",
+        "embedding_status",
+        "vector_b64",
+        "dtype",
+        "encoding",
+        "skip_reason"
+      ],
+      "properties": {
+        "trial_id": { "type": "integer", "minimum": 0 },
+        "embedding_status": { "const": "skipped" },
+        "vector_b64": { "type": "null" },
+        "dtype": { "const": "float32" },
+        "encoding": { "const": "float32le_base64" },
+        "skip_reason": { "type": "string", "minLength": 1 },
+        "dimensions": { "type": "integer", "minimum": 1 },
+        "embed_text_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
     }
   ]
 }

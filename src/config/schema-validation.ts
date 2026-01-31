@@ -10,7 +10,8 @@ import type { ArbiterRunManifest } from "../generated/manifest.types.js";
 import type { ArbiterQuestion } from "../generated/question.types.js";
 import type { ArbiterTrialRecord } from "../generated/trial.types.js";
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
-import type { ArbiterEmbeddingRecord } from "../generated/embedding.types.js";
+import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.types.js";
+import type { ArbiterEmbeddingsProvenance } from "../generated/embeddings-provenance.types.js";
 import type { ArbiterConvergenceTraceRecord } from "../generated/convergence-trace.types.js";
 import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
@@ -50,9 +51,11 @@ export const validateTrial: ValidateFunction<ArbiterTrialRecord> = ajv.compile(
 );
 export const validateParsedOutput: ValidateFunction<ArbiterParsedOutputRecord> =
   ajv.compile(loadSchema("parsed-output.schema.json"));
-export const validateEmbedding: ValidateFunction<ArbiterEmbeddingRecord> = ajv.compile(
+export const validateEmbedding: ValidateFunction<ArbiterDebugEmbeddingJSONLRecord> = ajv.compile(
   loadSchema("embedding.schema.json")
 );
+export const validateEmbeddingsProvenance: ValidateFunction<ArbiterEmbeddingsProvenance> =
+  ajv.compile(loadSchema("embeddings-provenance.schema.json"));
 export const validateConvergenceTrace: ValidateFunction<ArbiterConvergenceTraceRecord> =
   ajv.compile(loadSchema("convergence-trace.schema.json"));
 export const validateAggregates: ValidateFunction<ArbiterAggregates> = ajv.compile(
