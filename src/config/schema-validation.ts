@@ -18,6 +18,8 @@ import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
 import type { ArbiterPromptManifest } from "../generated/prompt-manifest.types.js";
 import type { ArbiterOnlineClusteringState } from "../generated/cluster-state.types.js";
 import type { ArbiterOnlineClusterAssignmentRecord } from "../generated/cluster-assignment.types.js";
+import type { ArbiterProtocolSpec } from "../generated/protocol.types.js";
+import type { ArbiterDebateDecisionContract } from "../generated/debate-decision-contract.types.js";
 
 const schemaDir = join(dirname(fileURLToPath(import.meta.url)), "../../schemas");
 
@@ -74,6 +76,11 @@ export const validateClusterState: ValidateFunction<ArbiterOnlineClusteringState
 );
 export const validateClusterAssignment: ValidateFunction<ArbiterOnlineClusterAssignmentRecord> =
   ajv.compile(loadSchema("cluster-assignment.schema.json"));
+export const validateProtocolSpec: ValidateFunction<ArbiterProtocolSpec> = ajv.compile(
+  loadSchema("protocol.schema.json")
+);
+export const validateDebateDecisionContract: ValidateFunction<ArbiterDebateDecisionContract> =
+  ajv.compile(loadSchema("debate-decision-contract.schema.json"));
 
 export const formatAjvErrors = (
   schemaName: string,

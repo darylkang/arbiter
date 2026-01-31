@@ -5,11 +5,13 @@ import {
   formatAjvErrors,
   validateCatalog,
   validateConfig,
+  validateProtocolSpec,
   validatePromptManifest
 } from "./schema-validation.js";
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
 import type { ArbiterPromptManifest } from "../generated/prompt-manifest.types.js";
+import type { ArbiterProtocolSpec } from "../generated/protocol.types.js";
 import { sha256Hex } from "../utils/hash.js";
 
 export interface ResolveConfigOptions {
@@ -80,6 +82,12 @@ const asNonEmptyArray = <T>(items: T[], label: string): [T, ...T[]] => {
   return items as [T, ...T[]];
 };
 
+const DEFAULT_PROTOCOL_TIMEOUTS = {
+  per_call_timeout_ms: 90_000,
+  per_call_max_retries: 2,
+  total_trial_timeout_ms: 300_000
+};
+
 export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfigResult => {
   const rootDir = options.rootDir ?? process.cwd();
   const configPath = resolve(rootDir, options.configPath ?? "arbiter.config.json");
@@ -90,7 +98,24 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
   );
 
   const config = readJsonFile<ArbiterResolvedConfig>(configPath);
-  assertValid("config", validateConfig(config), validateConfig.errors);
+  if (!config.protocol) {
+    throw new Error("Protocol configuration is required.");
+  }
+  if (!config.protocol.timeouts) {
+    config.protocol.timeouts = { ...DEFAULT_PROTOCOL_TIMEOUTS };
+  } else {
+    config.protocol.timeouts = {
+      per_call_timeout_ms:
+        config.protocol.timeouts.per_call_timeout_ms ??
+        DEFAULT_PROTOCOL_TIMEOUTS.per_call_timeout_ms,
+      per_call_max_retries:
+        config.protocol.timeouts.per_call_max_retries ??
+        DEFAULT_PROTOCOL_TIMEOUTS.per_call_max_retries,
+      total_trial_timeout_ms:
+        config.protocol.timeouts.total_trial_timeout_ms ??
+        DEFAULT_PROTOCOL_TIMEOUTS.total_trial_timeout_ms
+    };
+  }
 
   const catalog = readJsonFile<ArbiterModelCatalog>(catalogPath);
   assertValid("catalog", validateCatalog(catalog), validateCatalog.errors);
@@ -106,6 +131,20 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
 
   if (resolvedConfig.execution.retry_policy.backoff_ms === undefined) {
     resolvedConfig.execution.retry_policy.backoff_ms = 0;
+  }
+
+  if (resolvedConfig.protocol.timeouts) {
+    resolvedConfig.protocol.timeouts = {
+      per_call_timeout_ms:
+        resolvedConfig.protocol.timeouts.per_call_timeout_ms ??
+        DEFAULT_PROTOCOL_TIMEOUTS.per_call_timeout_ms,
+      per_call_max_retries:
+        resolvedConfig.protocol.timeouts.per_call_max_retries ??
+        DEFAULT_PROTOCOL_TIMEOUTS.per_call_max_retries,
+      total_trial_timeout_ms:
+        resolvedConfig.protocol.timeouts.total_trial_timeout_ms ??
+        DEFAULT_PROTOCOL_TIMEOUTS.total_trial_timeout_ms
+    };
   }
 
   const resolvedPersonas = resolvedConfig.sampling.personas.map((persona) => {
@@ -157,6 +196,49 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
         text: resolved.text
       };
     });
+  }
+
+  if (resolvedConfig.protocol.type === "debate_v1") {
+    const protocolPath = resolve(rootDir, "prompts/protocols/debate_v1/protocol.json");
+    const protocolSpec = readJsonFile<ArbiterProtocolSpec>(protocolPath);
+    assertValid("protocol spec", validateProtocolSpec(protocolSpec), validateProtocolSpec.errors);
+
+    const proposerPrompt = resolvePromptEntry(
+      promptMap,
+      protocolSpec.prompts.proposer_system,
+      "participant_protocol_template",
+      rootDir
+    );
+    const criticPrompt = resolvePromptEntry(
+      promptMap,
+      protocolSpec.prompts.critic_system,
+      "participant_protocol_template",
+      rootDir
+    );
+    const proposerFinalPrompt = resolvePromptEntry(
+      promptMap,
+      protocolSpec.prompts.proposer_final_system,
+      "participant_protocol_template",
+      rootDir
+    );
+
+    resolvedConfig.protocol.prompts = {
+      proposer_system: {
+        id: protocolSpec.prompts.proposer_system,
+        sha256: proposerPrompt.sha256,
+        text: proposerPrompt.text
+      },
+      critic_system: {
+        id: protocolSpec.prompts.critic_system,
+        sha256: criticPrompt.sha256,
+        text: criticPrompt.text
+      },
+      proposer_final_system: {
+        id: protocolSpec.prompts.proposer_final_system,
+        sha256: proposerFinalPrompt.sha256,
+        text: proposerFinalPrompt.text
+      }
+    };
   }
 
   const knownModels = new Set(catalog.models.map((model) => model.slug));
