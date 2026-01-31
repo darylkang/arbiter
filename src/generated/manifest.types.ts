@@ -24,10 +24,13 @@ export interface ArbiterRunManifest {
   prompt_manifest_sha256?: string;
   hash_algorithm?: "sha256";
   config_sha256?: string;
+  plan_sha256?: string;
+  k_planned?: number;
   provenance?: {
     arbiter_version?: string;
     git_sha?: string;
     config_sha256?: string;
+    plan_sha256?: string;
     model_catalog_version?: string;
     model_catalog_sha256?: string;
     prompt_manifest_sha256?: string;

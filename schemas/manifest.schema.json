@@ -50,6 +50,8 @@
     "prompt_manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "hash_algorithm": { "const": "sha256" },
     "config_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "plan_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "k_planned": { "type": "integer", "minimum": 0 },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
@@ -57,6 +59,7 @@
         "arbiter_version": { "type": "string", "minLength": 1 },
         "git_sha": { "type": "string", "minLength": 7 },
         "config_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "plan_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "model_catalog_version": { "type": "string", "minLength": 1 },
         "model_catalog_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "prompt_manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
