@@ -22,13 +22,19 @@
     "new_clusters_this_batch": { "type": "integer", "minimum": 0 },
     "largest_cluster_share": { "type": "number", "minimum": 0, "maximum": 1 },
     "cluster_distribution": {
-      "type": "object",
-      "additionalProperties": false,
-      "patternProperties": {
-        "^[0-9]+$": { "type": "integer", "minimum": 0 }
-      }
+      "type": "array",
+      "description": "Dense cumulative counts aligned to cluster_id; cluster_distribution[i] is count for cluster_id i.",
+      "items": { "type": "integer", "minimum": 0 }
     },
-    "js_divergence": { "type": ["number", "null"], "minimum": 0 },
+    "js_divergence": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Jensen-Shannon divergence (log2) between current cumulative distribution and previous cumulative distribution; null when prior undefined."
+    },
+    "cluster_limit_hit": { "type": "boolean" },
+    "forced_assignments_this_batch": { "type": "integer", "minimum": 0 },
+    "forced_assignments_cumulative": { "type": "integer", "minimum": 0 },
     "entropy": { "type": "number", "minimum": 0 },
     "effective_cluster_count": { "type": "number", "minimum": 0 },
     "singleton_count": { "type": "integer", "minimum": 0 },
