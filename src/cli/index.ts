@@ -1,12 +1,19 @@
+import { mkdirSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { resolveConfig } from "../config/resolve-config.js";
 import { buildResolveManifest } from "../config/manifest.js";
 import { generateRunId } from "../artifacts/run-id.js";
 import { createRunDir } from "../artifacts/run-dir.js";
 import { writeResolveArtifacts } from "../artifacts/resolve-artifacts.js";
+import { EventBus } from "../events/event-bus.js";
+import { ArtifactWriter } from "../artifacts/artifact-writer.js";
+import { runMock } from "../engine/mock-runner.js";
 
 const printUsage = (): void => {
   console.log("Usage:");
   console.log("  arbiter resolve --config <path> [--out <runs_dir>] [--debug]");
+  console.log("  arbiter mock-run --config <path> [--out <runs_dir>] [--debug]");
 };
 
 const getArgValue = (args: string[], flag: string): string | undefined => {
@@ -58,7 +65,59 @@ const runResolve = (args: string[]): void => {
   console.log(`Output directory: ${runDir}`);
 };
 
-const main = (): void => {
+const runMockCommand = async (args: string[]): Promise<void> => {
+  const configPath = getArgValue(args, "--config") ?? "arbiter.config.json";
+  const runsDir = getArgValue(args, "--out") ?? "runs";
+  const debug = hasFlag(args, "--debug");
+
+  const result = resolveConfig({ configPath });
+  const runId = generateRunId();
+  const { runDir } = createRunDir({ outRoot: runsDir, runId, debug });
+
+  result.resolvedConfig.run.run_id = runId;
+
+  const debugDir = resolve(runDir, "debug");
+  mkdirSync(debugDir, { recursive: true });
+  const embeddingsJsonlPath = resolve(debugDir, "embeddings.jsonl");
+
+  const bus = new EventBus();
+  const writer = new ArtifactWriter({
+    runDir,
+    runId,
+    resolvedConfig: result.resolvedConfig,
+    debugEnabled: debug,
+    embeddingsJsonlPath,
+    catalogVersion: result.catalog.catalog_version,
+    catalogSha256: result.catalogSha256,
+    promptManifestSha256: result.promptManifestSha256
+  });
+  writer.attach(bus);
+
+  const mockResult = await runMock({
+    bus,
+    runDir,
+    resolvedConfig: result.resolvedConfig,
+    embeddingsJsonlPath,
+    debugEnabled: debug,
+    beforeFinalize: async () => writer.close()
+  });
+
+  await writer.close();
+  writer.detach();
+
+  if (result.warnings.length > 0) {
+    console.warn("Warnings:");
+    result.warnings.forEach((warning) => console.warn(`- ${warning}`));
+  }
+
+  console.log(`Run ID: ${mockResult.runId}`);
+  console.log(`Output directory: ${mockResult.runDir}`);
+  console.log(`Trials attempted: ${mockResult.kAttempted}`);
+  console.log(`Trials eligible: ${mockResult.kEligible}`);
+  console.log(`Embeddings status: ${mockResult.embeddingsProvenance.status}`);
+};
+
+const main = async (): Promise<void> => {
   const args = process.argv.slice(2);
   if (args.length === 0) {
     printUsage();
@@ -66,13 +125,15 @@ const main = (): void => {
   }
 
   const command = args[0];
-  if (command !== "resolve") {
-    printUsage();
-    process.exit(1);
-  }
-
   try {
-    runResolve(args.slice(1));
+    if (command === "resolve") {
+      runResolve(args.slice(1));
+    } else if (command === "mock-run") {
+      await runMockCommand(args.slice(1));
+    } else {
+      printUsage();
+      process.exit(1);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(message);
@@ -80,4 +141,4 @@ const main = (): void => {
   }
 };
 
-main();
+void main();
