@@ -13,7 +13,7 @@ import type {
 } from "../events/types.js";
 import { updateNoveltyMetrics, type BatchEmbedding, type PriorEmbedding } from "../engine/monitoring.js";
 import { OnlineLeaderClustering } from "./online-leader.js";
-import { decodeFloat32Base64 } from "./vector-codec.js";
+import { decodeFloat32Base64 } from "../utils/float32-base64.js";
 
 type ClusterMetrics = {
   cluster_count: number;

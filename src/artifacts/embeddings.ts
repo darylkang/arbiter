@@ -7,6 +7,7 @@ import { FixedSizeList, Field, Float32, Int32, Table, tableToIPC, vectorFromArra
 
 import type { EmbeddingsProvenance } from "./embeddings-provenance.js";
 import { writeJsonAtomic } from "./io.js";
+import { decodeFloat32Base64 } from "../utils/float32-base64.js";
 
 export type EmbeddingJsonlRecord = {
   trial_id: number;
@@ -30,18 +31,6 @@ export interface FinalizeEmbeddingsResult {
   arrowPath?: string;
   provenance: EmbeddingsProvenance;
 }
-
-const decodeFloat32 = (base64: string): Float32Array => {
-  const buffer = Buffer.from(base64, "base64");
-  if (buffer.byteLength % 4 !== 0) {
-    throw new Error("Embedding byte length is not divisible by 4");
-  }
-  return new Float32Array(
-    buffer.buffer,
-    buffer.byteOffset,
-    buffer.byteLength / 4
-  );
-};
 
 export const finalizeEmbeddingsToArrow = async (
   options: FinalizeEmbeddingsOptions
@@ -75,7 +64,7 @@ export const finalizeEmbeddingsToArrow = async (
         if (!record.vector_b64) {
           throw new Error(`Missing vector for trial ${record.trial_id}`);
         }
-        const decoded = decodeFloat32(record.vector_b64);
+        const decoded = decodeFloat32Base64(record.vector_b64);
         if (decoded.length !== options.dimensions) {
           throw new Error(
             `Vector length mismatch for trial ${record.trial_id}: expected ${options.dimensions}, got ${decoded.length}`
@@ -86,7 +75,7 @@ export const finalizeEmbeddingsToArrow = async (
             `Declared dimensions mismatch for trial ${record.trial_id}: expected ${options.dimensions}, got ${record.dimensions}`
           );
         }
-        successes.push({ trial_id: record.trial_id, vector: Array.from(decoded) });
+        successes.push({ trial_id: record.trial_id, vector: decoded });
         successCount += 1;
       } else if (record.embedding_status === "failed") {
         failedCount += 1;

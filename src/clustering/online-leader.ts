@@ -1,4 +1,4 @@
-import { encodeFloat32Base64 } from "./vector-codec.js";
+import { encodeFloat32Base64 } from "../utils/float32-base64.js";
 
 export type CentroidUpdateRule = "fixed_leader" | "incremental_mean";
 

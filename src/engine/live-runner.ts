@@ -10,6 +10,7 @@ import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import { finalizeEmbeddingsToArrow } from "../artifacts/embeddings.js";
 import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js";
 import { sha256Hex } from "../utils/hash.js";
+import { encodeFloat32Base64 } from "../utils/float32-base64.js";
 import type { OpenRouterMessage } from "../openrouter/client.js";
 import { chatCompletion, embedText, OpenRouterError } from "../openrouter/client.js";
 import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
@@ -35,12 +36,6 @@ export interface LiveRunResult {
   embeddingsProvenance: EmbeddingsProvenance;
   embeddingsArrowPath?: string;
 }
-
-const encodeFloat32Base64 = (values: number[]): string => {
-  const array = new Float32Array(values);
-  const buffer = Buffer.from(array.buffer, array.byteOffset, array.byteLength);
-  return buffer.toString("base64");
-};
 
 const buildMessages = (
   config: ArbiterResolvedConfig,
