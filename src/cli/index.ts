@@ -10,6 +10,7 @@ import { createRunDir } from "../artifacts/run-dir.js";
 import { writeResolveArtifacts } from "../artifacts/resolve-artifacts.js";
 import { EventBus } from "../events/event-bus.js";
 import { ArtifactWriter } from "../artifacts/artifact-writer.js";
+import { ClusteringMonitor } from "../clustering/monitor.js";
 import { runMock } from "../engine/mock-runner.js";
 import { runLive } from "../engine/live-runner.js";
 import { validateConfig } from "../config/schema-validation.js";
@@ -108,6 +109,24 @@ const runMockCommand = async (args: string[]): Promise<void> => {
     promptManifestSha256: result.promptManifestSha256
   });
   writer.attach(bus);
+  const monitor = new ClusteringMonitor(result.resolvedConfig, bus);
+  monitor.attach();
+
+  let shutdownRequested = false;
+  const shutdownController = new AbortController();
+  const shutdownTimeoutMs = 30_000;
+
+  const requestShutdown = (signalName: string): void => {
+    if (shutdownRequested) {
+      return;
+    }
+    shutdownRequested = true;
+    console.warn(`${signalName} received: stopping new trials, waiting for in-flight to finish...`);
+    setTimeout(() => shutdownController.abort(), shutdownTimeoutMs);
+  };
+
+  process.once("SIGINT", () => requestShutdown("SIGINT"));
+  process.once("SIGTERM", () => requestShutdown("SIGTERM"));
 
   let mockResult;
   try {
@@ -117,11 +136,16 @@ const runMockCommand = async (args: string[]): Promise<void> => {
       resolvedConfig: result.resolvedConfig,
       embeddingsJsonlPath,
       debugEnabled: debug,
-      beforeFinalize: async () => writer.close()
+      beforeFinalize: async () => writer.close(),
+      shutdown: {
+        signal: shutdownController.signal,
+        isRequested: () => shutdownRequested
+      }
     });
   } finally {
     await writer.close();
     writer.detach();
+    monitor.detach();
   }
 
   if (result.warnings.length > 0) {
@@ -182,6 +206,8 @@ const runLiveCommand = async (args: string[]): Promise<void> => {
     promptManifestSha256: result.promptManifestSha256
   });
   writer.attach(bus);
+  const monitor = new ClusteringMonitor(result.resolvedConfig, bus);
+  monitor.attach();
 
   let shutdownRequested = false;
   const shutdownController = new AbortController();
@@ -216,6 +242,7 @@ const runLiveCommand = async (args: string[]): Promise<void> => {
   } finally {
     await writer.close();
     writer.detach();
+    monitor.detach();
   }
 
   if (result.warnings.length > 0) {

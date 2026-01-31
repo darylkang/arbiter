@@ -6,7 +6,6 @@ import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterTrialRecord } from "../generated/trial.types.js";
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
 import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.types.js";
-import type { ArbiterConvergenceTraceRecord } from "../generated/convergence-trace.types.js";
 import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import { finalizeEmbeddingsToArrow } from "../artifacts/embeddings.js";
 import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js";
@@ -14,7 +13,6 @@ import { sha256Hex } from "../utils/hash.js";
 import type { OpenRouterMessage } from "../openrouter/client.js";
 import { chatCompletion, embedText, OpenRouterError } from "../openrouter/client.js";
 import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
-import { updateNoveltyMetrics, type BatchEmbedding, type PriorEmbedding } from "./monitoring.js";
 
 export interface LiveRunOptions {
   bus: EventBus;
@@ -179,15 +177,12 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
 
   const kMax = plan.length;
   const batchSize = resolvedConfig.execution.batch_size;
-  const stopMode = resolvedConfig.execution.stop_mode;
   const workerCount = Math.max(1, resolvedConfig.execution.workers);
-  const noveltyThreshold = resolvedConfig.measurement.novelty_threshold;
   let attempted = 0;
   let eligible = 0;
   let embeddingDimensions: number | null = null;
   let stopReason: "k_max_reached" | "user_interrupt" | "error" = "k_max_reached";
   let incomplete = false;
-  const priorEmbeddings: PriorEmbedding[] = [];
 
   const shouldStop = (): boolean => options.shutdown?.isRequested() ?? false;
   const abortSignal = options.shutdown?.signal;
@@ -446,37 +441,10 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
 
       attempted += results.length;
 
-      const batchEmbeddings: BatchEmbedding[] = [];
-      for (const result of results) {
-        if (result.embedding.status === "success") {
-          batchEmbeddings.push({ trial_id: result.trial_id, vector: result.embedding.vector });
-        }
-      }
-
-      batchEmbeddings.sort((a, b) => a.trial_id - b.trial_id);
-      eligible += batchEmbeddings.length;
-
-      const { noveltyRate, meanMaxSimToPrior } = updateNoveltyMetrics(
-        priorEmbeddings,
-        batchEmbeddings,
-        noveltyThreshold
-      );
-
-      const convergenceRecord: ArbiterConvergenceTraceRecord = {
-        batch_number: batchNumber,
-        k_attempted: attempted,
-        k_eligible: eligible,
-        novelty_rate: noveltyRate,
-        mean_max_sim_to_prior: meanMaxSimToPrior,
-        recorded_at: new Date().toISOString(),
-        stop: {
-          mode: stopMode,
-          would_stop: false,
-          should_stop: false
-        }
-      };
-
-      bus.emit({ type: "convergence.record", payload: { convergence_record: convergenceRecord } });
+      const batchEligible = results.filter(
+        (result) => result.embedding.status === "success"
+      ).length;
+      eligible += batchEligible;
 
       if (shouldStop()) {
         stopReason = "user_interrupt";

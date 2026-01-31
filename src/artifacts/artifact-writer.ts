@@ -1,9 +1,11 @@
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { EventBus } from "../events/event-bus.js";
 import type {
   AggregatesComputedPayload,
+  ClusterAssignedPayload,
+  ClusterStatePayload,
   ConvergenceRecordPayload,
   EmbeddingRecordedPayload,
   EmbeddingsFinalizedPayload,
@@ -20,6 +22,8 @@ import {
   validateConvergenceTrace,
   validateEmbedding,
   validateEmbeddingsProvenance,
+  validateClusterAssignment,
+  validateClusterState,
   validateManifest,
   validateParsedOutput,
   validateTrial
@@ -52,6 +56,7 @@ type ArtifactCounts = {
   embeddingSuccess: number;
   embeddingFailed: number;
   embeddingSkipped: number;
+  clusterAssignments: number;
 };
 
 const readPackageVersion = (packageJsonPath: string): string => {
@@ -79,12 +84,14 @@ export class ArtifactWriter {
   private readonly promptManifestSha256: string;
   private readonly packageJsonPath: string;
   private readonly validateArtifacts: boolean;
+  private readonly clusteringEnabled: boolean;
   private manifest: ArbiterRunManifest | null = null;
   private embeddingsProvenance: EmbeddingsProvenance | null = null;
   private readonly trialsWriter: JsonlWriter;
   private readonly parsedWriter: JsonlWriter;
   private readonly convergenceWriter: JsonlWriter;
   private readonly embeddingsWriter?: JsonlWriter;
+  private readonly clusterAssignmentsWriter?: JsonlWriter;
   private readonly counts: ArtifactCounts = {
     trials: 0,
     parsed: 0,
@@ -92,7 +99,8 @@ export class ArtifactWriter {
     embeddings: 0,
     embeddingSuccess: 0,
     embeddingFailed: 0,
-    embeddingSkipped: 0
+    embeddingSkipped: 0,
+    clusterAssignments: 0
   };
   private readonly unsubs: Array<() => void> = [];
   private closed = false;
@@ -107,12 +115,22 @@ export class ArtifactWriter {
     this.promptManifestSha256 = options.promptManifestSha256;
     this.packageJsonPath = resolve(options.packageJsonPath ?? "package.json");
     this.validateArtifacts = options.validateArtifacts ?? true;
+    this.clusteringEnabled =
+      this.resolvedConfig.measurement.clustering.enabled &&
+      this.resolvedConfig.measurement.clustering.stop_mode !== "disabled";
 
     this.trialsWriter = createJsonlWriter(resolve(this.runDir, "trials.jsonl"));
     this.parsedWriter = createJsonlWriter(resolve(this.runDir, "parsed.jsonl"));
     this.convergenceWriter = createJsonlWriter(resolve(this.runDir, "convergence_trace.jsonl"));
     if (options.embeddingsJsonlPath) {
       this.embeddingsWriter = createJsonlWriter(options.embeddingsJsonlPath);
+    }
+    if (this.clusteringEnabled) {
+      const clustersDir = resolve(this.runDir, "clusters");
+      mkdirSync(clustersDir, { recursive: true });
+      this.clusterAssignmentsWriter = createJsonlWriter(
+        resolve(clustersDir, "online.assignments.jsonl")
+      );
     }
   }
 
@@ -123,6 +141,8 @@ export class ArtifactWriter {
       bus.subscribe("parsed.output", (payload) => this.onParsedOutput(payload)),
       bus.subscribe("embedding.recorded", (payload) => this.onEmbeddingRecorded(payload)),
       bus.subscribe("convergence.record", (payload) => this.onConvergenceRecord(payload)),
+      bus.subscribe("cluster.assigned", (payload) => this.onClusterAssigned(payload)),
+      bus.subscribe("clusters.state", (payload) => this.onClusterState(payload)),
       bus.subscribe("aggregates.computed", (payload) => this.onAggregatesComputed(payload)),
       bus.subscribe("embeddings.finalized", (payload) => this.onEmbeddingsFinalized(payload)),
       bus.subscribe("manifest.updated", (payload) => this.onManifestUpdated(payload)),
@@ -140,10 +160,14 @@ export class ArtifactWriter {
       return;
     }
     this.closed = true;
-    const closers = [this.trialsWriter, this.parsedWriter, this.convergenceWriter]
-      .map((writer) => writer.close());
+    const closers = [this.trialsWriter, this.parsedWriter, this.convergenceWriter].map(
+      (writer) => writer.close()
+    );
     if (this.embeddingsWriter) {
       closers.push(this.embeddingsWriter.close());
+    }
+    if (this.clusterAssignmentsWriter) {
+      closers.push(this.clusterAssignmentsWriter.close());
     }
     await Promise.all(closers);
   }
@@ -199,6 +223,31 @@ export class ArtifactWriter {
     }
     this.convergenceWriter.append(payload.convergence_record);
     this.counts.convergence += 1;
+  }
+
+  private onClusterAssigned(payload: ClusterAssignedPayload): void {
+    if (!this.clusterAssignmentsWriter) {
+      throw new Error("Cluster assignments writer is not configured");
+    }
+    if (this.validateArtifacts) {
+      assertValid(
+        "cluster assignment",
+        validateClusterAssignment(payload.assignment),
+        validateClusterAssignment.errors
+      );
+    }
+    this.clusterAssignmentsWriter.append(payload.assignment);
+    this.counts.clusterAssignments += 1;
+  }
+
+  private onClusterState(payload: ClusterStatePayload): void {
+    if (!this.clusteringEnabled) {
+      return;
+    }
+    if (this.validateArtifacts) {
+      assertValid("cluster state", validateClusterState(payload.state), validateClusterState.errors);
+    }
+    writeJsonAtomic(resolve(this.runDir, "clusters/online.state.json"), payload.state);
   }
 
   private onAggregatesComputed(payload: AggregatesComputedPayload): void {
@@ -332,6 +381,14 @@ export class ArtifactWriter {
         path: "debug/embeddings.jsonl",
         record_count: this.counts.embeddings
       });
+    }
+
+    if (this.clusteringEnabled) {
+      entries.push({
+        path: "clusters/online.assignments.jsonl",
+        record_count: this.counts.clusterAssignments
+      });
+      entries.push({ path: "clusters/online.state.json" });
     }
 
     return entries;

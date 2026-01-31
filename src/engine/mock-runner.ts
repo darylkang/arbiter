@@ -6,14 +6,12 @@ import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterTrialRecord } from "../generated/trial.types.js";
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
 import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.types.js";
-import type { ArbiterConvergenceTraceRecord } from "../generated/convergence-trace.types.js";
 import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import { finalizeEmbeddingsToArrow } from "../artifacts/embeddings.js";
 import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js";
 import { sha256Hex } from "../utils/hash.js";
 import { createRngForTrial } from "../utils/seeded-rng.js";
 import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
-import { updateNoveltyMetrics, type PriorEmbedding, type BatchEmbedding } from "./monitoring.js";
 
 export interface MockRunOptions {
   bus: EventBus;
@@ -23,6 +21,10 @@ export interface MockRunOptions {
   debugEnabled: boolean;
   embeddingDimensions?: number;
   beforeFinalize?: () => Promise<void>;
+  shutdown?: {
+    signal: AbortSignal;
+    isRequested: () => boolean;
+  };
 }
 
 export interface MockRunResult {
@@ -59,6 +61,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
   const runId = resolvedConfig.run.run_id;
   const startedAt = new Date().toISOString();
   const embeddingDimensions = options.embeddingDimensions ?? 4;
+  const delayMs = Number(process.env.ARBITER_MOCK_DELAY_MS ?? 0);
 
   const { plan, planSha256 } = generateTrialPlan(resolvedConfig);
   bus.emit({
@@ -75,12 +78,13 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
 
   const kMax = plan.length;
   const batchSize = resolvedConfig.execution.batch_size;
-  const stopMode = resolvedConfig.execution.stop_mode;
   const workerCount = Math.max(1, resolvedConfig.execution.workers);
-  const noveltyThreshold = resolvedConfig.measurement.novelty_threshold;
   let attempted = 0;
   let eligible = 0;
-  const priorEmbeddings: PriorEmbedding[] = [];
+  let stopReason: "k_max_reached" | "user_interrupt" = "k_max_reached";
+  let incomplete = false;
+
+  const shouldStop = (): boolean => options.shutdown?.isRequested() ?? false;
 
   type TrialResult = {
     trial_id: number;
@@ -88,6 +92,9 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
   };
 
   const executeTrial = async (entry: TrialPlanEntry): Promise<TrialResult> => {
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
     const embedRng = createRngForTrial(resolvedConfig.run.seed, "embedding", entry.trial_id);
 
     bus.emit({
@@ -147,7 +154,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
 
     return new Promise((resolve, reject) => {
       const launch = (): void => {
-        while (inFlight < workerCount && index < entries.length) {
+        while (inFlight < workerCount && index < entries.length && !shouldStop()) {
           const entry = entries[index];
           index += 1;
           inFlight += 1;
@@ -162,7 +169,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
             });
         }
 
-        if (index >= entries.length && inFlight === 0) {
+        if ((index >= entries.length || shouldStop()) && inFlight === 0) {
           resolve(results);
         }
       };
@@ -173,6 +180,12 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
 
   try {
     for (let batchStart = 0; batchStart < kMax; batchStart += batchSize) {
+      if (shouldStop()) {
+        stopReason = "user_interrupt";
+        incomplete = true;
+        break;
+      }
+
       const batchNumber = Math.floor(batchStart / batchSize);
       const batchEntries = plan.slice(batchStart, batchStart + batchSize);
       const batchIds = batchEntries.map((entry) => entry.trial_id);
@@ -198,31 +211,11 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       attempted += results.length;
       eligible += results.length;
 
-      const batchEmbeddings: BatchEmbedding[] = results
-        .map((result) => ({ trial_id: result.trial_id, vector: result.vector }))
-        .sort((a, b) => a.trial_id - b.trial_id);
-
-      const { noveltyRate, meanMaxSimToPrior } = updateNoveltyMetrics(
-        priorEmbeddings,
-        batchEmbeddings,
-        noveltyThreshold
-      );
-
-      const convergenceRecord: ArbiterConvergenceTraceRecord = {
-        batch_number: batchNumber,
-        k_attempted: attempted,
-        k_eligible: eligible,
-        novelty_rate: noveltyRate,
-        mean_max_sim_to_prior: meanMaxSimToPrior,
-        recorded_at: new Date().toISOString(),
-        stop: {
-          mode: stopMode,
-          would_stop: false,
-          should_stop: false
-        }
-      };
-
-      bus.emit({ type: "convergence.record", payload: { convergence_record: convergenceRecord } });
+      if (shouldStop()) {
+        stopReason = "user_interrupt";
+        incomplete = true;
+        break;
+      }
     }
 
     if (options.beforeFinalize) {
@@ -266,8 +259,8 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       payload: {
         run_id: runId,
         completed_at: completedAt,
-        stop_reason: "k_max_reached",
-        incomplete: false
+        stop_reason: stopReason,
+        incomplete
       }
     });
 

@@ -5,6 +5,8 @@ import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types
 import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.types.js";
 import type { ArbiterConvergenceTraceRecord } from "../generated/convergence-trace.types.js";
 import type { ArbiterAggregates } from "../generated/aggregates.types.js";
+import type { ArbiterOnlineClusterAssignmentRecord } from "../generated/cluster-assignment.types.js";
+import type { ArbiterOnlineClusteringState } from "../generated/cluster-state.types.js";
 import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js";
 
 export type RunStartedPayload = {
@@ -61,6 +63,14 @@ export type EmbeddingsFinalizedPayload = {
   provenance: EmbeddingsProvenance;
 };
 
+export type ClusterAssignedPayload = {
+  assignment: ArbiterOnlineClusterAssignmentRecord;
+};
+
+export type ClusterStatePayload = {
+  state: ArbiterOnlineClusteringState;
+};
+
 export type ConvergenceRecordPayload = {
   convergence_record: ArbiterConvergenceTraceRecord;
 };
@@ -84,6 +94,8 @@ export type Event =
   | { type: "parsed.output"; payload: ParsedOutputProducedPayload }
   | { type: "embedding.recorded"; payload: EmbeddingRecordedPayload }
   | { type: "embeddings.finalized"; payload: EmbeddingsFinalizedPayload }
+  | { type: "cluster.assigned"; payload: ClusterAssignedPayload }
+  | { type: "clusters.state"; payload: ClusterStatePayload }
   | { type: "convergence.record"; payload: ConvergenceRecordPayload }
   | { type: "aggregates.computed"; payload: AggregatesComputedPayload }
   | { type: "manifest.updated"; payload: ManifestUpdatedPayload };

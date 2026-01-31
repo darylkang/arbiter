@@ -16,6 +16,8 @@ import type { ArbiterConvergenceTraceRecord } from "../generated/convergence-tra
 import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
 import type { ArbiterPromptManifest } from "../generated/prompt-manifest.types.js";
+import type { ArbiterOnlineClusteringState } from "../generated/cluster-state.types.js";
+import type { ArbiterOnlineClusterAssignmentRecord } from "../generated/cluster-assignment.types.js";
 
 const schemaDir = join(dirname(fileURLToPath(import.meta.url)), "../../schemas");
 
@@ -67,6 +69,11 @@ export const validateCatalog: ValidateFunction<ArbiterModelCatalog> = ajv.compil
 export const validatePromptManifest: ValidateFunction<ArbiterPromptManifest> = ajv.compile(
   loadSchema("prompt-manifest.schema.json")
 );
+export const validateClusterState: ValidateFunction<ArbiterOnlineClusteringState> = ajv.compile(
+  loadSchema("cluster-state.schema.json")
+);
+export const validateClusterAssignment: ValidateFunction<ArbiterOnlineClusterAssignmentRecord> =
+  ajv.compile(loadSchema("cluster-assignment.schema.json"));
 
 export const formatAjvErrors = (
   schemaName: string,
