@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "debate_v1",
+  "roles": ["proposer", "critic"],
+  "turns": [
+    { "turn": 0, "role": "proposer" },
+    { "turn": 1, "role": "critic" },
+    { "turn": 2, "role": "proposer" }
+  ],
+  "prompts": {
+    "proposer_system": "stub_protocol_debate_v1_proposer_system",
+    "critic_system": "stub_protocol_debate_v1_critic_system",
+    "proposer_final_system": "stub_protocol_debate_v1_proposer_final_system"
+  },
+  "outcome_extraction": {
+    "method": "debate_v1_decision_contract"
+  }
+}

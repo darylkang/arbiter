@@ -32,6 +32,27 @@
       "description": "Stub independent sampling protocol."
     },
     {
+      "id": "stub_protocol_debate_v1_proposer_system",
+      "type": "participant_protocol_template",
+      "path": "prompts/protocols/debate_v1/proposer_system.md",
+      "sha256": "b4eefac31481b14555155c488a2526c7078c0c122b4fc7ed7ea3b5caad10e751",
+      "description": "Stub debate_v1 proposer system prompt."
+    },
+    {
+      "id": "stub_protocol_debate_v1_critic_system",
+      "type": "participant_protocol_template",
+      "path": "prompts/protocols/debate_v1/critic_system.md",
+      "sha256": "04fb8cd9bb6800501e171f30b4166279cb9d554c88f738d303005c91fa95f9c1",
+      "description": "Stub debate_v1 critic system prompt."
+    },
+    {
+      "id": "stub_protocol_debate_v1_proposer_final_system",
+      "type": "participant_protocol_template",
+      "path": "prompts/protocols/debate_v1/proposer_final_system.md",
+      "sha256": "5d2059fb2aea5491a4e54188c481c0747b70e70cb0d85501aa7e198a3d197602",
+      "description": "Stub debate_v1 proposer final system prompt."
+    },
+    {
       "id": "stub_instrument_moderator",
       "type": "instrument_prompt",
       "path": "prompts/instruments/stub_instrument_moderator.txt",
