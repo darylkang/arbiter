@@ -52,6 +52,8 @@ Conditional (if online clustering enabled):
 Debug-only (optional):
 - `debug/embeddings.jsonl` (append-only, base64 float32le vectors)
 
+Note: `embeddings.arrow` is written only when embeddings are actually produced; resolve-only runs do not create it.
+
 ## Schema versioning & type generation
 - Current schema version: `1.0.0` (v1 catalog).
 - Generate types: `npm run gen:types` (outputs to `src/generated/`).
