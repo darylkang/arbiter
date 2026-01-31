@@ -15,6 +15,7 @@ export interface ArbiterTrialRecord {
     started_at?: string;
     completed_at?: string;
     latency_ms?: number;
+    retry_count?: number;
   };
   error?: {
     message?: string;

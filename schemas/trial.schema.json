@@ -49,7 +49,8 @@
       "properties": {
         "started_at": { "type": "string", "format": "date-time" },
         "completed_at": { "type": "string", "format": "date-time" },
-        "latency_ms": { "type": "integer", "minimum": 0 }
+        "latency_ms": { "type": "integer", "minimum": 0 },
+        "retry_count": { "type": "integer", "minimum": 0 }
       }
     },
     "error": {
