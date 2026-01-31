@@ -19,11 +19,14 @@ type ClusterMetrics = {
   cluster_count: number;
   new_clusters_this_batch: number;
   largest_cluster_share: number;
-  cluster_distribution: Record<string, number>;
+  cluster_distribution: number[];
   js_divergence: number | null;
   entropy: number;
   effective_cluster_count: number;
   singleton_count: number;
+  cluster_limit_hit: boolean;
+  forced_assignments_this_batch: number;
+  forced_assignments_cumulative: number;
 };
 
 export class ClusteringMonitor {
@@ -39,7 +42,8 @@ export class ClusteringMonitor {
   private totalAttempted = 0;
   private totalEligible = 0;
   private readonly clusterDistribution = new Map<number, number>();
-  private previousDistribution: Map<number, number> | null = null;
+  private previousDistribution: number[] | null = null;
+  private readonly clusterLimit: number | null;
   private readonly unsubs: Array<() => void> = [];
 
   constructor(config: ArbiterResolvedConfig, bus: EventBus) {
@@ -57,6 +61,7 @@ export class ClusteringMonitor {
         centroidUpdateRule: clusteringConfig.centroid_update_rule,
         clusterLimit: clusteringConfig.cluster_limit
       });
+      this.clusterLimit = clusteringConfig.cluster_limit;
       if (clusteringConfig.stop_mode === "enforced") {
         console.warn(
           "Clustering stop_mode=enforced is treated as advisory in Phase C."
@@ -64,6 +69,7 @@ export class ClusteringMonitor {
       }
     } else {
       this.clustering = null;
+      this.clusterLimit = null;
     }
   }
 
@@ -131,6 +137,7 @@ export class ClusteringMonitor {
       }
 
       const clusterCountBefore = this.clustering.getClusterCount();
+      let forcedThisBatch = 0;
 
       for (const embedding of batchEmbeddings) {
         const assignment = this.clustering.assignEmbedding({
@@ -139,13 +146,18 @@ export class ClusteringMonitor {
           batch_number: payload.batch_number
         });
         this.emitClusterAssignment(assignment);
+        if (assignment.forced) {
+          forcedThisBatch += 1;
+        }
         const current = this.clusterDistribution.get(assignment.cluster_id) ?? 0;
         this.clusterDistribution.set(assignment.cluster_id, current + 1);
       }
 
       const clusterCount = this.clustering.getClusterCount();
+      const clusterLimitHit =
+        this.clusterLimit !== null ? clusterCount === this.clusterLimit : false;
       const newClusters = clusterCount - clusterCountBefore;
-      const distributionObject = toDistributionObject(this.clusterDistribution);
+      const distributionArray = toDenseArray(this.clusterDistribution, clusterCount);
       const totalAssigned = totalCount(this.clusterDistribution);
       const largestShare =
         totalAssigned > 0 ? maxCount(this.clusterDistribution) / totalAssigned : 0;
@@ -153,19 +165,23 @@ export class ClusteringMonitor {
       const entropy = totalAssigned > 0 ? computeEntropy(this.clusterDistribution) : 0;
       const effectiveClusterCount = totalAssigned > 0 ? Math.exp(entropy) : 0;
       const jsDivergence = this.previousDistribution
-        ? computeJSDivergence(this.previousDistribution, this.clusterDistribution)
+        ? computeJSDivergence(this.previousDistribution, distributionArray)
         : null;
-      this.previousDistribution = new Map(this.clusterDistribution);
+      this.previousDistribution = distributionArray;
+      const totals = this.clustering.getTotals();
 
       clusterMetrics = {
         cluster_count: clusterCount,
         new_clusters_this_batch: Math.max(0, newClusters),
         largest_cluster_share: largestShare,
-        cluster_distribution: distributionObject,
+        cluster_distribution: distributionArray,
         js_divergence: jsDivergence,
         entropy,
         effective_cluster_count: effectiveClusterCount,
-        singleton_count: singletonCount
+        singleton_count: singletonCount,
+        cluster_limit_hit: clusterLimitHit,
+        forced_assignments_this_batch: forcedThisBatch,
+        forced_assignments_cumulative: totals.forcedAssignments
       };
     }
 
@@ -258,31 +274,36 @@ const computeEntropy = (distribution: Map<number, number>): number => {
   return entropy;
 };
 
-const toDistributionObject = (distribution: Map<number, number>): Record<string, number> => {
-  const obj: Record<string, number> = {};
+const toDenseArray = (
+  distribution: Map<number, number>,
+  clusterCount: number
+): number[] => {
+  const array = Array.from({ length: clusterCount }, () => 0);
   for (const [key, value] of distribution.entries()) {
-    obj[String(key)] = value;
+    if (key >= 0 && key < clusterCount) {
+      array[key] = value;
+    }
   }
-  return obj;
+  return array;
 };
 
 const computeJSDivergence = (
-  previous: Map<number, number>,
-  current: Map<number, number>
+  previous: number[],
+  current: number[]
 ): number => {
-  const keys = new Set<number>([...previous.keys(), ...current.keys()]);
-  const prevTotal = totalCount(previous);
-  const currTotal = totalCount(current);
+  const length = Math.max(previous.length, current.length);
+  const prevTotal = previous.reduce((sum, value) => sum + value, 0);
+  const currTotal = current.reduce((sum, value) => sum + value, 0);
   if (prevTotal === 0 || currTotal === 0) {
     return 0;
   }
 
   const prevProbs: number[] = [];
   const currProbs: number[] = [];
-  keys.forEach((key) => {
-    prevProbs.push((previous.get(key) ?? 0) / prevTotal);
-    currProbs.push((current.get(key) ?? 0) / currTotal);
-  });
+  for (let i = 0; i < length; i += 1) {
+    prevProbs.push((previous[i] ?? 0) / prevTotal);
+    currProbs.push((current[i] ?? 0) / currTotal);
+  }
 
   const m = prevProbs.map((p, i) => 0.5 * (p + currProbs[i]));
   const kl = (p: number[], q: number[]): number => {
@@ -291,7 +312,7 @@ const computeJSDivergence = (
       if (p[i] === 0) {
         continue;
       }
-      sum += p[i] * Math.log(p[i] / q[i]);
+      sum += p[i] * Math.log2(p[i] / q[i]);
     }
     return sum;
   };
