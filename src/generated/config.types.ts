@@ -56,9 +56,11 @@ export interface ArbiterResolvedConfig {
     novelty_threshold: number;
     clustering: {
       enabled: boolean;
-      algorithm: "leader";
-      threshold_tau: number;
+      algorithm: "online_leader";
+      tau: number;
       centroid_update_rule: "fixed_leader" | "incremental_mean";
+      cluster_limit: number;
+      stop_mode: "disabled" | "advisory" | "enforced";
     };
   };
   output: {

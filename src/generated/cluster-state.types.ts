@@ -1,30 +1,24 @@
 /* This file is generated. Do not edit. */
 
-export type ArbiterOnlineClusteringRecords = StateSnapshot | AssignmentRecord;
-
-export interface StateSnapshot {
-  record_type: "state_snapshot";
-  run_id: string;
-  updated_at: string;
-  algorithm: "leader";
-  threshold_tau: number;
-  centroid_update_rule: "fixed_leader" | "incremental_mean";
-  clusters: Cluster[];
-}
-export interface Cluster {
-  cluster_id: string;
-  size: number;
-  /**
-   * @minItems 1
-   */
-  centroid: [number, ...number[]];
-}
-export interface AssignmentRecord {
-  record_type: "assignment";
-  trial_id: number;
-  cluster_id: string;
-  similarity: number;
-  created_new_cluster: boolean;
-  algorithm?: "leader";
-  threshold_tau?: number;
+export interface ArbiterOnlineClusteringState {
+  schema_version: "1.0.0";
+  algorithm: "online_leader";
+  params: {
+    tau: number;
+    centroid_update_rule: "fixed_leader" | "incremental_mean";
+    ordering_rule: "trial_id_asc";
+    cluster_limit: number;
+  };
+  clusters: {
+    cluster_id: number;
+    exemplar_trial_id: number;
+    member_count: number;
+    discovered_at_batch: number;
+    centroid_vector_b64?: string;
+  }[];
+  totals: {
+    total_assigned: number;
+    total_excluded: number;
+    forced_assignments: number;
+  };
 }
