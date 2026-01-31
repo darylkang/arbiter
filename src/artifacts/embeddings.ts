@@ -13,7 +13,9 @@ export type EmbeddingJsonlRecord = {
   embedding_status: "success" | "failed" | "skipped";
   vector_b64: string | null;
   error?: string;
+  skip_reason?: string;
   embed_text_sha256?: string;
+  dimensions?: number;
   dtype: "float32";
   encoding: "float32le_base64";
 };
@@ -50,8 +52,7 @@ export const finalizeEmbeddingsToArrow = async (
   const arrowTmpPath = `${arrowPath}.tmp`;
   const provenancePath = resolve(options.runDir, "embeddings.provenance.json");
 
-  const trialIds: number[] = [];
-  const vectors: number[][] = [];
+  const successes: Array<{ trial_id: number; vector: number[] }> = [];
   let successCount = 0;
   let failedCount = 0;
   let skippedCount = 0;
@@ -80,8 +81,12 @@ export const finalizeEmbeddingsToArrow = async (
             `Vector length mismatch for trial ${record.trial_id}: expected ${options.dimensions}, got ${decoded.length}`
           );
         }
-        trialIds.push(record.trial_id);
-        vectors.push(Array.from(decoded));
+        if (record.dimensions !== undefined && record.dimensions !== options.dimensions) {
+          throw new Error(
+            `Declared dimensions mismatch for trial ${record.trial_id}: expected ${options.dimensions}, got ${record.dimensions}`
+          );
+        }
+        successes.push({ trial_id: record.trial_id, vector: Array.from(decoded) });
         successCount += 1;
       } else if (record.embedding_status === "failed") {
         failedCount += 1;
@@ -89,6 +94,10 @@ export const finalizeEmbeddingsToArrow = async (
         skippedCount += 1;
       }
     }
+
+    successes.sort((a, b) => a.trial_id - b.trial_id);
+    const trialIds = successes.map((item) => item.trial_id);
+    const vectors = successes.map((item) => item.vector);
 
     const listType = new FixedSizeList(
       options.dimensions,
@@ -104,6 +113,7 @@ export const finalizeEmbeddingsToArrow = async (
     renameSync(arrowTmpPath, arrowPath);
 
     const provenance: EmbeddingsProvenance = {
+      schema_version: "1.0.0",
       status: "arrow_generated",
       intended_primary_format: "arrow_ipc_file",
       primary_format: "arrow",
@@ -123,13 +133,15 @@ export const finalizeEmbeddingsToArrow = async (
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const provenance: EmbeddingsProvenance = {
+      schema_version: "1.0.0",
       status: "jsonl_fallback",
       intended_primary_format: "arrow_ipc_file",
       primary_format: "jsonl",
       dtype: "float32",
       dimensions: options.dimensions,
       arrow_error: message,
-      debug_jsonl_present: true
+      debug_jsonl_present: true,
+      jsonl_encoding: "float32le_base64"
     };
     writeJsonAtomic(provenancePath, provenance);
     return { provenance };
