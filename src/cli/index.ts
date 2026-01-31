@@ -183,6 +183,22 @@ const runLiveCommand = async (args: string[]): Promise<void> => {
   });
   writer.attach(bus);
 
+  let shutdownRequested = false;
+  const shutdownController = new AbortController();
+  const shutdownTimeoutMs = 30_000;
+
+  const requestShutdown = (signalName: string): void => {
+    if (shutdownRequested) {
+      return;
+    }
+    shutdownRequested = true;
+    console.warn(`${signalName} received: stopping new trials, waiting for in-flight to finish...`);
+    setTimeout(() => shutdownController.abort(), shutdownTimeoutMs);
+  };
+
+  process.once("SIGINT", () => requestShutdown("SIGINT"));
+  process.once("SIGTERM", () => requestShutdown("SIGTERM"));
+
   let liveResult;
   try {
     liveResult = await runLive({
@@ -191,7 +207,11 @@ const runLiveCommand = async (args: string[]): Promise<void> => {
       resolvedConfig: result.resolvedConfig,
       embeddingsJsonlPath,
       debugEnabled: debug,
-      beforeFinalize: async () => writer.close()
+      beforeFinalize: async () => writer.close(),
+      shutdown: {
+        signal: shutdownController.signal,
+        isRequested: () => shutdownRequested
+      }
     });
   } finally {
     await writer.close();

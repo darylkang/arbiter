@@ -16,6 +16,7 @@ export type ChatCompletionParams = {
 export interface OpenRouterRequestOptions {
   apiKey?: string;
   baseUrl?: string;
+  signal?: AbortSignal;
   retry?: {
     maxRetries: number;
     backoffMs: number;
@@ -151,6 +152,13 @@ const requestWithRetry = async (
   const retry = options.retry ?? { maxRetries: 0, backoffMs: 0 };
   let attempt = 0;
 
+  const isAbortError = (error: unknown): boolean => {
+    if (!error || typeof error !== "object") {
+      return false;
+    }
+    return "name" in error && (error as { name?: string }).name === "AbortError";
+  };
+
   while (true) {
     const started = Date.now();
     try {
@@ -160,7 +168,8 @@ const requestWithRetry = async (
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(requestPayload)
+        body: JSON.stringify(requestPayload),
+        signal: options.signal
       });
       const latencyMs = Date.now() - started;
       const responseBody = await parseJsonBody(response);
@@ -199,6 +208,14 @@ const requestWithRetry = async (
         }
       );
     } catch (error) {
+      if (isAbortError(error)) {
+        throw new OpenRouterError("OpenRouter request aborted", {
+          retryable: false,
+          modelUnavailable: false,
+          retryCount: attempt,
+          requestPayload
+        });
+      }
       if (error instanceof OpenRouterError) {
         throw error;
       }

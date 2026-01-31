@@ -11,11 +11,10 @@ import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import { finalizeEmbeddingsToArrow } from "../artifacts/embeddings.js";
 import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js";
 import { sha256Hex } from "../utils/hash.js";
-import { createRngForTrial } from "../utils/seeded-rng.js";
-import type { ChatCompletionParams, OpenRouterMessage } from "../openrouter/client.js";
+import type { OpenRouterMessage } from "../openrouter/client.js";
 import { chatCompletion, embedText, OpenRouterError } from "../openrouter/client.js";
-
-type WeightedItem<T> = { weight: number } & T;
+import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
+import { updateNoveltyMetrics, type BatchEmbedding, type PriorEmbedding } from "./monitoring.js";
 
 export interface LiveRunOptions {
   bus: EventBus;
@@ -24,6 +23,10 @@ export interface LiveRunOptions {
   embeddingsJsonlPath: string;
   debugEnabled: boolean;
   beforeFinalize?: () => Promise<void>;
+  shutdown?: {
+    signal: AbortSignal;
+    isRequested: () => boolean;
+  };
 }
 
 export interface LiveRunResult {
@@ -34,63 +37,6 @@ export interface LiveRunResult {
   embeddingsProvenance: EmbeddingsProvenance;
   embeddingsArrowPath?: string;
 }
-
-const sampleWeighted = <T>(items: Array<WeightedItem<T>>, rng: () => number): T => {
-  const total = items.reduce((sum, item) => sum + item.weight, 0);
-  if (total <= 0) {
-    throw new Error("Weighted sampling requires positive total weight");
-  }
-  const target = rng() * total;
-  let cumulative = 0;
-  for (const item of items) {
-    cumulative += item.weight;
-    if (target <= cumulative) {
-      return item;
-    }
-  }
-  return items[items.length - 1];
-};
-
-const sampleNumber = (value: number | { min: number; max: number }, rng: () => number): number =>
-  typeof value === "number" ? value : value.min + rng() * (value.max - value.min);
-
-const sampleInteger = (value: number | { min: number; max: number }, rng: () => number): number => {
-  if (typeof value === "number") {
-    return value;
-  }
-  const min = Math.ceil(value.min);
-  const max = Math.floor(value.max);
-  return Math.floor(min + rng() * (max - min + 1));
-};
-
-const resolveDecodeParams = (
-  decode: ArbiterResolvedConfig["sampling"]["decode"] | undefined,
-  rng: () => number
-): ChatCompletionParams | undefined => {
-  if (!decode) {
-    return undefined;
-  }
-
-  const resolved: ChatCompletionParams = {};
-
-  if (decode.temperature !== undefined) {
-    resolved.temperature = sampleNumber(decode.temperature, rng);
-  }
-  if (decode.top_p !== undefined) {
-    resolved.top_p = sampleNumber(decode.top_p, rng);
-  }
-  if (decode.max_tokens !== undefined) {
-    resolved.max_tokens = sampleInteger(decode.max_tokens, rng);
-  }
-  if (decode.presence_penalty !== undefined) {
-    resolved.presence_penalty = sampleNumber(decode.presence_penalty, rng);
-  }
-  if (decode.frequency_penalty !== undefined) {
-    resolved.frequency_penalty = sampleNumber(decode.frequency_penalty, rng);
-  }
-
-  return Object.keys(resolved).length > 0 ? resolved : undefined;
-};
 
 const encodeFloat32Base64 = (values: number[]): string => {
   const array = new Float32Array(values);
@@ -211,30 +157,274 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
   const runId = resolvedConfig.run.run_id;
   const startedAt = new Date().toISOString();
 
+  const { plan, planSha256 } = generateTrialPlan(resolvedConfig);
+  const personaMap = new Map(
+    resolvedConfig.sampling.personas.map((persona) => [persona.persona, persona])
+  );
+  const protocolMap = new Map(
+    resolvedConfig.sampling.protocols.map((protocol) => [protocol.protocol, protocol])
+  );
+
   bus.emit({
     type: "run.started",
     payload: {
       run_id: runId,
       started_at: startedAt,
       resolved_config: resolvedConfig,
-      debug_enabled: options.debugEnabled
+      debug_enabled: options.debugEnabled,
+      plan_sha256: planSha256,
+      k_planned: plan.length
     }
   });
 
-  const kMax = resolvedConfig.execution.k_max;
+  const kMax = plan.length;
   const batchSize = resolvedConfig.execution.batch_size;
   const stopMode = resolvedConfig.execution.stop_mode;
+  const workerCount = Math.max(1, resolvedConfig.execution.workers);
+  const noveltyThreshold = resolvedConfig.measurement.novelty_threshold;
   let attempted = 0;
   let eligible = 0;
   let embeddingDimensions: number | null = null;
+  let stopReason: "k_max_reached" | "user_interrupt" | "error" = "k_max_reached";
+  let incomplete = false;
+  const priorEmbeddings: PriorEmbedding[] = [];
+
+  const shouldStop = (): boolean => options.shutdown?.isRequested() ?? false;
+  const abortSignal = options.shutdown?.signal;
+
+  type TrialResult = {
+    trial_id: number;
+    embedding:
+      | { status: "success"; vector: number[] }
+      | { status: "failed" | "skipped" };
+  };
+
+  const executeTrial = async (entry: TrialPlanEntry): Promise<TrialResult> => {
+    const assigned = entry.assigned_config;
+    const persona = personaMap.get(assigned.persona);
+    const protocol = protocolMap.get(assigned.protocol);
+    if (!persona || !protocol) {
+      throw new Error(`Missing persona/protocol for trial ${entry.trial_id}`);
+    }
+
+    bus.emit({
+      type: "trial.planned",
+      payload: {
+        trial_id: entry.trial_id,
+        assignment: assigned
+      }
+    });
+
+    const messages = buildMessages(resolvedConfig, persona.text ?? "", protocol.text ?? "");
+    const attemptStarted = new Date().toISOString();
+
+    let trialRecord: ArbiterTrialRecord;
+    let rawAssistantText = "";
+    let responsePayload: unknown;
+    let actualModel: string | null = null;
+    let retryCount = 0;
+    let latencyMs = 0;
+    let chatError: OpenRouterError | null = null;
+
+    try {
+      const chatResult = await chatCompletion({
+        model: assigned.model,
+        messages,
+        params: assigned.decode,
+        options: {
+          retry: {
+            maxRetries: resolvedConfig.execution.retry_policy.max_retries,
+            backoffMs: resolvedConfig.execution.retry_policy.backoff_ms ?? 0
+          },
+          signal: abortSignal
+        }
+      });
+
+      retryCount = chatResult.retryCount;
+      latencyMs = chatResult.latencyMs;
+      responsePayload = chatResult.responseBody;
+      actualModel = chatResult.modelHeader;
+      rawAssistantText = extractAssistantText(chatResult.responseBody);
+
+      trialRecord = {
+        trial_id: entry.trial_id,
+        requested_model_slug: assigned.model,
+        actual_model: actualModel ?? null,
+        status: "success",
+        assigned_config: assigned,
+        attempt: {
+          started_at: attemptStarted,
+          completed_at: new Date().toISOString(),
+          latency_ms: latencyMs,
+          retry_count: retryCount
+        },
+        raw_assistant_text: rawAssistantText,
+        request_payload: chatResult.requestPayload,
+        response_payload: asObject(responsePayload)
+      };
+    } catch (error) {
+      chatError = error instanceof OpenRouterError ? error : null;
+      retryCount = chatError?.retryCount ?? 0;
+      latencyMs = chatError?.latencyMs ?? 0;
+      responsePayload = chatError?.responseBody;
+      actualModel = chatError?.headers?.["x-model"] ?? null;
+
+      const status = chatError?.modelUnavailable ? "model_unavailable" : "error";
+
+      trialRecord = {
+        trial_id: entry.trial_id,
+        requested_model_slug: assigned.model,
+        actual_model: actualModel ?? null,
+        status,
+        assigned_config: assigned,
+        attempt: {
+          started_at: attemptStarted,
+          completed_at: new Date().toISOString(),
+          latency_ms: latencyMs,
+          retry_count: retryCount
+        },
+        error: {
+          message: chatError?.message ?? "OpenRouter request failed",
+          code: chatError?.code,
+          retryable: chatError?.retryable ?? false
+        },
+        request_payload: asObject(chatError?.requestPayload),
+        response_payload: asObject(responsePayload)
+      };
+    }
+
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+
+    const parseError =
+      trialRecord.status === "success"
+        ? rawAssistantText
+          ? undefined
+          : "Missing assistant content"
+        : trialRecord.error?.message ?? "Trial did not complete successfully";
+    const outcome = rawAssistantText;
+    const embedTextValue =
+      resolvedConfig.measurement.embed_text_strategy === "outcome_only"
+        ? outcome
+        : outcome || rawAssistantText;
+
+    const parsedRecord = buildParsedOutput(
+      entry.trial_id,
+      outcome,
+      rawAssistantText,
+      embedTextValue,
+      parseError
+    );
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+
+    if (trialRecord.status !== "success") {
+      bus.emit({
+        type: "embedding.recorded",
+        payload: {
+          embedding_record: buildSkippedEmbedding(entry.trial_id, "trial_not_success")
+        }
+      });
+      return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
+    }
+
+    if (!embedTextValue) {
+      bus.emit({
+        type: "embedding.recorded",
+        payload: {
+          embedding_record: buildSkippedEmbedding(entry.trial_id, "empty_embed_text")
+        }
+      });
+      return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
+    }
+
+    try {
+      const embedResult = await embedText({
+        model: resolvedConfig.measurement.embedding_model,
+        text: embedTextValue,
+        options: {
+          retry: {
+            maxRetries: resolvedConfig.execution.retry_policy.max_retries,
+            backoffMs: resolvedConfig.execution.retry_policy.backoff_ms ?? 0
+          },
+          signal: abortSignal
+        }
+      });
+
+      if (embeddingDimensions === null) {
+        embeddingDimensions = embedResult.vector.length;
+      } else if (embeddingDimensions !== embedResult.vector.length) {
+        throw new Error(
+          `Embedding dimensions mismatch: expected ${embeddingDimensions}, got ${embedResult.vector.length}`
+        );
+      }
+
+      bus.emit({
+        type: "embedding.recorded",
+        payload: {
+          embedding_record: buildSuccessEmbedding(
+            entry.trial_id,
+            embedResult.vector,
+            embedTextValue
+          )
+        }
+      });
+      return {
+        trial_id: entry.trial_id,
+        embedding: { status: "success", vector: embedResult.vector }
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      bus.emit({
+        type: "embedding.recorded",
+        payload: {
+          embedding_record: buildFailedEmbedding(entry.trial_id, message, embedTextValue)
+        }
+      });
+      return { trial_id: entry.trial_id, embedding: { status: "failed" } };
+    }
+  };
+
+  const runBatch = async (entries: TrialPlanEntry[]): Promise<TrialResult[]> => {
+    const results: TrialResult[] = [];
+    let index = 0;
+    let inFlight = 0;
+
+    return new Promise((resolve, reject) => {
+      const launch = (): void => {
+        while (inFlight < workerCount && index < entries.length && !shouldStop()) {
+          const entry = entries[index];
+          index += 1;
+          inFlight += 1;
+          executeTrial(entry)
+            .then((result) => {
+              results.push(result);
+              inFlight -= 1;
+              launch();
+            })
+            .catch((error) => {
+              reject(error);
+            });
+        }
+
+        if ((index >= entries.length || shouldStop()) && inFlight === 0) {
+          resolve(results);
+        }
+      };
+
+      launch();
+    });
+  };
 
   try {
     for (let batchStart = 0; batchStart < kMax; batchStart += batchSize) {
+      if (shouldStop()) {
+        stopReason = "user_interrupt";
+        incomplete = true;
+        break;
+      }
+
       const batchNumber = Math.floor(batchStart / batchSize);
-      const batchIds = Array.from(
-        { length: Math.min(batchSize, kMax - batchStart) },
-        (_, idx) => batchStart + idx
-      );
+      const batchEntries = plan.slice(batchStart, batchStart + batchSize);
+      const batchIds = batchEntries.map((entry) => entry.trial_id);
       const batchStartTime = Date.now();
 
       bus.emit({
@@ -242,217 +432,42 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         payload: { batch_number: batchNumber, trial_ids: batchIds }
       });
 
-      for (const trialId of batchIds) {
-        const planRng = createRngForTrial(resolvedConfig.run.seed, "plan", trialId);
-        const decodeRng = createRngForTrial(resolvedConfig.run.seed, "decode", trialId);
+      const results = await runBatch(batchEntries);
 
-        const model = sampleWeighted(resolvedConfig.sampling.models, planRng);
-        const persona = sampleWeighted(resolvedConfig.sampling.personas, planRng);
-        const protocol = sampleWeighted(resolvedConfig.sampling.protocols, planRng);
-        const decode = resolveDecodeParams(resolvedConfig.sampling.decode, decodeRng);
-
-        bus.emit({
-          type: "trial.planned",
-          payload: {
-            trial_id: trialId,
-            assignment: {
-              model: model.model,
-              persona: persona.persona,
-              protocol: protocol.protocol,
-              decode
-            }
-          }
-        });
-
-        const messages = buildMessages(
-          resolvedConfig,
-          persona.text ?? "",
-          protocol.text ?? ""
-        );
-        const attemptStarted = new Date().toISOString();
-
-        let trialRecord: ArbiterTrialRecord;
-        let rawAssistantText = "";
-        let responsePayload: unknown;
-        let actualModel: string | null = null;
-        let retryCount = 0;
-        let latencyMs = 0;
-        let chatError: OpenRouterError | null = null;
-
-        try {
-          const chatResult = await chatCompletion({
-            model: model.model,
-            messages,
-            params: decode,
-            options: {
-              retry: {
-                maxRetries: resolvedConfig.execution.retry_policy.max_retries,
-                backoffMs: resolvedConfig.execution.retry_policy.backoff_ms ?? 0
-              }
-            }
-          });
-
-          retryCount = chatResult.retryCount;
-          latencyMs = chatResult.latencyMs;
-          responsePayload = chatResult.responseBody;
-          actualModel = chatResult.modelHeader;
-          rawAssistantText = extractAssistantText(chatResult.responseBody);
-
-          trialRecord = {
-            trial_id: trialId,
-            requested_model_slug: model.model,
-            actual_model: actualModel ?? null,
-            status: "success",
-            assigned_config: {
-              model: model.model,
-              persona: persona.persona,
-              protocol: protocol.protocol,
-              decode
-            },
-            attempt: {
-              started_at: attemptStarted,
-              completed_at: new Date().toISOString(),
-              latency_ms: latencyMs,
-              retry_count: retryCount
-            },
-            raw_assistant_text: rawAssistantText,
-            request_payload: chatResult.requestPayload,
-            response_payload: asObject(responsePayload)
-          };
-        } catch (error) {
-          chatError = error instanceof OpenRouterError ? error : null;
-          retryCount = chatError?.retryCount ?? 0;
-          latencyMs = chatError?.latencyMs ?? 0;
-          responsePayload = chatError?.responseBody;
-          actualModel = chatError?.headers?.["x-model"] ?? null;
-
-          const status = chatError?.modelUnavailable ? "model_unavailable" : "error";
-
-          trialRecord = {
-            trial_id: trialId,
-            requested_model_slug: model.model,
-            actual_model: actualModel ?? null,
-            status,
-            assigned_config: {
-              model: model.model,
-              persona: persona.persona,
-              protocol: protocol.protocol,
-              decode
-            },
-            attempt: {
-              started_at: attemptStarted,
-              completed_at: new Date().toISOString(),
-              latency_ms: latencyMs,
-              retry_count: retryCount
-            },
-            error: {
-              message: chatError?.message ?? "OpenRouter request failed",
-              code: chatError?.code,
-              retryable: chatError?.retryable ?? false
-            },
-            request_payload: asObject(chatError?.requestPayload),
-            response_payload: asObject(responsePayload)
-          };
-        }
-
-        bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
-
-        const parseError =
-          trialRecord.status === "success"
-            ? rawAssistantText
-              ? undefined
-              : "Missing assistant content"
-            : trialRecord.error?.message ?? "Trial did not complete successfully";
-        const outcome = rawAssistantText;
-        const embedTextValue =
-          resolvedConfig.measurement.embed_text_strategy === "outcome_only"
-            ? outcome
-            : outcome || rawAssistantText;
-
-        const parsedRecord = buildParsedOutput(
-          trialId,
-          outcome,
-          rawAssistantText,
-          embedTextValue,
-          parseError
-        );
-        bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
-
-        if (trialRecord.status !== "success") {
-          bus.emit({
-            type: "embedding.recorded",
-            payload: {
-              embedding_record: buildSkippedEmbedding(trialId, "trial_not_success")
-            }
-          });
-        } else if (!embedTextValue) {
-          bus.emit({
-            type: "embedding.recorded",
-            payload: {
-              embedding_record: buildSkippedEmbedding(trialId, "empty_embed_text")
-            }
-          });
-        } else {
-          try {
-            const embedResult = await embedText({
-              model: resolvedConfig.measurement.embedding_model,
-              text: embedTextValue,
-              options: {
-                retry: {
-                  maxRetries: resolvedConfig.execution.retry_policy.max_retries,
-                  backoffMs: resolvedConfig.execution.retry_policy.backoff_ms ?? 0
-                }
-              }
-            });
-
-            if (embeddingDimensions === null) {
-              embeddingDimensions = embedResult.vector.length;
-            } else if (embeddingDimensions !== embedResult.vector.length) {
-              throw new Error(
-                `Embedding dimensions mismatch: expected ${embeddingDimensions}, got ${embedResult.vector.length}`
-              );
-            }
-
-            bus.emit({
-              type: "embedding.recorded",
-              payload: {
-                embedding_record: buildSuccessEmbedding(
-                  trialId,
-                  embedResult.vector,
-                  embedTextValue
-                )
-              }
-            });
-            eligible += 1;
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            bus.emit({
-              type: "embedding.recorded",
-              payload: {
-                embedding_record: buildFailedEmbedding(trialId, message, embedTextValue)
-              }
-            });
-          }
-        }
-
-        attempted += 1;
-      }
-
+      const completedIds = results.map((result) => result.trial_id).sort((a, b) => a - b);
       bus.emit({
         type: "batch.completed",
         payload: {
           batch_number: batchNumber,
-          trial_ids: batchIds,
+          trial_ids: completedIds,
           elapsed_ms: Date.now() - batchStartTime
         }
       });
+
+      attempted += results.length;
+
+      const batchEmbeddings: BatchEmbedding[] = [];
+      for (const result of results) {
+        if (result.embedding.status === "success") {
+          batchEmbeddings.push({ trial_id: result.trial_id, vector: result.embedding.vector });
+        }
+      }
+
+      batchEmbeddings.sort((a, b) => a.trial_id - b.trial_id);
+      eligible += batchEmbeddings.length;
+
+      const { noveltyRate, meanMaxSimToPrior } = updateNoveltyMetrics(
+        priorEmbeddings,
+        batchEmbeddings,
+        noveltyThreshold
+      );
 
       const convergenceRecord: ArbiterConvergenceTraceRecord = {
         batch_number: batchNumber,
         k_attempted: attempted,
         k_eligible: eligible,
-        novelty_rate: 0,
-        mean_max_sim_to_prior: 0,
+        novelty_rate: noveltyRate,
+        mean_max_sim_to_prior: meanMaxSimToPrior,
         recorded_at: new Date().toISOString(),
         stop: {
           mode: stopMode,
@@ -462,6 +477,12 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       };
 
       bus.emit({ type: "convergence.record", payload: { convergence_record: convergenceRecord } });
+
+      if (shouldStop()) {
+        stopReason = "user_interrupt";
+        incomplete = true;
+        break;
+      }
     }
 
     if (options.beforeFinalize) {
@@ -524,8 +545,8 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       payload: {
         run_id: runId,
         completed_at: completedAt,
-        stop_reason: "completed",
-        incomplete: false
+        stop_reason: stopReason,
+        incomplete
       }
     });
 

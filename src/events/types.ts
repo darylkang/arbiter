@@ -12,6 +12,8 @@ export type RunStartedPayload = {
   started_at: string;
   resolved_config: ArbiterResolvedConfig;
   debug_enabled: boolean;
+  plan_sha256?: string;
+  k_planned?: number;
 };
 
 export type RunCompletedPayload = {

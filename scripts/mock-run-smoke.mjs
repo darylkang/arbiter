@@ -38,7 +38,7 @@ const config = {
   execution: {
     k_max: 5,
     batch_size: 2,
-    workers: 1,
+    workers: 3,
     retry_policy: { max_retries: 0, backoff_ms: 0 },
     stop_mode: "advisor",
     k_min: 0,

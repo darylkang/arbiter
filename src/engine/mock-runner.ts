@@ -12,8 +12,8 @@ import { finalizeEmbeddingsToArrow } from "../artifacts/embeddings.js";
 import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js";
 import { sha256Hex } from "../utils/hash.js";
 import { createRngForTrial } from "../utils/seeded-rng.js";
-
-type WeightedItem<T> = { weight: number } & T;
+import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
+import { updateNoveltyMetrics, type PriorEmbedding, type BatchEmbedding } from "./monitoring.js";
 
 export interface MockRunOptions {
   bus: EventBus;
@@ -33,63 +33,6 @@ export interface MockRunResult {
   embeddingsProvenance: EmbeddingsProvenance;
   embeddingsArrowPath?: string;
 }
-
-const sampleWeighted = <T>(items: Array<WeightedItem<T>>, rng: () => number): T => {
-  const total = items.reduce((sum, item) => sum + item.weight, 0);
-  if (total <= 0) {
-    throw new Error("Weighted sampling requires positive total weight");
-  }
-  const target = rng() * total;
-  let cumulative = 0;
-  for (const item of items) {
-    cumulative += item.weight;
-    if (target <= cumulative) {
-      return item;
-    }
-  }
-  return items[items.length - 1];
-};
-
-const sampleNumber = (value: number | { min: number; max: number }, rng: () => number): number =>
-  typeof value === "number" ? value : value.min + rng() * (value.max - value.min);
-
-const sampleInteger = (value: number | { min: number; max: number }, rng: () => number): number => {
-  if (typeof value === "number") {
-    return value;
-  }
-  const min = Math.ceil(value.min);
-  const max = Math.floor(value.max);
-  return Math.floor(min + rng() * (max - min + 1));
-};
-
-const resolveDecodeParams = (
-  decode: ArbiterResolvedConfig["sampling"]["decode"] | undefined,
-  rng: () => number
-): ArbiterTrialRecord["assigned_config"]["decode"] | undefined => {
-  if (!decode) {
-    return undefined;
-  }
-
-  const resolved: ArbiterTrialRecord["assigned_config"]["decode"] = {};
-
-  if (decode.temperature !== undefined) {
-    resolved.temperature = sampleNumber(decode.temperature, rng);
-  }
-  if (decode.top_p !== undefined) {
-    resolved.top_p = sampleNumber(decode.top_p, rng);
-  }
-  if (decode.max_tokens !== undefined) {
-    resolved.max_tokens = sampleInteger(decode.max_tokens, rng);
-  }
-  if (decode.presence_penalty !== undefined) {
-    resolved.presence_penalty = sampleNumber(decode.presence_penalty, rng);
-  }
-  if (decode.frequency_penalty !== undefined) {
-    resolved.frequency_penalty = sampleNumber(decode.frequency_penalty, rng);
-  }
-
-  return Object.keys(resolved).length > 0 ? resolved : undefined;
-};
 
 const encodeFloat32Base64 = (values: number[]): string => {
   const array = new Float32Array(values);
@@ -117,29 +60,122 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
   const startedAt = new Date().toISOString();
   const embeddingDimensions = options.embeddingDimensions ?? 4;
 
+  const { plan, planSha256 } = generateTrialPlan(resolvedConfig);
   bus.emit({
     type: "run.started",
     payload: {
       run_id: runId,
       started_at: startedAt,
       resolved_config: resolvedConfig,
-      debug_enabled: options.debugEnabled
+      debug_enabled: options.debugEnabled,
+      plan_sha256: planSha256,
+      k_planned: plan.length
     }
   });
 
-  const kMax = resolvedConfig.execution.k_max;
+  const kMax = plan.length;
   const batchSize = resolvedConfig.execution.batch_size;
   const stopMode = resolvedConfig.execution.stop_mode;
+  const workerCount = Math.max(1, resolvedConfig.execution.workers);
+  const noveltyThreshold = resolvedConfig.measurement.novelty_threshold;
   let attempted = 0;
   let eligible = 0;
+  const priorEmbeddings: PriorEmbedding[] = [];
+
+  type TrialResult = {
+    trial_id: number;
+    vector: number[];
+  };
+
+  const executeTrial = async (entry: TrialPlanEntry): Promise<TrialResult> => {
+    const embedRng = createRngForTrial(resolvedConfig.run.seed, "embedding", entry.trial_id);
+
+    bus.emit({
+      type: "trial.planned",
+      payload: {
+        trial_id: entry.trial_id,
+        assignment: entry.assigned_config
+      }
+    });
+
+    const outcomeVariant = entry.trial_id % 3;
+    const outcome = `Answer variant ${outcomeVariant}`;
+    const rawAssistantText = `${outcome}\n`;
+    const embedTextValue =
+      resolvedConfig.measurement.embed_text_strategy === "outcome_only"
+        ? outcome
+        : outcome || rawAssistantText;
+
+    const trialRecord: ArbiterTrialRecord = {
+      trial_id: entry.trial_id,
+      requested_model_slug: entry.assigned_config.model,
+      actual_model: entry.assigned_config.model,
+      status: "success",
+      assigned_config: entry.assigned_config,
+      raw_assistant_text: rawAssistantText
+    };
+
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+
+    const parsedRecord = buildParsedOutput(
+      entry.trial_id,
+      outcome,
+      rawAssistantText,
+      embedTextValue
+    );
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+
+    const vector = Array.from({ length: embeddingDimensions }, () => embedRng());
+    const embeddingRecord: ArbiterDebugEmbeddingJSONLRecord = {
+      trial_id: entry.trial_id,
+      embedding_status: "success",
+      vector_b64: encodeFloat32Base64(vector),
+      dtype: "float32",
+      encoding: "float32le_base64",
+      dimensions: embeddingDimensions,
+      embed_text_sha256: sha256Hex(embedTextValue)
+    };
+    bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
+
+    return { trial_id: entry.trial_id, vector };
+  };
+
+  const runBatch = async (entries: TrialPlanEntry[]): Promise<TrialResult[]> => {
+    const results: TrialResult[] = [];
+    let index = 0;
+    let inFlight = 0;
+
+    return new Promise((resolve, reject) => {
+      const launch = (): void => {
+        while (inFlight < workerCount && index < entries.length) {
+          const entry = entries[index];
+          index += 1;
+          inFlight += 1;
+          executeTrial(entry)
+            .then((result) => {
+              results.push(result);
+              inFlight -= 1;
+              launch();
+            })
+            .catch((error) => {
+              reject(error);
+            });
+        }
+
+        if (index >= entries.length && inFlight === 0) {
+          resolve(results);
+        }
+      };
+
+      launch();
+    });
+  };
 
   try {
     for (let batchStart = 0; batchStart < kMax; batchStart += batchSize) {
       const batchNumber = Math.floor(batchStart / batchSize);
-      const batchIds = Array.from(
-        { length: Math.min(batchSize, kMax - batchStart) },
-        (_, idx) => batchStart + idx
-      );
+      const batchEntries = plan.slice(batchStart, batchStart + batchSize);
+      const batchIds = batchEntries.map((entry) => entry.trial_id);
       const batchStartTime = Date.now();
 
       bus.emit({
@@ -147,87 +183,37 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
         payload: { batch_number: batchNumber, trial_ids: batchIds }
       });
 
-      for (const trialId of batchIds) {
-        const planRng = createRngForTrial(resolvedConfig.run.seed, "plan", trialId);
-        const decodeRng = createRngForTrial(resolvedConfig.run.seed, "decode", trialId);
-        const embedRng = createRngForTrial(resolvedConfig.run.seed, "embedding", trialId);
-
-        const model = sampleWeighted(resolvedConfig.sampling.models, planRng);
-        const persona = sampleWeighted(resolvedConfig.sampling.personas, planRng);
-        const protocol = sampleWeighted(resolvedConfig.sampling.protocols, planRng);
-        const decode = resolveDecodeParams(resolvedConfig.sampling.decode, decodeRng);
-
-        bus.emit({
-          type: "trial.planned",
-          payload: {
-            trial_id: trialId,
-            assignment: {
-              model: model.model,
-              persona: persona.persona,
-              protocol: protocol.protocol,
-              decode
-            }
-          }
-        });
-
-        const outcomeVariant = trialId % 3;
-        const outcome = `Answer variant ${outcomeVariant}`;
-        const rawAssistantText = `${outcome}\n`;
-        const embedText =
-          resolvedConfig.measurement.embed_text_strategy === "outcome_only"
-            ? outcome
-            : outcome || rawAssistantText;
-
-        const trialRecord: ArbiterTrialRecord = {
-          trial_id: trialId,
-          requested_model_slug: model.model,
-          actual_model: model.model,
-          status: "success",
-          assigned_config: {
-            model: model.model,
-            persona: persona.persona,
-            protocol: protocol.protocol,
-            decode
-          },
-          raw_assistant_text: rawAssistantText
-        };
-
-        bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
-
-        const parsedRecord = buildParsedOutput(trialId, outcome, rawAssistantText, embedText);
-        bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
-
-        const vector = Array.from({ length: embeddingDimensions }, () => embedRng());
-        const embeddingRecord: ArbiterDebugEmbeddingJSONLRecord = {
-          trial_id: trialId,
-          embedding_status: "success",
-          vector_b64: encodeFloat32Base64(vector),
-          dtype: "float32",
-          encoding: "float32le_base64",
-          dimensions: embeddingDimensions,
-          embed_text_sha256: sha256Hex(embedText)
-        };
-        bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
-
-        attempted += 1;
-        eligible += 1;
-      }
+      const results = await runBatch(batchEntries);
+      const completedIds = results.map((result) => result.trial_id).sort((a, b) => a - b);
 
       bus.emit({
         type: "batch.completed",
         payload: {
           batch_number: batchNumber,
-          trial_ids: batchIds,
+          trial_ids: completedIds,
           elapsed_ms: Date.now() - batchStartTime
         }
       });
+
+      attempted += results.length;
+      eligible += results.length;
+
+      const batchEmbeddings: BatchEmbedding[] = results
+        .map((result) => ({ trial_id: result.trial_id, vector: result.vector }))
+        .sort((a, b) => a.trial_id - b.trial_id);
+
+      const { noveltyRate, meanMaxSimToPrior } = updateNoveltyMetrics(
+        priorEmbeddings,
+        batchEmbeddings,
+        noveltyThreshold
+      );
 
       const convergenceRecord: ArbiterConvergenceTraceRecord = {
         batch_number: batchNumber,
         k_attempted: attempted,
         k_eligible: eligible,
-        novelty_rate: 0,
-        mean_max_sim_to_prior: 0,
+        novelty_rate: noveltyRate,
+        mean_max_sim_to_prior: meanMaxSimToPrior,
         recorded_at: new Date().toISOString(),
         stop: {
           mode: stopMode,
@@ -280,7 +266,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       payload: {
         run_id: runId,
         completed_at: completedAt,
-        stop_reason: "completed",
+        stop_reason: "k_max_reached",
         incomplete: false
       }
     });
