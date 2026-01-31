@@ -4,7 +4,7 @@ import { renameSync } from "node:fs";
 export interface JsonlWriter {
   path: string;
   append: (record: unknown) => void;
-  close: () => void;
+  close: () => Promise<void>;
 }
 
 export const createJsonlWriter = (path: string): JsonlWriter => {
@@ -15,7 +15,10 @@ export const createJsonlWriter = (path: string): JsonlWriter => {
       stream.write(`${JSON.stringify(record)}\n`);
     },
     close: () => {
-      stream.end();
+      return new Promise((resolve, reject) => {
+        stream.on("error", (error) => reject(error));
+        stream.end(() => resolve());
+      });
     }
   };
 };
