@@ -11,6 +11,10 @@ All examples are **dev-stage** and reference current catalog/prompt IDs. IDs may
 
 ## Top-level sections (and schemas)
 
+### `_readme` (optional)
+- Schema: `schemas/config.schema.json`
+- Human hint for this config; ignored by the runtime.
+
 ### `schema_version`
 - Schema: `schemas/config.schema.json`
 - Must be `"1.0.0"` for v1.

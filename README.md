@@ -7,40 +7,47 @@ Arbiter is intentionally **audit-first**: schemas define all artifacts, prompts 
 ## What Arbiter is not
 - A benchmark suite or correctness scorer.
 - An offline clustering/visualization tool (that lives in separate Python workflows).
-- A UI-heavy product (UI is intentionally minimal in this repo).
+- A UI-heavy product (wizard UI is planned but not in this repo yet).
 
-## Quickstart (10 minutes)
+## Quickstart (npm-first)
 
-Install deps and build:
+Install globally:
+
+```
+npm install -g @darylkang/arbiter
+```
+
+Create a config and validate it:
+
+```
+arbiter init "What are the tradeoffs of event sourcing?"
+arbiter validate
+```
+
+Run a live experiment (requires OpenRouter API key):
+
+```
+export OPENROUTER_API_KEY=...your key...
+arbiter run
+```
+
+Notes:
+- `arbiter init` writes `arbiter.config.json` in the current directory.
+- Results go to `runs/<run_id>/`.
+- `arbiter` with no args shows help.
+
+## Quickstart (repo dev)
 
 ```
 npm install
 npm run build
+node dist/cli/index.js init "My question"
+node dist/cli/index.js validate
+node dist/cli/index.js run
 ```
-
-Start from an example config (recommended) and resolve it:
-
-```
-node dist/cli/index.js resolve --config examples/debate_v1.smoke.json --out runs
-```
-
-Mock run (no API key required):
-
-```
-node dist/cli/index.js mock-run --config examples/debate_v1.smoke.json --out runs --debug
-```
-
-Live run (requires OpenRouter API key):
-
-```
-export OPENROUTER_API_KEY=...your key...
-node dist/cli/index.js run --config examples/debate_v1.smoke.json --out runs --max-trials 3 --batch-size 1 --workers 1 --debug
-```
-
-The CLI currently runs via `node dist/cli/index.js` (no bin entry yet).
 
 ## Configuration
-- Start with `examples/arbiter.full.json` and adjust from there.
+- Start with `arbiter init` or use the shipped templates (`--template full` for a broader surface).
 - Protocols:
   - `independent` (single-call)
   - `debate_v1` (3-turn proposer/critic/proposer-final)
@@ -74,7 +81,8 @@ Notes:
 - `actual_model` is nullable when the OpenRouter `x-model` header is absent.
 - `embeddings.arrow` is written only if embeddings are produced.
 
-## Examples
+## Examples (repo-only)
+Examples live in the repo (not required for npm installs):
 - `examples/debate_v1.smoke.json` — minimal debate run (clustering off).
 - `examples/debate_v1.smoke+clustering.json` — debate + clustering.
 - `examples/arbiter.full.json` — full option surface.
