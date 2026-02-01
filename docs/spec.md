@@ -32,6 +32,13 @@ Arbiter is a research-grade CLI for studying LLM behavior as a **distribution** 
 - **Actual model logging**: record OpenRouter `x-model` response header per trial (requested vs actual may differ).
 - **Prompt embedding**: `config.resolved.json` must include full prompt text used with IDs and sha256.
 
+## Phase B v0 protocol: debate_v1
+- **3-turn sequence**: proposer → critic → proposer final.
+- **Persona composition**: system = `persona\n\n---\n\nrole_prompt` (persona first; role prompt second).
+- **Extraction**: fenced JSON → unfenced JSON → raw fallback; valid JSON requires non-empty `decision`.
+- **Timeout/retry defaults**: per-call timeout 90s, per-call max retries 2, total trial timeout 5m.
+- **Deferrals**: no consensus/judge/router/refinement in v0.
+
 ## Artifact set
 Run directory uses `runs/<run_id>/` with `run_id` format: `YYYYMMDDTHHMMSSZ_<random6>` (UTC).
 
