@@ -35,6 +35,14 @@ const config = {
     ],
     protocols: [{ protocol: protocols[0].id, weight: 1 }]
   },
+  protocol: {
+    type: "independent",
+    timeouts: {
+      per_call_timeout_ms: 90000,
+      per_call_max_retries: 2,
+      total_trial_timeout_ms: 300000
+    }
+  },
   execution: {
     k_max: 5,
     batch_size: 2,
