@@ -44,7 +44,9 @@ export type BatchCompletedPayload = {
 
 export type TrialPlannedPayload = {
   trial_id: number;
-  assignment: ArbiterTrialRecord["assigned_config"];
+  protocol: ArbiterTrialRecord["protocol"];
+  assigned_config: ArbiterTrialRecord["assigned_config"];
+  role_assignments?: ArbiterTrialRecord["role_assignments"];
 };
 
 export type TrialCompletedPayload = {

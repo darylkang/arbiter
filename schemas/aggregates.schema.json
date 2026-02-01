@@ -12,6 +12,7 @@
     "novelty_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
     "mean_max_sim_to_prior": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
     "cluster_count": { "type": ["integer", "null"], "minimum": 0 },
-    "entropy": { "type": ["number", "null"], "minimum": 0 }
+    "entropy": { "type": ["number", "null"], "minimum": 0 },
+    "incomplete": { "type": "boolean" }
   }
 }

@@ -58,12 +58,14 @@ Run directory uses `runs/<run_id>/` with `run_id` format: `YYYYMMDDTHHMMSSZ_<ran
 Always produced (per run directory under `runs/<run_id>/`):
 - `config.resolved.json`
 - `manifest.json`
+- `trial_plan.jsonl`
 - `trials.jsonl`
 - `parsed.jsonl`
 - `embeddings.arrow` (primary finalized format)
 - `embeddings.provenance.json`
 - `convergence_trace.jsonl`
 - `aggregates.json`
+- `receipt.txt`
 
 Conditional (if online clustering enabled):
 - `clusters/online.state.json`
@@ -71,6 +73,7 @@ Conditional (if online clustering enabled):
 
 Debug-only (optional):
 - `debug/embeddings.jsonl` (append-only, base64 float32le vectors)
+- `execution.log` (TTY-only; short batch-level log)
 
 Note: `embeddings.arrow` is written only when embeddings are actually produced; resolve-only runs do not create it.
 

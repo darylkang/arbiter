@@ -120,25 +120,6 @@ const maybeRenderReceipt = async (runDir: string, useInk: boolean): Promise<void
   }
 };
 
-const appendManifestArtifacts = (runDir: string, entries: Array<{ path: string }>): void => {
-  const manifestPath = resolve(runDir, "manifest.json");
-  if (!existsSync(manifestPath)) {
-    return;
-  }
-  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
-  const artifacts = (manifest.artifacts ?? {}) as Record<string, unknown>;
-  const existing = (artifacts.entries ?? []) as Array<{ path: string }>;
-  const merged = [...existing];
-  entries.forEach((entry) => {
-    if (!merged.some((item) => item.path === entry.path)) {
-      merged.push(entry);
-    }
-  });
-  artifacts.entries = merged;
-  manifest.artifacts = artifacts;
-  writeJsonAtomic(manifestPath, manifest);
-};
-
 const runInit = (parsed: ParsedArgs, assetRoot: string): void => {
   const question = parsed.positional[0];
   const outPath = getFlag(parsed.flags, "--out") ?? DEFAULT_CONFIG_PATH;
@@ -245,6 +226,8 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     runId,
     resolvedConfig: result.resolvedConfig,
     debugEnabled: debug,
+    receiptEnabled: true,
+    executionLogEnabled: Boolean(process.stdout.isTTY && !quiet),
     embeddingsJsonlPath,
     catalogVersion: result.catalog.catalog_version,
     catalogSha256: result.catalogSha256,
@@ -263,6 +246,7 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
   let shutdownRequested = false;
   const shutdownController = new AbortController();
   const shutdownTimeoutMs = 30_000;
+  let shutdownTimer: ReturnType<typeof setTimeout> | null = null;
 
   const requestShutdown = (signalName: string): void => {
     if (shutdownRequested) {
@@ -270,13 +254,14 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     }
     shutdownRequested = true;
     console.warn(`${signalName} received: stopping new trials, waiting for in-flight to finish...`);
-    setTimeout(() => shutdownController.abort(), shutdownTimeoutMs);
+    shutdownTimer = setTimeout(() => shutdownController.abort(), shutdownTimeoutMs);
   };
 
   process.once("SIGINT", () => requestShutdown("SIGINT"));
   process.once("SIGTERM", () => requestShutdown("SIGTERM"));
 
   let mockResult;
+  let runError: Error | null = null;
   try {
     mockResult = await runMock({
       bus,
@@ -290,7 +275,13 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
         isRequested: () => shutdownRequested
       }
     });
+  } catch (error) {
+    runError = error instanceof Error ? error : new Error(String(error));
   } finally {
+    if (shutdownTimer) {
+      clearTimeout(shutdownTimer);
+      shutdownTimer = null;
+    }
     await writer.close();
     writer.detach();
     monitor.detach();
@@ -303,13 +294,14 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     result.warnings.forEach((warning) => console.warn(`- ${warning}`));
   }
 
-  if (mockResult) {
-    await maybeRenderReceipt(mockResult.runDir, useInk);
-    const extraArtifacts = [{ path: "receipt.txt" }];
-    if (logger) {
-      extraArtifacts.push({ path: "execution.log" });
-    }
-    appendManifestArtifacts(mockResult.runDir, extraArtifacts);
+  try {
+    await maybeRenderReceipt(runDir, useInk);
+  } catch (error) {
+    console.warn(`Failed to render receipt: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  if (runError) {
+    throw runError;
   }
 };
 
@@ -353,6 +345,8 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     runId,
     resolvedConfig: result.resolvedConfig,
     debugEnabled: debug,
+    receiptEnabled: true,
+    executionLogEnabled: Boolean(process.stdout.isTTY && !quiet),
     embeddingsJsonlPath,
     catalogVersion: result.catalog.catalog_version,
     catalogSha256: result.catalogSha256,
@@ -371,6 +365,7 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
   let shutdownRequested = false;
   const shutdownController = new AbortController();
   const shutdownTimeoutMs = 30_000;
+  let shutdownTimer: ReturnType<typeof setTimeout> | null = null;
 
   const requestShutdown = (signalName: string): void => {
     if (shutdownRequested) {
@@ -378,13 +373,14 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     }
     shutdownRequested = true;
     console.warn(`${signalName} received: stopping new trials, waiting for in-flight to finish...`);
-    setTimeout(() => shutdownController.abort(), shutdownTimeoutMs);
+    shutdownTimer = setTimeout(() => shutdownController.abort(), shutdownTimeoutMs);
   };
 
   process.once("SIGINT", () => requestShutdown("SIGINT"));
   process.once("SIGTERM", () => requestShutdown("SIGTERM"));
 
   let liveResult;
+  let runError: Error | null = null;
   try {
     liveResult = await runLive({
       bus,
@@ -398,7 +394,13 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
         isRequested: () => shutdownRequested
       }
     });
+  } catch (error) {
+    runError = error instanceof Error ? error : new Error(String(error));
   } finally {
+    if (shutdownTimer) {
+      clearTimeout(shutdownTimer);
+      shutdownTimer = null;
+    }
     await writer.close();
     writer.detach();
     monitor.detach();
@@ -411,13 +413,14 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     result.warnings.forEach((warning) => console.warn(`- ${warning}`));
   }
 
-  if (liveResult) {
-    await maybeRenderReceipt(liveResult.runDir, useInk);
-    const extraArtifacts = [{ path: "receipt.txt" }];
-    if (logger) {
-      extraArtifacts.push({ path: "execution.log" });
-    }
-    appendManifestArtifacts(liveResult.runDir, extraArtifacts);
+  try {
+    await maybeRenderReceipt(runDir, useInk);
+  } catch (error) {
+    console.warn(`Failed to render receipt: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  if (runError) {
+    throw runError;
   }
 };
 

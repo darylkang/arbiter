@@ -6,7 +6,6 @@ import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterTrialRecord } from "../generated/trial.types.js";
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
 import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.types.js";
-import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import { finalizeEmbeddingsToArrow } from "../artifacts/embeddings.js";
 import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js";
 import { sha256Hex } from "../utils/hash.js";
@@ -72,6 +71,18 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
     }
   });
 
+  for (const entry of plan) {
+    bus.emit({
+      type: "trial.planned",
+      payload: {
+        trial_id: entry.trial_id,
+        protocol: entry.protocol,
+        assigned_config: entry.assigned_config,
+        role_assignments: entry.role_assignments
+      }
+    });
+  }
+
   const kMax = plan.length;
   const batchSize = resolvedConfig.execution.batch_size;
   const workerCount = Math.max(1, resolvedConfig.execution.workers);
@@ -92,14 +103,6 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
     const embedRng = createRngForTrial(resolvedConfig.run.seed, "embedding", entry.trial_id);
-
-    bus.emit({
-      type: "trial.planned",
-      payload: {
-        trial_id: entry.trial_id,
-        assignment: entry.assigned_config
-      }
-    });
 
   const outcomeVariant = entry.trial_id % 3;
   const outcome = `Answer variant ${outcomeVariant}`;
@@ -348,17 +351,6 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
     }
 
     bus.emit({ type: "embeddings.finalized", payload: { provenance } });
-
-    const aggregates: ArbiterAggregates = {
-      schema_version: "1.0.0",
-      k_attempted: attempted,
-      k_eligible: eligible,
-      novelty_rate: 0,
-      mean_max_sim_to_prior: 0,
-      cluster_count: null,
-      entropy: null
-    };
-    bus.emit({ type: "aggregates.computed", payload: { aggregates } });
 
     const completedAt = new Date().toISOString();
     bus.emit({

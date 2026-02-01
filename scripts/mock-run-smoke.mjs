@@ -85,12 +85,14 @@ const runDir = resolve(runsDir, runDirs[0]);
 const requiredPaths = [
   "config.resolved.json",
   "manifest.json",
+  "trial_plan.jsonl",
   "trials.jsonl",
   "parsed.jsonl",
   "convergence_trace.jsonl",
   "embeddings.provenance.json",
   "embeddings.arrow",
   "aggregates.json",
+  "receipt.txt",
   "debug/embeddings.jsonl"
 ];
 
@@ -107,6 +109,44 @@ const manifestPath = resolve(runDir, "manifest.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 if (!validateManifest(manifest)) {
   throw new Error("Manifest failed schema validation in mock-run smoke test");
+}
+
+const artifactPaths = manifest.artifacts?.entries?.map((entry) => entry.path) ?? [];
+if (!artifactPaths.includes("receipt.txt")) {
+  throw new Error("Manifest did not include receipt.txt artifact entry");
+}
+
+const planLines = readFileSync(resolve(runDir, "trial_plan.jsonl"), "utf8")
+  .trim()
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line));
+if (planLines.length !== manifest.k_planned) {
+  throw new Error(
+    `Expected ${manifest.k_planned} trial plan records, got ${planLines.length}`
+  );
+}
+planLines.forEach((record, index) => {
+  if (record.trial_id !== index) {
+    throw new Error("Trial plan records are not ordered by trial_id");
+  }
+});
+
+const convergenceLines = readFileSync(resolve(runDir, "convergence_trace.jsonl"), "utf8")
+  .trim()
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line));
+const lastConvergence = convergenceLines[convergenceLines.length - 1];
+const aggregates = JSON.parse(readFileSync(resolve(runDir, "aggregates.json"), "utf8"));
+if (aggregates.novelty_rate !== lastConvergence.novelty_rate) {
+  throw new Error("Aggregates novelty_rate does not match final convergence record");
+}
+if (aggregates.mean_max_sim_to_prior !== lastConvergence.mean_max_sim_to_prior) {
+  throw new Error("Aggregates mean_max_sim_to_prior does not match final convergence record");
+}
+if (aggregates.cluster_count !== null || aggregates.entropy !== null) {
+  throw new Error("Aggregates should not include clustering metrics when clustering is disabled");
 }
 
 const arrowBuffer = readFileSync(resolve(runDir, "embeddings.arrow"));

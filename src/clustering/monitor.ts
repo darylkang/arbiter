@@ -4,6 +4,7 @@ import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.ty
 import type { ArbiterConvergenceTraceRecord } from "../generated/convergence-trace.types.js";
 import type { ArbiterOnlineClusterAssignmentRecord } from "../generated/cluster-assignment.types.js";
 import type { ArbiterOnlineClusteringState } from "../generated/cluster-state.types.js";
+import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import type {
   BatchCompletedPayload,
   EmbeddingRecordedPayload,
@@ -45,6 +46,7 @@ export class ClusteringMonitor {
   private previousDistribution: number[] | null = null;
   private readonly clusterLimit: number | null;
   private readonly unsubs: Array<() => void> = [];
+  private lastConvergence: ArbiterConvergenceTraceRecord | null = null;
 
   constructor(config: ArbiterResolvedConfig, bus: EventBus) {
     this.config = config;
@@ -200,14 +202,17 @@ export class ClusteringMonitor {
       ...(clusterMetrics ?? {})
     };
 
+    this.lastConvergence = convergenceRecord;
     this.bus.emit({ type: "convergence.record", payload: { convergence_record: convergenceRecord } });
   }
 
-  private onRunCompleted(_payload: RunCompletedPayload): void {
+  private onRunCompleted(payload: RunCompletedPayload): void {
+    this.emitAggregates(payload.incomplete);
     this.emitClusterState();
   }
 
   private onRunFailed(_payload: RunFailedPayload): void {
+    this.emitAggregates(true);
     this.emitClusterState();
   }
 
@@ -227,6 +232,21 @@ export class ClusteringMonitor {
       type: "clusters.state",
       payload: { state }
     });
+  }
+
+  private emitAggregates(incomplete: boolean): void {
+    const last = this.lastConvergence;
+    const aggregates: ArbiterAggregates = {
+      schema_version: "1.0.0",
+      k_attempted: this.totalAttempted,
+      k_eligible: this.totalEligible,
+      novelty_rate: last?.novelty_rate ?? null,
+      mean_max_sim_to_prior: last?.mean_max_sim_to_prior ?? null,
+      cluster_count: this.clustering ? (last?.cluster_count ?? null) : null,
+      entropy: this.clustering ? (last?.entropy ?? null) : null,
+      incomplete
+    };
+    this.bus.emit({ type: "aggregates.computed", payload: { aggregates } });
   }
 }
 

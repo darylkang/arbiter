@@ -14,6 +14,7 @@ import type {
   RunCompletedPayload,
   RunFailedPayload,
   RunStartedPayload,
+  TrialPlannedPayload,
   TrialCompletedPayload
 } from "../events/types.js";
 import {
@@ -26,10 +27,12 @@ import {
   validateClusterState,
   validateManifest,
   validateParsedOutput,
+  validateTrialPlan,
   validateTrial
 } from "../config/schema-validation.js";
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterRunManifest } from "../generated/manifest.types.js";
+import type { ArbiterTrialPlanRecord } from "../generated/trial-plan.types.js";
 import { canonicalStringify } from "../utils/canonical-json.js";
 import { sha256Hex } from "../utils/hash.js";
 import { createJsonlWriter, writeJsonAtomic, type JsonlWriter } from "./io.js";
@@ -40,6 +43,8 @@ export interface ArtifactWriterOptions {
   runId: string;
   resolvedConfig: ArbiterResolvedConfig;
   debugEnabled: boolean;
+  receiptEnabled?: boolean;
+  executionLogEnabled?: boolean;
   embeddingsJsonlPath?: string;
   catalogVersion: string;
   catalogSha256: string;
@@ -49,6 +54,7 @@ export interface ArtifactWriterOptions {
 }
 
 type ArtifactCounts = {
+  trialPlan: number;
   trials: number;
   parsed: number;
   convergence: number;
@@ -78,6 +84,8 @@ export class ArtifactWriter {
   private readonly runDir: string;
   private readonly runId: string;
   private readonly debugEnabled: boolean;
+  private readonly receiptEnabled: boolean;
+  private readonly executionLogEnabled: boolean;
   private readonly resolvedConfig: ArbiterResolvedConfig;
   private readonly catalogVersion: string;
   private readonly catalogSha256: string;
@@ -87,12 +95,14 @@ export class ArtifactWriter {
   private readonly clusteringEnabled: boolean;
   private manifest: ArbiterRunManifest | null = null;
   private embeddingsProvenance: EmbeddingsProvenance | null = null;
+  private readonly trialPlanWriter: JsonlWriter;
   private readonly trialsWriter: JsonlWriter;
   private readonly parsedWriter: JsonlWriter;
   private readonly convergenceWriter: JsonlWriter;
   private readonly embeddingsWriter?: JsonlWriter;
   private readonly clusterAssignmentsWriter?: JsonlWriter;
   private readonly counts: ArtifactCounts = {
+    trialPlan: 0,
     trials: 0,
     parsed: 0,
     convergence: 0,
@@ -109,6 +119,8 @@ export class ArtifactWriter {
     this.runDir = options.runDir;
     this.runId = options.runId;
     this.debugEnabled = options.debugEnabled;
+    this.receiptEnabled = options.receiptEnabled ?? false;
+    this.executionLogEnabled = options.executionLogEnabled ?? false;
     this.resolvedConfig = options.resolvedConfig;
     this.catalogVersion = options.catalogVersion;
     this.catalogSha256 = options.catalogSha256;
@@ -119,6 +131,7 @@ export class ArtifactWriter {
       this.resolvedConfig.measurement.clustering.enabled &&
       this.resolvedConfig.measurement.clustering.stop_mode !== "disabled";
 
+    this.trialPlanWriter = createJsonlWriter(resolve(this.runDir, "trial_plan.jsonl"));
     this.trialsWriter = createJsonlWriter(resolve(this.runDir, "trials.jsonl"));
     this.parsedWriter = createJsonlWriter(resolve(this.runDir, "parsed.jsonl"));
     this.convergenceWriter = createJsonlWriter(resolve(this.runDir, "convergence_trace.jsonl"));
@@ -137,6 +150,7 @@ export class ArtifactWriter {
   attach(bus: EventBus): void {
     this.unsubs.push(
       bus.subscribe("run.started", (payload) => this.onRunStarted(payload)),
+      bus.subscribe("trial.planned", (payload) => this.onTrialPlanned(payload)),
       bus.subscribe("trial.completed", (payload) => this.onTrialCompleted(payload)),
       bus.subscribe("parsed.output", (payload) => this.onParsedOutput(payload)),
       bus.subscribe("embedding.recorded", (payload) => this.onEmbeddingRecorded(payload)),
@@ -160,9 +174,12 @@ export class ArtifactWriter {
       return;
     }
     this.closed = true;
-    const closers = [this.trialsWriter, this.parsedWriter, this.convergenceWriter].map(
-      (writer) => writer.close()
-    );
+    const closers = [
+      this.trialPlanWriter,
+      this.trialsWriter,
+      this.parsedWriter,
+      this.convergenceWriter
+    ].map((writer) => writer.close());
     if (this.embeddingsWriter) {
       closers.push(this.embeddingsWriter.close());
     }
@@ -177,6 +194,20 @@ export class ArtifactWriter {
     const manifest = this.buildInitialManifest(payload);
     this.manifest = manifest;
     writeJsonAtomic(resolve(this.runDir, "manifest.json"), manifest);
+  }
+
+  private onTrialPlanned(payload: TrialPlannedPayload): void {
+    const record: ArbiterTrialPlanRecord = {
+      trial_id: payload.trial_id,
+      protocol: payload.protocol,
+      assigned_config: payload.assigned_config,
+      ...(payload.role_assignments ? { role_assignments: payload.role_assignments } : {})
+    };
+    if (this.validateArtifacts) {
+      assertValid("trial plan", validateTrialPlan(record), validateTrialPlan.errors);
+    }
+    this.trialPlanWriter.append(record);
+    this.counts.trialPlan += 1;
   }
 
   private onTrialCompleted(payload: TrialCompletedPayload): void {
@@ -365,6 +396,7 @@ export class ArtifactWriter {
     const entries: Array<{ path: string; record_count?: number; note?: string }> = [
       { path: "config.resolved.json" },
       { path: "manifest.json" },
+      { path: "trial_plan.jsonl", record_count: this.counts.trialPlan },
       { path: "trials.jsonl", record_count: this.counts.trials },
       { path: "parsed.jsonl", record_count: this.counts.parsed },
       { path: "convergence_trace.jsonl", record_count: this.counts.convergence },
@@ -389,6 +421,13 @@ export class ArtifactWriter {
         record_count: this.counts.clusterAssignments
       });
       entries.push({ path: "clusters/online.state.json" });
+    }
+
+    if (this.receiptEnabled) {
+      entries.push({ path: "receipt.txt" });
+    }
+    if (this.executionLogEnabled) {
+      entries.push({ path: "execution.log" });
     }
 
     return entries;

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbiter.dev/schemas/v1/trial-plan.schema.json",
+  "title": "Arbiter Trial Plan Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["trial_id", "protocol", "assigned_config"],
+  "$defs": {
+    "decode_params": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "temperature": { "type": "number" },
+        "top_p": { "type": "number" },
+        "max_tokens": { "type": "integer" },
+        "presence_penalty": { "type": "number" },
+        "frequency_penalty": { "type": "number" }
+      }
+    },
+    "role_assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_slug", "persona_id"],
+      "properties": {
+        "model_slug": { "type": "string", "minLength": 1 },
+        "persona_id": { "type": ["string", "null"], "minLength": 1 },
+        "decode": { "$ref": "#/$defs/decode_params" }
+      }
+    }
+  },
+  "properties": {
+    "trial_id": { "type": "integer", "minimum": 0 },
+    "protocol": { "type": "string", "minLength": 1 },
+    "assigned_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "persona", "protocol"],
+      "properties": {
+        "model": { "type": "string", "minLength": 1 },
+        "persona": { "type": "string", "minLength": 1 },
+        "protocol": { "type": "string", "minLength": 1 },
+        "decode": { "$ref": "#/$defs/decode_params" }
+      }
+    },
+    "role_assignments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proposer", "critic"],
+      "properties": {
+        "proposer": { "$ref": "#/$defs/role_assignment" },
+        "critic": { "$ref": "#/$defs/role_assignment" }
+      }
+    }
+  }
+}

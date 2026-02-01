@@ -6,7 +6,6 @@ import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterTrialRecord } from "../generated/trial.types.js";
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
 import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.types.js";
-import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import { finalizeEmbeddingsToArrow } from "../artifacts/embeddings.js";
 import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js";
 import { sha256Hex } from "../utils/hash.js";
@@ -15,6 +14,7 @@ import type { OpenRouterMessage } from "../openrouter/client.js";
 import { chatCompletion, embedText, OpenRouterError } from "../openrouter/client.js";
 import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
 import { buildDebateMessages, buildDebateParsedOutput } from "./debate-v1.js";
+import { deriveFailureStatus } from "./status.js";
 
 export interface LiveRunOptions {
   bus: EventBus;
@@ -197,6 +197,18 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
     }
   });
 
+  for (const entry of plan) {
+    bus.emit({
+      type: "trial.planned",
+      payload: {
+        trial_id: entry.trial_id,
+        protocol: entry.protocol,
+        assigned_config: entry.assigned_config,
+        role_assignments: entry.role_assignments
+      }
+    });
+  }
+
   const kMax = plan.length;
   const batchSize = resolvedConfig.execution.batch_size;
   const workerCount = Math.max(1, resolvedConfig.execution.workers);
@@ -219,14 +231,6 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
   const executeTrial = async (entry: TrialPlanEntry): Promise<TrialResult> => {
     const assigned = entry.assigned_config;
     const attemptStarted = new Date().toISOString();
-
-    bus.emit({
-      type: "trial.planned",
-      payload: {
-        trial_id: entry.trial_id,
-        assignment: assigned
-      }
-    });
 
     if (entry.protocol === "debate_v1") {
       const roleAssignments = entry.role_assignments;
@@ -369,10 +373,12 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       });
       if (!turn0.content) {
         const errorCode = turn0.errorCode ?? (shouldStop() ? "shutdown_abort" : null);
-        const status =
-          turn0.error instanceof OpenRouterError && turn0.error.modelUnavailable
-            ? "model_unavailable"
-            : "error";
+        const status = deriveFailureStatus({
+          timeoutExhausted: errorCode === "timeout_exhausted",
+          modelUnavailable: Boolean(
+            turn0.error instanceof OpenRouterError && turn0.error.modelUnavailable
+          )
+        });
         const trialRecord: ArbiterTrialRecord = {
           trial_id: entry.trial_id,
           requested_model_slug: assigned.model,
@@ -421,10 +427,12 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       });
       if (!turn1.content) {
         const errorCode = turn1.errorCode ?? (shouldStop() ? "shutdown_abort" : null);
-        const status =
-          turn1.error instanceof OpenRouterError && turn1.error.modelUnavailable
-            ? "model_unavailable"
-            : "error";
+        const status = deriveFailureStatus({
+          timeoutExhausted: errorCode === "timeout_exhausted",
+          modelUnavailable: Boolean(
+            turn1.error instanceof OpenRouterError && turn1.error.modelUnavailable
+          )
+        });
         const trialRecord: ArbiterTrialRecord = {
           trial_id: entry.trial_id,
           requested_model_slug: assigned.model,
@@ -475,10 +483,12 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
 
       if (!turn2.content) {
         const errorCode = turn2.errorCode ?? (shouldStop() ? "shutdown_abort" : null);
-        const status =
-          turn2.error instanceof OpenRouterError && turn2.error.modelUnavailable
-            ? "model_unavailable"
-            : "error";
+        const status = deriveFailureStatus({
+          timeoutExhausted: errorCode === "timeout_exhausted",
+          modelUnavailable: Boolean(
+            turn2.error instanceof OpenRouterError && turn2.error.modelUnavailable
+          )
+        });
         const trialRecord: ArbiterTrialRecord = {
           trial_id: entry.trial_id,
           requested_model_slug: assigned.model,
@@ -656,7 +666,10 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       responsePayload = chatError?.responseBody;
       actualModel = chatError?.headers?.["x-model"] ?? null;
 
-      const status = chatError?.modelUnavailable ? "model_unavailable" : "error";
+      const status = deriveFailureStatus({
+        timeoutExhausted: timeout.didTimeout(),
+        modelUnavailable: Boolean(chatError?.modelUnavailable)
+      });
 
       trialRecord = {
         trial_id: entry.trial_id,
@@ -891,17 +904,6 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
     }
 
     bus.emit({ type: "embeddings.finalized", payload: { provenance } });
-
-    const aggregates: ArbiterAggregates = {
-      schema_version: "1.0.0",
-      k_attempted: attempted,
-      k_eligible: eligible,
-      novelty_rate: 0,
-      mean_max_sim_to_prior: 0,
-      cluster_count: null,
-      entropy: null
-    };
-    bus.emit({ type: "aggregates.computed", payload: { aggregates } });
 
     const completedAt = new Date().toISOString();
     bus.emit({

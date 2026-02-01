@@ -9,6 +9,7 @@ import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterRunManifest } from "../generated/manifest.types.js";
 import type { ArbiterQuestion } from "../generated/question.types.js";
 import type { ArbiterTrialRecord } from "../generated/trial.types.js";
+import type { ArbiterTrialPlanRecord } from "../generated/trial-plan.types.js";
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
 import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.types.js";
 import type { ArbiterEmbeddingsProvenance } from "../generated/embeddings-provenance.types.js";
@@ -52,6 +53,9 @@ export const validateQuestion: ValidateFunction<ArbiterQuestion> = ajv.compile(
 );
 export const validateTrial: ValidateFunction<ArbiterTrialRecord> = ajv.compile(
   loadSchema("trial.schema.json")
+);
+export const validateTrialPlan: ValidateFunction<ArbiterTrialPlanRecord> = ajv.compile(
+  loadSchema("trial-plan.schema.json")
 );
 export const validateParsedOutput: ValidateFunction<ArbiterParsedOutputRecord> =
   ajv.compile(loadSchema("parsed-output.schema.json"));

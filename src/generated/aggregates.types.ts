@@ -8,4 +8,5 @@ export interface ArbiterAggregates {
   mean_max_sim_to_prior: number | null;
   cluster_count?: number | null;
   entropy?: number | null;
+  incomplete?: boolean;
 }
