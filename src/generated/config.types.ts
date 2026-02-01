@@ -3,6 +3,7 @@
 export type ArbiterResolvedConfig = {
   [k: string]: unknown;
 } & {
+  _readme?: string;
   schema_version: "1.0.0";
   run: {
     run_id: string;

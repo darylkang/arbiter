@@ -108,6 +108,7 @@
     }
   },
   "properties": {
+    "_readme": { "type": "string" },
     "schema_version": { "const": "1.0.0" },
     "run": {
       "type": "object",

@@ -1,7 +1,8 @@
+#!/usr/bin/env node
 import "dotenv/config";
 
-import { mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
 import { resolveConfig } from "../config/resolve-config.js";
 import { buildResolveManifest } from "../config/manifest.js";
@@ -14,41 +15,119 @@ import { ClusteringMonitor } from "../clustering/monitor.js";
 import { runMock } from "../engine/mock-runner.js";
 import { runLive } from "../engine/live-runner.js";
 import { validateConfig } from "../config/schema-validation.js";
+import { getAssetRoot } from "../utils/asset-root.js";
+
+const DEFAULT_CONFIG_PATH = "arbiter.config.json";
 
 const printUsage = (): void => {
   console.log("Usage:");
-  console.log("  arbiter resolve --config <path> [--out <runs_dir>] [--debug]");
-  console.log("  arbiter mock-run --config <path> [--out <runs_dir>] [--debug]");
+  console.log("  arbiter init [question] [--out <path>] [--force] [--template default|full]");
+  console.log("  arbiter validate [config.json]");
+  console.log("  arbiter resolve [config.json] [--out <runs_dir>] [--debug]");
+  console.log("  arbiter mock-run [config.json] [--out <runs_dir>] [--debug]");
   console.log(
-    "  arbiter run --config <path> [--out <runs_dir>] [--debug] [--max-trials N] [--batch-size N] [--workers N]"
+    "  arbiter run [config.json] [--out <runs_dir>] [--debug] [--max-trials N] [--batch-size N] [--workers N]"
   );
 };
 
-const getArgValue = (args: string[], flag: string): string | undefined => {
-  const index = args.indexOf(flag);
-  if (index === -1 || index === args.length - 1) {
-    return undefined;
-  }
-  return args[index + 1];
+type ParsedArgs = {
+  positional: string[];
+  flags: Record<string, string | boolean>;
 };
 
-const hasFlag = (args: string[], flag: string): boolean => args.includes(flag);
+const parseArgs = (args: string[]): ParsedArgs => {
+  const positional: string[] = [];
+  const flags: Record<string, string | boolean> = {};
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg.startsWith("--")) {
+      const next = args[i + 1];
+      if (next && !next.startsWith("--")) {
+        flags[arg] = next;
+        i += 1;
+      } else {
+        flags[arg] = true;
+      }
+    } else {
+      positional.push(arg);
+    }
+  }
+  return { positional, flags };
+};
 
-const getArgNumber = (args: string[], flag: string): number | undefined => {
-  const value = getArgValue(args, flag);
-  if (value === undefined) {
+const getFlag = (flags: ParsedArgs["flags"], name: string): string | undefined => {
+  const value = flags[name];
+  return typeof value === "string" ? value : undefined;
+};
+
+const hasFlag = (flags: ParsedArgs["flags"], name: string): boolean => Boolean(flags[name]);
+
+const getFlagNumber = (flags: ParsedArgs["flags"], name: string): number | undefined => {
+  const value = getFlag(flags, name);
+  if (!value) {
     return undefined;
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const runResolve = (args: string[]): void => {
-  const configPath = getArgValue(args, "--config") ?? "arbiter.config.json";
-  const runsDir = getArgValue(args, "--out") ?? "runs";
-  const debug = hasFlag(args, "--debug");
+const resolveConfigForCli = (configPathInput: string, assetRoot: string) => {
+  const configPath = resolve(process.cwd(), configPathInput);
+  const configRoot = dirname(configPath);
+  return resolveConfig({ configPath, configRoot, assetRoot });
+};
 
-  const result = resolveConfig({ configPath });
+const runInit = (parsed: ParsedArgs, assetRoot: string): void => {
+  const question = parsed.positional[0];
+  const outPath = getFlag(parsed.flags, "--out") ?? DEFAULT_CONFIG_PATH;
+  const templateName = getFlag(parsed.flags, "--template") ?? "default";
+  const force = hasFlag(parsed.flags, "--force");
+
+  const templatePath = resolve(assetRoot, "templates", `${templateName}.config.json`);
+  if (!existsSync(templatePath)) {
+    throw new Error(`Template not found: ${templateName}`);
+  }
+
+  const targetPath = resolve(process.cwd(), outPath);
+  if (existsSync(targetPath) && !force) {
+    throw new Error(`Config already exists at ${targetPath}. Use --force to overwrite.`);
+  }
+
+  const template = JSON.parse(readFileSync(templatePath, "utf8")) as Record<string, unknown>;
+  if (typeof question === "string" && question.trim().length > 0) {
+    const questionBlock = (template.question ?? {}) as Record<string, unknown>;
+    questionBlock.text = question;
+    template.question = questionBlock;
+  }
+
+  writeFileSync(targetPath, `${JSON.stringify(template, null, 2)}\n`, "utf8");
+
+  console.log(`Created config: ${targetPath}`);
+  console.log("Next steps:");
+  console.log("  1) Set OPENROUTER_API_KEY (recommend .env)");
+  console.log("  2) arbiter validate");
+  console.log("  3) arbiter run");
+  console.log("Results will be written under runs/<run_id>/.");
+};
+
+const runValidate = (parsed: ParsedArgs, assetRoot: string): void => {
+  const configPath = getFlag(parsed.flags, "--config") ?? parsed.positional[0] ?? DEFAULT_CONFIG_PATH;
+  const result = resolveConfigForCli(configPath, assetRoot);
+
+  if (result.warnings.length > 0) {
+    console.warn("Warnings:");
+    result.warnings.forEach((warning) => console.warn(`- ${warning}`));
+  }
+
+  console.log(`Config OK: ${resolve(process.cwd(), configPath)}`);
+};
+
+const runResolve = (parsed: ParsedArgs, assetRoot: string): void => {
+  const configPath = getFlag(parsed.flags, "--config") ?? parsed.positional[0] ?? DEFAULT_CONFIG_PATH;
+  const runsDir = getFlag(parsed.flags, "--out") ?? "runs";
+  const debug = hasFlag(parsed.flags, "--debug");
+
+  const result = resolveConfigForCli(configPath, assetRoot);
   const runId = generateRunId();
   const { runDir } = createRunDir({ outRoot: runsDir, runId, debug });
 
@@ -82,12 +161,12 @@ const runResolve = (args: string[]): void => {
   console.log(`Output directory: ${runDir}`);
 };
 
-const runMockCommand = async (args: string[]): Promise<void> => {
-  const configPath = getArgValue(args, "--config") ?? "arbiter.config.json";
-  const runsDir = getArgValue(args, "--out") ?? "runs";
-  const debug = hasFlag(args, "--debug");
+const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<void> => {
+  const configPath = getFlag(parsed.flags, "--config") ?? parsed.positional[0] ?? DEFAULT_CONFIG_PATH;
+  const runsDir = getFlag(parsed.flags, "--out") ?? "runs";
+  const debug = hasFlag(parsed.flags, "--debug");
 
-  const result = resolveConfig({ configPath });
+  const result = resolveConfigForCli(configPath, assetRoot);
   const runId = generateRunId();
   const { runDir } = createRunDir({ outRoot: runsDir, runId, debug });
 
@@ -162,18 +241,18 @@ const runMockCommand = async (args: string[]): Promise<void> => {
   }
 };
 
-const runLiveCommand = async (args: string[]): Promise<void> => {
-  const configPath = getArgValue(args, "--config") ?? "arbiter.config.json";
-  const runsDir = getArgValue(args, "--out") ?? "runs";
-  const debug = hasFlag(args, "--debug");
+const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<void> => {
+  const configPath = getFlag(parsed.flags, "--config") ?? parsed.positional[0] ?? DEFAULT_CONFIG_PATH;
+  const runsDir = getFlag(parsed.flags, "--out") ?? "runs";
+  const debug = hasFlag(parsed.flags, "--debug");
 
-  const result = resolveConfig({ configPath });
+  const result = resolveConfigForCli(configPath, assetRoot);
   const runId = generateRunId();
   const { runDir } = createRunDir({ outRoot: runsDir, runId, debug });
 
-  const maxTrials = getArgNumber(args, "--max-trials");
-  const batchSize = getArgNumber(args, "--batch-size");
-  const workers = getArgNumber(args, "--workers");
+  const maxTrials = getFlagNumber(parsed.flags, "--max-trials");
+  const batchSize = getFlagNumber(parsed.flags, "--batch-size");
+  const workers = getFlagNumber(parsed.flags, "--workers");
 
   result.resolvedConfig.run.run_id = runId;
   if (maxTrials !== undefined) {
@@ -261,28 +340,44 @@ const runLiveCommand = async (args: string[]): Promise<void> => {
 
 const main = async (): Promise<void> => {
   const args = process.argv.slice(2);
-  if (args.length === 0) {
+  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     printUsage();
-    process.exit(1);
+    process.exit(0);
   }
 
   const command = args[0];
+  const parsed = parseArgs(args.slice(1));
+  const assetRoot = getAssetRoot();
+
   try {
+    if (command === "init") {
+      runInit(parsed, assetRoot);
+      return;
+    }
+    if (command === "validate") {
+      runValidate(parsed, assetRoot);
+      return;
+    }
     if (command === "resolve") {
-      runResolve(args.slice(1));
-    } else if (command === "mock-run") {
-      await runMockCommand(args.slice(1));
-    } else if (command === "run") {
+      runResolve(parsed, assetRoot);
+      return;
+    }
+    if (command === "mock-run") {
+      await runMockCommand(parsed, assetRoot);
+      return;
+    }
+    if (command === "run") {
       if (!process.env.OPENROUTER_API_KEY) {
         throw new Error(
           "OPENROUTER_API_KEY is required for live runs. Set it in your environment or .env file."
         );
       }
-      await runLiveCommand(args.slice(1));
-    } else {
-      printUsage();
-      process.exit(1);
+      await runLiveCommand(parsed, assetRoot);
+      return;
     }
+
+    printUsage();
+    process.exit(1);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(message);

@@ -16,9 +16,10 @@ import { sha256Hex } from "../utils/hash.js";
 
 export interface ResolveConfigOptions {
   configPath?: string;
+  configRoot?: string;
   catalogPath?: string;
   promptManifestPath?: string;
-  rootDir?: string;
+  assetRoot?: string;
 }
 
 export interface ResolveConfigResult {
@@ -89,11 +90,12 @@ const DEFAULT_PROTOCOL_TIMEOUTS = {
 };
 
 export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfigResult => {
-  const rootDir = options.rootDir ?? process.cwd();
-  const configPath = resolve(rootDir, options.configPath ?? "arbiter.config.json");
-  const catalogPath = resolve(rootDir, options.catalogPath ?? "catalog/models.json");
+  const configRoot = options.configRoot ?? process.cwd();
+  const assetRoot = options.assetRoot ?? configRoot;
+  const configPath = resolve(configRoot, options.configPath ?? "arbiter.config.json");
+  const catalogPath = resolve(assetRoot, options.catalogPath ?? "catalog/models.json");
   const promptManifestPath = resolve(
-    rootDir,
+    assetRoot,
     options.promptManifestPath ?? "prompts/manifest.json"
   );
 
@@ -152,7 +154,7 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
       promptMap,
       persona.persona,
       "participant_persona",
-      rootDir
+      assetRoot
     );
 
     return {
@@ -169,7 +171,7 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
       promptMap,
       protocol.protocol,
       "participant_protocol_template",
-      rootDir
+      assetRoot
     );
 
     return {
@@ -187,7 +189,7 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
         promptMap,
         instrument.instrument,
         "instrument_prompt",
-        rootDir
+        assetRoot
       );
 
       return {
@@ -199,7 +201,7 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
   }
 
   if (resolvedConfig.protocol.type === "debate_v1") {
-    const protocolPath = resolve(rootDir, "prompts/protocols/debate_v1/protocol.json");
+    const protocolPath = resolve(assetRoot, "prompts/protocols/debate_v1/protocol.json");
     const protocolSpec = readJsonFile<ArbiterProtocolSpec>(protocolPath);
     assertValid("protocol spec", validateProtocolSpec(protocolSpec), validateProtocolSpec.errors);
 
@@ -207,19 +209,19 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
       promptMap,
       protocolSpec.prompts.proposer_system,
       "participant_protocol_template",
-      rootDir
+      assetRoot
     );
     const criticPrompt = resolvePromptEntry(
       promptMap,
       protocolSpec.prompts.critic_system,
       "participant_protocol_template",
-      rootDir
+      assetRoot
     );
     const proposerFinalPrompt = resolvePromptEntry(
       promptMap,
       protocolSpec.prompts.proposer_final_system,
       "participant_protocol_template",
-      rootDir
+      assetRoot
     );
 
     resolvedConfig.protocol.prompts = {
