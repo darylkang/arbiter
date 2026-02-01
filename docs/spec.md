@@ -29,7 +29,7 @@ Arbiter is a research-grade CLI for studying LLM behavior as a **distribution** 
 - **Empty embed_text**: skip embedding; record `embedding_status=skipped` with reason `empty_embed_text`.
 - **Deterministic truncation**: keep prefix; record original/final sizes and truncation flag.
 - **Graceful shutdown**: SIGINT/SIGTERM yields schema-valid partial artifacts with `incomplete=true` and `stop_reason=user_interrupt`.
-- **Actual model logging**: record OpenRouter `x-model` response header per trial (requested vs actual may differ).
+- **Actual model logging**: record OpenRouter `x-model` response header per trial (requested vs actual may differ; if header is absent, `actual_model` is null).
 - **Prompt embedding**: `config.resolved.json` must include full prompt text used with IDs and sha256.
 
 ## Phase B v0 protocol: debate_v1
@@ -38,6 +38,19 @@ Arbiter is a research-grade CLI for studying LLM behavior as a **distribution** 
 - **Extraction**: fenced JSON → unfenced JSON → raw fallback; valid JSON requires non-empty `decision`.
 - **Timeout/retry defaults**: per-call timeout 90s, per-call max retries 2, total trial timeout 5m.
 - **Deferrals**: no consensus/judge/router/refinement in v0.
+
+## Phase C monitoring: online clustering (locked semantics)
+- **Algorithm**: online leader clustering; default centroid update rule is `fixed_leader`.
+- **Update timing**: apply updates only at batch boundaries in **trial_id ascending** order.
+- **Cluster IDs**: sequential in discovery order (0,1,2,...) and never reused.
+- **cluster_distribution**: dense **array** aligned to `cluster_id` (cumulative counts). Length must equal `cluster_count` (or empty when 0).
+- **Jensen–Shannon divergence (js_divergence)**:
+  - log base 2
+  - between **current cumulative** distribution and **prior cumulative** distribution
+  - no smoothing; missing clusters treated as zero
+  - null when a prior distribution is undefined (first batch)
+- **cluster_limit_hit**: true when `cluster_count == cluster_limit`.
+- **forced assignment counters**: `forced_assignments_this_batch` and `forced_assignments_cumulative` count assignments made after the limit is hit.
 
 ## Artifact set
 Run directory uses `runs/<run_id>/` with `run_id` format: `YYYYMMDDTHHMMSSZ_<random6>` (UTC).

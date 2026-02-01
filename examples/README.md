@@ -6,6 +6,7 @@ These configs are **dev-stage** and reference the current catalog + prompt bank 
 - `examples/debate_v1.smoke.json`: minimal debate_v1 smoke config (clustering disabled).
 - `examples/debate_v1.smoke+clustering.json`: same as above with clustering enabled.
 - `examples/arbiter.full.json`: broader option surface (decode ranges, model mix, clustering).
+- `examples/config_reference.md`: annotated guide to config fields.
 
 ## How to run
 
@@ -15,13 +16,19 @@ Build once:
 npm run build
 ```
 
-Debate v1 smoke (3 trials, sequential):
+Mock run (no API key required):
+
+```
+node dist/cli/index.js mock-run --config examples/debate_v1.smoke.json --out runs --max-trials 3 --batch-size 1 --workers 1 --debug
+```
+
+Live debate v1 smoke (3 trials, sequential):
 
 ```
 node dist/cli/index.js run --config examples/debate_v1.smoke.json --out runs --max-trials 3 --batch-size 1 --workers 1 --debug
 ```
 
-Debate v1 with clustering:
+Live debate v1 with clustering:
 
 ```
 node dist/cli/index.js run --config examples/debate_v1.smoke+clustering.json --out runs --max-trials 6 --batch-size 2 --workers 3 --debug

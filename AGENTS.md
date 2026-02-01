@@ -21,7 +21,8 @@ Consult in this order: `docs/spec.md` → `schemas/` → conservative behavior. 
 
 ## Stub content policy
 - Catalog/prompt bank content may be in **dev** stage during development.
-- Stub prompt IDs are **not stable**; do not reference them in examples, tutorials, or tests.
+- **Examples may reference current stub IDs**, but must include a disclaimer that IDs can change as curated content lands.
+- Do **not** treat stub IDs as canonical in docs narrative or tests.
 - Tests must assert invariants (schema validity, non-empty prompt text, hash matches content), not specific IDs or wording.
 
 ## Session protocol
