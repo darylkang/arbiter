@@ -83,7 +83,7 @@ const child = spawn(
   }
 );
 
-setTimeout(() => child.kill("SIGINT"), 150);
+setTimeout(() => child.kill("SIGINT"), 500);
 
 const exitCode = await new Promise((resolve) => {
   child.on("exit", (code) => resolve(code ?? 1));

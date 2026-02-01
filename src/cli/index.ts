@@ -9,6 +9,7 @@ import { buildResolveManifest } from "../config/manifest.js";
 import { generateRunId } from "../artifacts/run-id.js";
 import { createRunDir } from "../artifacts/run-dir.js";
 import { writeResolveArtifacts } from "../artifacts/resolve-artifacts.js";
+import { writeJsonAtomic } from "../artifacts/io.js";
 import { EventBus } from "../events/event-bus.js";
 import { ArtifactWriter } from "../artifacts/artifact-writer.js";
 import { ClusteringMonitor } from "../clustering/monitor.js";
@@ -16,17 +17,25 @@ import { runMock } from "../engine/mock-runner.js";
 import { runLive } from "../engine/live-runner.js";
 import { validateConfig } from "../config/schema-validation.js";
 import { getAssetRoot } from "../utils/asset-root.js";
+import { buildReceiptModel } from "../ui/receipt-model.js";
+import { formatReceiptText } from "../ui/receipt-text.js";
+import { renderReceiptInk } from "../ui/receipt-ink.js";
+import { writeReceiptText } from "../ui/receipt-writer.js";
+import { ExecutionLogger } from "../ui/execution-log.js";
 
 const DEFAULT_CONFIG_PATH = "arbiter.config.json";
 
 const printUsage = (): void => {
+  console.log("Wizard coming soon. For now: arbiter init → arbiter validate → arbiter run");
   console.log("Usage:");
-  console.log("  arbiter init [question] [--out <path>] [--force] [--template default|full]");
+  console.log(
+    "  arbiter init [question] [--out <path>] [--force] [--template default|debate|multi-model|full]"
+  );
   console.log("  arbiter validate [config.json]");
   console.log("  arbiter resolve [config.json] [--out <runs_dir>] [--debug]");
-  console.log("  arbiter mock-run [config.json] [--out <runs_dir>] [--debug]");
+  console.log("  arbiter mock-run [config.json] [--out <runs_dir>] [--debug] [--quiet]");
   console.log(
-    "  arbiter run [config.json] [--out <runs_dir>] [--debug] [--max-trials N] [--batch-size N] [--workers N]"
+    "  arbiter run [config.json] [--out <runs_dir>] [--debug] [--quiet] [--max-trials N] [--batch-size N] [--workers N]"
   );
 };
 
@@ -75,6 +84,59 @@ const resolveConfigForCli = (configPathInput: string, assetRoot: string) => {
   const configPath = resolve(process.cwd(), configPathInput);
   const configRoot = dirname(configPath);
   return resolveConfig({ configPath, configRoot, assetRoot });
+};
+
+const printRunPreview = (resolvedConfig: ReturnType<typeof resolveConfigForCli>["resolvedConfig"]): void => {
+  const question = resolvedConfig.question?.text ?? "";
+  const truncatedQuestion = question.length > 120 ? `${question.slice(0, 119)}…` : question;
+  const protocol = resolvedConfig.protocol?.type ?? "unknown";
+  const kMax = resolvedConfig.execution.k_max;
+  const batchSize = resolvedConfig.execution.batch_size;
+  const workers = resolvedConfig.execution.workers;
+  const models = resolvedConfig.sampling.models
+    .map((model) => `${model.model}${model.weight !== undefined ? ` (w=${model.weight})` : ""}`)
+    .join(", ");
+  const clustering = resolvedConfig.measurement.clustering.enabled
+    ? `enabled (tau ${resolvedConfig.measurement.clustering.tau})`
+    : "disabled";
+
+  console.log("About to run:");
+  console.log(`  Question: ${truncatedQuestion}`);
+  console.log(`  Protocol: ${protocol}`);
+  console.log(`  Trials: ${kMax} | batch ${batchSize} | workers ${workers}`);
+  console.log(`  Models: ${models}`);
+  console.log(`  Clustering: ${clustering}`);
+};
+
+const maybeRenderReceipt = async (runDir: string, useInk: boolean): Promise<void> => {
+  const model = buildReceiptModel(runDir);
+  const text = formatReceiptText(model);
+  writeReceiptText(runDir, text);
+
+  if (useInk) {
+    await renderReceiptInk(model);
+  } else {
+    process.stdout.write(text);
+  }
+};
+
+const appendManifestArtifacts = (runDir: string, entries: Array<{ path: string }>): void => {
+  const manifestPath = resolve(runDir, "manifest.json");
+  if (!existsSync(manifestPath)) {
+    return;
+  }
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
+  const artifacts = (manifest.artifacts ?? {}) as Record<string, unknown>;
+  const existing = (artifacts.entries ?? []) as Array<{ path: string }>;
+  const merged = [...existing];
+  entries.forEach((entry) => {
+    if (!merged.some((item) => item.path === entry.path)) {
+      merged.push(entry);
+    }
+  });
+  artifacts.entries = merged;
+  manifest.artifacts = artifacts;
+  writeJsonAtomic(manifestPath, manifest);
 };
 
 const runInit = (parsed: ParsedArgs, assetRoot: string): void => {
@@ -165,6 +227,7 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
   const configPath = getFlag(parsed.flags, "--config") ?? parsed.positional[0] ?? DEFAULT_CONFIG_PATH;
   const runsDir = getFlag(parsed.flags, "--out") ?? "runs";
   const debug = hasFlag(parsed.flags, "--debug");
+  const quiet = hasFlag(parsed.flags, "--quiet");
 
   const result = resolveConfigForCli(configPath, assetRoot);
   const runId = generateRunId();
@@ -190,6 +253,12 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
   writer.attach(bus);
   const monitor = new ClusteringMonitor(result.resolvedConfig, bus);
   monitor.attach();
+  const useInk = Boolean(process.stdout.isTTY && !quiet);
+  const executionLogPath = resolve(runDir, "execution.log");
+  const logger = useInk ? new ExecutionLogger(executionLogPath) : null;
+  if (logger) {
+    logger.attach(bus);
+  }
 
   let shutdownRequested = false;
   const shutdownController = new AbortController();
@@ -225,6 +294,8 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     await writer.close();
     writer.detach();
     monitor.detach();
+    await logger?.close();
+    logger?.detach();
   }
 
   if (result.warnings.length > 0) {
@@ -233,11 +304,12 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
   }
 
   if (mockResult) {
-    console.log(`Run ID: ${mockResult.runId}`);
-    console.log(`Output directory: ${mockResult.runDir}`);
-    console.log(`Trials attempted: ${mockResult.kAttempted}`);
-    console.log(`Trials eligible: ${mockResult.kEligible}`);
-    console.log(`Embeddings status: ${mockResult.embeddingsProvenance.status}`);
+    await maybeRenderReceipt(mockResult.runDir, useInk);
+    const extraArtifacts = [{ path: "receipt.txt" }];
+    if (logger) {
+      extraArtifacts.push({ path: "execution.log" });
+    }
+    appendManifestArtifacts(mockResult.runDir, extraArtifacts);
   }
 };
 
@@ -245,8 +317,10 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
   const configPath = getFlag(parsed.flags, "--config") ?? parsed.positional[0] ?? DEFAULT_CONFIG_PATH;
   const runsDir = getFlag(parsed.flags, "--out") ?? "runs";
   const debug = hasFlag(parsed.flags, "--debug");
+  const quiet = hasFlag(parsed.flags, "--quiet");
 
   const result = resolveConfigForCli(configPath, assetRoot);
+  printRunPreview(result.resolvedConfig);
   const runId = generateRunId();
   const { runDir } = createRunDir({ outRoot: runsDir, runId, debug });
 
@@ -287,6 +361,12 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
   writer.attach(bus);
   const monitor = new ClusteringMonitor(result.resolvedConfig, bus);
   monitor.attach();
+  const useInk = Boolean(process.stdout.isTTY && !quiet);
+  const executionLogPath = resolve(runDir, "execution.log");
+  const logger = useInk ? new ExecutionLogger(executionLogPath) : null;
+  if (logger) {
+    logger.attach(bus);
+  }
 
   let shutdownRequested = false;
   const shutdownController = new AbortController();
@@ -322,6 +402,8 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     await writer.close();
     writer.detach();
     monitor.detach();
+    await logger?.close();
+    logger?.detach();
   }
 
   if (result.warnings.length > 0) {
@@ -330,11 +412,12 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
   }
 
   if (liveResult) {
-    console.log(`Run ID: ${liveResult.runId}`);
-    console.log(`Output directory: ${liveResult.runDir}`);
-    console.log(`Trials attempted: ${liveResult.kAttempted}`);
-    console.log(`Trials eligible: ${liveResult.kEligible}`);
-    console.log(`Embeddings status: ${liveResult.embeddingsProvenance.status}`);
+    await maybeRenderReceipt(liveResult.runDir, useInk);
+    const extraArtifacts = [{ path: "receipt.txt" }];
+    if (logger) {
+      extraArtifacts.push({ path: "execution.log" });
+    }
+    appendManifestArtifacts(liveResult.runDir, extraArtifacts);
   }
 };
 
@@ -368,9 +451,13 @@ const main = async (): Promise<void> => {
     }
     if (command === "run") {
       if (!process.env.OPENROUTER_API_KEY) {
-        throw new Error(
-          "OPENROUTER_API_KEY is required for live runs. Set it in your environment or .env file."
-        );
+        console.error("Missing OPENROUTER_API_KEY for live runs.");
+        console.error("Set it via environment or a .env file (dotenv is loaded).");
+        console.error("Quick start:");
+        console.error("  export OPENROUTER_API_KEY=...your key...");
+        console.error("  arbiter validate");
+        console.error("  arbiter run");
+        process.exit(1);
       }
       await runLiveCommand(parsed, assetRoot);
       return;
