@@ -1,6 +1,6 @@
 {
-  "name": "arbiter",
-  "version": "0.0.0",
+  "name": "@darylkang/arbiter",
+  "version": "0.1.0-alpha.0",
   "description": "Research-grade CLI for studying LLM behavior as a distribution.",
   "license": "MIT",
   "type": "module",
@@ -30,7 +30,8 @@
     "test:clustering": "npm run build && node scripts/clustering-determinism.mjs && node scripts/clustering-limit.mjs && node scripts/mock-run-interrupt.mjs",
     "test:debate": "npm run build && node scripts/mock-run-debate.mjs",
     "test:live-smoke": "npm run build && node scripts/live-smoke.mjs",
-    "test:pack": "npm run build && node scripts/test-pack-install.mjs"
+    "test:pack": "npm run build && node scripts/test-pack-install.mjs",
+    "prepublishOnly": "npm run build && npm run test:pack"
   },
   "dependencies": {
     "ajv": "^8.17.0",
