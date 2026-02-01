@@ -33,6 +33,7 @@ arbiter run
 
 Notes:
 - `arbiter init` writes `arbiter.config.json` in the current directory.
+- Templates: `default`, `debate`, `multi-model`, `full` (use `arbiter init --template <name>`).
 - Results go to `runs/<run_id>/`.
 - `arbiter` with no args shows help.
 
@@ -47,15 +48,15 @@ node dist/cli/index.js run
 ```
 
 ## Configuration
-- Start with `arbiter init` or use the shipped templates (`--template full` for a broader surface).
+- Start with `arbiter init` or use the shipped templates (`--template debate`, `--template multi-model`, `--template full`).
 - Protocols:
   - `independent` (single-call)
   - `debate_v1` (3-turn proposer/critic/proposer-final)
 - Clustering is optional and **advisory-only** by default.
 
 See:
-- `examples/config_reference.md` for an annotated explanation of config fields.
-- `docs/spec.md` for the repo-local technical contract.
+- `examples/config_reference.md` for an annotated explanation of config fields (repo).
+- `docs/spec.md` for the repo-local technical contract (repo).
 
 ## Outputs (run artifact pack)
 Each run creates `runs/<run_id>/` with the following artifacts:

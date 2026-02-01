@@ -1,5 +1,5 @@
 {
-  "_readme": "Arbiter config. Edit this file then run: arbiter run. Docs: docs/spec.md",
+  "_readme": "Arbiter config. Edit this file then run: arbiter run. See README.md.",
   "schema_version": "1.0.0",
   "run": {
     "run_id": "pending",
