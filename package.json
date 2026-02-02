@@ -34,6 +34,7 @@
     "test:contracts": "npm run build && node scripts/contract-fallback.mjs",
     "test:provenance": "npm run build && node scripts/openrouter-provenance.mjs",
     "test:templates": "npm run build && node scripts/template-smoke.mjs",
+    "test:ui": "npm run build && node scripts/ui-routing.mjs && node scripts/ui-headless.mjs",
     "test:verify": "npm run build && node scripts/verify-smoke.mjs",
     "test:live-smoke": "npm run build && node scripts/live-smoke.mjs",
     "test:pack": "npm run build && node scripts/test-pack-install.mjs",
