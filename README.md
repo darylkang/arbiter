@@ -1,43 +1,69 @@
 # Arbiter
 
-Arbiter is a research-grade TypeScript/Node CLI for studying **LLM behavior as a distribution** under repeated heterogeneous sampling. Each trial draws a configuration from an explicit distribution Q(c), produces an output, and applies a locked measurement procedure *M* (embedding + optional online clustering) to estimate a response landscape. **Distributional convergence** means the empirical distribution stabilizes under a fixed instrument, not that answers are correct.
+Arbiter is a research‑grade CLI for studying **LLM behavior as a distribution** under repeated heterogeneous sampling. Each trial draws a configuration from an explicit distribution Q(c), produces an output, and applies a fixed measurement procedure *M* (embedding + optional online clustering) to estimate a response landscape. **Distributional convergence** means the *observed distribution* stabilizes under a fixed instrument—it is not a claim of correctness.
 
-Arbiter is intentionally **audit-first**: schemas define all artifacts, prompts and contracts are embedded into resolved configs, and every run emits a reproducible artifact pack.
+Arbiter is intentionally **audit‑first**: JSON Schemas define artifacts, resolved configs embed the exact prompts/contracts used, and every run emits a reproducible artifact pack.
 
-"Arbiter discovers emergent response clusters—these are measurement artifacts contingent on the embedding model and clustering parameters, not ground-truth categories. Distributional convergence indicates that additional sampling is unlikely to reveal new response modes; it does not indicate correctness or consensus. Runs using free-tier models (`:free` suffix) are rate-limited and subject to model substitution; they are suitable for exploration and onboarding but should not be used for publishable research. Always report the full measurement procedure (M) and actual model identifiers when citing Arbiter results."
+## Critical assumptions (must read)
 
-## What Arbiter is not
-- A benchmark suite or correctness scorer.
+- **Embedding groups are measurement artifacts**
+  - “Groups” (clusters) reflect similarity in the embedding space, not semantic truth. Different embedding models or parameters yield different groupings.
+- **Stopping does not imply correctness**
+  - Convergence‑aware stopping indicates **novelty saturation** under the current measurement procedure. It does **not** mean answers are correct or consensus exists.
+- **Free‑tier models are exploration‑only**
+  - Models with `:free` suffix are rate‑limited and may be substituted. They are suitable for onboarding and prototyping, not publishable research.
+- **Provenance is recorded, not guaranteed**
+  - You may request one model and receive another. Arbiter records **requested vs actual** identifiers, but cannot guarantee provider behavior.
+
+> Arbiter discovers emergent response clusters—these are measurement artifacts contingent on the embedding model and clustering parameters, not ground‑truth categories. Distributional convergence indicates that additional sampling is unlikely to reveal new response modes; it does not indicate correctness or consensus. Runs using free‑tier models (`:free` suffix) are rate‑limited and subject to model substitution; they are suitable for exploration and onboarding but should not be used for publishable research. Always report the full measurement procedure (M) and actual model identifiers when citing Arbiter results.
+
+---
+
+## Table of contents
+- [What Arbiter is (and is not)](#what-arbiter-is-and-is-not)
+- [Quickstart (<60 seconds)](#quickstart-60-seconds)
+- [Understanding your results](#understanding-your-results)
+- [Premium CLI wizard](#premium-cli-wizard)
+- [Profiles / templates](#profiles--templates)
+- [Protocols](#protocols)
+- [Decision contracts](#decision-contracts)
+- [Outputs (artifact pack)](#outputs-artifact-pack)
+- [Guardrails / policy](#guardrails--policy)
+- [Model reproducibility & provenance](#model-reproducibility--provenance)
+- [Contributing / further docs](#contributing--further-docs)
+
+---
+
+## What Arbiter is (and is not)
+
+**Arbiter is:**
+- A deterministic, schema‑driven sampling harness for studying response distributions.
+- An audit‑grade artifact generator for reproducible experiments.
+- A CLI that supports mock runs, live OpenRouter runs, and report/verify tooling.
+
+**Arbiter is not:**
+- A benchmark or correctness scorer.
 - An offline clustering/visualization tool (that lives in separate Python workflows).
-- A UI-heavy product that hides the audit trail (the wizard is optional; artifacts remain the source of truth).
+- A UI‑heavy product that hides the audit trail (the wizard is optional; artifacts remain the source of truth).
 
-## Quickstart (npm-first, <60 seconds)
+---
 
-Install globally:
+## Quickstart (<60 seconds)
 
-```
-npm install -g @darylkang/arbiter
-```
-
-Launch the premium CLI wizard (TTY only):
+### Premium wizard (TTY)
 
 ```
 arbiter
 ```
 
-Headless-only help (no wizard):
+### Headless quickstart
 
 ```
-arbiter --headless
-```
-
-Create a config and run a mock experiment (default):
-
-```
+# Create a config and run a mock experiment (default)
 arbiter quickstart "What are the tradeoffs of event sourcing?"
 ```
 
-Run a live experiment (requires OpenRouter API key):
+### Live run (OpenRouter key required)
 
 ```
 export OPENROUTER_API_KEY=...your key...
@@ -48,46 +74,60 @@ arbiter run
 Notes:
 - `arbiter quickstart` writes `arbiter.config.json` and runs a mock trial by default.
 - Results go to `runs/<run_id>/`.
-- `arbiter` with no args launches the premium CLI wizard when run in a TTY; use `--headless` for help-only mode.
+- `arbiter --headless` prints help and keeps everything headless.
 
-## Free experimentation
-- **Mock mode** (no API key):
-  - `arbiter mock-run --config arbiter.config.json --out runs --max-trials 5 --batch-size 1 --workers 1`
-- **Free-tier model** (API key required, $0 but rate-limited):
-  - `arbiter quickstart --profile free`
-  - Free models may be substituted; not for publishable research.
+---
 
-## Profiles (templates)
-Templates are curated **profiles** that run the same engine with different defaults. Mock‑run is a true execution mode (no API calls), not a toy; it produces the full artifact pack for testing pipelines.
+## Understanding your results
 
-## Configuration
-- Start from templates (`arbiter init --template <name>`):
-  - `quickstart_independent` (default baseline)
-  - `heterogeneity_mix` (multi-model, multi-persona)
-  - `debate_v1` (debate protocol: proposer–critic–revision)
-  - `free_quickstart` (free model, onboarding only)
-  - `full` (full surface with clustering)
-- Protocols:
-  - `independent` (single-call)
-  - `debate_v1` (3-turn proposer/critic/proposer-final)
-- **Convergence-aware stopping** is advisor-only by default; you can switch to enforced in config.
-- **Decision contracts** (optional) enforce structured JSON outputs and define what gets embedded.
-- `arbiter report runs/<run_id>` summarizes results without Python.
-- `arbiter verify runs/<run_id>` validates artifacts and cross-file invariants.
+Start here after any run:
+- `receipt.txt` (summary)
+- `arbiter report runs/<run_id>` (human‑readable overview)
+- `arbiter verify runs/<run_id>` (schema + invariant checks)
 
-See:
-- `examples/config_reference.md` for an annotated explanation of config fields (repo).
-- `docs/spec.md` for the repo-local technical contract (repo).
+Full guide: **[docs/interpreting-results.md](docs/interpreting-results.md)**
 
-## Decision contracts (optional)
-Decision contracts define a strict JSON shape for outputs and a canonical embedding target. The built-in preset `binary_decision_v1` expects:
+---
+
+## Premium CLI wizard
+
+The wizard is a guided flow for questions → profiles → review → run → receipt. It **does not** change execution semantics: the engine and artifacts remain the source of truth. Use `--headless` if you want pure CLI scripting.
+
+---
+
+## Profiles / templates
+
+Profiles are curated **templates** that run the same engine with different defaults.
+
+- Quickstart: `quickstart_independent`
+- Heterogeneity mix: `heterogeneity_mix`
+- Proposer–critic–revision: `debate_v1`
+- Free tier: `free_quickstart` (exploration only)
+
+Guide: **[templates/README.md](templates/README.md)**
+
+---
+
+## Protocols
+
+- `independent` — single call per trial.
+- `debate_v1` — **proposer–critic–revision** (3 calls per trial). The contract clause, when configured, is appended only to the final proposer system prompt.
+
+---
+
+## Decision contracts
+
+Decision contracts define a strict JSON shape for outputs and a canonical embedding target. The built‑in preset `binary_decision_v1` expects:
 - `decision`: "yes" | "no"
 - `rationale`: string (required, maxLength 500)
 - `confidence`: number in [0,1] (optional)
 
 By default, `binary_decision_v1` embeds the **rationale**. If the rationale exceeds 500 chars, it is truncated deterministically and `rationale_truncated=true` is recorded in `parsed.jsonl`.
 
-## Outputs (run artifact pack)
+---
+
+## Outputs (artifact pack)
+
 Each run creates `runs/<run_id>/` with the following artifacts:
 
 ```
@@ -109,20 +149,33 @@ runs/<run_id>/
     embeddings.jsonl           # append-only base64 float32le
 ```
 
-Notes:
+---
+
+## Guardrails / policy
+
+- `--strict` enforces reproducibility guardrails (free/aliased models require explicit allow flags).
+- `--permissive` keeps warn‑only behavior.
+- Policy snapshot is recorded in `manifest.json`.
+
+---
+
+## Model reproducibility & provenance
+
 - `actual_model` is taken from the **OpenRouter response body** `model` field (nullable if missing).
 - Embeddings provenance stores `generation_id` for optional later audit (e.g., `/api/v1/generation?id=<id>`).
-- Token usage (prompt/completion/total) is recorded when OpenRouter returns `usage`.
+- Token usage is recorded when OpenRouter returns `usage` (prompt/completion/total).
 
-## Guardrails (strict vs permissive)
-- `--strict` enforces reproducibility guardrails (free/aliased models require explicit allow flags).
-- `--permissive` keeps current warn-only behavior.
-- Use `--allow-free` or `--allow-aliased` to acknowledge known reproducibility caveats.
+---
 
-## Model reproducibility
-- Prefer pinned slugs (e.g., `openai/gpt-4o-mini-2024-07-18`, `google/gemini-2.0-flash-001`).
-- Anthropic slugs on OpenRouter are aliases and may drift; always log `actual_model` from the response body.
-- Free-tier models (`:free`) are rate-limited and may substitute.
+## Contributing / further docs
+
+- **Contract snapshot:** `docs/spec.md`
+- **Results guide:** `docs/interpreting-results.md`
+- **Template guide:** `templates/README.md`
+- **Agent/contributor rules:** `AGENTS.md`
+- **Config reference (examples):** `examples/config_reference.md`
+
+---
 
 ## Repository development
 
@@ -133,8 +186,3 @@ node dist/cli/index.js init "My question"
 node dist/cli/index.js validate
 node dist/cli/index.js run
 ```
-
-## Development / contribution pointers
-- `AGENTS.md` contains mandatory rules for contributors/agents.
-- `docs/spec.md` is the contract snapshot.
-- Schemas in `schemas/` are the source of truth; generated types live in `src/generated/`.

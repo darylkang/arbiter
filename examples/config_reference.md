@@ -3,7 +3,7 @@
 This file explains the example configs and maps their fields to the canonical JSON Schemas in `schemas/`. Use it as an annotated guide while editing JSON (since JSON cannot include comments).
 
 ## Example configs
-- `examples/debate_v1.smoke.json`: smallest working debate_v1 config (clustering off).
+- `examples/debate_v1.smoke.json`: smallest working debate_v1 (proposer–critic–revision) config (clustering off).
 - `examples/debate_v1.smoke+clustering.json`: debate_v1 with clustering enabled.
 - `examples/arbiter.full.json`: fuller option surface (model mix + decode ranges + clustering).
 
@@ -49,8 +49,8 @@ All examples reference the current catalog/prompt IDs. IDs may change as curated
 - `batch_size`: batch boundary for monitoring/clustering.
 - `workers`: concurrency limit.
 - `retry_policy`: general backoff settings (protocol retries are separate).
-- `stop_policy`: convergence-aware thresholds (`novelty_epsilon`, `similarity_threshold`, `patience`).
-- `stop_mode`: `advisor` (logs convergence) vs `enforcer` (stops on thresholds).
+- `stop_policy`: convergence‑aware thresholds (`novelty_epsilon`, `similarity_threshold`, `patience`).
+- `stop_mode`: `advisor` (logs) vs `enforcer` (stops on thresholds).
 
 ### `measurement`
 - Schema: `schemas/config.schema.json`
