@@ -27,10 +27,17 @@ Arbiter is a research-grade CLI for studying LLM behavior as a **distribution** 
 - **Embedding failures do not fail trials**: only `trial.status=success` is eligible; embedding status is separate.
 - **Eligible trials**: default is `embedding_status=success` for monitoring/convergence.
 - **Empty embed_text**: skip embedding; record `embedding_status=skipped` with reason `empty_embed_text`.
-- **Deterministic truncation**: keep prefix; record original/final sizes and truncation flag.
+- **Embed text normalization**: newline normalization to `\n`, trim trailing whitespace, then deterministic truncation to `measurement.embedding_max_chars` (keep prefix).
+- **Truncation metadata**: record `embed_text_truncated`, `embed_text_original_chars`, `embed_text_final_chars`, and `truncation_reason`.
+- **Zero-eligible batches**: when no eligible embeddings, set `novelty_rate=null`, `mean_max_sim_to_prior=null`, and `has_eligible_in_batch=false`.
 - **Graceful shutdown**: SIGINT/SIGTERM yields schema-valid partial artifacts with `incomplete=true` and `stop_reason=user_interrupt`.
 - **Actual model logging**: record OpenRouter `x-model` response header per trial (requested vs actual may differ; if header is absent, `actual_model` is null).
+- **Embedding model provenance**: record requested embedding model and `actual_embedding_model` from `x-model` when present (nullable if absent or inconsistent).
 - **Prompt embedding**: `config.resolved.json` must include full prompt text used with IDs and sha256.
+- **Parsed output semantics**:
+  - `success`: usable canonical output exists.
+  - `fallback`: structured extraction failed but a usable canonical output exists (e.g., debate raw fallback).
+  - `failed`: no usable canonical output.
 
 ## Phase B v0 protocol: debate_v1
 - **3-turn sequence**: proposer → critic → proposer final.
@@ -38,6 +45,16 @@ Arbiter is a research-grade CLI for studying LLM behavior as a **distribution** 
 - **Extraction**: fenced JSON → unfenced JSON → raw fallback; valid JSON requires non-empty `decision`.
 - **Timeout/retry defaults**: per-call timeout 90s, per-call max retries 2, total trial timeout 5m.
 - **Deferrals**: no consensus/judge/router/refinement in v0.
+
+## Baseline early stopping (Phase 0)
+- **Batch-boundary only**: stop evaluation happens only after batch completion.
+- **Metrics used**: non-structural metrics (`novelty_rate`, `mean_max_sim_to_prior`) only.
+- **Eligibility**: applies only after `k_min` eligible trials (embedding_status = success).
+- **Policy fields**: `execution.stop_policy` with `novelty_epsilon`, `similarity_threshold`, `patience`.
+- **Modes**:
+  - `stop_mode=advisor`: log `would_stop` in convergence trace but continue.
+  - `stop_mode=enforcer`: stop when thresholds are met for `patience` consecutive batches; `stop_reason=converged`.
+- **Heuristic**: stability indicator only (not a correctness guarantee).
 
 ## Phase C monitoring: online clustering (locked semantics)
 - **Algorithm**: online leader clustering; default centroid update rule is `fixed_leader`.
@@ -76,6 +93,10 @@ Debug-only (optional):
 - `execution.log` (TTY-only; short batch-level log)
 
 Note: `embeddings.arrow` is written only when embeddings are actually produced; resolve-only runs do not create it.
+
+## Statistical assumptions & limitations
+- Monitoring metrics assume trials are i.i.d. under the configured sampling distribution and measurement procedure.
+- Any confidence intervals (if used) inherit those assumptions; they are stability diagnostics, not guarantees.
 
 ## Schema versioning & type generation
 - Current schema version: `1.0.0` (v1 catalog).
