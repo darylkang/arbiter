@@ -45,6 +45,9 @@ Notes:
   - `arbiter init --template free_quickstart`
   - Free models may be substituted; not for publishable research.
 
+## Profiles (templates)
+Templates are curated **profiles** that run the same engine with different defaults. Mock‑run is a true execution mode (no API calls), not a toy; it produces the full artifact pack for testing pipelines.
+
 ## Configuration
 - Start from templates (`arbiter init --template <name>`):
   - `quickstart_independent` (default baseline)

@@ -22,6 +22,7 @@ import { formatReceiptText } from "../ui/receipt-text.js";
 import { renderReceiptInk } from "../ui/receipt-ink.js";
 import { writeReceiptText } from "../ui/receipt-writer.js";
 import { ExecutionLogger } from "../ui/execution-log.js";
+import { formatVerifyReport, verifyRunDir } from "../tools/verify-run.js";
 
 const DEFAULT_CONFIG_PATH = "arbiter.config.json";
 
@@ -37,6 +38,7 @@ const printUsage = (): void => {
   console.log(
     "  arbiter run [config.json] [--out <runs_dir>] [--debug] [--quiet] [--max-trials N] [--batch-size N] [--workers N]"
   );
+  console.log("  arbiter verify <run_dir>");
 };
 
 type ParsedArgs = {
@@ -165,6 +167,18 @@ const runValidate = (parsed: ParsedArgs, assetRoot: string): void => {
   }
 
   console.log(`Config OK: ${resolve(process.cwd(), configPath)}`);
+};
+
+const runVerify = (parsed: ParsedArgs): void => {
+  const runDir = parsed.positional[0];
+  if (!runDir) {
+    throw new Error("Usage: arbiter verify <run_dir>");
+  }
+  const report = verifyRunDir(runDir);
+  console.log(formatVerifyReport(report));
+  if (!report.ok) {
+    process.exitCode = 1;
+  }
 };
 
 const runResolve = (parsed: ParsedArgs, assetRoot: string): void => {
@@ -458,6 +472,10 @@ const main = async (): Promise<void> => {
     }
     if (command === "validate") {
       runValidate(parsed, assetRoot);
+      return;
+    }
+    if (command === "verify") {
+      runVerify(parsed);
       return;
     }
     if (command === "resolve") {

@@ -31,8 +31,10 @@
     "test:early-stop": "npm run build && node scripts/early-stop.mjs",
     "test:clustering": "npm run build && node scripts/clustering-determinism.mjs && node scripts/clustering-limit.mjs && node scripts/mock-run-interrupt.mjs",
     "test:debate": "npm run build && node scripts/mock-run-debate.mjs",
+    "test:contracts": "npm run build && node scripts/contract-fallback.mjs",
     "test:provenance": "npm run build && node scripts/openrouter-provenance.mjs",
     "test:templates": "npm run build && node scripts/template-smoke.mjs",
+    "test:verify": "npm run build && node scripts/verify-smoke.mjs",
     "test:live-smoke": "npm run build && node scripts/live-smoke.mjs",
     "test:pack": "npm run build && node scripts/test-pack-install.mjs",
     "prepublishOnly": "npm run build && npm run test:pack"

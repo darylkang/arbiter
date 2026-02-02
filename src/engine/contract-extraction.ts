@@ -12,7 +12,7 @@ export type DecisionContractConfig = {
 };
 
 export type ContractExtractionResult = {
-  parse_status: "success" | "failed";
+  parse_status: "success" | "failed" | "fallback";
   extraction_method: "fenced" | "unfenced" | "raw";
   outcome: string;
   rationale?: string;
@@ -99,6 +99,15 @@ export const extractContractOutput = (
   validate: (data: unknown) => boolean
 ): ContractExtractionResult => {
   const trimmed = content.trim();
+  if (!trimmed) {
+    return {
+      parse_status: "failed",
+      extraction_method: "raw",
+      outcome: "",
+      embed_text_source: "raw_content",
+      embed_text: ""
+    };
+  }
   const candidates: Array<{ method: "fenced" | "unfenced"; value: unknown | null }> = [
     { method: "fenced", value: extractFencedJson(trimmed) },
     { method: "unfenced", value: extractUnfencedJson(trimmed) }
@@ -164,7 +173,7 @@ export const extractContractOutput = (
   }
 
   return {
-    parse_status: "failed",
+    parse_status: "fallback",
     extraction_method: "raw",
     outcome: trimmed,
     embed_text_source: "raw_content",

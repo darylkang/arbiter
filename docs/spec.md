@@ -35,9 +35,9 @@ Arbiter is a research-grade CLI for studying LLM behavior as a **distribution** 
 - **Embedding model provenance**: record requested embedding model and `actual_embedding_model` from response body `model` when present (nullable if absent or inconsistent). Record `generation_id` (response body `id`) for optional later audit (e.g., `/api/v1/generation?id=...`); no generation lookups are performed by default.
 - **Prompt embedding**: `config.resolved.json` must include full prompt text used with IDs and sha256.
 - **Parsed output semantics**:
-  - `success`: usable canonical output exists.
-  - `fallback`: structured extraction failed but a usable canonical output exists (e.g., debate raw fallback).
-  - `failed`: no usable canonical output.
+  - `success`: contract validated; structured fields populated.
+  - `fallback`: contract invalid/unparseable, but deterministic fallback output exists (raw text used for outcome/embed_text).
+  - `failed`: no usable text available (empty/missing); embed_text is empty and embeddings are skipped.
 - **Decision contracts (optional)**: when configured, Arbiter validates structured JSON output against the contract schema and derives `embed_text` from the contract's `embed_text_source` (e.g., rationale).
 
 ## Phase B v0 protocol: debate_v1
@@ -106,3 +106,8 @@ Note: `embeddings.arrow` is written only when embeddings are actually produced; 
 - Current schema version: `1.0.0` (v1 catalog).
 - Generate types: `npm run gen:types` (outputs to `src/generated/`).
 - Verify generated types: `npm run check:types`.
+
+## Notion drift notes (source of truth is this spec + schemas)
+- Provenance uses OpenRouter response body `model` for `actual_model` (headers are optional metadata).
+- `question.json` is **not** a default artifact; the question is embedded in `config.resolved.json`.
+- Terminology: use **convergence-aware stopping** / **budget-adaptive sampling** and **debate protocol (proposer–critic–revision)**.
