@@ -13,6 +13,7 @@ import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
 import type { ArbiterPromptManifest } from "../generated/prompt-manifest.types.js";
 import type { ArbiterProtocolSpec } from "../generated/protocol.types.js";
 import { sha256Hex } from "../utils/hash.js";
+import { DEFAULT_EMBEDDING_MAX_CHARS, DEFAULT_STOP_POLICY } from "./defaults.js";
 
 export interface ResolveConfigOptions {
   configPath?: string;
@@ -135,6 +136,21 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
     resolvedConfig.execution.retry_policy.backoff_ms = 0;
   }
 
+  if (!resolvedConfig.execution.stop_policy) {
+    resolvedConfig.execution.stop_policy = { ...DEFAULT_STOP_POLICY };
+  } else {
+    resolvedConfig.execution.stop_policy = {
+      novelty_epsilon:
+        resolvedConfig.execution.stop_policy.novelty_epsilon ??
+        DEFAULT_STOP_POLICY.novelty_epsilon,
+      similarity_threshold:
+        resolvedConfig.execution.stop_policy.similarity_threshold ??
+        DEFAULT_STOP_POLICY.similarity_threshold,
+      patience:
+        resolvedConfig.execution.stop_policy.patience ?? DEFAULT_STOP_POLICY.patience
+    };
+  }
+
   if (resolvedConfig.protocol.timeouts) {
     resolvedConfig.protocol.timeouts = {
       per_call_timeout_ms:
@@ -147,6 +163,10 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
         resolvedConfig.protocol.timeouts.total_trial_timeout_ms ??
         DEFAULT_PROTOCOL_TIMEOUTS.total_trial_timeout_ms
     };
+  }
+
+  if (resolvedConfig.measurement.embedding_max_chars === undefined) {
+    resolvedConfig.measurement.embedding_max_chars = DEFAULT_EMBEDDING_MAX_CHARS;
   }
 
   const resolvedPersonas = resolvedConfig.sampling.personas.map((persona) => {

@@ -55,8 +55,8 @@ export type ReceiptModel = {
   };
   convergence?: {
     batch_number?: number;
-    novelty_rate?: number;
-    mean_max_sim_to_prior?: number;
+    novelty_rate?: number | null;
+    mean_max_sim_to_prior?: number | null;
     cluster_count?: number;
     new_clusters_this_batch?: number;
     largest_cluster_share?: number;

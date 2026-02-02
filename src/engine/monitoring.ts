@@ -37,9 +37,9 @@ export const updateNoveltyMetrics = (
   prior: PriorEmbedding[],
   batch: BatchEmbedding[],
   noveltyThreshold: number
-): { noveltyRate: number; meanMaxSimToPrior: number } => {
+): { noveltyRate: number | null; meanMaxSimToPrior: number | null; hasEligibleInBatch: boolean } => {
   if (batch.length === 0) {
-    return { noveltyRate: 0, meanMaxSimToPrior: 0 };
+    return { noveltyRate: null, meanMaxSimToPrior: null, hasEligibleInBatch: false };
   }
 
   let novelCount = 0;
@@ -68,6 +68,7 @@ export const updateNoveltyMetrics = (
 
   return {
     noveltyRate: novelCount / batch.length,
-    meanMaxSimToPrior: sumMaxSim / batch.length
+    meanMaxSimToPrior: sumMaxSim / batch.length,
+    hasEligibleInBatch: true
   };
 };

@@ -108,16 +108,18 @@ const printRunPreview = (resolvedConfig: ReturnType<typeof resolveConfigForCli>[
   console.log(`  Clustering: ${clustering}`);
 };
 
-const maybeRenderReceipt = async (runDir: string, useInk: boolean): Promise<void> => {
+const maybeRenderReceipt = async (runDir: string, useInk: boolean): Promise<string> => {
   const model = buildReceiptModel(runDir);
   const text = formatReceiptText(model);
-  writeReceiptText(runDir, text);
+  const path = writeReceiptText(runDir, text);
 
   if (useInk) {
     await renderReceiptInk(model);
   } else {
     process.stdout.write(text);
   }
+
+  return path;
 };
 
 const runInit = (parsed: ParsedArgs, assetRoot: string): void => {
@@ -226,8 +228,6 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     runId,
     resolvedConfig: result.resolvedConfig,
     debugEnabled: debug,
-    receiptEnabled: true,
-    executionLogEnabled: Boolean(process.stdout.isTTY && !quiet),
     embeddingsJsonlPath,
     catalogVersion: result.catalog.catalog_version,
     catalogSha256: result.catalogSha256,
@@ -270,6 +270,9 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
       embeddingsJsonlPath,
       debugEnabled: debug,
       beforeFinalize: async () => writer.close(),
+      stop: {
+        shouldStop: () => monitor.getShouldStop()
+      },
       shutdown: {
         signal: shutdownController.signal,
         isRequested: () => shutdownRequested
@@ -283,21 +286,26 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
       shutdownTimer = null;
     }
     await writer.close();
+    await logger?.close();
+    if (logger) {
+      bus.emit({ type: "artifact.written", payload: { path: "execution.log" } });
+    }
+    try {
+      await maybeRenderReceipt(runDir, useInk);
+      bus.emit({ type: "artifact.written", payload: { path: "receipt.txt" } });
+    } catch (error) {
+      console.warn(
+        `Failed to render receipt: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
     writer.detach();
     monitor.detach();
-    await logger?.close();
     logger?.detach();
   }
 
   if (result.warnings.length > 0) {
     console.warn("Warnings:");
     result.warnings.forEach((warning) => console.warn(`- ${warning}`));
-  }
-
-  try {
-    await maybeRenderReceipt(runDir, useInk);
-  } catch (error) {
-    console.warn(`Failed to render receipt: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   if (runError) {
@@ -345,8 +353,6 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     runId,
     resolvedConfig: result.resolvedConfig,
     debugEnabled: debug,
-    receiptEnabled: true,
-    executionLogEnabled: Boolean(process.stdout.isTTY && !quiet),
     embeddingsJsonlPath,
     catalogVersion: result.catalog.catalog_version,
     catalogSha256: result.catalogSha256,
@@ -389,6 +395,9 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
       embeddingsJsonlPath,
       debugEnabled: debug,
       beforeFinalize: async () => writer.close(),
+      stop: {
+        shouldStop: () => monitor.getShouldStop()
+      },
       shutdown: {
         signal: shutdownController.signal,
         isRequested: () => shutdownRequested
@@ -402,21 +411,26 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
       shutdownTimer = null;
     }
     await writer.close();
+    await logger?.close();
+    if (logger) {
+      bus.emit({ type: "artifact.written", payload: { path: "execution.log" } });
+    }
+    try {
+      await maybeRenderReceipt(runDir, useInk);
+      bus.emit({ type: "artifact.written", payload: { path: "receipt.txt" } });
+    } catch (error) {
+      console.warn(
+        `Failed to render receipt: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
     writer.detach();
     monitor.detach();
-    await logger?.close();
     logger?.detach();
   }
 
   if (result.warnings.length > 0) {
     console.warn("Warnings:");
     result.warnings.forEach((warning) => console.warn(`- ${warning}`));
-  }
-
-  try {
-    await maybeRenderReceipt(runDir, useInk);
-  } catch (error) {
-    console.warn(`Failed to render receipt: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   if (runError) {

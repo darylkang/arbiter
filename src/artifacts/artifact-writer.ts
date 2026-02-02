@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import type { EventBus } from "../events/event-bus.js";
 import type {
   AggregatesComputedPayload,
+  ArtifactWrittenPayload,
   ClusterAssignedPayload,
   ClusterStatePayload,
   ConvergenceRecordPayload,
@@ -33,6 +34,7 @@ import {
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterRunManifest } from "../generated/manifest.types.js";
 import type { ArbiterTrialPlanRecord } from "../generated/trial-plan.types.js";
+import { DEFAULT_STOP_POLICY } from "../config/defaults.js";
 import { canonicalStringify } from "../utils/canonical-json.js";
 import { sha256Hex } from "../utils/hash.js";
 import { createJsonlWriter, writeJsonAtomic, type JsonlWriter } from "./io.js";
@@ -43,8 +45,6 @@ export interface ArtifactWriterOptions {
   runId: string;
   resolvedConfig: ArbiterResolvedConfig;
   debugEnabled: boolean;
-  receiptEnabled?: boolean;
-  executionLogEnabled?: boolean;
   embeddingsJsonlPath?: string;
   catalogVersion: string;
   catalogSha256: string;
@@ -84,8 +84,6 @@ export class ArtifactWriter {
   private readonly runDir: string;
   private readonly runId: string;
   private readonly debugEnabled: boolean;
-  private readonly receiptEnabled: boolean;
-  private readonly executionLogEnabled: boolean;
   private readonly resolvedConfig: ArbiterResolvedConfig;
   private readonly catalogVersion: string;
   private readonly catalogSha256: string;
@@ -101,6 +99,8 @@ export class ArtifactWriter {
   private readonly convergenceWriter: JsonlWriter;
   private readonly embeddingsWriter?: JsonlWriter;
   private readonly clusterAssignmentsWriter?: JsonlWriter;
+  private readonly extraArtifacts = new Map<string, { path: string; record_count?: number }>();
+  private manifestFinalized = false;
   private readonly counts: ArtifactCounts = {
     trialPlan: 0,
     trials: 0,
@@ -119,8 +119,6 @@ export class ArtifactWriter {
     this.runDir = options.runDir;
     this.runId = options.runId;
     this.debugEnabled = options.debugEnabled;
-    this.receiptEnabled = options.receiptEnabled ?? false;
-    this.executionLogEnabled = options.executionLogEnabled ?? false;
     this.resolvedConfig = options.resolvedConfig;
     this.catalogVersion = options.catalogVersion;
     this.catalogSha256 = options.catalogSha256;
@@ -160,6 +158,7 @@ export class ArtifactWriter {
       bus.subscribe("aggregates.computed", (payload) => this.onAggregatesComputed(payload)),
       bus.subscribe("embeddings.finalized", (payload) => this.onEmbeddingsFinalized(payload)),
       bus.subscribe("manifest.updated", (payload) => this.onManifestUpdated(payload)),
+      bus.subscribe("artifact.written", (payload) => this.onArtifactWritten(payload)),
       bus.subscribe("run.completed", (payload) => this.onRunCompleted(payload)),
       bus.subscribe("run.failed", (payload) => this.onRunFailed(payload))
     );
@@ -308,6 +307,17 @@ export class ArtifactWriter {
     writeJsonAtomic(resolve(this.runDir, "manifest.json"), payload.manifest);
   }
 
+  private onArtifactWritten(payload: ArtifactWrittenPayload): void {
+    this.extraArtifacts.set(payload.path, { path: payload.path, record_count: payload.record_count });
+    if (this.manifestFinalized && this.manifest) {
+      this.manifest.artifacts = { entries: this.buildArtifactEntries() };
+      if (this.validateArtifacts) {
+        assertValid("manifest", validateManifest(this.manifest), validateManifest.errors);
+      }
+      writeJsonAtomic(resolve(this.runDir, "manifest.json"), this.manifest);
+    }
+  }
+
   private onRunCompleted(payload: RunCompletedPayload): void {
     if (!this.manifest) {
       throw new Error("Manifest is not initialized");
@@ -323,6 +333,7 @@ export class ArtifactWriter {
     this.manifest.k_attempted = this.counts.trials;
     this.manifest.k_eligible = this.counts.embeddingSuccess;
     this.manifest.artifacts = { entries: this.buildArtifactEntries() };
+    this.manifestFinalized = true;
     if (this.validateArtifacts) {
       assertValid("manifest", validateManifest(this.manifest), validateManifest.errors);
     }
@@ -345,6 +356,7 @@ export class ArtifactWriter {
     this.manifest.k_attempted = this.counts.trials;
     this.manifest.k_eligible = this.counts.embeddingSuccess;
     this.manifest.artifacts = { entries: this.buildArtifactEntries() };
+    this.manifestFinalized = true;
     if (this.validateArtifacts) {
       assertValid("manifest", validateManifest(this.manifest), validateManifest.errors);
     }
@@ -354,6 +366,7 @@ export class ArtifactWriter {
   private buildInitialManifest(payload: RunStartedPayload): ArbiterRunManifest {
     const configSha256 = sha256Hex(canonicalStringify(payload.resolved_config));
     const arbiterVersion = readPackageVersion(this.packageJsonPath);
+    const stopPolicy = this.resolvedConfig.execution.stop_policy ?? DEFAULT_STOP_POLICY;
 
     return {
       schema_version: "1.0.0",
@@ -372,6 +385,12 @@ export class ArtifactWriter {
       k_eligible: 0,
       k_min: this.resolvedConfig.execution.k_min,
       k_min_count_rule: this.resolvedConfig.execution.k_min_count_rule,
+      stop_policy: {
+        novelty_epsilon: stopPolicy.novelty_epsilon,
+        similarity_threshold: stopPolicy.similarity_threshold,
+        patience: stopPolicy.patience,
+        k_min_eligible: this.resolvedConfig.execution.k_min
+      },
       hash_algorithm: "sha256",
       config_sha256: configSha256,
       plan_sha256: payload.plan_sha256,
@@ -423,11 +442,8 @@ export class ArtifactWriter {
       entries.push({ path: "clusters/online.state.json" });
     }
 
-    if (this.receiptEnabled) {
-      entries.push({ path: "receipt.txt" });
-    }
-    if (this.executionLogEnabled) {
-      entries.push({ path: "execution.log" });
+    for (const entry of this.extraArtifacts.values()) {
+      entries.push(entry);
     }
 
     return entries;

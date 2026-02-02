@@ -5,6 +5,7 @@ import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterRunManifest } from "../generated/manifest.types.js";
 import { canonicalStringify } from "../utils/canonical-json.js";
 import { sha256Hex } from "../utils/hash.js";
+import { DEFAULT_STOP_POLICY } from "./defaults.js";
 
 export interface ManifestInputs {
   runId: string;
@@ -31,6 +32,8 @@ export const buildResolveManifest = (inputs: ManifestInputs): ArbiterRunManifest
   const packageJsonPath = resolve(inputs.packageJsonPath ?? "package.json");
   const arbiterVersion = readPackageVersion(packageJsonPath);
 
+  const stopPolicy = inputs.resolvedConfig.execution.stop_policy ?? DEFAULT_STOP_POLICY;
+
   return {
     schema_version: "1.0.0",
     arbiter_version: arbiterVersion,
@@ -48,6 +51,12 @@ export const buildResolveManifest = (inputs: ManifestInputs): ArbiterRunManifest
     k_eligible: 0,
     k_min: inputs.resolvedConfig.execution.k_min,
     k_min_count_rule: inputs.resolvedConfig.execution.k_min_count_rule,
+    stop_policy: {
+      novelty_epsilon: stopPolicy.novelty_epsilon,
+      similarity_threshold: stopPolicy.similarity_threshold,
+      patience: stopPolicy.patience,
+      k_min_eligible: inputs.resolvedConfig.execution.k_min
+    },
     hash_algorithm: hashAlgorithm,
     config_sha256: configSha256,
     model_catalog_version: inputs.catalogVersion,

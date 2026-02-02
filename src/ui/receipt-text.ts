@@ -3,8 +3,8 @@ import type { ReceiptModel } from "./receipt-model.js";
 const formatCount = (value: number | undefined): string =>
   value === undefined ? "-" : String(value);
 
-const formatNumber = (value: number | undefined, digits = 3): string =>
-  value === undefined ? "-" : value.toFixed(digits);
+const formatNumber = (value: number | null | undefined, digits = 3): string =>
+  value === undefined || value === null ? "-" : value.toFixed(digits);
 
 export const formatReceiptText = (model: ReceiptModel): string => {
   const lines: string[] = [];

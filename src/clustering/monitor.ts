@@ -15,6 +15,7 @@ import type {
 import { updateNoveltyMetrics, type BatchEmbedding, type PriorEmbedding } from "../engine/monitoring.js";
 import { OnlineLeaderClustering } from "./online-leader.js";
 import { decodeFloat32Base64 } from "../utils/float32-base64.js";
+import { DEFAULT_STOP_POLICY } from "../config/defaults.js";
 
 type ClusterMetrics = {
   cluster_count: number;
@@ -30,11 +31,19 @@ type ClusterMetrics = {
   forced_assignments_cumulative: number;
 };
 
+type StopPolicy = {
+  novelty_epsilon: number;
+  similarity_threshold: number;
+  patience: number;
+};
+
 export class ClusteringMonitor {
   private readonly bus: EventBus;
   private readonly config: ArbiterResolvedConfig;
   private readonly noveltyThreshold: number;
   private readonly stopMode: "advisor" | "enforcer";
+  private readonly stopPolicy: StopPolicy;
+  private readonly kMinEligible: number;
   private readonly clusteringEnabled: boolean;
   private readonly clustering: OnlineLeaderClustering | null;
   private readonly embeddings = new Map<number, ArbiterDebugEmbeddingJSONLRecord>();
@@ -47,12 +56,16 @@ export class ClusteringMonitor {
   private readonly clusterLimit: number | null;
   private readonly unsubs: Array<() => void> = [];
   private lastConvergence: ArbiterConvergenceTraceRecord | null = null;
+  private consecutiveConvergedBatches = 0;
+  private shouldStopFlag = false;
 
   constructor(config: ArbiterResolvedConfig, bus: EventBus) {
     this.config = config;
     this.bus = bus;
     this.noveltyThreshold = config.measurement.novelty_threshold;
     this.stopMode = config.execution.stop_mode;
+    this.stopPolicy = config.execution.stop_policy ?? DEFAULT_STOP_POLICY;
+    this.kMinEligible = config.execution.k_min;
 
     const clusteringConfig = config.measurement.clustering;
     this.clusteringEnabled =
@@ -87,6 +100,10 @@ export class ClusteringMonitor {
 
   detach(): void {
     this.unsubs.splice(0).forEach((unsub) => unsub());
+  }
+
+  getShouldStop(): boolean {
+    return this.shouldStopFlag;
   }
 
   private onTrialCompleted(_payload: TrialCompletedPayload): void {
@@ -126,11 +143,28 @@ export class ClusteringMonitor {
       this.embeddingVectors.delete(trialId);
     }
 
-    const { noveltyRate, meanMaxSimToPrior } = updateNoveltyMetrics(
+    const { noveltyRate, meanMaxSimToPrior, hasEligibleInBatch } = updateNoveltyMetrics(
       this.priorEmbeddings,
       batchEmbeddings,
       this.noveltyThreshold
     );
+
+    const meetsThresholds =
+      hasEligibleInBatch &&
+      noveltyRate !== null &&
+      meanMaxSimToPrior !== null &&
+      noveltyRate <= this.stopPolicy.novelty_epsilon &&
+      meanMaxSimToPrior >= this.stopPolicy.similarity_threshold;
+
+    if (hasEligibleInBatch && this.totalEligible >= this.kMinEligible && meetsThresholds) {
+      this.consecutiveConvergedBatches += 1;
+    } else {
+      this.consecutiveConvergedBatches = 0;
+    }
+
+    const wouldStop = this.consecutiveConvergedBatches >= this.stopPolicy.patience;
+    const shouldStop = wouldStop && this.stopMode === "enforcer";
+    this.shouldStopFlag = shouldStop;
 
     let clusterMetrics: ClusterMetrics | undefined;
     if (this.clustering) {
@@ -191,13 +225,15 @@ export class ClusteringMonitor {
       batch_number: payload.batch_number,
       k_attempted: this.totalAttempted,
       k_eligible: this.totalEligible,
+      has_eligible_in_batch: hasEligibleInBatch,
       novelty_rate: noveltyRate,
       mean_max_sim_to_prior: meanMaxSimToPrior,
       recorded_at: new Date().toISOString(),
       stop: {
         mode: this.stopMode,
-        would_stop: false,
-        should_stop: false
+        would_stop: wouldStop,
+        should_stop: shouldStop,
+        stop_reason: wouldStop ? "converged" : undefined
       },
       ...(clusterMetrics ?? {})
     };

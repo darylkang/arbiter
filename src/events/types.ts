@@ -85,6 +85,11 @@ export type ManifestUpdatedPayload = {
   manifest: ArbiterRunManifest;
 };
 
+export type ArtifactWrittenPayload = {
+  path: string;
+  record_count?: number;
+};
+
 export type Event =
   | { type: "run.started"; payload: RunStartedPayload }
   | { type: "run.completed"; payload: RunCompletedPayload }
@@ -100,6 +105,7 @@ export type Event =
   | { type: "clusters.state"; payload: ClusterStatePayload }
   | { type: "convergence.record"; payload: ConvergenceRecordPayload }
   | { type: "aggregates.computed"; payload: AggregatesComputedPayload }
-  | { type: "manifest.updated"; payload: ManifestUpdatedPayload };
+  | { type: "manifest.updated"; payload: ManifestUpdatedPayload }
+  | { type: "artifact.written"; payload: ArtifactWrittenPayload };
 
 export type EventType = Event["type"];

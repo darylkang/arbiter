@@ -16,6 +16,10 @@ export type EmbeddingJsonlRecord = {
   error?: string;
   skip_reason?: string;
   embed_text_sha256?: string;
+  embed_text_truncated?: boolean;
+  embed_text_original_chars?: number;
+  embed_text_final_chars?: number;
+  truncation_reason?: string | null;
   dimensions?: number;
   dtype: "float32";
   encoding: "float32le_base64";
@@ -25,6 +29,12 @@ export interface FinalizeEmbeddingsOptions {
   runDir: string;
   dimensions: number;
   debugJsonlPath?: string;
+  provenance?: {
+    requestedEmbeddingModel?: string;
+    actualEmbeddingModel?: string | null;
+    embedTextStrategy?: string;
+    normalization?: string;
+  };
 }
 
 export interface FinalizeEmbeddingsResult {
@@ -108,6 +118,10 @@ export const finalizeEmbeddingsToArrow = async (
       primary_format: "arrow",
       dtype: "float32",
       dimensions: options.dimensions,
+      requested_embedding_model: options.provenance?.requestedEmbeddingModel,
+      actual_embedding_model: options.provenance?.actualEmbeddingModel ?? null,
+      embed_text_strategy: options.provenance?.embedTextStrategy,
+      normalization: options.provenance?.normalization,
       counts: {
         total_trials: totalCount,
         successful_embeddings: successCount,
@@ -130,7 +144,11 @@ export const finalizeEmbeddingsToArrow = async (
       dimensions: options.dimensions,
       arrow_error: message,
       debug_jsonl_present: true,
-      jsonl_encoding: "float32le_base64"
+      jsonl_encoding: "float32le_base64",
+      requested_embedding_model: options.provenance?.requestedEmbeddingModel,
+      actual_embedding_model: options.provenance?.actualEmbeddingModel ?? null,
+      embed_text_strategy: options.provenance?.embedTextStrategy,
+      normalization: options.provenance?.normalization
     };
     writeJsonAtomic(provenancePath, provenance);
     return { provenance };

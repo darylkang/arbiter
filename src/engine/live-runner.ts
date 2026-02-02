@@ -12,9 +12,11 @@ import { sha256Hex } from "../utils/hash.js";
 import { encodeFloat32Base64 } from "../utils/float32-base64.js";
 import type { OpenRouterMessage } from "../openrouter/client.js";
 import { chatCompletion, embedText, OpenRouterError } from "../openrouter/client.js";
+import { DEFAULT_EMBEDDING_MAX_CHARS } from "../config/defaults.js";
 import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
 import { buildDebateMessages, buildDebateParsedOutput } from "./debate-v1.js";
 import { deriveFailureStatus } from "./status.js";
+import { prepareEmbedText, type EmbedTextPreparation, EMBED_TEXT_NORMALIZATION } from "./embed-text.js";
 
 export interface LiveRunOptions {
   bus: EventBus;
@@ -23,6 +25,9 @@ export interface LiveRunOptions {
   embeddingsJsonlPath: string;
   debugEnabled: boolean;
   beforeFinalize?: () => Promise<void>;
+  stop?: {
+    shouldStop: () => boolean;
+  };
   shutdown?: {
     signal: AbortSignal;
     isRequested: () => boolean;
@@ -126,7 +131,7 @@ const buildParsedOutput = (
 const buildSkippedEmbedding = (
   trialId: number,
   reason: string,
-  embedText?: string
+  preparation: EmbedTextPreparation
 ): ArbiterDebugEmbeddingJSONLRecord => ({
   trial_id: trialId,
   embedding_status: "skipped",
@@ -134,13 +139,17 @@ const buildSkippedEmbedding = (
   dtype: "float32",
   encoding: "float32le_base64",
   skip_reason: reason,
-  embed_text_sha256: embedText ? sha256Hex(embedText) : undefined
+  embed_text_sha256: preparation.text ? sha256Hex(preparation.text) : undefined,
+  embed_text_truncated: preparation.truncated,
+  embed_text_original_chars: preparation.original_chars,
+  embed_text_final_chars: preparation.final_chars,
+  truncation_reason: preparation.truncation_reason
 });
 
 const buildFailedEmbedding = (
   trialId: number,
   error: string,
-  embedText?: string
+  preparation: EmbedTextPreparation
 ): ArbiterDebugEmbeddingJSONLRecord => ({
   trial_id: trialId,
   embedding_status: "failed",
@@ -148,13 +157,17 @@ const buildFailedEmbedding = (
   dtype: "float32",
   encoding: "float32le_base64",
   error,
-  embed_text_sha256: embedText ? sha256Hex(embedText) : undefined
+  embed_text_sha256: preparation.text ? sha256Hex(preparation.text) : undefined,
+  embed_text_truncated: preparation.truncated,
+  embed_text_original_chars: preparation.original_chars,
+  embed_text_final_chars: preparation.final_chars,
+  truncation_reason: preparation.truncation_reason
 });
 
 const buildSuccessEmbedding = (
   trialId: number,
   vector: number[],
-  embedTextValue: string
+  preparation: EmbedTextPreparation
 ): ArbiterDebugEmbeddingJSONLRecord => ({
   trial_id: trialId,
   embedding_status: "success",
@@ -162,7 +175,11 @@ const buildSuccessEmbedding = (
   dtype: "float32",
   encoding: "float32le_base64",
   dimensions: vector.length,
-  embed_text_sha256: sha256Hex(embedTextValue)
+  embed_text_sha256: sha256Hex(preparation.text),
+  embed_text_truncated: preparation.truncated,
+  embed_text_original_chars: preparation.original_chars,
+  embed_text_final_chars: preparation.final_chars,
+  truncation_reason: preparation.truncation_reason
 });
 
 const asObject = (value: unknown): Record<string, unknown> | undefined => {
@@ -176,6 +193,8 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
   const { bus, resolvedConfig } = options;
   const runId = resolvedConfig.run.run_id;
   const startedAt = new Date().toISOString();
+  const embeddingMaxChars =
+    resolvedConfig.measurement.embedding_max_chars ?? DEFAULT_EMBEDDING_MAX_CHARS;
 
   const { plan, planSha256 } = generateTrialPlan(resolvedConfig);
   const personaMap = new Map(
@@ -215,10 +234,22 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
   let attempted = 0;
   let eligible = 0;
   let embeddingDimensions: number | null = null;
-  let stopReason: "k_max_reached" | "user_interrupt" | "error" = "k_max_reached";
+  let actualEmbeddingModel: string | null = null;
+  let embeddingModelConflict = false;
+  let stopReason: "k_max_reached" | "user_interrupt" | "converged" | "error" = "k_max_reached";
   let incomplete = false;
 
-  const shouldStop = (): boolean => options.shutdown?.isRequested() ?? false;
+  const shouldStop = (): { stop: boolean; reason?: "user_interrupt" | "converged" } => {
+    const interrupted = options.shutdown?.isRequested() ?? false;
+    const converged = options.stop?.shouldStop() ?? false;
+    if (interrupted) {
+      return { stop: true, reason: "user_interrupt" };
+    }
+    if (converged) {
+      return { stop: true, reason: "converged" };
+    }
+    return { stop: false };
+  };
   const abortSignal = options.shutdown?.signal;
 
   type TrialResult = {
@@ -251,6 +282,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       const calls: NonNullable<ArbiterTrialRecord["calls"]> = [];
       const transcript: NonNullable<ArbiterTrialRecord["transcript"]> = [];
       const trialStartedMs = Date.now();
+      const emptyPreparation = prepareEmbedText("", embeddingMaxChars);
       const totalTimeoutMs = resolvedConfig.protocol.timeouts.total_trial_timeout_ms;
       const perCallTimeoutMs = resolvedConfig.protocol.timeouts.per_call_timeout_ms;
       const perCallMaxRetries = resolvedConfig.protocol.timeouts.per_call_max_retries;
@@ -372,7 +404,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         personaPrompt: proposerPersonaText
       });
       if (!turn0.content) {
-        const errorCode = turn0.errorCode ?? (shouldStop() ? "shutdown_abort" : null);
+        const errorCode = turn0.errorCode ?? (shouldStop().stop ? "shutdown_abort" : null);
         const status = deriveFailureStatus({
           timeoutExhausted: errorCode === "timeout_exhausted",
           modelUnavailable: Boolean(
@@ -411,7 +443,11 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         bus.emit({
           type: "embedding.recorded",
           payload: {
-            embedding_record: buildSkippedEmbedding(entry.trial_id, "trial_not_success")
+            embedding_record: buildSkippedEmbedding(
+              entry.trial_id,
+              "trial_not_success",
+              emptyPreparation
+            )
           }
         });
         return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
@@ -426,7 +462,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         proposerTurn: turn0.content
       });
       if (!turn1.content) {
-        const errorCode = turn1.errorCode ?? (shouldStop() ? "shutdown_abort" : null);
+        const errorCode = turn1.errorCode ?? (shouldStop().stop ? "shutdown_abort" : null);
         const status = deriveFailureStatus({
           timeoutExhausted: errorCode === "timeout_exhausted",
           modelUnavailable: Boolean(
@@ -465,7 +501,11 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         bus.emit({
           type: "embedding.recorded",
           payload: {
-            embedding_record: buildSkippedEmbedding(entry.trial_id, "trial_not_success")
+            embedding_record: buildSkippedEmbedding(
+              entry.trial_id,
+              "trial_not_success",
+              emptyPreparation
+            )
           }
         });
         return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
@@ -482,7 +522,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       });
 
       if (!turn2.content) {
-        const errorCode = turn2.errorCode ?? (shouldStop() ? "shutdown_abort" : null);
+        const errorCode = turn2.errorCode ?? (shouldStop().stop ? "shutdown_abort" : null);
         const status = deriveFailureStatus({
           timeoutExhausted: errorCode === "timeout_exhausted",
           modelUnavailable: Boolean(
@@ -521,13 +561,19 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         bus.emit({
           type: "embedding.recorded",
           payload: {
-            embedding_record: buildSkippedEmbedding(entry.trial_id, "trial_not_success")
+            embedding_record: buildSkippedEmbedding(
+              entry.trial_id,
+              "trial_not_success",
+              emptyPreparation
+            )
           }
         });
         return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
       }
 
       const parsedRecord = buildDebateParsedOutput(entry.trial_id, turn2.content);
+      const preparation = prepareEmbedText(parsedRecord.embed_text ?? "", embeddingMaxChars);
+      parsedRecord.embed_text = preparation.text || undefined;
       const trialRecord: ArbiterTrialRecord = {
         trial_id: entry.trial_id,
         requested_model_slug: assigned.model,
@@ -544,12 +590,15 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
       bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
 
-      const embedTextValue = parsedRecord.embed_text ?? "";
-      if (!embedTextValue) {
+      if (preparation.was_empty) {
         bus.emit({
           type: "embedding.recorded",
           payload: {
-            embedding_record: buildSkippedEmbedding(entry.trial_id, "empty_embed_text")
+            embedding_record: buildSkippedEmbedding(
+              entry.trial_id,
+              "empty_embed_text",
+              preparation
+            )
           }
         });
         return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
@@ -558,7 +607,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       try {
         const embedResult = await embedText({
           model: resolvedConfig.measurement.embedding_model,
-          text: embedTextValue,
+          text: preparation.text,
           options: {
             retry: {
               maxRetries: resolvedConfig.execution.retry_policy.max_retries,
@@ -567,6 +616,18 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
             signal: abortSignal
           }
         });
+
+        if (embedResult.modelHeader) {
+          if (!embeddingModelConflict && actualEmbeddingModel === null) {
+            actualEmbeddingModel = embedResult.modelHeader;
+          } else if (
+            !embeddingModelConflict &&
+            actualEmbeddingModel !== embedResult.modelHeader
+          ) {
+            embeddingModelConflict = true;
+            actualEmbeddingModel = null;
+          }
+        }
 
         if (embeddingDimensions === null) {
           embeddingDimensions = embedResult.vector.length;
@@ -582,7 +643,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
             embedding_record: buildSuccessEmbedding(
               entry.trial_id,
               embedResult.vector,
-              embedTextValue
+              preparation
             )
           }
         });
@@ -595,7 +656,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         bus.emit({
           type: "embedding.recorded",
           payload: {
-            embedding_record: buildFailedEmbedding(entry.trial_id, message, embedTextValue)
+            embedding_record: buildFailedEmbedding(entry.trial_id, message, preparation)
           }
         });
         return { trial_id: entry.trial_id, embedding: { status: "failed" } };
@@ -711,11 +772,12 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         ? outcome
         : outcome || rawAssistantText;
 
+    const preparation = prepareEmbedText(embedTextValue, embeddingMaxChars);
     const parsedRecord = buildParsedOutput(
       entry.trial_id,
       outcome,
       rawAssistantText,
-      embedTextValue,
+      preparation.text,
       parseError
     );
     bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
@@ -724,17 +786,25 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       bus.emit({
         type: "embedding.recorded",
         payload: {
-          embedding_record: buildSkippedEmbedding(entry.trial_id, "trial_not_success")
+          embedding_record: buildSkippedEmbedding(
+            entry.trial_id,
+            "trial_not_success",
+            preparation
+          )
         }
       });
       return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
     }
 
-    if (!embedTextValue) {
+    if (preparation.was_empty) {
       bus.emit({
         type: "embedding.recorded",
         payload: {
-          embedding_record: buildSkippedEmbedding(entry.trial_id, "empty_embed_text")
+          embedding_record: buildSkippedEmbedding(
+            entry.trial_id,
+            "empty_embed_text",
+            preparation
+          )
         }
       });
       return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
@@ -743,7 +813,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
     try {
       const embedResult = await embedText({
         model: resolvedConfig.measurement.embedding_model,
-        text: embedTextValue,
+        text: preparation.text,
         options: {
           retry: {
             maxRetries: resolvedConfig.execution.retry_policy.max_retries,
@@ -753,6 +823,18 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         }
       });
 
+      if (embedResult.modelHeader) {
+        if (!embeddingModelConflict && actualEmbeddingModel === null) {
+          actualEmbeddingModel = embedResult.modelHeader;
+        } else if (
+          !embeddingModelConflict &&
+          actualEmbeddingModel !== embedResult.modelHeader
+        ) {
+          embeddingModelConflict = true;
+          actualEmbeddingModel = null;
+        }
+      }
+
       if (embeddingDimensions === null) {
         embeddingDimensions = embedResult.vector.length;
       } else if (embeddingDimensions !== embedResult.vector.length) {
@@ -761,28 +843,28 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         );
       }
 
-      bus.emit({
-        type: "embedding.recorded",
-        payload: {
-          embedding_record: buildSuccessEmbedding(
-            entry.trial_id,
-            embedResult.vector,
-            embedTextValue
-          )
-        }
-      });
+        bus.emit({
+          type: "embedding.recorded",
+          payload: {
+            embedding_record: buildSuccessEmbedding(
+              entry.trial_id,
+              embedResult.vector,
+              preparation
+            )
+          }
+        });
       return {
         trial_id: entry.trial_id,
         embedding: { status: "success", vector: embedResult.vector }
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      bus.emit({
-        type: "embedding.recorded",
-        payload: {
-          embedding_record: buildFailedEmbedding(entry.trial_id, message, embedTextValue)
-        }
-      });
+        bus.emit({
+          type: "embedding.recorded",
+          payload: {
+            embedding_record: buildFailedEmbedding(entry.trial_id, message, preparation)
+          }
+        });
       return { trial_id: entry.trial_id, embedding: { status: "failed" } };
     }
   };
@@ -794,7 +876,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
 
     return new Promise((resolve, reject) => {
       const launch = (): void => {
-        while (inFlight < workerCount && index < entries.length && !shouldStop()) {
+        while (inFlight < workerCount && index < entries.length && !shouldStop().stop) {
           const entry = entries[index];
           index += 1;
           inFlight += 1;
@@ -809,7 +891,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
             });
         }
 
-        if ((index >= entries.length || shouldStop()) && inFlight === 0) {
+        if ((index >= entries.length || shouldStop().stop) && inFlight === 0) {
           resolve(results);
         }
       };
@@ -820,9 +902,10 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
 
   try {
     for (let batchStart = 0; batchStart < kMax; batchStart += batchSize) {
-      if (shouldStop()) {
-        stopReason = "user_interrupt";
-        incomplete = true;
+      const preStop = shouldStop();
+      if (preStop.stop) {
+        stopReason = preStop.reason ?? "user_interrupt";
+        incomplete = stopReason === "user_interrupt";
         break;
       }
 
@@ -855,9 +938,10 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       ).length;
       eligible += batchEligible;
 
-      if (shouldStop()) {
-        stopReason = "user_interrupt";
-        incomplete = true;
+      const postStop = shouldStop();
+      if (postStop.stop) {
+        stopReason = postStop.reason ?? "user_interrupt";
+        incomplete = stopReason === "user_interrupt";
         break;
       }
     }
@@ -868,6 +952,12 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
 
     let provenance: EmbeddingsProvenance;
     let arrowPath: string | undefined;
+    const provenanceMeta = {
+      requestedEmbeddingModel: resolvedConfig.measurement.embedding_model,
+      actualEmbeddingModel,
+      embedTextStrategy: resolvedConfig.measurement.embed_text_strategy,
+      normalization: EMBED_TEXT_NORMALIZATION
+    };
     if (embeddingDimensions === null) {
       provenance = {
         schema_version: "1.0.0",
@@ -877,13 +967,18 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         primary_format: "none",
         dtype: "float32",
         dimensions: null,
-        note: "No successful embeddings; arrow file not generated"
+        note: "No successful embeddings; arrow file not generated",
+        requested_embedding_model: provenanceMeta.requestedEmbeddingModel,
+        actual_embedding_model: provenanceMeta.actualEmbeddingModel ?? null,
+        embed_text_strategy: provenanceMeta.embedTextStrategy,
+        normalization: provenanceMeta.normalization
       };
     } else {
       const finalizeResult = await finalizeEmbeddingsToArrow({
         runDir: options.runDir,
         dimensions: embeddingDimensions,
-        debugJsonlPath: options.embeddingsJsonlPath
+        debugJsonlPath: options.embeddingsJsonlPath,
+        provenance: provenanceMeta
       });
       provenance = finalizeResult.provenance;
       arrowPath =

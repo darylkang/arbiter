@@ -39,6 +39,7 @@ export interface EmbeddingResult {
   latencyMs: number;
   retryCount: number;
   vector: number[];
+  modelHeader: string | null;
 }
 
 export class OpenRouterError extends Error {
@@ -303,6 +304,7 @@ export const embedText = async (input: {
     headers: result.headers,
     latencyMs: result.latencyMs,
     retryCount: result.retryCount,
-    vector
+    vector,
+    modelHeader: result.headers["x-model"] ?? null
   };
 };

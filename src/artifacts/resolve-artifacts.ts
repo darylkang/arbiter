@@ -68,7 +68,11 @@ export const writeResolveArtifacts = (
 
   writeJsonAtomic(aggregatesPath, aggregates);
 
-  const embeddingsProvenance = buildResolveOnlyProvenance();
+  const embeddingsProvenance = buildResolveOnlyProvenance(undefined, {
+    requestedEmbeddingModel: options.resolvedConfig.measurement.embedding_model,
+    embedTextStrategy: options.resolvedConfig.measurement.embed_text_strategy,
+    normalization: "newline_to_lf+trim_trailing"
+  });
   writeJsonAtomic(embeddingsProvenancePath, embeddingsProvenance);
 
   const result: ResolveArtifactsResult = {
