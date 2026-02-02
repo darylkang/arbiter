@@ -10,14 +10,14 @@
   },
   "sampling": {
     "models": [
-      { "model": "openai/gpt-4o-mini", "weight": 1 }
+      { "model": "openai/gpt-4o-mini-2024-07-18", "weight": 1 }
     ],
     "personas": [
-      { "persona": "stub_persona_neutral", "weight": 1 },
-      { "persona": "stub_persona_expert", "weight": 1 }
+      { "persona": "persona_neutral", "weight": 1 },
+      { "persona": "persona_skeptical", "weight": 1 }
     ],
     "protocols": [
-      { "protocol": "stub_protocol_independent_sampling", "weight": 1 }
+      { "protocol": "protocol_independent_v1_system", "weight": 1 }
     ],
     "decode": {
       "temperature": 0.7,
@@ -34,12 +34,17 @@
     }
   },
   "execution": {
-    "k_max": 3,
-    "batch_size": 1,
-    "workers": 1,
+    "k_max": 6,
+    "batch_size": 2,
+    "workers": 3,
     "retry_policy": {
       "max_retries": 0,
       "backoff_ms": 0
+    },
+    "stop_policy": {
+      "novelty_epsilon": 0.1,
+      "similarity_threshold": 0.85,
+      "patience": 2
     },
     "stop_mode": "advisor",
     "k_min": 0,

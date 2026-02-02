@@ -11,15 +11,17 @@
   },
   "sampling": {
     "models": [
-      { "model": "openai/gpt-4o-mini", "weight": 0.6 },
-      { "model": "anthropic/claude-3.5-sonnet", "weight": 0.4 }
+      { "model": "openai/gpt-4o-mini-2024-07-18", "weight": 0.5 },
+      { "model": "anthropic/claude-sonnet-4", "weight": 0.25 },
+      { "model": "google/gemini-2.0-flash-001", "weight": 0.25 }
     ],
     "personas": [
-      { "persona": "stub_persona_neutral", "weight": 0.5 },
-      { "persona": "stub_persona_expert", "weight": 0.5 }
+      { "persona": "persona_neutral", "weight": 0.4 },
+      { "persona": "persona_skeptical", "weight": 0.3 },
+      { "persona": "persona_precise", "weight": 0.3 }
     ],
     "protocols": [
-      { "protocol": "stub_protocol_independent_sampling", "weight": 1 }
+      { "protocol": "protocol_independent_v1_system", "weight": 1 }
     ],
     "decode": {
       "temperature": { "min": 0.2, "max": 0.9 },
@@ -30,7 +32,7 @@
     }
   },
   "protocol": {
-    "type": "debate_v1",
+    "type": "independent",
     "timeouts": {
       "per_call_timeout_ms": 90000,
       "per_call_max_retries": 2,
@@ -44,6 +46,11 @@
     "retry_policy": {
       "max_retries": 1,
       "backoff_ms": 500
+    },
+    "stop_policy": {
+      "novelty_epsilon": 0.1,
+      "similarity_threshold": 0.85,
+      "patience": 3
     },
     "stop_mode": "advisor",
     "k_min": 0,

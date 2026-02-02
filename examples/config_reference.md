@@ -7,7 +7,7 @@ This file explains the example configs and maps their fields to the canonical JS
 - `examples/debate_v1.smoke+clustering.json`: debate_v1 with clustering enabled.
 - `examples/arbiter.full.json`: fuller option surface (model mix + decode ranges + clustering).
 
-All examples are **dev-stage** and reference current catalog/prompt IDs. IDs may change as curated content lands.
+All examples reference the current catalog/prompt IDs. IDs may change as curated content evolves.
 
 ## Top-level sections (and schemas)
 
@@ -39,7 +39,9 @@ All examples are **dev-stage** and reference current catalog/prompt IDs. IDs may
 - Schema: `schemas/config.schema.json`
 - `type`: `independent` or `debate_v1`.
 - `timeouts`: per-call and per-trial limits (debate_v1 applies per-call retries).
-- During resolution, debate_v1 embeds protocol prompt text into `config.resolved.json`.
+- `decision_contract` (optional): structured JSON contract preset (from `contracts/manifest.json`).
+  - Example: `{ "id": "binary_decision_v1" }`
+  - Resolver embeds the full schema + sha256 into `config.resolved.json`.
 
 ### `execution`
 - Schema: `schemas/config.schema.json`
@@ -47,7 +49,8 @@ All examples are **dev-stage** and reference current catalog/prompt IDs. IDs may
 - `batch_size`: batch boundary for monitoring/clustering.
 - `workers`: concurrency limit.
 - `retry_policy`: general backoff settings (protocol retries are separate).
-- `stop_mode`: `advisor` (logs convergence) vs `enforcer` (not yet used for clustering).
+- `stop_policy`: convergence-aware thresholds (`novelty_epsilon`, `similarity_threshold`, `patience`).
+- `stop_mode`: `advisor` (logs convergence) vs `enforcer` (stops on thresholds).
 
 ### `measurement`
 - Schema: `schemas/config.schema.json`
@@ -68,6 +71,7 @@ All examples are **dev-stage** and reference current catalog/prompt IDs. IDs may
 - Embeddings provenance schema: `schemas/embeddings-provenance.schema.json`
 - Convergence trace schema: `schemas/convergence-trace.schema.json`
 - Clustering artifacts: `schemas/cluster-state.schema.json`, `schemas/cluster-assignment.schema.json`
+- Decision contracts: `schemas/decision-contract.schema.json` + `contracts/manifest.json`
 
 ## Reading embeddings.arrow in Python
 

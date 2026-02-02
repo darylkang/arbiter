@@ -31,22 +31,26 @@ Arbiter is a research-grade CLI for studying LLM behavior as a **distribution** 
 - **Truncation metadata**: record `embed_text_truncated`, `embed_text_original_chars`, `embed_text_final_chars`, and `truncation_reason`.
 - **Zero-eligible batches**: when no eligible embeddings, set `novelty_rate=null`, `mean_max_sim_to_prior=null`, and `has_eligible_in_batch=false`.
 - **Graceful shutdown**: SIGINT/SIGTERM yields schema-valid partial artifacts with `incomplete=true` and `stop_reason=user_interrupt`.
-- **Actual model logging**: record OpenRouter `x-model` response header per trial (requested vs actual may differ; if header is absent, `actual_model` is null).
-- **Embedding model provenance**: record requested embedding model and `actual_embedding_model` from `x-model` when present (nullable if absent or inconsistent).
+- **Actual model logging**: record OpenRouter **response body** `model` per trial (requested vs actual may differ; if missing, `actual_model` is null).
+- **Embedding model provenance**: record requested embedding model and `actual_embedding_model` from response body `model` when present (nullable if absent or inconsistent). Record `generation_id` (response body `id`) for optional later audit (e.g., `/api/v1/generation?id=...`); no generation lookups are performed by default.
 - **Prompt embedding**: `config.resolved.json` must include full prompt text used with IDs and sha256.
 - **Parsed output semantics**:
   - `success`: usable canonical output exists.
   - `fallback`: structured extraction failed but a usable canonical output exists (e.g., debate raw fallback).
   - `failed`: no usable canonical output.
+- **Decision contracts (optional)**: when configured, Arbiter validates structured JSON output against the contract schema and derives `embed_text` from the contract's `embed_text_source` (e.g., rationale).
 
 ## Phase B v0 protocol: debate_v1
 - **3-turn sequence**: proposer → critic → proposer final.
 - **Persona composition**: system = `persona\n\n---\n\nrole_prompt` (persona first; role prompt second).
-- **Extraction**: fenced JSON → unfenced JSON → raw fallback; valid JSON requires non-empty `decision`.
+- **Decision contract (optional)**: when configured, append the contract clause to the final proposer system prompt.
+- **Extraction**:
+  - If contract configured: attempt fenced JSON → unfenced JSON; if validation fails, `parse_status=failed` and embed raw content.
+  - If no contract: fenced JSON → unfenced JSON → raw fallback.
 - **Timeout/retry defaults**: per-call timeout 90s, per-call max retries 2, total trial timeout 5m.
 - **Deferrals**: no consensus/judge/router/refinement in v0.
 
-## Baseline early stopping (Phase 0)
+## Baseline convergence-aware stopping (Phase 0)
 - **Batch-boundary only**: stop evaluation happens only after batch completion.
 - **Metrics used**: non-structural metrics (`novelty_rate`, `mean_max_sim_to_prior`) only.
 - **Eligibility**: applies only after `k_min` eligible trials (embedding_status = success).
