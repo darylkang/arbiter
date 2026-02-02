@@ -1,0 +1,17 @@
+{
+  "id": "binary_decision_v1",
+  "embed_text_source": "rationale",
+  "rationale_max_chars": 500,
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": true,
+    "required": ["decision", "rationale"],
+    "properties": {
+      "decision": { "type": "string", "enum": ["yes", "no"] },
+      "rationale": { "type": "string", "maxLength": 500 },
+      "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+    }
+  },
+  "description": "Binary yes/no decision with a bounded rationale."
+}

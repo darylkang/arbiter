@@ -1,63 +1,63 @@
 {
   "schema_version": "1.0.0",
   "hash_algorithm": "sha256",
-  "prompt_bank_stage": "dev",
+  "prompt_bank_stage": "curated",
   "entries": [
     {
-      "id": "stub_persona_neutral",
+      "id": "persona_neutral",
       "type": "participant_persona",
-      "path": "prompts/personas/stub_persona_neutral.txt",
-      "sha256": "fbd7617710802c73cf4285b88368e4e065d8fedf835e29a07b11410eed4e86ed",
-      "description": "Stub neutral assistant persona."
+      "path": "prompts/personas/neutral.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "description": "Neutral (empty) persona."
     },
     {
-      "id": "stub_persona_expert",
+      "id": "persona_skeptical",
       "type": "participant_persona",
-      "path": "prompts/personas/stub_persona_expert.txt",
-      "sha256": "3c32ad4fb2cd66faa50ce2c1ed876733b8bb0f34e7499f1700822d7b6349ec22",
-      "description": "Stub expert assistant persona."
+      "path": "prompts/personas/skeptical.txt",
+      "sha256": "d77d0ae033965d7b4edadba2077bd610f6e9f31d27901737b998f60a0bb7617d",
+      "description": "Encourage identifying the strongest objection."
     },
     {
-      "id": "stub_persona_longform",
+      "id": "persona_precise",
       "type": "participant_persona",
-      "path": "prompts/personas/stub_persona_longform.txt",
-      "sha256": "26817b180a867d79f1a6d1bee57372d82428e4af236ae3c9c117436fc99d547e",
-      "description": "Stub longform persona to exercise larger prompt sizes."
+      "path": "prompts/personas/precise.txt",
+      "sha256": "4d0ed1a392777886daaabae84b832ae8f7c4a309ae46c50ff31ef0bb30a06cf0",
+      "description": "Define terms and state assumptions."
     },
     {
-      "id": "stub_protocol_independent_sampling",
+      "id": "persona_exploratory",
+      "type": "participant_persona",
+      "path": "prompts/personas/exploratory.txt",
+      "sha256": "b74233c005664f545c742ee429cb6286f33a1111df3aeb10872ffe26914bda63",
+      "description": "Consider multiple approaches before selecting one."
+    },
+    {
+      "id": "protocol_independent_v1_system",
       "type": "participant_protocol_template",
-      "path": "prompts/protocols/stub_protocol_independent_sampling.txt",
-      "sha256": "a0e46ebff9a99d87dedf26d077fa14c3f02d0bb8d18d4110024b001fcda237a3",
-      "description": "Stub independent sampling protocol."
+      "path": "prompts/protocols/independent_v1/system.md",
+      "sha256": "3b155fb025a075471501f4bf9a151368a4e18a0a0c9ee451bd02e8b66a38dd67",
+      "description": "Independent protocol system prompt."
     },
     {
-      "id": "stub_protocol_debate_v1_proposer_system",
+      "id": "protocol_debate_v1_proposer_system",
       "type": "participant_protocol_template",
       "path": "prompts/protocols/debate_v1/proposer_system.md",
-      "sha256": "b4eefac31481b14555155c488a2526c7078c0c122b4fc7ed7ea3b5caad10e751",
-      "description": "Stub debate_v1 proposer system prompt."
+      "sha256": "9760fd1f579bd4ce26984e75d2796aa930abfb31acfa2e6c695eee5eb8f49bb7",
+      "description": "Debate proposer system prompt."
     },
     {
-      "id": "stub_protocol_debate_v1_critic_system",
+      "id": "protocol_debate_v1_critic_system",
       "type": "participant_protocol_template",
       "path": "prompts/protocols/debate_v1/critic_system.md",
-      "sha256": "04fb8cd9bb6800501e171f30b4166279cb9d554c88f738d303005c91fa95f9c1",
-      "description": "Stub debate_v1 critic system prompt."
+      "sha256": "c3208ef9da0222b06e06fbada3b6b7caf3e8370b0d9d17501dcd250efd2b7f57",
+      "description": "Debate critic system prompt."
     },
     {
-      "id": "stub_protocol_debate_v1_proposer_final_system",
+      "id": "protocol_debate_v1_proposer_final_system",
       "type": "participant_protocol_template",
       "path": "prompts/protocols/debate_v1/proposer_final_system.md",
-      "sha256": "5d2059fb2aea5491a4e54188c481c0747b70e70cb0d85501aa7e198a3d197602",
-      "description": "Stub debate_v1 proposer final system prompt."
-    },
-    {
-      "id": "stub_instrument_moderator",
-      "type": "instrument_prompt",
-      "path": "prompts/instruments/stub_instrument_moderator.txt",
-      "sha256": "0b076966afe8c0e519224948726b1dd9cea8de2892a0c6275d94b0ceae11ad75",
-      "description": "Stub moderation instrument prompt."
+      "sha256": "982a63e136c74cd49fbe6f53979a5b43a95c177849a70b2f25b17f57f672f265",
+      "description": "Debate proposer final system prompt."
     }
   ]
 }

@@ -23,6 +23,10 @@
         "dtype": { "const": "float32" },
         "dimensions": { "type": ["integer", "null"], "minimum": 1 },
         "note": { "type": "string" },
+        "generation_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
         "requested_embedding_model": { "type": "string", "minLength": 1 },
         "actual_embedding_model": { "type": ["string", "null"] },
         "embed_text_strategy": { "type": "string", "minLength": 1 },
@@ -69,6 +73,10 @@
         "embedding_model": { "type": "string", "minLength": 1 },
         "embed_text_strategy": { "type": "string", "minLength": 1 },
         "normalization": { "type": "string", "minLength": 1 },
+        "generation_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
         "requested_embedding_model": { "type": "string", "minLength": 1 },
         "actual_embedding_model": { "type": ["string", "null"] },
         "jsonl_encoding": { "const": "float32le_base64" }
@@ -98,6 +106,10 @@
         "arrow_error": { "type": "string", "minLength": 1 },
         "debug_jsonl_present": { "type": "boolean" },
         "jsonl_encoding": { "const": "float32le_base64" },
+        "generation_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
         "requested_embedding_model": { "type": "string", "minLength": 1 },
         "actual_embedding_model": { "type": ["string", "null"] },
         "embed_text_strategy": { "type": "string", "minLength": 1 },

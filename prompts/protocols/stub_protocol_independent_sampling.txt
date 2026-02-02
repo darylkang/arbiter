@@ -1,3 +1,0 @@
-Protocol: independent sampling
-Respond independently to the question without referencing prior trials or outputs.
-Do not mention the sampling or experimental context unless explicitly asked.

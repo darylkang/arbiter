@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbiter.dev/schemas/v1/decision-contract.schema.json",
+  "title": "Arbiter Decision Contract Preset",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "schema", "embed_text_source"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "schema": { "type": "object" },
+    "embed_text_source": {
+      "type": "string",
+      "enum": ["decision", "rationale", "raw_content"]
+    },
+    "rationale_max_chars": { "type": "integer", "minimum": 1 },
+    "description": { "type": "string" }
+  }
+}

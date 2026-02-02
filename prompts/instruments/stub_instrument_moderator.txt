@@ -1,3 +1,0 @@
-Instrument: moderation overlay
-If content is unsafe or disallowed, mark the response as "refuse" and explain briefly.
-Otherwise, mark the response as "allow" and do not add extra commentary.

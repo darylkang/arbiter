@@ -1,12 +1,16 @@
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
 import { validateDebateDecisionContract } from "../config/schema-validation.js";
+import {
+  buildParsedOutputWithContract,
+  type DecisionContractConfig
+} from "./contract-extraction.js";
 
 export type DebateExtractionResult = {
   outcome: string;
   rationale?: string;
   parse_status: "success" | "fallback";
   extraction_method: "fenced" | "unfenced" | "raw";
-  embed_text_source: "decision" | "raw_content";
+  embed_text_source: "decision" | "raw_content" | "rationale";
   embed_text: string;
   confidence?: "low" | "medium" | "high" | null;
 };
@@ -21,10 +25,15 @@ export const buildDebateMessages = (input: {
   question: string;
   systemPrompt: string;
   personaPrompt?: string | null;
+  contractClause?: string;
   proposerTurn?: string;
   criticTurn?: string;
 }): Array<{ role: "system" | "user" | "assistant"; content: string }> => {
-  const system = composeSystemPrompt(input.systemPrompt, input.personaPrompt);
+  const rolePrompt =
+    input.turn === 2 && input.contractClause
+      ? `${input.systemPrompt}\n\n${input.contractClause}`
+      : input.systemPrompt;
+  const system = composeSystemPrompt(rolePrompt, input.personaPrompt);
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     { role: "system", content: system },
     { role: "user", content: input.question }
@@ -91,8 +100,17 @@ export const extractDebateDecision = (content: string): DebateExtractionResult =
 
 export const buildDebateParsedOutput = (
   trialId: number,
-  finalContent: string
+  finalContent: string,
+  decisionContract?: DecisionContractConfig
 ): ArbiterParsedOutputRecord => {
+  if (decisionContract) {
+    return buildParsedOutputWithContract({
+      trialId,
+      content: finalContent,
+      contract: decisionContract,
+      parserVersion: "debate-v1"
+    });
+  }
   const extracted = extractDebateDecision(finalContent);
   return {
     trial_id: trialId,

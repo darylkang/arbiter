@@ -1,29 +1,32 @@
 {
-  "_readme": "Arbiter multi-model config. Edit this file then run: arbiter run. See README.md.",
+  "_readme": "Arbiter multi-model template (independent). Edit then run: arbiter run.",
+  "template_id": "multi-model",
+  "display_name": "Multi-model mix (independent)",
+  "description": "Mix multiple providers for heterogeneity coverage.",
   "schema_version": "1.0.0",
   "run": {
     "run_id": "pending",
-    "seed": 777777
+    "seed": 424242
   },
   "question": {
     "text": "How should teams balance speed and safety in AI deployment?",
-    "question_id": "multi_model_question_1"
+    "question_id": "multi_model_q1"
   },
   "sampling": {
     "models": [
-      { "model": "openai/gpt-4o-mini", "weight": 0.5 },
-      { "model": "anthropic/claude-3.5-sonnet", "weight": 0.3 },
-      { "model": "google/gemini-1.5-pro", "weight": 0.2 }
+      { "model": "openai/gpt-4o-mini-2024-07-18", "weight": 1 },
+      { "model": "anthropic/claude-sonnet-4", "weight": 1 },
+      { "model": "google/gemini-2.0-flash-001", "weight": 1 }
     ],
     "personas": [
-      { "persona": "stub_persona_neutral", "weight": 0.5 },
-      { "persona": "stub_persona_expert", "weight": 0.5 }
+      { "persona": "persona_neutral", "weight": 0.5 },
+      { "persona": "persona_skeptical", "weight": 0.5 }
     ],
     "protocols": [
-      { "protocol": "stub_protocol_independent_sampling", "weight": 1 }
+      { "protocol": "protocol_independent_v1_system", "weight": 1 }
     ],
     "decode": {
-      "temperature": 0.6,
+      "temperature": { "min": 0.5, "max": 0.8 },
       "top_p": 0.95,
       "max_tokens": 512
     }
@@ -37,15 +40,20 @@
     }
   },
   "execution": {
-    "k_max": 20,
-    "batch_size": 5,
-    "workers": 3,
+    "k_max": 48,
+    "batch_size": 6,
+    "workers": 4,
     "retry_policy": {
       "max_retries": 0,
       "backoff_ms": 0
     },
+    "stop_policy": {
+      "novelty_epsilon": 0.1,
+      "similarity_threshold": 0.85,
+      "patience": 3
+    },
     "stop_mode": "advisor",
-    "k_min": 0,
+    "k_min": 24,
     "k_min_count_rule": "k_eligible"
   },
   "measurement": {

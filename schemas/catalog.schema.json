@@ -13,7 +13,7 @@
   ],
   "properties": {
     "schema_version": { "const": "1.0.0" },
-    "catalog_version": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "catalog_version": { "type": "string", "pattern": "^\\d{4}[.-]\\d{2}[.-]\\d{2}$" },
     "catalog_stage": { "type": "string", "enum": ["dev", "curated", "research"] },
     "metadata_complete": { "type": "boolean" },
     "hash_algorithm": { "const": "sha256" },
@@ -33,7 +33,8 @@
           "display_name",
           "provider",
           "context_window",
-          "is_aliased"
+          "is_aliased",
+          "tier"
         ],
         "properties": {
           "slug": { "type": "string", "minLength": 1 },
@@ -41,6 +42,7 @@
           "provider": { "type": "string", "minLength": 1 },
           "context_window": { "type": ["integer", "null"], "minimum": 0 },
           "is_aliased": { "type": ["boolean", "null"] },
+          "tier": { "type": "string", "enum": ["default", "extended", "free"] },
           "notes": { "type": "string" }
         }
       }

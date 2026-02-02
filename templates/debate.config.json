@@ -1,5 +1,8 @@
 {
-  "_readme": "Arbiter debate_v1 config. Edit this file then run: arbiter run. See README.md.",
+  "_readme": "Arbiter debate template (proposer–critic–revision). Edit then run: arbiter run.",
+  "template_id": "debate",
+  "display_name": "Debate protocol (proposer–critic–revision)",
+  "description": "Multi-call debate protocol; lower concurrency recommended.",
   "schema_version": "1.0.0",
   "run": {
     "run_id": "pending",
@@ -7,18 +10,19 @@
   },
   "question": {
     "text": "Should cities prioritize housing affordability over job growth?",
-    "question_id": "debate_question_1"
+    "question_id": "debate_q1"
   },
   "sampling": {
     "models": [
-      { "model": "openai/gpt-4o-mini", "weight": 1 }
+      { "model": "openai/gpt-4o-mini-2024-07-18", "weight": 1 },
+      { "model": "anthropic/claude-sonnet-4", "weight": 1 }
     ],
     "personas": [
-      { "persona": "stub_persona_neutral", "weight": 0.5 },
-      { "persona": "stub_persona_expert", "weight": 0.5 }
+      { "persona": "persona_neutral", "weight": 0.5 },
+      { "persona": "persona_skeptical", "weight": 0.5 }
     ],
     "protocols": [
-      { "protocol": "stub_protocol_independent_sampling", "weight": 1 }
+      { "protocol": "protocol_independent_v1_system", "weight": 1 }
     ],
     "decode": {
       "temperature": 0.7,
@@ -32,18 +36,26 @@
       "per_call_timeout_ms": 90000,
       "per_call_max_retries": 2,
       "total_trial_timeout_ms": 300000
+    },
+    "decision_contract": {
+      "id": "binary_decision_v1"
     }
   },
   "execution": {
-    "k_max": 12,
+    "k_max": 32,
     "batch_size": 4,
-    "workers": 3,
+    "workers": 2,
     "retry_policy": {
       "max_retries": 0,
       "backoff_ms": 0
     },
+    "stop_policy": {
+      "novelty_epsilon": 0.1,
+      "similarity_threshold": 0.85,
+      "patience": 3
+    },
     "stop_mode": "advisor",
-    "k_min": 0,
+    "k_min": 16,
     "k_min_count_rule": "k_eligible"
   },
   "measurement": {

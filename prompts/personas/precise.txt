@@ -1,0 +1,1 @@
+Define key terms explicitly. State assumptions and constraints. Avoid hedging.

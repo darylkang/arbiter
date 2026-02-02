@@ -15,6 +15,7 @@ import { DEFAULT_EMBEDDING_MAX_CHARS } from "../config/defaults.js";
 import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
 import { buildDebateParsedOutput } from "./debate-v1.js";
 import { prepareEmbedText, EMBED_TEXT_NORMALIZATION } from "./embed-text.js";
+import { buildParsedOutputWithContract } from "./contract-extraction.js";
 
 export interface MockRunOptions {
   bus: EventBus;
@@ -218,7 +219,11 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
 
       bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
 
-      const parsedRecord = buildDebateParsedOutput(entry.trial_id, finalPayload);
+    const parsedRecord = buildDebateParsedOutput(
+      entry.trial_id,
+      finalPayload,
+      resolvedConfig.protocol.decision_contract ?? undefined
+    );
       const rawEmbedText = forceEmptyEmbedText ? "" : parsedRecord.embed_text ?? "";
       const preparation = prepareEmbedText(rawEmbedText, embeddingMaxChars);
       parsedRecord.embed_text = preparation.text || undefined;
@@ -265,10 +270,6 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       resolvedConfig.measurement.embed_text_strategy === "outcome_only"
         ? outcome
         : outcome || rawAssistantText;
-    const preparation = prepareEmbedText(
-      forceEmptyEmbedText ? "" : embedTextValue,
-      embeddingMaxChars
-    );
 
     const trialRecord: ArbiterTrialRecord = {
       trial_id: entry.trial_id,
@@ -282,12 +283,24 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
 
     bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
 
-    const parsedRecord = buildIndependentParsedOutput(
-      entry.trial_id,
-      outcome,
-      rawAssistantText,
-      preparation.text
+    const parsedRecord = resolvedConfig.protocol.decision_contract
+      ? buildParsedOutputWithContract({
+          trialId: entry.trial_id,
+          content: rawAssistantText,
+          contract: resolvedConfig.protocol.decision_contract,
+          parserVersion: "independent-v1"
+        })
+      : buildIndependentParsedOutput(
+          entry.trial_id,
+          outcome,
+          rawAssistantText,
+          embedTextValue
+        );
+    const preparation = prepareEmbedText(
+      forceEmptyEmbedText ? "" : parsedRecord.embed_text ?? "",
+      embeddingMaxChars
     );
+    parsedRecord.embed_text = preparation.text || undefined;
     bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
 
     if (preparation.was_empty) {

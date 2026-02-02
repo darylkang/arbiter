@@ -8,9 +8,9 @@
     { "turn": 2, "role": "proposer" }
   ],
   "prompts": {
-    "proposer_system": "stub_protocol_debate_v1_proposer_system",
-    "critic_system": "stub_protocol_debate_v1_critic_system",
-    "proposer_final_system": "stub_protocol_debate_v1_proposer_final_system"
+    "proposer_system": "protocol_debate_v1_proposer_system",
+    "critic_system": "protocol_debate_v1_critic_system",
+    "proposer_final_system": "protocol_debate_v1_proposer_final_system"
   },
   "outcome_extraction": {
     "method": "debate_v1_decision_contract"

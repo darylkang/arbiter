@@ -1,29 +1,32 @@
 {
-  "_readme": "Arbiter default template (quickstart independent). Edit then run: arbiter run.",
-  "template_id": "default",
-  "display_name": "Default (quickstart independent)",
-  "description": "Safe baseline for a first run; advisor-only convergence-aware stopping.",
+  "_readme": "Arbiter heterogeneity mix template (independent). Edit then run: arbiter run.",
+  "template_id": "heterogeneity_mix",
+  "display_name": "Heterogeneity mix (independent)",
+  "description": "Multi-model + multi-persona mix for distributional coverage.",
   "schema_version": "1.0.0",
   "run": {
     "run_id": "pending",
     "seed": 424242
   },
   "question": {
-    "text": "What are the tradeoffs of event sourcing?",
-    "question_id": "default_q1"
+    "text": "How should teams balance speed and safety in AI deployment?",
+    "question_id": "heterogeneity_q1"
   },
   "sampling": {
     "models": [
-      { "model": "openai/gpt-4o-mini-2024-07-18", "weight": 1 }
+      { "model": "openai/gpt-4o-mini-2024-07-18", "weight": 1 },
+      { "model": "anthropic/claude-sonnet-4", "weight": 1 },
+      { "model": "google/gemini-2.0-flash-001", "weight": 1 }
     ],
     "personas": [
-      { "persona": "persona_neutral", "weight": 1 }
+      { "persona": "persona_neutral", "weight": 0.5 },
+      { "persona": "persona_skeptical", "weight": 0.5 }
     ],
     "protocols": [
       { "protocol": "protocol_independent_v1_system", "weight": 1 }
     ],
     "decode": {
-      "temperature": 0.7,
+      "temperature": { "min": 0.5, "max": 0.8 },
       "top_p": 0.95,
       "max_tokens": 512
     }
@@ -34,15 +37,12 @@
       "per_call_timeout_ms": 90000,
       "per_call_max_retries": 2,
       "total_trial_timeout_ms": 300000
-    },
-    "decision_contract": {
-      "id": "binary_decision_v1"
     }
   },
   "execution": {
-    "k_max": 20,
-    "batch_size": 5,
-    "workers": 3,
+    "k_max": 48,
+    "batch_size": 6,
+    "workers": 4,
     "retry_policy": {
       "max_retries": 0,
       "backoff_ms": 0
@@ -50,10 +50,10 @@
     "stop_policy": {
       "novelty_epsilon": 0.1,
       "similarity_threshold": 0.85,
-      "patience": 2
+      "patience": 3
     },
     "stop_mode": "advisor",
-    "k_min": 10,
+    "k_min": 24,
     "k_min_count_rule": "k_eligible"
   },
   "measurement": {

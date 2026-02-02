@@ -18,6 +18,7 @@ export interface ArbiterModelCatalog {
       provider: string;
       context_window: number | null;
       is_aliased: boolean | null;
+      tier: "default" | "extended" | "free";
       notes?: string;
     },
     ...{
@@ -26,6 +27,7 @@ export interface ArbiterModelCatalog {
       provider: string;
       context_window: number | null;
       is_aliased: boolean | null;
+      tier: "default" | "extended" | "free";
       notes?: string;
     }[]
   ];

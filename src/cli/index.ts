@@ -29,7 +29,7 @@ const printUsage = (): void => {
   console.log("Wizard coming soon. For now: arbiter init → arbiter validate → arbiter run");
   console.log("Usage:");
   console.log(
-    "  arbiter init [question] [--out <path>] [--force] [--template default|debate|multi-model|full]"
+    "  arbiter init [question] [--out <path>] [--force] [--template default|quickstart_independent|heterogeneity_mix|debate_v1|free_quickstart|full]"
   );
   console.log("  arbiter validate [config.json]");
   console.log("  arbiter resolve [config.json] [--out <runs_dir>] [--debug]");
@@ -231,7 +231,8 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     embeddingsJsonlPath,
     catalogVersion: result.catalog.catalog_version,
     catalogSha256: result.catalogSha256,
-    promptManifestSha256: result.promptManifestSha256
+    promptManifestSha256: result.promptManifestSha256,
+    packageJsonPath: resolve(assetRoot, "package.json")
   });
   writer.attach(bus);
   const monitor = new ClusteringMonitor(result.resolvedConfig, bus);
@@ -356,7 +357,8 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     embeddingsJsonlPath,
     catalogVersion: result.catalog.catalog_version,
     catalogSha256: result.catalogSha256,
-    promptManifestSha256: result.promptManifestSha256
+    promptManifestSha256: result.promptManifestSha256,
+    packageJsonPath: resolve(assetRoot, "package.json")
   });
   writer.attach(bus);
   const monitor = new ClusteringMonitor(result.resolvedConfig, bus);

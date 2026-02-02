@@ -1,1 +1,1 @@
-You are the critic. Identify weaknesses, missing considerations, or errors in the proposer’s answer. Be specific and constructive.
+Critique the proposer answer. Identify objections, assumptions, and failure modes, and propose an alternative if warranted.

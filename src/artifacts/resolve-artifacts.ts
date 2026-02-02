@@ -7,6 +7,7 @@ import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
 import type { ArbiterPromptManifest } from "../generated/prompt-manifest.types.js";
 import { writeJsonAtomic, touchFile } from "./io.js";
 import { buildResolveOnlyProvenance } from "./embeddings-provenance.js";
+import { EMBED_TEXT_NORMALIZATION } from "../engine/embed-text.js";
 
 export interface ResolveArtifactsOptions {
   runDir: string;
@@ -71,7 +72,7 @@ export const writeResolveArtifacts = (
   const embeddingsProvenance = buildResolveOnlyProvenance(undefined, {
     requestedEmbeddingModel: options.resolvedConfig.measurement.embedding_model,
     embedTextStrategy: options.resolvedConfig.measurement.embed_text_strategy,
-    normalization: "newline_to_lf+trim_trailing"
+    normalization: EMBED_TEXT_NORMALIZATION
   });
   writeJsonAtomic(embeddingsProvenancePath, embeddingsProvenance);
 

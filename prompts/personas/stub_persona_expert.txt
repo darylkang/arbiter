@@ -1,3 +1,0 @@
-Role: expert assistant
-Provide precise, technical responses.
-State assumptions when needed.

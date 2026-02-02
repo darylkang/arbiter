@@ -30,6 +30,8 @@ export interface ChatCompletionResult {
   latencyMs: number;
   retryCount: number;
   modelHeader: string | null;
+  model: string | null;
+  responseId: string | null;
 }
 
 export interface EmbeddingResult {
@@ -40,6 +42,8 @@ export interface EmbeddingResult {
   retryCount: number;
   vector: number[];
   modelHeader: string | null;
+  model: string | null;
+  generationId: string | null;
 }
 
 export class OpenRouterError extends Error {
@@ -102,6 +106,28 @@ const parseJsonBody = async (response: Response): Promise<unknown> => {
     return text;
   }
 };
+
+const extractModelFromBody = (body: unknown): string | null => {
+  if (body && typeof body === "object" && "model" in body) {
+    const value = (body as { model?: unknown }).model;
+    return typeof value === "string" ? value : null;
+  }
+  return null;
+};
+
+const extractIdFromBody = (body: unknown): string | null => {
+  if (body && typeof body === "object" && "id" in body) {
+    const value = (body as { id?: unknown }).id;
+    return typeof value === "string" ? value : null;
+  }
+  return null;
+};
+
+export const extractActualModel = (body: unknown): string | null =>
+  extractModelFromBody(body);
+
+export const extractResponseId = (body: unknown): string | null =>
+  extractIdFromBody(body);
 
 const classifyError = (
   status: number | undefined,
@@ -269,7 +295,9 @@ export const chatCompletion = async (input: {
     headers: result.headers,
     latencyMs: result.latencyMs,
     retryCount: result.retryCount,
-    modelHeader: result.headers["x-model"] ?? null
+    modelHeader: result.headers["x-model"] ?? null,
+    model: extractModelFromBody(result.responseBody),
+    responseId: extractIdFromBody(result.responseBody)
   };
 };
 
@@ -305,6 +333,8 @@ export const embedText = async (input: {
     latencyMs: result.latencyMs,
     retryCount: result.retryCount,
     vector,
-    modelHeader: result.headers["x-model"] ?? null
+    modelHeader: result.headers["x-model"] ?? null,
+    model: extractModelFromBody(result.responseBody),
+    generationId: extractIdFromBody(result.responseBody)
   };
 };

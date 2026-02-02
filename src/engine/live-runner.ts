@@ -11,12 +11,21 @@ import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js
 import { sha256Hex } from "../utils/hash.js";
 import { encodeFloat32Base64 } from "../utils/float32-base64.js";
 import type { OpenRouterMessage } from "../openrouter/client.js";
-import { chatCompletion, embedText, OpenRouterError } from "../openrouter/client.js";
+import {
+  chatCompletion,
+  embedText,
+  OpenRouterError,
+  extractActualModel
+} from "../openrouter/client.js";
 import { DEFAULT_EMBEDDING_MAX_CHARS } from "../config/defaults.js";
 import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
 import { buildDebateMessages, buildDebateParsedOutput } from "./debate-v1.js";
 import { deriveFailureStatus } from "./status.js";
 import { prepareEmbedText, type EmbedTextPreparation, EMBED_TEXT_NORMALIZATION } from "./embed-text.js";
+import {
+  formatDecisionContractClause,
+  buildParsedOutputWithContract
+} from "./contract-extraction.js";
 
 export interface LiveRunOptions {
   bus: EventBus;
@@ -54,6 +63,9 @@ const buildMessages = (
   }
   if (protocolText) {
     systemParts.push(protocolText);
+  }
+  if (config.protocol.decision_contract) {
+    systemParts.push(formatDecisionContractClause(config.protocol.decision_contract.schema));
   }
   if (config.sampling.instruments) {
     config.sampling.instruments.forEach((instrument) => {
@@ -235,6 +247,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
   let eligible = 0;
   let embeddingDimensions: number | null = null;
   let actualEmbeddingModel: string | null = null;
+  const embeddingGenerationIds = new Set<string>();
   let embeddingModelConflict = false;
   let stopReason: "k_max_reached" | "user_interrupt" | "converged" | "error" = "k_max_reached";
   let incomplete = false;
@@ -288,12 +301,17 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       const perCallMaxRetries = resolvedConfig.protocol.timeouts.per_call_max_retries;
       const backoffMs = resolvedConfig.execution.retry_policy.backoff_ms ?? 0;
 
+      const contractClause = resolvedConfig.protocol.decision_contract
+        ? formatDecisionContractClause(resolvedConfig.protocol.decision_contract.schema)
+        : undefined;
+
       const runCall = async (input: {
         callIndex: number;
         turn: 0 | 1 | 2;
         role: "proposer" | "critic";
         systemPrompt: string;
         personaPrompt?: string | null;
+        contractClause?: string;
         proposerTurn?: string;
         criticTurn?: string;
       }): Promise<{
@@ -314,6 +332,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
           question: resolvedConfig.question.text,
           systemPrompt: input.systemPrompt,
           personaPrompt: input.personaPrompt,
+          contractClause: input.contractClause,
           proposerTurn: input.proposerTurn,
           criticTurn: input.criticTurn
         });
@@ -345,7 +364,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
             turn: input.turn,
             role: input.role,
             model_requested: roleAssignments[input.role].model_slug,
-            model_actual: result.modelHeader ?? null,
+            model_actual: result.model ?? null,
             request_payload: result.requestPayload,
             response_payload: asObject(result.responseBody) ?? null,
             attempt: {
@@ -357,7 +376,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
             error_message: null
           });
           transcript.push({ turn: input.turn, role: input.role, content });
-          return { content, modelActual: result.modelHeader ?? null };
+          return { content, modelActual: result.model ?? null };
         }
 
         const errorMessage =
@@ -369,7 +388,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         const responsePayload =
           error instanceof OpenRouterError ? error.responseBody : undefined;
         const modelActual =
-          error instanceof OpenRouterError ? error.headers?.["x-model"] ?? null : null;
+          error instanceof OpenRouterError ? extractActualModel(error.responseBody) : null;
         const timeoutCode = timeout.didTimeout() ? "timeout_exhausted" : undefined;
 
         calls.push({
@@ -517,6 +536,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         role: "proposer",
         systemPrompt: protocolPrompts.proposer_final_system.text,
         personaPrompt: proposerPersonaText,
+        contractClause,
         proposerTurn: turn0.content,
         criticTurn: turn1.content
       });
@@ -571,7 +591,11 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
       }
 
-      const parsedRecord = buildDebateParsedOutput(entry.trial_id, turn2.content);
+      const parsedRecord = buildDebateParsedOutput(
+        entry.trial_id,
+        turn2.content,
+        resolvedConfig.protocol.decision_contract ?? undefined
+      );
       const preparation = prepareEmbedText(parsedRecord.embed_text ?? "", embeddingMaxChars);
       parsedRecord.embed_text = preparation.text || undefined;
       const trialRecord: ArbiterTrialRecord = {
@@ -617,16 +641,19 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
           }
         });
 
-        if (embedResult.modelHeader) {
+        if (embedResult.model) {
           if (!embeddingModelConflict && actualEmbeddingModel === null) {
-            actualEmbeddingModel = embedResult.modelHeader;
+            actualEmbeddingModel = embedResult.model;
           } else if (
             !embeddingModelConflict &&
-            actualEmbeddingModel !== embedResult.modelHeader
+            actualEmbeddingModel !== embedResult.model
           ) {
             embeddingModelConflict = true;
             actualEmbeddingModel = null;
           }
+        }
+        if (embedResult.generationId) {
+          embeddingGenerationIds.add(embedResult.generationId);
         }
 
         if (embeddingDimensions === null) {
@@ -700,7 +727,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       retryCount = chatResult.retryCount;
       latencyMs = chatResult.latencyMs;
       responsePayload = chatResult.responseBody;
-      actualModel = chatResult.modelHeader;
+      actualModel = chatResult.model;
       rawAssistantText = extractAssistantText(chatResult.responseBody);
 
       trialRecord = {
@@ -725,7 +752,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       retryCount = chatError?.retryCount ?? 0;
       latencyMs = chatError?.latencyMs ?? 0;
       responsePayload = chatError?.responseBody;
-      actualModel = chatError?.headers?.["x-model"] ?? null;
+      actualModel = extractActualModel(chatError?.responseBody);
 
       const status = deriveFailureStatus({
         timeoutExhausted: timeout.didTimeout(),
@@ -772,14 +799,23 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         ? outcome
         : outcome || rawAssistantText;
 
-    const preparation = prepareEmbedText(embedTextValue, embeddingMaxChars);
-    const parsedRecord = buildParsedOutput(
-      entry.trial_id,
-      outcome,
-      rawAssistantText,
-      preparation.text,
-      parseError
-    );
+    const parsedRecord = resolvedConfig.protocol.decision_contract
+      ? buildParsedOutputWithContract({
+          trialId: entry.trial_id,
+          content: rawAssistantText,
+          contract: resolvedConfig.protocol.decision_contract,
+          parserVersion: "independent-v1"
+        })
+      : buildParsedOutput(
+          entry.trial_id,
+          outcome,
+          rawAssistantText,
+          embedTextValue,
+          parseError
+        );
+
+    const preparation = prepareEmbedText(parsedRecord.embed_text ?? "", embeddingMaxChars);
+    parsedRecord.embed_text = preparation.text || undefined;
     bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
 
     if (trialRecord.status !== "success") {
@@ -823,16 +859,19 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         }
       });
 
-      if (embedResult.modelHeader) {
+      if (embedResult.model) {
         if (!embeddingModelConflict && actualEmbeddingModel === null) {
-          actualEmbeddingModel = embedResult.modelHeader;
+          actualEmbeddingModel = embedResult.model;
         } else if (
           !embeddingModelConflict &&
-          actualEmbeddingModel !== embedResult.modelHeader
+          actualEmbeddingModel !== embedResult.model
         ) {
           embeddingModelConflict = true;
           actualEmbeddingModel = null;
         }
+      }
+      if (embedResult.generationId) {
+        embeddingGenerationIds.add(embedResult.generationId);
       }
 
       if (embeddingDimensions === null) {
@@ -955,6 +994,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
     const provenanceMeta = {
       requestedEmbeddingModel: resolvedConfig.measurement.embedding_model,
       actualEmbeddingModel,
+      generationIds: Array.from(embeddingGenerationIds),
       embedTextStrategy: resolvedConfig.measurement.embed_text_strategy,
       normalization: EMBED_TEXT_NORMALIZATION
     };
@@ -970,6 +1010,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         note: "No successful embeddings; arrow file not generated",
         requested_embedding_model: provenanceMeta.requestedEmbeddingModel,
         actual_embedding_model: provenanceMeta.actualEmbeddingModel ?? null,
+        generation_ids: provenanceMeta.generationIds.length > 0 ? provenanceMeta.generationIds : undefined,
         embed_text_strategy: provenanceMeta.embedTextStrategy,
         normalization: provenanceMeta.normalization
       };

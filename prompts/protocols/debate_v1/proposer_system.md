@@ -1,1 +1,1 @@
-You are the proposer. Provide your best answer to the question. Be clear and concise.
+Provide the strongest possible answer to the question. Be specific and substantive.

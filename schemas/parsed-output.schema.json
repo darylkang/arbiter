@@ -14,11 +14,18 @@
     },
     "embed_text_source": {
       "type": "string",
-      "enum": ["decision", "raw_content"]
+      "enum": ["decision", "rationale", "raw_content"]
     },
-    "confidence": { "type": ["string", "null"], "enum": ["low", "medium", "high", null] },
+    "confidence": {
+      "oneOf": [
+        { "type": "string", "enum": ["low", "medium", "high"] },
+        { "type": "number", "minimum": 0, "maximum": 1 },
+        { "type": "null" }
+      ]
+    },
     "outcome": { "type": "string" },
     "rationale": { "type": "string" },
+    "rationale_truncated": { "type": "boolean" },
     "trace_summary": { "type": "string" },
     "raw_assistant_text": { "type": "string" },
     "embed_text": { "type": "string" },

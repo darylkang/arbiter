@@ -5,12 +5,16 @@ import {
   formatAjvErrors,
   validateCatalog,
   validateConfig,
+  validateContractManifest,
+  validateDecisionContract,
   validateProtocolSpec,
   validatePromptManifest
 } from "./schema-validation.js";
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
 import type { ArbiterPromptManifest } from "../generated/prompt-manifest.types.js";
+import type { ArbiterDecisionContractManifest } from "../generated/contract-manifest.types.js";
+import type { ArbiterDecisionContractPreset } from "../generated/decision-contract.types.js";
 import type { ArbiterProtocolSpec } from "../generated/protocol.types.js";
 import { sha256Hex } from "../utils/hash.js";
 import { DEFAULT_EMBEDDING_MAX_CHARS, DEFAULT_STOP_POLICY } from "./defaults.js";
@@ -20,6 +24,7 @@ export interface ResolveConfigOptions {
   configRoot?: string;
   catalogPath?: string;
   promptManifestPath?: string;
+  contractManifestPath?: string;
   assetRoot?: string;
 }
 
@@ -99,6 +104,10 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
     assetRoot,
     options.promptManifestPath ?? "prompts/manifest.json"
   );
+  const contractManifestPath = resolve(
+    assetRoot,
+    options.contractManifestPath ?? "contracts/manifest.json"
+  );
 
   const config = readJsonFile<ArbiterResolvedConfig>(configPath);
   if (!config.protocol) {
@@ -128,6 +137,21 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
 
   const promptMap = new Map(
     promptManifest.entries.map((entry) => [entry.id, entry])
+  );
+
+  const contractManifest = config.protocol.decision_contract
+    ? readJsonFile<ArbiterDecisionContractManifest>(contractManifestPath)
+    : null;
+  if (contractManifest) {
+    assertValid(
+      "contract manifest",
+      validateContractManifest(contractManifest),
+      validateContractManifest.errors
+    );
+  }
+
+  const contractMap = new Map(
+    contractManifest?.entries.map((entry) => [entry.id, entry]) ?? []
   );
 
   const resolvedConfig: ArbiterResolvedConfig = JSON.parse(JSON.stringify(config));
@@ -260,6 +284,37 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
         sha256: proposerFinalPrompt.sha256,
         text: proposerFinalPrompt.text
       }
+    };
+  }
+
+  if (resolvedConfig.protocol.decision_contract) {
+    const contractEntry = contractMap.get(resolvedConfig.protocol.decision_contract.id);
+    if (!contractEntry) {
+      throw new Error(
+        `Decision contract not found in manifest: ${resolvedConfig.protocol.decision_contract.id}`
+      );
+    }
+    const contractPath = resolve(assetRoot, contractEntry.path);
+    const contract = readJsonFile<ArbiterDecisionContractPreset>(contractPath);
+    assertValid(
+      "decision contract",
+      validateDecisionContract(contract),
+      validateDecisionContract.errors
+    );
+    const contractSha256 = sha256Hex(readFileSync(contractPath));
+    if (contractSha256 !== contractEntry.sha256) {
+      throw new Error(
+        `Decision contract sha256 mismatch for ${contractEntry.id}: expected ${contractEntry.sha256}, got ${contractSha256}`
+      );
+    }
+    resolvedConfig.protocol.decision_contract = {
+      id: contractEntry.id,
+      sha256: contractSha256,
+      schema: contract.schema,
+      embed_text_source: contract.embed_text_source,
+      ...(contract.rationale_max_chars !== undefined
+        ? { rationale_max_chars: contract.rationale_max_chars }
+        : {})
     };
   }
 

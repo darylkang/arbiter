@@ -1,8 +1,8 @@
 {
-  "_readme": "Arbiter default template (quickstart independent). Edit then run: arbiter run.",
-  "template_id": "default",
-  "display_name": "Default (quickstart independent)",
-  "description": "Safe baseline for a first run; advisor-only convergence-aware stopping.",
+  "_readme": "Arbiter quickstart template (independent). Edit then run: arbiter run.",
+  "template_id": "quickstart_independent",
+  "display_name": "Quickstart (independent)",
+  "description": "Single-model baseline with advisor-only convergence-aware stopping.",
   "schema_version": "1.0.0",
   "run": {
     "run_id": "pending",
@@ -10,7 +10,7 @@
   },
   "question": {
     "text": "What are the tradeoffs of event sourcing?",
-    "question_id": "default_q1"
+    "question_id": "quickstart_q1"
   },
   "sampling": {
     "models": [

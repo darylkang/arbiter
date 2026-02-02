@@ -1,48 +1,70 @@
 {
   "schema_version": "1.0.0",
-  "catalog_version": "2026-01-31",
-  "catalog_stage": "dev",
+  "catalog_version": "2026.02.01",
+  "catalog_stage": "curated",
   "metadata_complete": false,
   "models": [
     {
-      "slug": "openai/gpt-4o-mini",
-      "display_name": "GPT-4o mini",
-      "provider": "OpenAI",
-      "context_window": null,
-      "is_aliased": null,
-      "notes": "Stub entry; metadata not yet curated."
+      "slug": "openai/gpt-4o-mini-2024-07-18",
+      "display_name": "GPT-4o Mini (2024-07-18)",
+      "provider": "openai",
+      "context_window": 128000,
+      "is_aliased": false,
+      "tier": "default",
+      "notes": "Pinned slug recommended."
     },
     {
-      "slug": "openai/gpt-4o",
-      "display_name": "GPT-4o",
-      "provider": "OpenAI",
-      "context_window": null,
-      "is_aliased": null,
-      "notes": "Stub entry; metadata not yet curated."
-    },
-    {
-      "slug": "anthropic/claude-3.5-sonnet",
-      "display_name": "Claude 3.5 Sonnet",
-      "provider": "Anthropic",
-      "context_window": null,
-      "is_aliased": null,
-      "notes": "Stub entry; metadata not yet curated."
-    },
-    {
-      "slug": "google/gemini-1.5-pro",
-      "display_name": "Gemini 1.5 Pro",
-      "provider": "Google",
+      "slug": "anthropic/claude-sonnet-4",
+      "display_name": "Claude Sonnet 4",
+      "provider": "anthropic",
       "context_window": null,
       "is_aliased": true,
-      "notes": "Stub entry; alias status unverified."
+      "tier": "default",
+      "notes": "Alias; actual_model may vary over time."
     },
     {
-      "slug": "meta-llama/llama-3.1-70b-instruct",
-      "display_name": "Llama 3.1 70B Instruct",
-      "provider": "Meta",
+      "slug": "google/gemini-2.0-flash-001",
+      "display_name": "Gemini 2.0 Flash 001",
+      "provider": "google",
+      "context_window": null,
+      "is_aliased": false,
+      "tier": "default",
+      "notes": "Pinned -001 slug recommended."
+    },
+    {
+      "slug": "openai/gpt-4o-2024-11-20",
+      "display_name": "GPT-4o (2024-11-20)",
+      "provider": "openai",
+      "context_window": 128000,
+      "is_aliased": false,
+      "tier": "extended",
+      "notes": "Pinned slug recommended."
+    },
+    {
+      "slug": "anthropic/claude-3.5-haiku",
+      "display_name": "Claude 3.5 Haiku",
+      "provider": "anthropic",
+      "context_window": null,
+      "is_aliased": true,
+      "tier": "extended",
+      "notes": "Alias; actual_model may vary over time."
+    },
+    {
+      "slug": "meta-llama/llama-3.3-70b-instruct",
+      "display_name": "Llama 3.3 70B Instruct",
+      "provider": "meta",
+      "context_window": null,
+      "is_aliased": false,
+      "tier": "extended"
+    },
+    {
+      "slug": "google/gemma-3-27b-it:free",
+      "display_name": "Gemma 3 27B IT (free)",
+      "provider": "google",
       "context_window": null,
       "is_aliased": null,
-      "notes": "Stub entry; metadata not yet curated."
+      "tier": "free",
+      "notes": "Free tier; rate-limited and subject to substitution."
     }
   ]
 }

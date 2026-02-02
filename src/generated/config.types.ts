@@ -4,6 +4,9 @@ export type ArbiterResolvedConfig = {
   [k: string]: unknown;
 } & {
   _readme?: string;
+  template_id?: string;
+  display_name?: string;
+  description?: string;
   schema_version: "1.0.0";
   run: {
     run_id: string;
@@ -42,6 +45,15 @@ export type ArbiterResolvedConfig = {
       per_call_timeout_ms: number;
       per_call_max_retries: number;
       total_trial_timeout_ms: number;
+    };
+    decision_contract?: {
+      id: string;
+      sha256: string;
+      schema: {
+        [k: string]: unknown;
+      };
+      embed_text_source: "decision" | "rationale" | "raw_content";
+      rationale_max_chars?: number;
     };
     prompts?: {
       proposer_system: EmbeddedPrompt;

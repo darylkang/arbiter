@@ -17,6 +17,8 @@ import type { ArbiterConvergenceTraceRecord } from "../generated/convergence-tra
 import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
 import type { ArbiterPromptManifest } from "../generated/prompt-manifest.types.js";
+import type { ArbiterDecisionContractManifest } from "../generated/contract-manifest.types.js";
+import type { ArbiterDecisionContractPreset } from "../generated/decision-contract.types.js";
 import type { ArbiterOnlineClusteringState } from "../generated/cluster-state.types.js";
 import type { ArbiterOnlineClusterAssignmentRecord } from "../generated/cluster-assignment.types.js";
 import type { ArbiterProtocolSpec } from "../generated/protocol.types.js";
@@ -74,6 +76,12 @@ export const validateCatalog: ValidateFunction<ArbiterModelCatalog> = ajv.compil
 );
 export const validatePromptManifest: ValidateFunction<ArbiterPromptManifest> = ajv.compile(
   loadSchema("prompt-manifest.schema.json")
+);
+export const validateContractManifest: ValidateFunction<ArbiterDecisionContractManifest> = ajv.compile(
+  loadSchema("contract-manifest.schema.json")
+);
+export const validateDecisionContract: ValidateFunction<ArbiterDecisionContractPreset> = ajv.compile(
+  loadSchema("decision-contract.schema.json")
 );
 export const validateClusterState: ValidateFunction<ArbiterOnlineClusteringState> = ajv.compile(
   loadSchema("cluster-state.schema.json")
