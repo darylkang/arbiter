@@ -19,22 +19,22 @@ Install globally:
 npm install -g @darylkang/arbiter
 ```
 
-Create a config (template-based) and validate it:
+Create a config and run a mock experiment (default):
 
 ```
-arbiter init --template quickstart_independent "What are the tradeoffs of event sourcing?"
-arbiter validate
+arbiter quickstart "What are the tradeoffs of event sourcing?"
 ```
 
 Run a live experiment (requires OpenRouter API key):
 
 ```
 export OPENROUTER_API_KEY=...your key...
+arbiter validate --live
 arbiter run
 ```
 
 Notes:
-- `arbiter init` writes `arbiter.config.json` in the current directory.
+- `arbiter quickstart` writes `arbiter.config.json` and runs a mock trial by default.
 - Results go to `runs/<run_id>/`.
 - `arbiter` with no args shows help.
 
@@ -42,7 +42,7 @@ Notes:
 - **Mock mode** (no API key):
   - `arbiter mock-run --config arbiter.config.json --out runs --max-trials 5 --batch-size 1 --workers 1`
 - **Free-tier model** (API key required, $0 but rate-limited):
-  - `arbiter init --template free_quickstart`
+  - `arbiter quickstart --profile free`
   - Free models may be substituted; not for publishable research.
 
 ## Profiles (templates)
@@ -60,6 +60,8 @@ Templates are curated **profiles** that run the same engine with different defau
   - `debate_v1` (3-turn proposer/critic/proposer-final)
 - **Convergence-aware stopping** is advisor-only by default; you can switch to enforced in config.
 - **Decision contracts** (optional) enforce structured JSON outputs and define what gets embedded.
+- `arbiter report runs/<run_id>` summarizes results without Python.
+- `arbiter verify runs/<run_id>` validates artifacts and cross-file invariants.
 
 See:
 - `examples/config_reference.md` for an annotated explanation of config fields (repo).
@@ -98,6 +100,12 @@ runs/<run_id>/
 Notes:
 - `actual_model` is taken from the **OpenRouter response body** `model` field (nullable if missing).
 - Embeddings provenance stores `generation_id` for optional later audit (e.g., `/api/v1/generation?id=<id>`).
+- Token usage (prompt/completion/total) is recorded when OpenRouter returns `usage`.
+
+## Guardrails (strict vs permissive)
+- `--strict` enforces reproducibility guardrails (free/aliased models require explicit allow flags).
+- `--permissive` keeps current warn-only behavior.
+- Use `--allow-free` or `--allow-aliased` to acknowledge known reproducibility caveats.
 
 ## Model reproducibility
 - Prefer pinned slugs (e.g., `openai/gpt-4o-mini-2024-07-18`, `google/gemini-2.0-flash-001`).

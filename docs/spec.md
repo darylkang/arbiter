@@ -39,13 +39,14 @@ Arbiter is a research-grade CLI for studying LLM behavior as a **distribution** 
   - `fallback`: contract invalid/unparseable, but deterministic fallback output exists (raw text used for outcome/embed_text).
   - `failed`: no usable text available (empty/missing); embed_text is empty and embeddings are skipped.
 - **Decision contracts (optional)**: when configured, Arbiter validates structured JSON output against the contract schema and derives `embed_text` from the contract's `embed_text_source` (e.g., rationale).
+- **Policy snapshot**: `manifest.json` records strict/permissive flags and allowances for free/aliased models plus contract failure policy.
 
 ## Phase B v0 protocol: debate_v1
 - **3-turn sequence**: proposer → critic → proposer final.
 - **Persona composition**: system = `persona\n\n---\n\nrole_prompt` (persona first; role prompt second).
 - **Decision contract (optional)**: when configured, append the contract clause to the final proposer system prompt.
 - **Extraction**:
-  - If contract configured: attempt fenced JSON → unfenced JSON; if validation fails, `parse_status=failed` and embed raw content.
+  - If contract configured: attempt fenced JSON → unfenced JSON; if validation fails but content is non-empty, `parse_status=fallback` and embed raw content. If content is empty, `parse_status=failed`.
   - If no contract: fenced JSON → unfenced JSON → raw fallback.
 - **Timeout/retry defaults**: per-call timeout 90s, per-call max retries 2, total trial timeout 5m.
 - **Deferrals**: no consensus/judge/router/refinement in v0.
@@ -97,6 +98,13 @@ Debug-only (optional):
 - `execution.log` (TTY-only; short batch-level log)
 
 Note: `embeddings.arrow` is written only when embeddings are actually produced; resolve-only runs do not create it.
+
+## CLI workflows & guardrails (reference)
+- `arbiter quickstart` creates `arbiter.config.json`, validates it, runs a mock execution by default, and optionally prompts for a live run.
+- `arbiter validate --live` performs offline schema checks plus an OpenRouter connectivity probe.
+- **Strict/permissive policy**: strict rejects free/aliased models unless explicitly allowed and records policy snapshot in `manifest.json`.
+- `arbiter report runs/<run_id>` summarizes results without Python and links to core artifacts.
+- Token usage is recorded when OpenRouter returns `usage` (prompt/completion/total).
 
 ## Statistical assumptions & limitations
 - Monitoring metrics assume trials are i.i.d. under the configured sampling distribution and measurement procedure.
