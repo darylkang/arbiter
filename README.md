@@ -9,7 +9,7 @@ Arbiter is intentionally **audit-first**: schemas define all artifacts, prompts 
 ## What Arbiter is not
 - A benchmark suite or correctness scorer.
 - An offline clustering/visualization tool (that lives in separate Python workflows).
-- A UI-heavy product (wizard UI is planned but not in this repo yet).
+- A UI-heavy product that hides the audit trail (the wizard is optional; artifacts remain the source of truth).
 
 ## Quickstart (npm-first, <60 seconds)
 
@@ -17,6 +17,18 @@ Install globally:
 
 ```
 npm install -g @darylkang/arbiter
+```
+
+Launch the premium CLI wizard (TTY only):
+
+```
+arbiter
+```
+
+Headless-only help (no wizard):
+
+```
+arbiter --headless
 ```
 
 Create a config and run a mock experiment (default):
@@ -36,7 +48,7 @@ arbiter run
 Notes:
 - `arbiter quickstart` writes `arbiter.config.json` and runs a mock trial by default.
 - Results go to `runs/<run_id>/`.
-- `arbiter` with no args shows help.
+- `arbiter` with no args launches the premium CLI wizard when run in a TTY; use `--headless` for help-only mode.
 
 ## Free experimentation
 - **Mock mode** (no API key):
