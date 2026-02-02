@@ -15,7 +15,11 @@ copyFileSync(sourceFixture, debugJsonl);
 const { arrowPath } = await finalizeEmbeddingsToArrow({
   runDir: runRoot,
   dimensions: 4,
-  debugJsonlPath: debugJsonl
+  debugJsonlPath: debugJsonl,
+  provenance: {
+    requestedEmbeddingModel: "openai/text-embedding-3-small",
+    generationIds: ["gen-test-1", "gen-test-2"]
+  }
 });
 
 if (!arrowPath || !existsSync(arrowPath)) {
@@ -59,6 +63,13 @@ for (let row = 0; row < table.numRows; row += 1) {
       throw new Error(`Vector mismatch at row ${row} col ${col}`);
     }
   }
+}
+
+const provenance = JSON.parse(
+  readFileSync(resolve(runRoot, "embeddings.provenance.json"), "utf8")
+);
+if (!Array.isArray(provenance.generation_ids) || provenance.generation_ids.length !== 2) {
+  throw new Error("Expected generation_ids in embeddings provenance");
 }
 
 rmSync(runRoot, { recursive: true, force: true });
