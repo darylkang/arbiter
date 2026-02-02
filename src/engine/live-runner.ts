@@ -367,6 +367,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
             model_actual: result.model ?? null,
             request_payload: result.requestPayload,
             response_payload: asObject(result.responseBody) ?? null,
+            usage: result.usage ?? undefined,
             attempt: {
               started_at: callStarted,
               completed_at: new Date().toISOString(),
@@ -737,6 +738,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         protocol: "independent",
         status: "success",
         assigned_config: assigned,
+        usage: chatResult.usage ?? undefined,
         attempt: {
           started_at: attemptStarted,
           completed_at: new Date().toISOString(),

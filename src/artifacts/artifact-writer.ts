@@ -35,6 +35,7 @@ import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterRunManifest } from "../generated/manifest.types.js";
 import type { ArbiterTrialPlanRecord } from "../generated/trial-plan.types.js";
 import { DEFAULT_STOP_POLICY } from "../config/defaults.js";
+import type { RunPolicySnapshot } from "../config/policy.js";
 import { canonicalStringify } from "../utils/canonical-json.js";
 import { sha256Hex } from "../utils/hash.js";
 import { createJsonlWriter, writeJsonAtomic, type JsonlWriter } from "./io.js";
@@ -51,6 +52,7 @@ export interface ArtifactWriterOptions {
   promptManifestSha256: string;
   packageJsonPath?: string;
   validateArtifacts?: boolean;
+  policy?: RunPolicySnapshot;
 }
 
 type ArtifactCounts = {
@@ -63,6 +65,13 @@ type ArtifactCounts = {
   embeddingFailed: number;
   embeddingSkipped: number;
   clusterAssignments: number;
+};
+
+type UsageTotals = {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  cost?: number;
 };
 
 const readPackageVersion = (packageJsonPath: string): string => {
@@ -91,6 +100,7 @@ export class ArtifactWriter {
   private readonly packageJsonPath: string;
   private readonly validateArtifacts: boolean;
   private readonly clusteringEnabled: boolean;
+  private readonly policy?: RunPolicySnapshot;
   private manifest: ArbiterRunManifest | null = null;
   private embeddingsProvenance: EmbeddingsProvenance | null = null;
   private readonly trialPlanWriter: JsonlWriter;
@@ -112,6 +122,17 @@ export class ArtifactWriter {
     embeddingSkipped: 0,
     clusterAssignments: 0
   };
+  private readonly usageTotals: UsageTotals = {
+    prompt_tokens: 0,
+    completion_tokens: 0,
+    total_tokens: 0
+  };
+  private readonly usageByModel = new Map<string, UsageTotals>();
+  private readonly parseCounts = {
+    success: 0,
+    fallback: 0,
+    failed: 0
+  };
   private readonly unsubs: Array<() => void> = [];
   private closed = false;
 
@@ -125,6 +146,7 @@ export class ArtifactWriter {
     this.promptManifestSha256 = options.promptManifestSha256;
     this.packageJsonPath = resolve(options.packageJsonPath ?? "package.json");
     this.validateArtifacts = options.validateArtifacts ?? true;
+    this.policy = options.policy;
     this.clusteringEnabled =
       this.resolvedConfig.measurement.clustering.enabled &&
       this.resolvedConfig.measurement.clustering.stop_mode !== "disabled";
@@ -215,6 +237,7 @@ export class ArtifactWriter {
     }
     this.trialsWriter.append(payload.trial_record);
     this.counts.trials += 1;
+    this.ingestUsage(payload.trial_record);
   }
 
   private onParsedOutput(payload: ParsedOutputProducedPayload): void {
@@ -223,6 +246,14 @@ export class ArtifactWriter {
     }
     this.parsedWriter.append(payload.parsed_record);
     this.counts.parsed += 1;
+    const status = payload.parsed_record.parse_status;
+    if (status === "success") {
+      this.parseCounts.success += 1;
+    } else if (status === "fallback") {
+      this.parseCounts.fallback += 1;
+    } else if (status === "failed") {
+      this.parseCounts.failed += 1;
+    }
   }
 
   private onEmbeddingRecorded(payload: EmbeddingRecordedPayload): void {
@@ -330,8 +361,13 @@ export class ArtifactWriter {
     };
     this.manifest.stop_reason = payload.stop_reason;
     this.manifest.incomplete = payload.incomplete;
+    this.applyContractFailurePolicy();
     this.manifest.k_attempted = this.counts.trials;
     this.manifest.k_eligible = this.counts.embeddingSuccess;
+    const usage = this.buildUsageSummary();
+    if (usage) {
+      this.manifest.usage = usage;
+    }
     this.manifest.artifacts = { entries: this.buildArtifactEntries() };
     this.manifestFinalized = true;
     if (this.validateArtifacts) {
@@ -355,6 +391,10 @@ export class ArtifactWriter {
     this.manifest.notes = payload.error;
     this.manifest.k_attempted = this.counts.trials;
     this.manifest.k_eligible = this.counts.embeddingSuccess;
+    const usage = this.buildUsageSummary();
+    if (usage) {
+      this.manifest.usage = usage;
+    }
     this.manifest.artifacts = { entries: this.buildArtifactEntries() };
     this.manifestFinalized = true;
     if (this.validateArtifacts) {
@@ -368,7 +408,7 @@ export class ArtifactWriter {
     const arbiterVersion = readPackageVersion(this.packageJsonPath);
     const stopPolicy = this.resolvedConfig.execution.stop_policy ?? DEFAULT_STOP_POLICY;
 
-    return {
+    const manifest: ArbiterRunManifest = {
       schema_version: "1.0.0",
       arbiter_version: arbiterVersion,
       run_id: payload.run_id,
@@ -409,6 +449,12 @@ export class ArtifactWriter {
       },
       artifacts: { entries: [] }
     };
+
+    if (this.policy) {
+      manifest.policy = this.policy;
+    }
+
+    return manifest;
   }
 
   private buildArtifactEntries(): Array<{ path: string; record_count?: number; note?: string }> {
@@ -447,5 +493,111 @@ export class ArtifactWriter {
     }
 
     return entries;
+  }
+
+  private normalizeUsage(input: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    cost?: number;
+  }): UsageTotals | null {
+    const prompt = Number.isFinite(input.prompt_tokens) ? (input.prompt_tokens as number) : 0;
+    const completion = Number.isFinite(input.completion_tokens) ? (input.completion_tokens as number) : 0;
+    const total =
+      Number.isFinite(input.total_tokens) ? (input.total_tokens as number) : prompt + completion;
+    if (prompt === 0 && completion === 0 && total === 0 && !Number.isFinite(input.cost)) {
+      return null;
+    }
+    const usage: UsageTotals = {
+      prompt_tokens: prompt,
+      completion_tokens: completion,
+      total_tokens: total
+    };
+    if (Number.isFinite(input.cost)) {
+      usage.cost = input.cost as number;
+    }
+    return usage;
+  }
+
+  private addUsage(target: UsageTotals, addition: UsageTotals): void {
+    target.prompt_tokens += addition.prompt_tokens;
+    target.completion_tokens += addition.completion_tokens;
+    target.total_tokens += addition.total_tokens;
+    if (addition.cost !== undefined) {
+      target.cost = (target.cost ?? 0) + addition.cost;
+    }
+  }
+
+  private ingestUsage(trialRecord: TrialCompletedPayload["trial_record"]): void {
+    const useUsage = (usage: UsageTotals, modelKey: string): void => {
+      this.addUsage(this.usageTotals, usage);
+      const existing = this.usageByModel.get(modelKey) ?? {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0
+      };
+      this.addUsage(existing, usage);
+      this.usageByModel.set(modelKey, existing);
+    };
+
+    if (trialRecord.usage) {
+      const normalized = this.normalizeUsage(trialRecord.usage);
+      if (normalized) {
+        const modelKey = trialRecord.actual_model ?? trialRecord.requested_model_slug;
+        useUsage(normalized, modelKey);
+      }
+    }
+
+    if (trialRecord.calls) {
+      for (const call of trialRecord.calls) {
+        if (!call.usage) {
+          continue;
+        }
+        const normalized = this.normalizeUsage(call.usage);
+        if (!normalized) {
+          continue;
+        }
+        const modelKey = call.model_actual ?? call.model_requested;
+        useUsage(normalized, modelKey);
+      }
+    }
+  }
+
+  private buildUsageSummary(): ArbiterRunManifest["usage"] | undefined {
+    if (
+      this.usageTotals.prompt_tokens === 0 &&
+      this.usageTotals.completion_tokens === 0 &&
+      this.usageTotals.total_tokens === 0 &&
+      this.usageTotals.cost === undefined
+    ) {
+      return undefined;
+    }
+
+    const byModel: Record<string, UsageTotals> = {};
+    for (const [model, usage] of this.usageByModel.entries()) {
+      byModel[model] = usage;
+    }
+
+    return {
+      totals: this.usageTotals,
+      ...(Object.keys(byModel).length > 0 ? { by_model: byModel } : {})
+    };
+  }
+
+  private applyContractFailurePolicy(): void {
+    if (!this.manifest || !this.policy) {
+      return;
+    }
+    if (this.policy.contract_failure_policy !== "fail") {
+      return;
+    }
+    const failures = this.parseCounts.fallback + this.parseCounts.failed;
+    if (failures === 0) {
+      return;
+    }
+    this.manifest.stop_reason = "error";
+    this.manifest.incomplete = true;
+    const message = `Contract parse failures: fallback=${this.parseCounts.fallback}, failed=${this.parseCounts.failed}`;
+    this.manifest.notes = this.manifest.notes ? `${this.manifest.notes}; ${message}` : message;
   }
 }

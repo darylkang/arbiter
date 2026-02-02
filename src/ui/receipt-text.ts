@@ -43,6 +43,14 @@ export const formatReceiptText = (model: ReceiptModel): string => {
     );
   }
 
+  if (model.usage) {
+    const totals = model.usage.totals;
+    const cost = totals.cost !== undefined ? ` | cost ${totals.cost.toFixed(6)}` : "";
+    lines.push(
+      `Tokens: in ${totals.prompt_tokens}, out ${totals.completion_tokens}, total ${totals.total_tokens}${cost}`
+    );
+  }
+
   if (model.convergence) {
     const clusterCount = model.convergence.cluster_count;
     const clusterLine = clusterCount !== undefined ? `, clusters ${clusterCount}` : "";

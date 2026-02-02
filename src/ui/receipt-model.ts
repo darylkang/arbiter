@@ -53,6 +53,7 @@ export type ReceiptModel = {
     dimensions?: number | null;
     primary_format?: string;
   };
+  usage?: ArbiterRunManifest["usage"];
   convergence?: {
     batch_number?: number;
     novelty_rate?: number | null;
@@ -124,6 +125,7 @@ export const buildReceiptModel = (runDir: string): ReceiptModel => {
           primary_format: embeddings.primary_format
         }
       : undefined,
+    usage: manifest.usage,
     convergence: convergence
       ? {
           batch_number: convergence.batch_number,

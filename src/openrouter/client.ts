@@ -13,6 +13,13 @@ export type ChatCompletionParams = {
   frequency_penalty?: number;
 };
 
+export type TokenUsage = {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  cost?: number;
+};
+
 export interface OpenRouterRequestOptions {
   apiKey?: string;
   baseUrl?: string;
@@ -32,6 +39,7 @@ export interface ChatCompletionResult {
   modelHeader: string | null;
   model: string | null;
   responseId: string | null;
+  usage: TokenUsage | null;
 }
 
 export interface EmbeddingResult {
@@ -44,6 +52,12 @@ export interface EmbeddingResult {
   modelHeader: string | null;
   model: string | null;
   generationId: string | null;
+}
+
+export interface ModelsListResult {
+  responseBody: unknown;
+  headers: Record<string, string>;
+  latencyMs: number;
 }
 
 export class OpenRouterError extends Error {
@@ -107,6 +121,51 @@ const parseJsonBody = async (response: Response): Promise<unknown> => {
   }
 };
 
+const requestGet = async (
+  path: string,
+  options: OpenRouterRequestOptions
+): Promise<{ responseBody: unknown; headers: Record<string, string>; latencyMs: number }> => {
+  const apiKey = resolveApiKey(options.apiKey);
+  if (!apiKey) {
+    throw new OpenRouterError("OPENROUTER_API_KEY is required", {
+      retryable: false,
+      modelUnavailable: false,
+      retryCount: 0
+    });
+  }
+  const baseUrl = resolveBaseUrl(options.baseUrl);
+  const started = Date.now();
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${apiKey}`
+    },
+    signal: options.signal
+  });
+  const latencyMs = Date.now() - started;
+  const responseBody = await parseJsonBody(response);
+  const headers = toHeaderRecord(response.headers);
+
+  if (response.ok) {
+    return { responseBody, headers, latencyMs };
+  }
+
+  const classification = classifyError(response.status, responseBody);
+  throw new OpenRouterError(
+    classification.message ?? `OpenRouter request failed with status ${response.status}`,
+    {
+      status: response.status,
+      code: classification.code,
+      retryable: classification.retryable,
+      modelUnavailable: classification.modelUnavailable,
+      responseBody,
+      headers,
+      latencyMs,
+      retryCount: 0
+    }
+  );
+};
+
 const extractModelFromBody = (body: unknown): string | null => {
   if (body && typeof body === "object" && "model" in body) {
     const value = (body as { model?: unknown }).model;
@@ -121,6 +180,39 @@ const extractIdFromBody = (body: unknown): string | null => {
     return typeof value === "string" ? value : null;
   }
   return null;
+};
+
+const toNumber = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
+const extractUsageFromBody = (body: unknown): TokenUsage | null => {
+  if (!body || typeof body !== "object" || !("usage" in body)) {
+    return null;
+  }
+  const usage = (body as { usage?: Record<string, unknown> }).usage;
+  if (!usage || typeof usage !== "object") {
+    return null;
+  }
+
+  const prompt = toNumber(usage.prompt_tokens);
+  const completion = toNumber(usage.completion_tokens);
+  const total = toNumber(usage.total_tokens);
+  const cost = toNumber((usage as { cost?: unknown }).cost ?? (usage as { total_cost?: unknown }).total_cost);
+
+  if (prompt === null && completion === null && total === null && cost === null) {
+    return null;
+  }
+
+  const normalizedPrompt = prompt ?? 0;
+  const normalizedCompletion = completion ?? 0;
+  const normalizedTotal = total ?? normalizedPrompt + normalizedCompletion;
+
+  return {
+    prompt_tokens: normalizedPrompt,
+    completion_tokens: normalizedCompletion,
+    total_tokens: normalizedTotal,
+    ...(cost !== null ? { cost } : {})
+  };
 };
 
 export const extractActualModel = (body: unknown): string | null =>
@@ -297,7 +389,8 @@ export const chatCompletion = async (input: {
     retryCount: result.retryCount,
     modelHeader: result.headers["x-model"] ?? null,
     model: extractModelFromBody(result.responseBody),
-    responseId: extractIdFromBody(result.responseBody)
+    responseId: extractIdFromBody(result.responseBody),
+    usage: extractUsageFromBody(result.responseBody)
   };
 };
 
@@ -337,4 +430,9 @@ export const embedText = async (input: {
     model: extractModelFromBody(result.responseBody),
     generationId: extractIdFromBody(result.responseBody)
   };
+};
+
+export const listModels = async (options?: OpenRouterRequestOptions): Promise<ModelsListResult> => {
+  const result = await requestGet("/models", options ?? {});
+  return result;
 };

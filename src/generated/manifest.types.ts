@@ -24,6 +24,12 @@ export interface ArbiterRunManifest {
     k_min_eligible?: number;
   };
   notes?: string;
+  policy?: {
+    strict: boolean;
+    allow_free: boolean;
+    allow_aliased: boolean;
+    contract_failure_policy: "warn" | "exclude" | "fail";
+  };
   git_sha?: string;
   model_catalog_version?: string;
   model_catalog_sha256?: string;
@@ -49,4 +55,16 @@ export interface ArbiterRunManifest {
       note?: string;
     }[];
   };
+  usage?: {
+    totals: UsageStats;
+    by_model?: {
+      [k: string]: UsageStats;
+    };
+  };
+}
+export interface UsageStats {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  cost?: number;
 }

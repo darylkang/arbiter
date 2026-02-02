@@ -40,6 +40,7 @@ export interface ArbiterTrialRecord {
   metadata?: {
     [k: string]: unknown;
   };
+  usage?: UsageStats;
 }
 export interface DecodeParams {
   temperature?: number;
@@ -65,6 +66,7 @@ export interface CallRecord {
   response_payload: {
     [k: string]: unknown;
   } | null;
+  usage?: UsageStats;
   attempt: {
     started_at: string;
     completed_at: string;
@@ -72,6 +74,12 @@ export interface CallRecord {
     retry_count: number;
   };
   error_message: string | null;
+}
+export interface UsageStats {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  cost?: number;
 }
 export interface TranscriptEntry {
   turn: number;
