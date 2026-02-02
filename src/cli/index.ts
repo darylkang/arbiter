@@ -3,6 +3,8 @@ import "dotenv/config";
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { createInterface } from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
 
 import { resolveConfig } from "../config/resolve-config.js";
 import { buildResolveManifest } from "../config/manifest.js";
@@ -16,6 +18,7 @@ import { ClusteringMonitor } from "../clustering/monitor.js";
 import { runMock } from "../engine/mock-runner.js";
 import { runLive } from "../engine/live-runner.js";
 import { validateConfig } from "../config/schema-validation.js";
+import { evaluatePolicy, type ContractFailurePolicy } from "../config/policy.js";
 import { getAssetRoot } from "../utils/asset-root.js";
 import { buildReceiptModel } from "../ui/receipt-model.js";
 import { formatReceiptText } from "../ui/receipt-text.js";
@@ -23,6 +26,8 @@ import { renderReceiptInk } from "../ui/receipt-ink.js";
 import { writeReceiptText } from "../ui/receipt-writer.js";
 import { ExecutionLogger } from "../ui/execution-log.js";
 import { formatVerifyReport, verifyRunDir } from "../tools/verify-run.js";
+import { buildReportModel, formatReportJson, formatReportText } from "../tools/report-run.js";
+import { listModels } from "../openrouter/client.js";
 
 const DEFAULT_CONFIG_PATH = "arbiter.config.json";
 
@@ -32,13 +37,17 @@ const printUsage = (): void => {
   console.log(
     "  arbiter init [question] [--out <path>] [--force] [--template default|quickstart_independent|heterogeneity_mix|debate_v1|free_quickstart|full]"
   );
-  console.log("  arbiter validate [config.json]");
+  console.log(
+    "  arbiter quickstart [question] [--profile quickstart|heterogeneity|debate|free] [--mock|--live] [--yes] [--out <runs_dir>]"
+  );
+  console.log("  arbiter validate [config.json] [--live]");
   console.log("  arbiter resolve [config.json] [--out <runs_dir>] [--debug]");
   console.log("  arbiter mock-run [config.json] [--out <runs_dir>] [--debug] [--quiet]");
   console.log(
-    "  arbiter run [config.json] [--out <runs_dir>] [--debug] [--quiet] [--max-trials N] [--batch-size N] [--workers N]"
+    "  arbiter run [config.json] [--out <runs_dir>] [--debug] [--quiet] [--max-trials N] [--batch-size N] [--workers N] [--strict|--permissive]"
   );
   console.log("  arbiter verify <run_dir>");
+  console.log("  arbiter report <run_dir> [--format text|json] [--top N]");
 };
 
 type ParsedArgs = {
@@ -66,6 +75,16 @@ const parseArgs = (args: string[]): ParsedArgs => {
   return { positional, flags };
 };
 
+const PROFILE_TEMPLATES: Record<string, string> = {
+  quickstart: "quickstart_independent",
+  heterogeneity: "heterogeneity_mix",
+  debate: "debate_v1",
+  free: "free_quickstart"
+};
+
+const resolveTemplateName = (value: string): string =>
+  PROFILE_TEMPLATES[value] ?? value;
+
 const getFlag = (flags: ParsedArgs["flags"], name: string): string | undefined => {
   const value = flags[name];
   return typeof value === "string" ? value : undefined;
@@ -82,10 +101,74 @@ const getFlagNumber = (flags: ParsedArgs["flags"], name: string): number | undef
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+const resolvePolicyFlags = (flags: ParsedArgs["flags"]): {
+  strict: boolean;
+  allowFree: boolean;
+  allowAliased: boolean;
+  contractFailurePolicy: ContractFailurePolicy;
+} => {
+  const strictFlag = hasFlag(flags, "--strict");
+  const permissiveFlag = hasFlag(flags, "--permissive");
+  if (strictFlag && permissiveFlag) {
+    throw new Error("Use either --strict or --permissive (not both).");
+  }
+
+  const contractFailure = getFlag(flags, "--contract-failure") ?? "warn";
+  if (contractFailure !== "warn" && contractFailure !== "exclude" && contractFailure !== "fail") {
+    throw new Error("Invalid --contract-failure value (expected warn|exclude|fail).");
+  }
+
+  return {
+    strict: strictFlag,
+    allowFree: hasFlag(flags, "--allow-free"),
+    allowAliased: hasFlag(flags, "--allow-aliased"),
+    contractFailurePolicy: contractFailure as ContractFailurePolicy
+  };
+};
+
+const promptYesNo = async (question: string): Promise<boolean> => {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    return false;
+  }
+  const rl = createInterface({ input, output });
+  try {
+    const answer = await rl.question(`${question} [y/N]: `);
+    return answer.trim().toLowerCase().startsWith("y");
+  } finally {
+    rl.close();
+  }
+};
+
 const resolveConfigForCli = (configPathInput: string, assetRoot: string) => {
   const configPath = resolve(process.cwd(), configPathInput);
   const configRoot = dirname(configPath);
   return resolveConfig({ configPath, configRoot, assetRoot });
+};
+
+const applyPolicy = (
+  resolvedConfig: ReturnType<typeof resolveConfigForCli>["resolvedConfig"],
+  catalog: ReturnType<typeof resolveConfigForCli>["catalog"],
+  flags: ParsedArgs["flags"]
+) => {
+  const policyFlags = resolvePolicyFlags(flags);
+  const evaluation = evaluatePolicy({
+    resolvedConfig,
+    catalog,
+    strict: policyFlags.strict,
+    allowFree: policyFlags.allowFree,
+    allowAliased: policyFlags.allowAliased,
+    contractFailurePolicy: policyFlags.contractFailurePolicy
+  });
+
+  if (evaluation.warnings.length > 0) {
+    console.warn("Policy warnings:");
+    evaluation.warnings.forEach((warning) => console.warn(`- ${warning}`));
+  }
+  if (evaluation.errors.length > 0) {
+    throw new Error(`Policy violations:\n${evaluation.errors.map((msg) => `- ${msg}`).join("\n")}`);
+  }
+
+  return evaluation.policy;
 };
 
 const printRunPreview = (resolvedConfig: ReturnType<typeof resolveConfigForCli>["resolvedConfig"]): void => {
@@ -157,9 +240,96 @@ const runInit = (parsed: ParsedArgs, assetRoot: string): void => {
   console.log("Results will be written under runs/<run_id>/.");
 };
 
-const runValidate = (parsed: ParsedArgs, assetRoot: string): void => {
+const runQuickstart = async (parsed: ParsedArgs, assetRoot: string): Promise<void> => {
+  const question = parsed.positional[0];
+  const profile = resolveTemplateName(getFlag(parsed.flags, "--profile") ?? "quickstart");
+  const runsDir = getFlag(parsed.flags, "--out") ?? "runs";
+  const force = hasFlag(parsed.flags, "--force");
+
+  const templatePath = resolve(assetRoot, "templates", `${profile}.config.json`);
+  if (!existsSync(templatePath)) {
+    throw new Error(`Template not found: ${profile}`);
+  }
+
+  const targetPath = resolve(process.cwd(), DEFAULT_CONFIG_PATH);
+  if (existsSync(targetPath) && !force) {
+    throw new Error(`Config already exists at ${targetPath}. Use --force to overwrite.`);
+  }
+
+  const template = JSON.parse(readFileSync(templatePath, "utf8")) as Record<string, unknown>;
+  if (typeof question === "string" && question.trim().length > 0) {
+    const questionBlock = (template.question ?? {}) as Record<string, unknown>;
+    questionBlock.text = question;
+    template.question = questionBlock;
+  }
+
+  writeFileSync(targetPath, `${JSON.stringify(template, null, 2)}\n`, "utf8");
+  console.log(`Created config: ${targetPath}`);
+
+  const result = resolveConfigForCli(DEFAULT_CONFIG_PATH, assetRoot);
+  if (result.warnings.length > 0) {
+    console.warn("Warnings:");
+    result.warnings.forEach((warning) => console.warn(`- ${warning}`));
+  }
+
+  const hasApiKey = Boolean(process.env.OPENROUTER_API_KEY);
+  const wantsMock = hasFlag(parsed.flags, "--mock") || !hasApiKey || !hasFlag(parsed.flags, "--live");
+  const wantsLiveExplicit = hasFlag(parsed.flags, "--live");
+  const wantsMockExplicit = hasFlag(parsed.flags, "--mock");
+  const yes = hasFlag(parsed.flags, "--yes");
+
+  if (wantsLiveExplicit && !hasApiKey) {
+    throw new Error("OPENROUTER_API_KEY is required for live runs.");
+  }
+
+  const runFlags: ParsedArgs["flags"] = { ...parsed.flags, "--out": runsDir };
+  const runParsed: ParsedArgs = { positional: [DEFAULT_CONFIG_PATH], flags: runFlags };
+
+  let lastRunDir: string | undefined;
+
+  if (wantsMock) {
+    const result = await runMockCommand(runParsed, assetRoot);
+    if (result && typeof result === "object" && "runDir" in result) {
+      lastRunDir = (result as { runDir?: string }).runDir;
+    }
+  }
+
+  if (wantsLiveExplicit) {
+    const result = await runLiveCommand(runParsed, assetRoot);
+    if (result && typeof result === "object" && "runDir" in result) {
+      lastRunDir = (result as { runDir?: string }).runDir;
+    }
+  } else if (hasApiKey && !wantsMockExplicit) {
+    const proceed = yes ? true : await promptYesNo("Run live now?");
+    if (proceed) {
+      const result = await runLiveCommand(runParsed, assetRoot);
+      if (result && typeof result === "object" && "runDir" in result) {
+        lastRunDir = (result as { runDir?: string }).runDir;
+      }
+    }
+  }
+
+  if (lastRunDir) {
+    console.log(`Run directory: ${lastRunDir}`);
+    console.log(`Receipt: ${resolve(lastRunDir, "receipt.txt")}`);
+    console.log("Next steps:");
+    console.log(`  arbiter report ${lastRunDir}`);
+    console.log(`  arbiter verify ${lastRunDir}`);
+  }
+};
+
+const runValidate = async (parsed: ParsedArgs, assetRoot: string): Promise<void> => {
   const configPath = getFlag(parsed.flags, "--config") ?? parsed.positional[0] ?? DEFAULT_CONFIG_PATH;
   const result = resolveConfigForCli(configPath, assetRoot);
+  applyPolicy(result.resolvedConfig, result.catalog, parsed.flags);
+
+  const live = hasFlag(parsed.flags, "--live");
+  if (live) {
+    if (!process.env.OPENROUTER_API_KEY) {
+      throw new Error("OPENROUTER_API_KEY is required for validate --live");
+    }
+    await listModels();
+  }
 
   if (result.warnings.length > 0) {
     console.warn("Warnings:");
@@ -167,6 +337,9 @@ const runValidate = (parsed: ParsedArgs, assetRoot: string): void => {
   }
 
   console.log(`Config OK: ${resolve(process.cwd(), configPath)}`);
+  if (live) {
+    console.log("OpenRouter connectivity: OK");
+  }
 };
 
 const runVerify = (parsed: ParsedArgs): void => {
@@ -179,6 +352,25 @@ const runVerify = (parsed: ParsedArgs): void => {
   if (!report.ok) {
     process.exitCode = 1;
   }
+};
+
+const runReport = (parsed: ParsedArgs): void => {
+  const runDir = parsed.positional[0];
+  if (!runDir) {
+    throw new Error("Usage: arbiter report <run_dir>");
+  }
+  const format = getFlag(parsed.flags, "--format") ?? "text";
+  const top = getFlagNumber(parsed.flags, "--top") ?? 3;
+  const model = buildReportModel(runDir, top);
+
+  if (format === "json") {
+    process.stdout.write(formatReportJson(model));
+    return;
+  }
+  if (format !== "text") {
+    throw new Error("Invalid --format (expected text|json)");
+  }
+  process.stdout.write(formatReportText(model));
 };
 
 const runResolve = (parsed: ParsedArgs, assetRoot: string): void => {
@@ -220,13 +412,14 @@ const runResolve = (parsed: ParsedArgs, assetRoot: string): void => {
   console.log(`Output directory: ${runDir}`);
 };
 
-const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<void> => {
+const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<unknown> => {
   const configPath = getFlag(parsed.flags, "--config") ?? parsed.positional[0] ?? DEFAULT_CONFIG_PATH;
   const runsDir = getFlag(parsed.flags, "--out") ?? "runs";
   const debug = hasFlag(parsed.flags, "--debug");
   const quiet = hasFlag(parsed.flags, "--quiet");
 
   const result = resolveConfigForCli(configPath, assetRoot);
+  const policy = applyPolicy(result.resolvedConfig, result.catalog, parsed.flags);
   const runId = generateRunId();
   const { runDir } = createRunDir({ outRoot: runsDir, runId, debug });
 
@@ -246,7 +439,8 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     catalogVersion: result.catalog.catalog_version,
     catalogSha256: result.catalogSha256,
     promptManifestSha256: result.promptManifestSha256,
-    packageJsonPath: resolve(assetRoot, "package.json")
+    packageJsonPath: resolve(assetRoot, "package.json"),
+    policy
   });
   writer.attach(bus);
   const monitor = new ClusteringMonitor(result.resolvedConfig, bus);
@@ -326,16 +520,17 @@ const runMockCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
   if (runError) {
     throw runError;
   }
+
+  return mockResult;
 };
 
-const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<void> => {
+const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<unknown> => {
   const configPath = getFlag(parsed.flags, "--config") ?? parsed.positional[0] ?? DEFAULT_CONFIG_PATH;
   const runsDir = getFlag(parsed.flags, "--out") ?? "runs";
   const debug = hasFlag(parsed.flags, "--debug");
   const quiet = hasFlag(parsed.flags, "--quiet");
 
   const result = resolveConfigForCli(configPath, assetRoot);
-  printRunPreview(result.resolvedConfig);
   const runId = generateRunId();
   const { runDir } = createRunDir({ outRoot: runsDir, runId, debug });
 
@@ -357,6 +552,8 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
   if (!validateConfig(result.resolvedConfig)) {
     throw new Error("Resolved config became invalid after overrides");
   }
+  const policy = applyPolicy(result.resolvedConfig, result.catalog, parsed.flags);
+  printRunPreview(result.resolvedConfig);
 
   const debugDir = resolve(runDir, "debug");
   mkdirSync(debugDir, { recursive: true });
@@ -372,7 +569,8 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
     catalogVersion: result.catalog.catalog_version,
     catalogSha256: result.catalogSha256,
     promptManifestSha256: result.promptManifestSha256,
-    packageJsonPath: resolve(assetRoot, "package.json")
+    packageJsonPath: resolve(assetRoot, "package.json"),
+    policy
   });
   writer.attach(bus);
   const monitor = new ClusteringMonitor(result.resolvedConfig, bus);
@@ -452,6 +650,8 @@ const runLiveCommand = async (parsed: ParsedArgs, assetRoot: string): Promise<vo
   if (runError) {
     throw runError;
   }
+
+  return liveResult;
 };
 
 const main = async (): Promise<void> => {
@@ -470,12 +670,20 @@ const main = async (): Promise<void> => {
       runInit(parsed, assetRoot);
       return;
     }
+    if (command === "quickstart") {
+      await runQuickstart(parsed, assetRoot);
+      return;
+    }
     if (command === "validate") {
-      runValidate(parsed, assetRoot);
+      await runValidate(parsed, assetRoot);
       return;
     }
     if (command === "verify") {
       runVerify(parsed);
+      return;
+    }
+    if (command === "report") {
+      runReport(parsed);
       return;
     }
     if (command === "resolve") {

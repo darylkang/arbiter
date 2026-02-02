@@ -37,6 +37,8 @@
     "test:verify": "npm run build && node scripts/verify-smoke.mjs",
     "test:live-smoke": "npm run build && node scripts/live-smoke.mjs",
     "test:pack": "npm run build && node scripts/test-pack-install.mjs",
+    "test:quickstart": "npm run build && node scripts/quickstart-smoke.mjs",
+    "test:report": "npm run build && node scripts/report-smoke.mjs",
     "prepublishOnly": "npm run build && npm run test:pack"
   },
   "dependencies": {
