@@ -228,6 +228,16 @@
             "backoff_ms": { "type": "integer", "minimum": 0 }
           }
         },
+        "stop_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["novelty_epsilon", "similarity_threshold", "patience"],
+          "properties": {
+            "novelty_epsilon": { "type": "number", "minimum": 0, "maximum": 1 },
+            "similarity_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+            "patience": { "type": "integer", "minimum": 1 }
+          }
+        },
         "stop_mode": { "type": "string", "enum": ["advisor", "enforcer"] },
         "k_min": { "type": "integer", "minimum": 0 },
         "k_min_count_rule": {
@@ -247,6 +257,7 @@
       ],
       "properties": {
         "embedding_model": { "type": "string", "minLength": 1 },
+        "embedding_max_chars": { "type": "integer", "minimum": 1 },
         "embed_text_strategy": {
           "type": "string",
           "enum": ["outcome_only", "outcome_or_raw_assistant"]

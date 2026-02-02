@@ -4,8 +4,9 @@ export interface ArbiterConvergenceTraceRecord {
   batch_number: number;
   k_attempted: number;
   k_eligible: number;
-  novelty_rate: number;
-  mean_max_sim_to_prior: number;
+  has_eligible_in_batch: boolean;
+  novelty_rate: number | null;
+  mean_max_sim_to_prior: number | null;
   cluster_count?: number;
   new_clusters_this_batch?: number;
   largest_cluster_share?: number;

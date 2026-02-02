@@ -10,6 +10,10 @@ export type ArbiterEmbeddingsProvenance =
       dtype: "float32";
       dimensions?: number | null;
       note?: string;
+      requested_embedding_model?: string;
+      actual_embedding_model?: string | null;
+      embed_text_strategy?: string;
+      normalization?: string;
     }
   | {
       schema_version: "1.0.0";
@@ -28,6 +32,8 @@ export type ArbiterEmbeddingsProvenance =
       embedding_model?: string;
       embed_text_strategy?: string;
       normalization?: string;
+      requested_embedding_model?: string;
+      actual_embedding_model?: string | null;
       jsonl_encoding?: "float32le_base64";
     }
   | {
@@ -40,6 +46,10 @@ export type ArbiterEmbeddingsProvenance =
       arrow_error: string;
       debug_jsonl_present: boolean;
       jsonl_encoding: "float32le_base64";
+      requested_embedding_model?: string;
+      actual_embedding_model?: string | null;
+      embed_text_strategy?: string;
+      normalization?: string;
       counts?: {
         total_trials: number;
         successful_embeddings: number;

@@ -17,6 +17,12 @@ export interface ArbiterRunManifest {
   k_eligible: number;
   k_min: number;
   k_min_count_rule: "k_eligible" | "k_attempted";
+  stop_policy?: {
+    novelty_epsilon?: number;
+    similarity_threshold?: number;
+    patience?: number;
+    k_min_eligible?: number;
+  };
   notes?: string;
   git_sha?: string;
   model_catalog_version?: string;

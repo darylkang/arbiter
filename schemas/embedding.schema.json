@@ -12,7 +12,11 @@
         "vector_b64",
         "dtype",
         "encoding",
-        "dimensions"
+        "dimensions",
+        "embed_text_truncated",
+        "embed_text_original_chars",
+        "embed_text_final_chars",
+        "truncation_reason"
       ],
       "properties": {
         "trial_id": { "type": "integer", "minimum": 0 },
@@ -21,7 +25,11 @@
         "dtype": { "const": "float32" },
         "encoding": { "const": "float32le_base64" },
         "dimensions": { "type": "integer", "minimum": 1 },
-        "embed_text_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        "embed_text_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "embed_text_truncated": { "type": "boolean" },
+        "embed_text_original_chars": { "type": "integer", "minimum": 0 },
+        "embed_text_final_chars": { "type": "integer", "minimum": 0 },
+        "truncation_reason": { "type": ["string", "null"] }
       }
     },
     {
@@ -33,7 +41,11 @@
         "vector_b64",
         "dtype",
         "encoding",
-        "error"
+        "error",
+        "embed_text_truncated",
+        "embed_text_original_chars",
+        "embed_text_final_chars",
+        "truncation_reason"
       ],
       "properties": {
         "trial_id": { "type": "integer", "minimum": 0 },
@@ -43,7 +55,11 @@
         "encoding": { "const": "float32le_base64" },
         "error": { "type": "string", "minLength": 1 },
         "dimensions": { "type": "integer", "minimum": 1 },
-        "embed_text_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        "embed_text_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "embed_text_truncated": { "type": "boolean" },
+        "embed_text_original_chars": { "type": "integer", "minimum": 0 },
+        "embed_text_final_chars": { "type": "integer", "minimum": 0 },
+        "truncation_reason": { "type": ["string", "null"] }
       }
     },
     {
@@ -55,7 +71,11 @@
         "vector_b64",
         "dtype",
         "encoding",
-        "skip_reason"
+        "skip_reason",
+        "embed_text_truncated",
+        "embed_text_original_chars",
+        "embed_text_final_chars",
+        "truncation_reason"
       ],
       "properties": {
         "trial_id": { "type": "integer", "minimum": 0 },
@@ -65,7 +85,11 @@
         "encoding": { "const": "float32le_base64" },
         "skip_reason": { "type": "string", "minLength": 1 },
         "dimensions": { "type": "integer", "minimum": 1 },
-        "embed_text_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        "embed_text_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "embed_text_truncated": { "type": "boolean" },
+        "embed_text_original_chars": { "type": "integer", "minimum": 0 },
+        "embed_text_final_chars": { "type": "integer", "minimum": 0 },
+        "truncation_reason": { "type": ["string", "null"] }
       }
     }
   ]

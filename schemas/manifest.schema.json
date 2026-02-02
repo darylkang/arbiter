@@ -43,6 +43,16 @@
       "type": "string",
       "enum": ["k_eligible", "k_attempted"]
     },
+    "stop_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "novelty_epsilon": { "type": "number", "minimum": 0, "maximum": 1 },
+        "similarity_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "patience": { "type": "integer", "minimum": 1 },
+        "k_min_eligible": { "type": "integer", "minimum": 0 }
+      }
+    },
     "notes": { "type": "string" },
     "git_sha": { "type": "string", "minLength": 7 },
     "model_catalog_version": { "type": "string", "minLength": 1 },

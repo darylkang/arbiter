@@ -58,12 +58,18 @@ export type ArbiterResolvedConfig = {
       max_retries: number;
       backoff_ms?: number;
     };
+    stop_policy?: {
+      novelty_epsilon: number;
+      similarity_threshold: number;
+      patience: number;
+    };
     stop_mode: "advisor" | "enforcer";
     k_min: number;
     k_min_count_rule: "k_eligible" | "k_attempted";
   };
   measurement: {
     embedding_model: string;
+    embedding_max_chars?: number;
     embed_text_strategy: "outcome_only" | "outcome_or_raw_assistant";
     novelty_threshold: number;
     clustering: {

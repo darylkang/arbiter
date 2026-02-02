@@ -9,6 +9,10 @@ export type ArbiterDebugEmbeddingJSONLRecord =
       encoding: "float32le_base64";
       dimensions: number;
       embed_text_sha256?: string;
+      embed_text_truncated: boolean;
+      embed_text_original_chars: number;
+      embed_text_final_chars: number;
+      truncation_reason: string | null;
     }
   | {
       trial_id: number;
@@ -19,6 +23,10 @@ export type ArbiterDebugEmbeddingJSONLRecord =
       error: string;
       dimensions?: number;
       embed_text_sha256?: string;
+      embed_text_truncated: boolean;
+      embed_text_original_chars: number;
+      embed_text_final_chars: number;
+      truncation_reason: string | null;
     }
   | {
       trial_id: number;
@@ -29,4 +37,8 @@ export type ArbiterDebugEmbeddingJSONLRecord =
       skip_reason: string;
       dimensions?: number;
       embed_text_sha256?: string;
+      embed_text_truncated: boolean;
+      embed_text_original_chars: number;
+      embed_text_final_chars: number;
+      truncation_reason: string | null;
     };
