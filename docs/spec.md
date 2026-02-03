@@ -106,6 +106,7 @@ Contract failures generally map to **fallback**, not “no usable output.”
   - null when a prior distribution is undefined (first batch)
 - **cluster_limit_hit**: true when `cluster_count == cluster_limit`.
 - **forced assignment counters**: `forced_assignments_this_batch` and `forced_assignments_cumulative` count assignments made after the limit is hit.
+- **Entropy base**: clustering entropy uses natural log (ln). `effective_cluster_count = exp(entropy)`.
 
 ---
 
@@ -134,6 +135,7 @@ Debug‑only (optional):
 - `execution.log` (TTY‑only; short batch‑level log)
 
 Note: `embeddings.arrow` is written only when embeddings are actually produced; resolve‑only runs do not create it.
+Resolve‑only (`arbiter resolve`) writes only `config.resolved.json` and a minimal `manifest.json`; no trials, parsed, embeddings, convergence, or aggregates are produced.
 
 ---
 
