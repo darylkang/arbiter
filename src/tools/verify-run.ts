@@ -145,6 +145,130 @@ const verifyTrialPlan = (results: VerifyResult[], records: unknown[], expected?:
   }
 };
 
+const extractTrialIds = (records: unknown[]): number[] =>
+  records
+    .map((record) => (record as { trial_id?: number }).trial_id)
+    .filter((id): id is number => Number.isInteger(id) && (id as number) >= 0);
+
+const verifyTrialRecords = (
+  results: VerifyResult[],
+  trialRecords: unknown[],
+  parsedRecords: unknown[],
+  planned?: number,
+  attempted?: number
+): void => {
+  const trialIds = extractTrialIds(trialRecords);
+  const parsedIds = extractTrialIds(parsedRecords);
+  const uniqueTrials = new Set(trialIds);
+  const uniqueParsed = new Set(parsedIds);
+
+  if (uniqueTrials.size !== trialIds.length) {
+    addResult(results, "FAIL", "trials.jsonl trial_id uniqueness", "Duplicate trial_id values found");
+  } else {
+    addResult(results, "OK", "trials.jsonl trial_id uniqueness");
+  }
+
+  if (planned !== undefined) {
+    const outOfRange = Array.from(uniqueTrials).some((id) => id < 0 || id >= planned);
+    if (outOfRange) {
+      addResult(results, "FAIL", "trials.jsonl trial_id range", "trial_id outside planned range");
+    } else {
+      addResult(results, "OK", "trials.jsonl trial_id range");
+    }
+  }
+
+  if (attempted !== undefined) {
+    if (uniqueTrials.size !== attempted) {
+      addResult(
+        results,
+        "FAIL",
+        "trials.jsonl count",
+        `Expected ${attempted} trial records, got ${uniqueTrials.size}`
+      );
+    } else {
+      addResult(results, "OK", "trials.jsonl count");
+    }
+  }
+
+  const missingParsed = Array.from(uniqueTrials).filter((id) => !uniqueParsed.has(id));
+  const extraParsed = Array.from(uniqueParsed).filter((id) => !uniqueTrials.has(id));
+  if (missingParsed.length > 0 || extraParsed.length > 0) {
+    addResult(
+      results,
+      "FAIL",
+      "parsed.jsonl alignment",
+      `Missing parsed for ${missingParsed.length}, extra parsed ${extraParsed.length}`
+    );
+  } else {
+    addResult(results, "OK", "parsed.jsonl alignment");
+  }
+
+  if (uniqueTrials.size > 0) {
+    const sorted = Array.from(uniqueTrials).sort((a, b) => a - b);
+    const contiguous = sorted.every((id, index) => id === sorted[0] + index);
+    if (!contiguous) {
+      addResult(
+        results,
+        "WARN",
+        "trials.jsonl contiguity",
+        "trial_id sequence is not contiguous"
+      );
+    } else {
+      addResult(results, "OK", "trials.jsonl contiguity");
+    }
+  }
+};
+
+const verifyStopReason = (
+  results: VerifyResult[],
+  manifest: { stop_reason?: string },
+  convergenceRecords: Array<{ [key: string]: unknown }>
+): void => {
+  if (convergenceRecords.length === 0) {
+    return;
+  }
+  const last = convergenceRecords[convergenceRecords.length - 1] as {
+    stop?: { should_stop?: boolean };
+  };
+  if (manifest.stop_reason === "converged" && last.stop?.should_stop !== true) {
+    addResult(
+      results,
+      "FAIL",
+      "stop_reason coherence",
+      "manifest stop_reason=converged but last convergence record should_stop=false"
+    );
+  } else if (manifest.stop_reason) {
+    addResult(results, "OK", "stop_reason coherence");
+  }
+};
+
+const verifyZeroEligibleSemantics = (
+  results: VerifyResult[],
+  convergenceRecords: Array<{ [key: string]: unknown }>
+): void => {
+  let mismatches = 0;
+  for (const record of convergenceRecords) {
+    const hasEligible = record.has_eligible_in_batch as boolean | undefined;
+    const novelty = record.novelty_rate as number | null | undefined;
+    const meanSim = record.mean_max_sim_to_prior as number | null | undefined;
+    if (hasEligible === false && (novelty !== null || meanSim !== null)) {
+      mismatches += 1;
+    }
+    if (hasEligible === true && (novelty === null || meanSim === null)) {
+      mismatches += 1;
+    }
+  }
+  if (mismatches > 0) {
+    addResult(
+      results,
+      "FAIL",
+      "zero-eligible semantics",
+      `${mismatches} convergence record(s) inconsistent with has_eligible_in_batch`
+    );
+  } else if (convergenceRecords.length > 0) {
+    addResult(results, "OK", "zero-eligible semantics");
+  }
+};
 const verifyEmbeddingsArrow = (results: VerifyResult[], arrowPath: string): void => {
   if (!existsSync(arrowPath)) {
     addResult(results, "WARN", "embeddings.arrow", "File not present");
@@ -237,7 +361,13 @@ export const verifyRunDir = (runDir: string): VerifyReport => {
   const results: VerifyResult[] = [];
   const manifestPath = resolve(runDir, "manifest.json");
   const manifest = verifyJson(results, "manifest.json", manifestPath, validateManifest) as
-    | { artifacts?: { entries?: Array<{ path: string }> }; k_planned?: number }
+    | {
+        artifacts?: { entries?: Array<{ path: string }> };
+        k_planned?: number;
+        k_attempted?: number;
+        incomplete?: boolean;
+        stop_reason?: string;
+      }
     | null;
 
   const receiptPath = resolve(runDir, "receipt.txt");
@@ -279,8 +409,18 @@ export const verifyRunDir = (runDir: string): VerifyReport => {
   );
   verifyTrialPlan(results, planRecords, manifest?.k_planned);
 
-  verifyJsonl(results, "trials.jsonl", resolve(runDir, "trials.jsonl"), validateTrial);
-  verifyJsonl(results, "parsed.jsonl", resolve(runDir, "parsed.jsonl"), validateParsedOutput);
+  const trialRecords = verifyJsonl(
+    results,
+    "trials.jsonl",
+    resolve(runDir, "trials.jsonl"),
+    validateTrial
+  );
+  const parsedRecords = verifyJsonl(
+    results,
+    "parsed.jsonl",
+    resolve(runDir, "parsed.jsonl"),
+    validateParsedOutput
+  );
   const convergenceRecords = verifyJsonl(
     results,
     "convergence_trace.jsonl",
@@ -289,6 +429,9 @@ export const verifyRunDir = (runDir: string): VerifyReport => {
   ) as Array<{ [key: string]: unknown }>;
 
   verifyAggregates(results, aggregates, convergenceRecords);
+  verifyTrialRecords(results, trialRecords, parsedRecords, manifest?.k_planned, manifest?.k_attempted);
+  verifyStopReason(results, manifest ?? {}, convergenceRecords);
+  verifyZeroEligibleSemantics(results, convergenceRecords);
   verifyEmbeddingsArrow(results, resolve(runDir, "embeddings.arrow"));
 
   const clusterStatePath = resolve(runDir, "clusters", "online.state.json");
