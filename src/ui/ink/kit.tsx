@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text, useStdout, type TextProps } from "ink";
+import type { WarningRecord } from "../../utils/warnings.js";
 
 export const theme = {
   bg: {
@@ -234,5 +235,35 @@ export const TextAreaDisplay: React.FC<{ value: string; height?: number }> = ({
         </Text>
       ))}
     </Box>
+  );
+};
+
+export const WarningsPanel: React.FC<{
+  warnings: WarningRecord[];
+  expanded: boolean;
+  maxItems?: number;
+}> = ({ warnings, expanded, maxItems = 5 }) => {
+  const count = warnings.length;
+  if (!expanded) {
+    return (
+      <Text color={count > 0 ? theme.status.warning : theme.fg.tertiary}>
+        Warnings ({count}) · press w to view
+      </Text>
+    );
+  }
+  const items = warnings.slice(-maxItems);
+  return (
+    <Panel title={`Warnings (${count})`} borderStyle="double">
+      {items.length === 0 ? (
+        <Text color={theme.fg.tertiary}>No warnings recorded.</Text>
+      ) : (
+        items.map((warning, index) => (
+          <Text key={`${warning.recorded_at}-${index}`} color={theme.status.warning}>
+            {warning.source ? `[${warning.source}] ` : ""}
+            {warning.message}
+          </Text>
+        ))
+      )}
+    </Panel>
   );
 };

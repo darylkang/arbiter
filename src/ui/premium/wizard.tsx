@@ -1,57 +1,40 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { Box, Text, useApp, useInput } from "ink";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { Box, useApp, useInput } from "ink";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import { getAssetRoot } from "../../utils/asset-root.js";
-import { resolveConfig } from "../../config/resolve-config.js";
-import { validateConfig } from "../../config/schema-validation.js";
 import { listModels } from "../../openrouter/client.js";
 import { EventBus } from "../../events/event-bus.js";
 import type { Event, EventType } from "../../events/types.js";
 import { buildReceiptModel } from "../receipt-model.js";
 import { formatReceiptText } from "../receipt-text.js";
 import { buildReportModel, formatReportText } from "../../tools/report-run.js";
-import { runMockCommand, runLiveCommand } from "../../cli/commands.js";
+import { runLiveService, runMockService } from "../../run/run-service.js";
+import { createEventWarningSink, type WarningRecord } from "../../utils/warnings.js";
 import { resolveWelcomeAction, type WelcomeAction } from "./routing.js";
 
+import { WarningsPanel } from "../ink/kit.js";
 import {
-  BrandBanner,
-  StatusLightsPanel,
-  Stepper,
-  SelectList,
-  Panel,
-  ProgressBar,
-  TrendMiniChart,
-  FooterHelpBar,
-  LabelValue,
-  TextAreaDisplay,
-  theme
-} from "../ink/kit.js";
+  defaultRunState,
+  type ProfileOption,
+  type RunMode,
+  type RunState,
+  type Screen,
+  type WelcomeOption
+} from "./types.js";
+import { WelcomeScreen } from "./screens/WelcomeScreen.js";
+import { QuestionScreen } from "./screens/QuestionScreen.js";
+import { ProfileScreen } from "./screens/ProfileScreen.js";
+import { DetailsScreen } from "./screens/DetailsScreen.js";
+import { ReviewScreen } from "./screens/ReviewScreen.js";
+import { RunScreen } from "./screens/RunScreen.js";
+import { ReceiptScreen } from "./screens/ReceiptScreen.js";
+import { AnalyzeScreen } from "./screens/AnalyzeScreen.js";
+import { AnalyzeResultScreen } from "./screens/AnalyzeResultScreen.js";
+import { SavedScreen } from "./screens/SavedScreen.js";
 
 const DEFAULT_CONFIG_PATH = "arbiter.config.json";
-
-type Screen =
-  | "welcome"
-  | "question"
-  | "profile"
-  | "details"
-  | "review"
-  | "run"
-  | "receipt"
-  | "analyze"
-  | "analyze-result"
-  | "saved";
-
-type RunMode = "mock" | "live";
-
-type ProfileOption = {
-  id: "quickstart" | "heterogeneity" | "debate" | "free";
-  template: string;
-  title: string;
-  description: string;
-  warning?: string;
-};
 
 const PROFILES: ProfileOption[] = [
   {
@@ -81,31 +64,6 @@ const PROFILES: ProfileOption[] = [
       "Free-tier models are suitable for learning and prototyping. For publishable research, use paid models with stable versioning."
   }
 ];
-
-type RunState = {
-  planned: number;
-  attempted: number;
-  eligible: number;
-  currentBatch?: { batchNumber: number; total: number; completed: number };
-  recentBatches: Array<{
-    batchNumber: number;
-    noveltyRate: number | null;
-    meanMaxSim: number | null;
-    clusterCount?: number;
-  }>;
-  noveltyTrend: Array<number | null>;
-  stopStatus?: { mode: string; wouldStop: boolean; shouldStop: boolean };
-  usage: { prompt: number; completion: number; total: number; cost?: number };
-};
-
-const defaultRunState = (): RunState => ({
-  planned: 0,
-  attempted: 0,
-  eligible: 0,
-  recentBatches: [],
-  noveltyTrend: [],
-  usage: { prompt: 0, completion: 0, total: 0 }
-});
 
 const loadTemplate = (assetRoot: string, template: string): Record<string, unknown> => {
   const path = resolve(assetRoot, "templates", `${template}.config.json`);
@@ -188,540 +146,60 @@ const estimateCostLine = (template: Record<string, unknown>): string => {
 const RUN_EVENT_TYPES: EventType[] = [
   "run.started",
   "trial.completed",
+  "parsed.output",
   "embedding.recorded",
   "batch.started",
   "batch.completed",
-  "convergence.record"
+  "convergence.record",
+  "run.completed",
+  "run.failed"
 ];
 
-const useRunEvents = (bus: EventBus | null, onUpdate: (event: Event) => void): void => {
+const useRunEvents = (
+  bus: EventBus | null,
+  onUpdate: (event: Event) => void,
+  onError: (error: unknown, type: EventType) => void
+): void => {
   useEffect(() => {
     if (!bus) {
       return undefined;
     }
     const unsubs = RUN_EVENT_TYPES.map((type) =>
-      bus.subscribe(type, (payload) => onUpdate({ type, payload } as Event))
+      bus.subscribeSafe(
+        type,
+        (payload) => onUpdate({ type, payload } as Event),
+        (error) => onError(error, type)
+      )
     );
     return () => {
       unsubs.forEach((unsub) => unsub());
     };
-  }, [bus, onUpdate]);
+  }, [bus, onUpdate, onError]);
 };
 
-const TextAreaInput: React.FC<{
-  value: string;
-  onChange: (value: string) => void;
-  onSubmit: () => void;
-}> = ({ value, onChange, onSubmit }) => {
-  useInput((input, key) => {
-    if (key.ctrl && key.return) {
-      onSubmit();
-      return;
-    }
-    if (key.ctrl && input === "s") {
-      onSubmit();
-      return;
-    }
-    if (key.backspace || key.delete) {
-      onChange(value.slice(0, -1));
-      return;
-    }
-    if (key.return) {
-      onChange(`${value}\n`);
-      return;
-    }
-    if (input) {
-      onChange(value + input);
-    }
-  });
-
-  return (
-    <Panel title="Question">
-      <TextAreaDisplay value={value} />
-      <Text color={theme.fg.tertiary}>Tip: Ctrl+Enter or Ctrl+S to continue</Text>
-    </Panel>
-  );
-};
-
-type WelcomeOption = {
-  id: string;
-  label: string;
-  description: string;
-  disabled?: boolean;
-};
-
-const WelcomeScreen: React.FC<{
-  options: WelcomeOption[];
-  hasApiKey: boolean;
-  hasConfig: boolean;
-  runsCount: number;
-  showHelp: boolean;
-  onSelect: (id: string) => void;
-  onToggleHelp: () => void;
-  onQuit: () => void;
-}> = ({ options, hasApiKey, hasConfig, runsCount, showHelp, onSelect, onToggleHelp, onQuit }) => {
-  const [selected, setSelected] = useState(0);
-
-  useInput((input, key) => {
-    if (showHelp) {
-      if (key.escape || key.return || input === "?") {
-        onToggleHelp();
-      }
-      return;
-    }
-    if (key.upArrow) {
-      setSelected((prev) => Math.max(0, prev - 1));
-    }
-    if (key.downArrow) {
-      setSelected((prev) => Math.min(options.length - 1, prev + 1));
-    }
-    if (key.return) {
-      const choice = options[selected];
-      if (choice && !choice.disabled) {
-        onSelect(choice.id);
-      }
-    }
-    if (input === "q") {
-      onQuit();
-    }
-    if (input === "?") {
-      onToggleHelp();
-    }
-  });
-
-  return (
-    <Box flexDirection="column" gap={1}>
-      <BrandBanner variant="full" />
-      <Panel>
-        <StatusLightsPanel
-          items={[
-            { label: "API key", ok: hasApiKey, detail: hasApiKey ? "configured" : "missing" },
-            { label: "Config", ok: hasConfig, detail: hasConfig ? "found" : "none" },
-            { label: "Runs", ok: runsCount > 0, detail: `${runsCount}` }
-          ]}
-        />
-      </Panel>
-      <Panel title="Actions">
-        <SelectList items={options} selectedIndex={selected} />
-      </Panel>
-      <FooterHelpBar hints={["↑/↓ select", "Enter choose", "? help", "q quit"]} />
-      {showHelp ? (
-        <Panel title="What is Arbiter?" borderStyle="double">
-          <Text color={theme.fg.primary}>
-            Arbiter samples LLM responses under a fixed measurement procedure to study
-            distributional behavior. It is audit-first and does not score correctness.
-          </Text>
-        </Panel>
-      ) : null}
-    </Box>
-  );
-};
-
-const QuestionScreen: React.FC<{
-  question: string;
-  onChange: (value: string) => void;
-  onNext: () => void;
-  onBack: () => void;
-}> = ({ question, onChange, onNext, onBack }) => {
-  useInput((_, key) => {
-    if (key.escape) {
-      onBack();
-    }
-  });
-
-  return (
-    <Box flexDirection="column" gap={1}>
-      <BrandBanner variant="compact" />
-      <Stepper steps={["Question", "Profile", "Review", "Run"]} activeIndex={0} />
-      <TextAreaInput value={question} onChange={onChange} onSubmit={onNext} />
-      <FooterHelpBar hints={["Ctrl+Enter next", "Esc back"]} />
-    </Box>
-  );
-};
-
-const ProfileScreen: React.FC<{
-  profileIndex: number;
-  onSelect: (index: number) => void;
-  onNext: () => void;
-  onBack: () => void;
-}> = ({ profileIndex, onSelect, onNext, onBack }) => {
-  useInput((_, key) => {
-    if (key.upArrow) {
-      onSelect(Math.max(0, profileIndex - 1));
-    }
-    if (key.downArrow) {
-      onSelect(Math.min(PROFILES.length - 1, profileIndex + 1));
-    }
-    if (key.return) {
-      onNext();
-    }
-    if (key.escape) {
-      onBack();
-    }
-  });
-
-  const listItems = PROFILES.map((profile) => ({
-    id: profile.id,
-    label: profile.title,
-    description: profile.description,
-    note: profile.id === "free" ? "(exploratory)" : undefined
-  }));
-
-  return (
-    <Box flexDirection="column" gap={1}>
-      <BrandBanner variant="compact" />
-      <Stepper steps={["Question", "Profile", "Review", "Run"]} activeIndex={1} />
-      <Panel title="Profiles">
-        <SelectList items={listItems} selectedIndex={profileIndex} />
-        {PROFILES[profileIndex]?.warning ? (
-          <Text color={theme.status.warning}>{PROFILES[profileIndex]?.warning}</Text>
-        ) : null}
-      </Panel>
-      <FooterHelpBar hints={["↑/↓ select", "Enter next", "Esc back"]} />
-    </Box>
-  );
-};
-
-const DetailsScreen: React.FC<{
-  summary: string[];
-  onNext: () => void;
-  onSave: () => void;
-  onBack: () => void;
-}> = ({ summary, onNext, onSave, onBack }) => {
-  useInput((input, key) => {
-    if (key.return) {
-      onNext();
-    }
-    if (input === "s") {
-      onSave();
-    }
-    if (key.escape) {
-      onBack();
-    }
-  });
-
-  return (
-    <Box flexDirection="column" gap={1}>
-      <BrandBanner variant="compact" />
-      <Stepper steps={["Question", "Profile", "Review", "Run"]} activeIndex={2} />
-      <Panel title="Profile details">
-        {summary.map((line) => (
-          <Text key={line} color={theme.fg.secondary}>
-            {line}
-          </Text>
-        ))}
-      </Panel>
-      <FooterHelpBar hints={["Enter use as-is", "s save only", "Esc back"]} />
-    </Box>
-  );
-};
-
-const ReviewScreen: React.FC<{
-  question: string;
-  profile: ProfileOption;
-  template: Record<string, unknown>;
-  runMode: RunMode;
-  assetRoot: string;
-  configPath: string;
-  allowSave: boolean;
-  onRunMock: () => void;
-  onRunLive: () => void;
-  onSave: () => void;
-  onBack: () => void;
-}> = ({
-  question,
-  profile,
-  template,
-  runMode,
-  assetRoot,
-  configPath,
-  allowSave,
-  onRunMock,
-  onRunLive,
-  onSave,
-  onBack
-}) => {
-  const [validating, setValidating] = useState(true);
-  const [preflightStatus, setPreflightStatus] = useState<{ schema?: boolean }>({});
-  const [preflightError, setPreflightError] = useState<string | null>(null);
-
+const useWarningEvents = (
+  bus: EventBus | null,
+  onWarning: (warning: WarningRecord) => void,
+  onError: (error: unknown) => void
+): void => {
   useEffect(() => {
-    setValidating(true);
-    setPreflightError(null);
-    try {
-      if (!existsSync(configPath)) {
-        writeTemplateConfig(assetRoot, profile.template, question, configPath);
-      }
-      const resolved = resolveConfig({
-        configPath,
-        configRoot: dirname(configPath),
-        assetRoot
-      });
-      if (!validateConfig(resolved.resolvedConfig)) {
-        throw new Error("Resolved config invalid");
-      }
-      setPreflightStatus({ schema: true });
-    } catch (error) {
-      setPreflightError(error instanceof Error ? error.message : String(error));
-      setPreflightStatus({ schema: false });
-    } finally {
-      setValidating(false);
+    if (!bus) {
+      return undefined;
     }
-  }, [assetRoot, configPath, question, profile.template]);
-
-  useInput((input, key) => {
-    if (input === "m") {
-      onRunMock();
-    }
-    if (key.return) {
-      if (runMode === "mock") {
-        onRunMock();
-      } else {
-        onRunLive();
-      }
-    }
-    if (input === "s" && allowSave) {
-      onSave();
-    }
-    if (input === "e" || key.escape) {
-      onBack();
-    }
-  });
-
-  return (
-    <Box flexDirection="column" gap={1}>
-      <BrandBanner variant="compact" />
-      <Stepper steps={["Question", "Profile", "Review", "Run"]} activeIndex={2} />
-      <Panel title="Review">
-        <LabelValue label="Question" value={question.trim().slice(0, 120)} />
-        <LabelValue label="Profile" value={profile.title} />
-        <LabelValue label="Mode" value={runMode === "mock" ? "Mock" : "Live"} />
-        <LabelValue label="Output" value="runs/" />
-        <Text color={theme.fg.tertiary}>{estimateCostLine(template)}</Text>
-      </Panel>
-      <Panel title="Pre-flight checks">
-        <Text color={theme.fg.secondary}>
-          Schema valid:{" "}
-          <Text color={preflightStatus.schema ? theme.status.success : theme.status.error}>
-            {preflightStatus.schema ? "OK" : validating ? "checking..." : "failed"}
-          </Text>
-        </Text>
-        <Text color={theme.fg.secondary}>
-          Live probe:{" "}
-          <Text color={theme.fg.tertiary}>
-            {process.env.OPENROUTER_API_KEY ? "ready" : "API key missing"}
-          </Text>
-        </Text>
-        {preflightError ? <Text color={theme.status.error}>{preflightError}</Text> : null}
-        {profile.warning ? <Text color={theme.status.warning}>{profile.warning}</Text> : null}
-      </Panel>
-      <FooterHelpBar
-        hints={["Enter start", "m run mock", allowSave ? "s save config" : "", "e back"].filter(
-          Boolean
-        )}
-      />
-    </Box>
-  );
+    const unsub = bus.subscribeSafe(
+      "warning.raised",
+      (payload) => onWarning(payload),
+      (error) => onError(error)
+    );
+    return () => {
+      unsub();
+    };
+  }, [bus, onWarning, onError]);
 };
 
-const RunScreen: React.FC<{ runState: RunState }> = ({ runState }) => {
-  const stopStatus = runState.stopStatus;
-  const hasClusters = runState.recentBatches.some((batch) => batch.clusterCount !== undefined);
-
-  return (
-    <Box flexDirection="column" gap={1}>
-      <BrandBanner variant="compact" />
-      <Panel title="Run progress">
-        <Text color={theme.fg.secondary}>
-          Progress: <ProgressBar value={runState.attempted} max={runState.planned || 1} />
-        </Text>
-        {runState.currentBatch ? (
-          <Text color={theme.fg.secondary}>
-            Batch {runState.currentBatch.batchNumber}: {runState.currentBatch.completed}/
-            {runState.currentBatch.total} complete
-          </Text>
-        ) : null}
-        <Text color={theme.fg.secondary}>Eligible embeddings: {runState.eligible}</Text>
-        {runState.recentBatches.length > 0 ? (
-          <Box flexDirection="column" marginTop={1}>
-            <Text color={theme.fg.tertiary}>Recent batches:</Text>
-            {runState.recentBatches.map((batch) => (
-              <Text key={batch.batchNumber} color={theme.fg.secondary}>
-                Batch {batch.batchNumber}: novelty{" "}
-                {batch.noveltyRate === null ? "null" : batch.noveltyRate.toFixed(3)} | mean sim{" "}
-                {batch.meanMaxSim === null ? "null" : batch.meanMaxSim.toFixed(3)}
-                {batch.clusterCount !== undefined ? ` | groups ${batch.clusterCount}` : ""}
-              </Text>
-            ))}
-            <Text color={theme.fg.tertiary}>Novelty trend:</Text>
-            <TrendMiniChart values={runState.noveltyTrend} />
-            {hasClusters ? (
-              <Text color={theme.fg.tertiary}>
-                Embedding groups reflect similarity in the embedding space, not semantic meaning.
-              </Text>
-            ) : null}
-          </Box>
-        ) : null}
-        {stopStatus ? (
-          <Text color={theme.fg.secondary}>
-            Sampling:{" "}
-            {stopStatus.shouldStop
-              ? "stopped due to low novelty"
-              : stopStatus.wouldStop
-              ? "likely to stop soon"
-              : "sampling continues"}
-          </Text>
-        ) : null}
-      </Panel>
-      <Panel title="Usage">
-        <Text color={theme.fg.secondary}>
-          Tokens: in {runState.usage.prompt}, out {runState.usage.completion}, total{" "}
-          {runState.usage.total}
-        </Text>
-        <Text color={theme.fg.tertiary}>
-          Usage tracked; cost shown if provider supplies it.
-        </Text>
-      </Panel>
-      <FooterHelpBar hints={["Ctrl+C graceful stop"]} />
-    </Box>
-  );
-};
-
-const ReceiptScreen: React.FC<{
-  receiptText: string;
-  onReport: () => void;
-  onVerify: () => void;
-  onNew: () => void;
-  onQuit: () => void;
-}> = ({ receiptText, onReport, onVerify, onNew, onQuit }) => {
-  useInput((input) => {
-    if (input === "r") {
-      onReport();
-    }
-    if (input === "v") {
-      onVerify();
-    }
-    if (input === "n") {
-      onNew();
-    }
-    if (input === "q") {
-      onQuit();
-    }
-  });
-
-  return (
-    <Box flexDirection="column" gap={1}>
-      <BrandBanner variant="compact" />
-      <Panel title="Receipt">
-        <Text color={theme.fg.primary}>{receiptText}</Text>
-      </Panel>
-      <FooterHelpBar hints={["r report", "v verify", "n new", "q quit"]} />
-    </Box>
-  );
-};
-
-const AnalyzeScreen: React.FC<{
-  runDirs: string[];
-  selectedIndex: number;
-  onSelectIndex: (index: number) => void;
-  onChoose: (dir: string) => void;
-  onBack: () => void;
-}> = ({ runDirs, selectedIndex, onSelectIndex, onChoose, onBack }) => {
-  useInput((_, key) => {
-    if (key.upArrow) {
-      onSelectIndex(Math.max(0, selectedIndex - 1));
-    }
-    if (key.downArrow) {
-      onSelectIndex(Math.min(runDirs.length - 1, selectedIndex + 1));
-    }
-    if (key.return && runDirs[selectedIndex]) {
-      onChoose(runDirs[selectedIndex]);
-    }
-    if (key.escape) {
-      onBack();
-    }
-  });
-
-  const items = runDirs.map((dir) => ({
-    id: dir,
-    label: dir,
-    description: resolve("runs", dir)
-  }));
-
-  return (
-    <Box flexDirection="column" gap={1}>
-      <BrandBanner variant="compact" />
-      <Panel title="Select a run">
-        <SelectList items={items} selectedIndex={selectedIndex} />
-      </Panel>
-      <FooterHelpBar hints={["↑/↓ select", "Enter view", "Esc back"]} />
-    </Box>
-  );
-};
-
-const AnalyzeResultScreen: React.FC<{
-  reportText: string;
-  onReport: () => void;
-  onReceipt: () => void;
-  onVerify: () => void;
-  onBack: () => void;
-  onQuit: () => void;
-}> = ({ reportText, onReport, onReceipt, onVerify, onBack, onQuit }) => {
-  useInput((input) => {
-    if (input === "r") {
-      onReport();
-    }
-    if (input === "c") {
-      onReceipt();
-    }
-    if (input === "v") {
-      onVerify();
-    }
-    if (input === "b") {
-      onBack();
-    }
-    if (input === "q") {
-      onQuit();
-    }
-  });
-
-  return (
-    <Box flexDirection="column" gap={1}>
-      <BrandBanner variant="compact" />
-      <Panel title="Analysis">
-        <Text color={theme.fg.primary}>
-          {reportText || "Select r (report), c (receipt) or v (verify)."}
-        </Text>
-      </Panel>
-      <FooterHelpBar hints={["r report", "c receipt", "v verify", "b back", "q quit"]} />
-    </Box>
-  );
-};
-
-const SavedScreen: React.FC<{ configPath: string; onNew: () => void; onQuit: () => void }> = ({
-  configPath,
-  onNew,
-  onQuit
-}) => {
-  useInput((input) => {
-    if (input === "n") {
-      onNew();
-    }
-    if (input === "q") {
-      onQuit();
-    }
-  });
-
-  return (
-    <Box flexDirection="column" gap={1}>
-      <BrandBanner variant="compact" />
-      <Panel title="Config saved">
-        <Text color={theme.fg.secondary}>Saved: {configPath}</Text>
-        <Text color={theme.fg.tertiary}>Run later with: arbiter run</Text>
-      </Panel>
-      <FooterHelpBar hints={["n new", "q quit"]} />
-    </Box>
-  );
+const parseRateLimit = (message?: string, code?: string | null): boolean => {
+  const combined = `${code ?? ""} ${message ?? ""}`.toLowerCase();
+  return combined.includes("rate") && combined.includes("limit");
 };
 
 export const PremiumWizard: React.FC = () => {
@@ -740,6 +218,10 @@ export const PremiumWizard: React.FC = () => {
   const [showHelp, setShowHelp] = useState(false);
   const [runsList, setRunsList] = useState<string[]>(getRunsList());
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
+  const [warnings, setWarnings] = useState<WarningRecord[]>([]);
+  const [warningsExpanded, setWarningsExpanded] = useState(false);
+  const parseCountsRef = useRef({ success: 0, fallback: 0, failed: 0 });
+  const warningKeysRef = useRef(new Set<string>());
 
   const selectedProfile = PROFILES[profileIndex] ?? PROFILES[0];
   const existingConfigTemplate = useMemo(
@@ -759,101 +241,223 @@ export const PremiumWizard: React.FC = () => {
     }
   }, [screen]);
 
-  const handleRunEvent = useCallback((event: Event) => {
-    setRunState((state) => {
-      const next = { ...state };
-      if (event.type === "run.started") {
-        next.planned = event.payload.k_planned ?? next.planned;
-      }
-      if (event.type === "trial.completed") {
-        next.attempted += 1;
-        if (next.currentBatch && next.currentBatch.completed < next.currentBatch.total) {
-          next.currentBatch = {
-            ...next.currentBatch,
-            completed: next.currentBatch.completed + 1
-          };
-        }
-        const usage = event.payload.trial_record.usage;
-        if (usage) {
-          next.usage.prompt += usage.prompt_tokens;
-          next.usage.completion += usage.completion_tokens;
-          next.usage.total += usage.total_tokens;
-          if (usage.cost !== undefined) {
-            next.usage.cost = (next.usage.cost ?? 0) + usage.cost;
-          }
-        }
-      }
-      if (event.type === "embedding.recorded") {
-        if (event.payload.embedding_record.embedding_status === "success") {
-          next.eligible += 1;
-        }
-      }
-      if (event.type === "batch.started") {
-        next.currentBatch = {
-          batchNumber: event.payload.batch_number,
-          total: event.payload.trial_ids.length,
-          completed: 0
-        };
-      }
-      if (event.type === "batch.completed") {
-        next.currentBatch = undefined;
-      }
-      if (event.type === "convergence.record") {
-        const record = event.payload.convergence_record;
-        next.recentBatches = [
-          ...next.recentBatches.slice(-2),
-          {
-            batchNumber: record.batch_number,
-            noveltyRate: record.novelty_rate ?? null,
-            meanMaxSim: record.mean_max_sim_to_prior ?? null,
-            clusterCount: record.cluster_count
-          }
-        ];
-        next.noveltyTrend = [...next.noveltyTrend.slice(-12), record.novelty_rate ?? null];
-        next.stopStatus = {
-          mode: record.stop.mode,
-          wouldStop: record.stop.would_stop,
-          shouldStop: record.stop.should_stop
-        };
-      }
-      return next;
-    });
+  useInput((input) => {
+    if (input === "w" && screen !== "question") {
+      setWarningsExpanded((prev) => !prev);
+    }
+  });
+
+  const addWarning = useCallback((message: string, source?: string) => {
+    setWarnings((prev) => [
+      ...prev,
+      { message, source, recorded_at: new Date().toISOString() }
+    ]);
   }, []);
 
-  useRunEvents(bus, handleRunEvent);
+  const addWarningOnce = useCallback(
+    (key: string, message: string, source?: string) => {
+      if (warningKeysRef.current.has(key)) {
+        return;
+      }
+      warningKeysRef.current.add(key);
+      addWarning(message, source);
+    },
+    [addWarning]
+  );
+
+  const handleRunEvent = useCallback(
+    (event: Event) => {
+      setRunState((state) => {
+        const next = { ...state };
+        if (event.type === "run.started") {
+          next.planned = event.payload.k_planned ?? next.planned;
+        }
+        if (event.type === "trial.completed") {
+          next.attempted += 1;
+          if (next.currentBatch && next.currentBatch.completed < next.currentBatch.total) {
+            next.currentBatch = {
+              ...next.currentBatch,
+              completed: next.currentBatch.completed + 1
+            };
+          }
+          const usage = event.payload.trial_record.usage;
+          if (usage) {
+            next.usage.prompt += usage.prompt_tokens;
+            next.usage.completion += usage.completion_tokens;
+            next.usage.total += usage.total_tokens;
+            if (usage.cost !== undefined) {
+              next.usage.cost = (next.usage.cost ?? 0) + usage.cost;
+            }
+          }
+          const record = event.payload.trial_record;
+          if (record.actual_model && record.requested_model_slug && record.actual_model !== record.requested_model_slug) {
+            addWarningOnce(
+              "model-mismatch",
+              "Requested and actual models differ for some trials. See trials.jsonl actual_model.",
+              "provenance"
+            );
+          }
+          const retryCount = record.attempt?.retry_count ?? 0;
+          const callRetries = Array.isArray(record.calls)
+            ? record.calls.some((call) => (call.attempt?.retry_count ?? 0) > 0)
+            : false;
+          if (retryCount > 0 || callRetries) {
+            addWarningOnce(
+              "retries",
+              "Some calls required retries; inspect trials.jsonl for retry counts.",
+              "runtime"
+            );
+          }
+          if (record.status === "model_unavailable") {
+            addWarningOnce(
+              "model-unavailable",
+              "Some trials failed with model_unavailable.",
+              "runtime"
+            );
+          }
+          if (record.error && parseRateLimit(record.error.message, record.error.code ?? null)) {
+            addWarningOnce(
+              "rate-limit",
+              "Rate limit errors occurred; some trials may have failed.",
+              "runtime"
+            );
+          }
+        }
+        if (event.type === "parsed.output") {
+          const status = event.payload.parsed_record.parse_status;
+          if (status === "success" || status === "fallback" || status === "failed") {
+            const nextCounts = { ...parseCountsRef.current };
+            nextCounts[status] += 1;
+            parseCountsRef.current = nextCounts;
+          }
+        }
+        if (event.type === "embedding.recorded") {
+          if (event.payload.embedding_record.embedding_status === "success") {
+            next.eligible += 1;
+          }
+        }
+        if (event.type === "batch.started") {
+          next.currentBatch = {
+            batchNumber: event.payload.batch_number,
+            total: event.payload.trial_ids.length,
+            completed: 0
+          };
+        }
+        if (event.type === "batch.completed") {
+          next.currentBatch = undefined;
+        }
+        if (event.type === "convergence.record") {
+          const record = event.payload.convergence_record;
+          next.recentBatches = [
+            ...next.recentBatches.slice(-2),
+            {
+              batchNumber: record.batch_number,
+              noveltyRate: record.novelty_rate ?? null,
+              meanMaxSim: record.mean_max_sim_to_prior ?? null,
+              clusterCount: record.cluster_count
+            }
+          ];
+          next.noveltyTrend = [...next.noveltyTrend.slice(-12), record.novelty_rate ?? null];
+          next.stopStatus = {
+            mode: record.stop.mode,
+            wouldStop: record.stop.would_stop,
+            shouldStop: record.stop.should_stop
+          };
+        }
+        if (event.type === "run.completed" || event.type === "run.failed") {
+          const counts = parseCountsRef.current;
+          if (counts.fallback > 0) {
+            addWarningOnce(
+              "parse-fallback",
+              `${counts.fallback} trial(s) used fallback parsing; review parsed.jsonl for raw outputs.`,
+              "parsing"
+            );
+          }
+          if (counts.failed > 0) {
+            addWarningOnce(
+              "parse-failed",
+              `${counts.failed} trial(s) had failed parsing with empty output.`,
+              "parsing"
+            );
+          }
+        }
+        return next;
+      });
+    },
+    [addWarningOnce]
+  );
+
+  const handleRunEventError = useCallback(
+    (error: unknown, type: EventType) => {
+      const message = error instanceof Error ? error.message : String(error);
+      addWarningOnce(
+        `event-${type}`,
+        `Event handler error for ${type}: ${message}`,
+        "ui"
+      );
+    },
+    [addWarningOnce]
+  );
+
+  const handleWarningEvent = useCallback(
+    (warning: WarningRecord) => {
+      setWarnings((prev) => [...prev, warning]);
+    },
+    []
+  );
+
+  const handleWarningError = useCallback(
+    (error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      addWarningOnce("warning-handler", `Warning handler error: ${message}`, "ui");
+    },
+    [addWarningOnce]
+  );
+
+  useRunEvents(bus, handleRunEvent, handleRunEventError);
+  useWarningEvents(bus, handleWarningEvent, handleWarningError);
 
   const handleStartRun = useCallback(
     async (mode: RunMode): Promise<void> => {
       const path = configPath;
       const busInstance = new EventBus();
+      const warningSink = createEventWarningSink(busInstance);
       setBus(busInstance);
+      setWarnings([]);
+      warningKeysRef.current.clear();
+      parseCountsRef.current = { success: 0, fallback: 0, failed: 0 };
+      setWarningsExpanded(false);
       setRunState(defaultRunState());
       setScreen("run");
       try {
         if (mode === "mock") {
-          const parsed = {
-            positional: [path],
-            flags: { "--config": path, "--out": "runs", "--quiet": true }
-          };
-          const result = await runMockCommand(parsed, assetRoot, {
+          const result = await runMockService({
+            configPath: path,
+            assetRoot,
+            runsDir: "runs",
+            debug: false,
+            quiet: true,
             bus: busInstance,
             receiptMode: "writeOnly",
             forceInk: true,
-            showPreview: false
+            warningSink,
+            forwardWarningEvents: false
           });
           if (result && typeof result === "object" && "runDir" in result) {
             setRunDir((result as { runDir?: string }).runDir ?? "");
           }
         } else {
-          const parsed = {
-            positional: [path],
-            flags: { "--config": path, "--out": "runs", "--quiet": true }
-          };
-          const result = await runLiveCommand(parsed, assetRoot, {
+          const result = await runLiveService({
+            configPath: path,
+            assetRoot,
+            runsDir: "runs",
+            debug: false,
+            quiet: true,
             bus: busInstance,
             receiptMode: "writeOnly",
             forceInk: true,
-            showPreview: false
+            warningSink,
+            forwardWarningEvents: false
           });
           if (result && typeof result === "object" && "runDir" in result) {
             setRunDir((result as { runDir?: string }).runDir ?? "");
@@ -949,12 +553,23 @@ export const PremiumWizard: React.FC = () => {
       }
     : selectedProfile;
 
+  const ensureConfig = (): void => {
+    writeTemplateConfig(assetRoot, selectedProfile.template, question, configPath);
+  };
+
+  const renderWithWarnings = (content: React.ReactNode): React.ReactNode => (
+    <Box flexDirection="column" gap={1}>
+      {content}
+      <WarningsPanel warnings={warnings} expanded={warningsExpanded} />
+    </Box>
+  );
+
   if (screen === "welcome") {
     const hasApiKey = Boolean(process.env.OPENROUTER_API_KEY);
     const hasConfig = existsSync(configPath);
     const runsCount = runsList.length;
 
-    return (
+    return renderWithWarnings(
       <WelcomeScreen
         options={welcomeOptions}
         hasApiKey={hasApiKey}
@@ -969,7 +584,7 @@ export const PremiumWizard: React.FC = () => {
   }
 
   if (screen === "question") {
-    return (
+    return renderWithWarnings(
       <QuestionScreen
         question={question}
         onChange={setQuestion}
@@ -980,9 +595,10 @@ export const PremiumWizard: React.FC = () => {
   }
 
   if (screen === "profile") {
-    return (
+    return renderWithWarnings(
       <ProfileScreen
         profileIndex={profileIndex}
+        profiles={PROFILES}
         onSelect={setProfileIndex}
         onNext={() => setScreen("details")}
         onBack={() => setScreen("question")}
@@ -992,12 +608,15 @@ export const PremiumWizard: React.FC = () => {
 
   if (screen === "details") {
     const summary = buildSummary(selectedTemplate);
-    return (
+    return renderWithWarnings(
       <DetailsScreen
         summary={summary}
-        onNext={() => setScreen("review")}
+        onNext={() => {
+          ensureConfig();
+          setScreen("review");
+        }}
         onSave={() => {
-          writeTemplateConfig(assetRoot, selectedProfile.template, question, configPath);
+          ensureConfig();
           setScreen("saved");
         }}
         onBack={() => setScreen("profile")}
@@ -1006,32 +625,35 @@ export const PremiumWizard: React.FC = () => {
   }
 
   if (screen === "review") {
-    return (
+    const costLine = estimateCostLine(selectedTemplate);
+    return renderWithWarnings(
       <ReviewScreen
         question={question}
         profile={displayProfile}
-        template={selectedTemplate}
         runMode={runMode}
         assetRoot={assetRoot}
         configPath={configPath}
         allowSave={!useExistingConfig}
+        costLine={costLine}
+        ensureConfig={ensureConfig}
         onRunMock={handleRunMock}
         onRunLive={handleRunLive}
         onSave={() => {
-          writeTemplateConfig(assetRoot, selectedProfile.template, question, configPath);
+          ensureConfig();
           setScreen("saved");
         }}
         onBack={() => setScreen("details")}
+        onWarning={addWarning}
       />
     );
   }
 
   if (screen === "run") {
-    return <RunScreen runState={runState} />;
+    return renderWithWarnings(<RunScreen runState={runState} warningHint="w warnings" />);
   }
 
   if (screen === "receipt") {
-    return (
+    return renderWithWarnings(
       <ReceiptScreen
         receiptText={receiptText}
         onReport={() => {
@@ -1053,7 +675,7 @@ export const PremiumWizard: React.FC = () => {
   }
 
   if (screen === "analyze") {
-    return (
+    return renderWithWarnings(
       <AnalyzeScreen
         runDirs={runsList}
         selectedIndex={selectedRunIndex}
@@ -1068,7 +690,7 @@ export const PremiumWizard: React.FC = () => {
   }
 
   if (screen === "analyze-result") {
-    return (
+    return renderWithWarnings(
       <AnalyzeResultScreen
         reportText={reportText}
         onReport={() => {
@@ -1093,7 +715,7 @@ export const PremiumWizard: React.FC = () => {
   }
 
   if (screen === "saved") {
-    return (
+    return renderWithWarnings(
       <SavedScreen
         configPath={configPath}
         onNew={() => setScreen("welcome")}
