@@ -90,6 +90,12 @@ export type ArtifactWrittenPayload = {
   record_count?: number;
 };
 
+export type WarningRaisedPayload = {
+  message: string;
+  source?: string;
+  recorded_at: string;
+};
+
 export type Event =
   | { type: "run.started"; payload: RunStartedPayload }
   | { type: "run.completed"; payload: RunCompletedPayload }
@@ -106,6 +112,7 @@ export type Event =
   | { type: "convergence.record"; payload: ConvergenceRecordPayload }
   | { type: "aggregates.computed"; payload: AggregatesComputedPayload }
   | { type: "manifest.updated"; payload: ManifestUpdatedPayload }
-  | { type: "artifact.written"; payload: ArtifactWrittenPayload };
+  | { type: "artifact.written"; payload: ArtifactWrittenPayload }
+  | { type: "warning.raised"; payload: WarningRaisedPayload };
 
 export type EventType = Event["type"];

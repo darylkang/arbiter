@@ -12,6 +12,7 @@ import type {
   RunFailedPayload,
   TrialCompletedPayload
 } from "../events/types.js";
+import type { WarningSink } from "../utils/warnings.js";
 import { updateNoveltyMetrics, type BatchEmbedding, type PriorEmbedding } from "../engine/monitoring.js";
 import { OnlineLeaderClustering } from "./online-leader.js";
 import { decodeFloat32Base64 } from "../utils/float32-base64.js";
@@ -59,7 +60,7 @@ export class ClusteringMonitor {
   private consecutiveConvergedBatches = 0;
   private shouldStopFlag = false;
 
-  constructor(config: ArbiterResolvedConfig, bus: EventBus) {
+  constructor(config: ArbiterResolvedConfig, bus: EventBus, warningSink?: WarningSink) {
     this.config = config;
     this.bus = bus;
     this.noveltyThreshold = config.measurement.novelty_threshold;
@@ -78,8 +79,9 @@ export class ClusteringMonitor {
       });
       this.clusterLimit = clusteringConfig.cluster_limit;
       if (clusteringConfig.stop_mode === "enforced") {
-        console.warn(
-          "Clustering stop_mode=enforced is treated as advisory in Phase C."
+        warningSink?.warn(
+          "Clustering stop_mode=enforced is treated as advisory in Phase C.",
+          "clustering"
         );
       }
     } else {
