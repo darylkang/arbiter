@@ -20,7 +20,7 @@ export interface ArbiterTrialRecord {
   };
   error?: {
     message?: string;
-    code?: string;
+    code?: string | null;
     retryable?: boolean;
   };
   error_code?: string | null;

@@ -203,6 +203,14 @@ const asObject = (value: unknown): Record<string, unknown> | undefined => {
   return value as Record<string, unknown>;
 };
 
+const normalizeErrorCode = (code: unknown): string | undefined => {
+  if (typeof code !== "string") {
+    return undefined;
+  }
+  const trimmed = code.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
 export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> => {
   const { bus, resolvedConfig } = options;
   const runId = resolvedConfig.run.run_id;
@@ -445,7 +453,9 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
           transcript,
           error: {
             message: turn0.error?.message ?? "Debate call failed",
-            code: turn0.error instanceof OpenRouterError ? turn0.error.code : undefined,
+            code: normalizeErrorCode(
+              turn0.error instanceof OpenRouterError ? turn0.error.code : undefined
+            ),
             retryable:
               turn0.error instanceof OpenRouterError ? turn0.error.retryable : false
           },
@@ -503,7 +513,9 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
           transcript,
           error: {
             message: turn1.error?.message ?? "Debate call failed",
-            code: turn1.error instanceof OpenRouterError ? turn1.error.code : undefined,
+            code: normalizeErrorCode(
+              turn1.error instanceof OpenRouterError ? turn1.error.code : undefined
+            ),
             retryable:
               turn1.error instanceof OpenRouterError ? turn1.error.retryable : false
           },
@@ -564,7 +576,9 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
           transcript,
           error: {
             message: turn2.error?.message ?? "Debate call failed",
-            code: turn2.error instanceof OpenRouterError ? turn2.error.code : undefined,
+            code: normalizeErrorCode(
+              turn2.error instanceof OpenRouterError ? turn2.error.code : undefined
+            ),
             retryable:
               turn2.error instanceof OpenRouterError ? turn2.error.retryable : false
           },
@@ -779,7 +793,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         },
         error: {
           message: chatError?.message ?? "OpenRouter request failed",
-          code: chatError?.code,
+          code: normalizeErrorCode(chatError?.code),
           retryable: chatError?.retryable ?? false
         },
         error_code: timeout.didTimeout() ? "timeout_exhausted" : null,

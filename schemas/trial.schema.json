@@ -283,7 +283,10 @@
           "type": "string"
         },
         "code": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "retryable": {
           "type": "boolean"

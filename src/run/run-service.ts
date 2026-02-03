@@ -162,12 +162,12 @@ export const runResolveService = (options: {
   debug?: boolean;
   warningSink?: WarningSink;
 }): { runId: string; runDir: string } => {
-  const configPath = options.configPath;
+  const configPath = resolve(process.cwd(), options.configPath);
   const runsDir = options.runsDir ?? "runs";
   const debug = options.debug ?? false;
   const warningSink = options.warningSink ?? createConsoleWarningSink();
 
-  const configRoot = dirname(resolve(process.cwd(), configPath));
+  const configRoot = dirname(configPath);
   const result = resolveConfig({ configPath, configRoot, assetRoot: options.assetRoot });
   result.warnings.forEach((warning) => warningSink.warn(warning, "config"));
 
@@ -199,13 +199,13 @@ export const runResolveService = (options: {
 };
 
 export const runMockService = async (options: RunServiceOptions): Promise<unknown> => {
-  const configPath = options.configPath;
+  const configPath = resolve(process.cwd(), options.configPath);
   const runsDir = options.runsDir ?? "runs";
   const debug = options.debug ?? false;
   const quiet = options.quiet ?? false;
   const warningSink = options.warningSink ?? createConsoleWarningSink();
 
-  const configRoot = dirname(resolve(process.cwd(), configPath));
+  const configRoot = dirname(configPath);
   const result = resolveConfig({ configPath, configRoot, assetRoot: options.assetRoot });
   result.warnings.forEach((warning) => warningSink.warn(warning, "config"));
   const policy = resolvePolicy({
@@ -310,13 +310,13 @@ export const runMockService = async (options: RunServiceOptions): Promise<unknow
 export const runLiveService = async (
   options: RunServiceOptions & { overrides?: LiveOverrides }
 ): Promise<unknown> => {
-  const configPath = options.configPath;
+  const configPath = resolve(process.cwd(), options.configPath);
   const runsDir = options.runsDir ?? "runs";
   const debug = options.debug ?? false;
   const quiet = options.quiet ?? false;
   const warningSink = options.warningSink ?? createConsoleWarningSink();
 
-  const configRoot = dirname(resolve(process.cwd(), configPath));
+  const configRoot = dirname(configPath);
   const result = resolveConfig({ configPath, configRoot, assetRoot: options.assetRoot });
   result.warnings.forEach((warning) => warningSink.warn(warning, "config"));
 

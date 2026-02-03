@@ -39,6 +39,7 @@ import type { RunPolicySnapshot } from "../config/policy.js";
 import { canonicalStringify } from "../utils/canonical-json.js";
 import { sha256Hex } from "../utils/hash.js";
 import { createJsonlWriter, writeJsonAtomic, type JsonlWriter } from "./io.js";
+import { EMBED_TEXT_NORMALIZATION } from "../engine/embed-text.js";
 import type { EmbeddingsProvenance } from "./embeddings-provenance.js";
 
 export interface ArtifactWriterOptions {
@@ -349,10 +350,40 @@ export class ArtifactWriter {
     }
   }
 
+  private ensureEmbeddingsProvenance(reason: string): void {
+    if (this.embeddingsProvenance) {
+      return;
+    }
+    const provenance: EmbeddingsProvenance = {
+      schema_version: "1.0.0",
+      status: "not_generated",
+      reason,
+      intended_primary_format: "arrow_ipc_file",
+      primary_format: "none",
+      dtype: "float32",
+      dimensions: null,
+      requested_embedding_model: this.resolvedConfig.measurement.embedding_model,
+      actual_embedding_model: null,
+      embed_text_strategy: this.resolvedConfig.measurement.embed_text_strategy,
+      normalization: EMBED_TEXT_NORMALIZATION,
+      generation_ids: []
+    };
+    if (this.validateArtifacts) {
+      assertValid(
+        "embeddings provenance",
+        validateEmbeddingsProvenance(provenance),
+        validateEmbeddingsProvenance.errors
+      );
+    }
+    this.embeddingsProvenance = provenance;
+    writeJsonAtomic(resolve(this.runDir, "embeddings.provenance.json"), provenance);
+  }
+
   private onRunCompleted(payload: RunCompletedPayload): void {
     if (!this.manifest) {
       throw new Error("Manifest is not initialized");
     }
+    this.ensureEmbeddingsProvenance("no_embeddings_generated");
     const completedAt = payload.completed_at;
     this.manifest.completed_at = completedAt;
     this.manifest.timestamps = {
@@ -380,6 +411,7 @@ export class ArtifactWriter {
     if (!this.manifest) {
       throw new Error("Manifest is not initialized");
     }
+    this.ensureEmbeddingsProvenance("run_failed_before_embeddings");
     const completedAt = payload.completed_at;
     this.manifest.completed_at = completedAt;
     this.manifest.timestamps = {

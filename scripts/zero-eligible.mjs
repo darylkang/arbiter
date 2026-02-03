@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { validateEmbeddingsProvenance } from "../dist/config/schema-validation.js";
 
 const tempRoot = resolve(tmpdir(), `arbiter-zero-eligible-${Date.now()}`);
 const runsDir = resolve(tempRoot, "runs");
@@ -95,6 +96,15 @@ for (const record of convergenceLines) {
 const aggregates = JSON.parse(readFileSync(resolve(runDir, "aggregates.json"), "utf8"));
 if (aggregates.novelty_rate !== null || aggregates.mean_max_sim_to_prior !== null) {
   throw new Error("Aggregates novelty metrics should be null when no eligible embeddings");
+}
+
+const provenancePath = resolve(runDir, "embeddings.provenance.json");
+const provenance = JSON.parse(readFileSync(provenancePath, "utf8"));
+if (!validateEmbeddingsProvenance(provenance)) {
+  throw new Error("Embeddings provenance should be schema-valid when no embeddings generated");
+}
+if (provenance.status !== "not_generated") {
+  throw new Error("Expected embeddings provenance status to be not_generated for zero embeddings");
 }
 
 rmSync(tempRoot, { recursive: true, force: true });
