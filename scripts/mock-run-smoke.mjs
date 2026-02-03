@@ -155,5 +155,22 @@ if (table.numRows !== 5) {
   throw new Error(`Expected 5 embeddings rows, got ${table.numRows}`);
 }
 
+const embeddingLines = readFileSync(resolve(runDir, "debug/embeddings.jsonl"), "utf8")
+  .trim()
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line));
+const successRecords = embeddingLines.filter(
+  (record) => record.embedding_status === "success"
+);
+if (successRecords.length === 0) {
+  throw new Error("Expected at least one successful embedding record");
+}
+successRecords.forEach((record) => {
+  if (!record.generation_id || typeof record.generation_id !== "string") {
+    throw new Error("Expected generation_id on successful embedding records");
+  }
+});
+
 rmSync(tempRoot, { recursive: true, force: true });
 console.log("Mock-run smoke test OK");

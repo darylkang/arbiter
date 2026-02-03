@@ -13,6 +13,7 @@ export type EmbeddingJsonlRecord = {
   trial_id: number;
   embedding_status: "success" | "failed" | "skipped";
   vector_b64: string | null;
+  generation_id?: string;
   error?: string;
   skip_reason?: string;
   embed_text_sha256?: string;

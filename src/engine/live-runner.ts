@@ -179,7 +179,8 @@ const buildFailedEmbedding = (
 const buildSuccessEmbedding = (
   trialId: number,
   vector: number[],
-  preparation: EmbedTextPreparation
+  preparation: EmbedTextPreparation,
+  generationId?: string | null
 ): ArbiterDebugEmbeddingJSONLRecord => ({
   trial_id: trialId,
   embedding_status: "success",
@@ -188,6 +189,7 @@ const buildSuccessEmbedding = (
   encoding: "float32le_base64",
   dimensions: vector.length,
   embed_text_sha256: sha256Hex(preparation.text),
+  generation_id: generationId ?? undefined,
   embed_text_truncated: preparation.truncated,
   embed_text_original_chars: preparation.original_chars,
   embed_text_final_chars: preparation.final_chars,
@@ -671,7 +673,8 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
             embedding_record: buildSuccessEmbedding(
               entry.trial_id,
               embedResult.vector,
-              preparation
+              preparation,
+              embedResult.generationId
             )
           }
         });
@@ -886,14 +889,15 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
 
         bus.emit({
           type: "embedding.recorded",
-          payload: {
-            embedding_record: buildSuccessEmbedding(
-              entry.trial_id,
-              embedResult.vector,
-              preparation
-            )
-          }
-        });
+        payload: {
+          embedding_record: buildSuccessEmbedding(
+            entry.trial_id,
+            embedResult.vector,
+            preparation,
+            embedResult.generationId
+          )
+        }
+      });
       return {
         trial_id: entry.trial_id,
         embedding: { status: "success", vector: embedResult.vector }

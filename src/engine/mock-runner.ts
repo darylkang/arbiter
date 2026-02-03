@@ -97,6 +97,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
   const workerCount = Math.max(1, resolvedConfig.execution.workers);
   let attempted = 0;
   let eligible = 0;
+  const embeddingGenerationIds = new Set<string>();
   let stopReason: "k_max_reached" | "user_interrupt" | "converged" = "k_max_reached";
   let incomplete = false;
 
@@ -248,6 +249,8 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       }
 
       const vector = Array.from({ length: embeddingDimensions }, () => embedRng());
+      const generationId = `mock-embed-${entry.trial_id}`;
+      embeddingGenerationIds.add(generationId);
       const embeddingRecord: ArbiterDebugEmbeddingJSONLRecord = {
         trial_id: entry.trial_id,
         embedding_status: "success",
@@ -256,6 +259,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
         encoding: "float32le_base64",
         dimensions: embeddingDimensions,
         embed_text_sha256: sha256Hex(preparation.text),
+        generation_id: generationId,
         embed_text_truncated: preparation.truncated,
         embed_text_original_chars: preparation.original_chars,
         embed_text_final_chars: preparation.final_chars,
@@ -322,6 +326,8 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
     }
 
     const vector = Array.from({ length: embeddingDimensions }, () => embedRng());
+    const generationId = `mock-embed-${entry.trial_id}`;
+    embeddingGenerationIds.add(generationId);
     const embeddingRecord: ArbiterDebugEmbeddingJSONLRecord = {
       trial_id: entry.trial_id,
       embedding_status: "success",
@@ -330,6 +336,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       encoding: "float32le_base64",
       dimensions: embeddingDimensions,
       embed_text_sha256: sha256Hex(preparation.text),
+      generation_id: generationId,
       embed_text_truncated: preparation.truncated,
       embed_text_original_chars: preparation.original_chars,
       embed_text_final_chars: preparation.final_chars,
@@ -420,6 +427,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
     const provenanceMeta = {
       requestedEmbeddingModel: resolvedConfig.measurement.embedding_model,
       actualEmbeddingModel: null,
+      generationIds: Array.from(embeddingGenerationIds),
       embedTextStrategy: resolvedConfig.measurement.embed_text_strategy,
       normalization: EMBED_TEXT_NORMALIZATION
     };
