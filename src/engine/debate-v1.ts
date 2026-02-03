@@ -8,7 +8,7 @@ import {
 export type DebateExtractionResult = {
   outcome: string;
   rationale?: string;
-  parse_status: "success" | "fallback";
+  parse_status: "success" | "fallback" | "failed";
   extraction_method: "fenced" | "unfenced" | "raw";
   embed_text_source: "decision" | "raw_content" | "rationale";
   embed_text: string;
@@ -63,6 +63,15 @@ export const buildDebateMessages = (input: {
 
 export const extractDebateDecision = (content: string): DebateExtractionResult => {
   const trimmed = content.trim();
+  if (!trimmed) {
+    return {
+      outcome: "",
+      parse_status: "failed",
+      extraction_method: "raw",
+      embed_text_source: "raw_content",
+      embed_text: ""
+    };
+  }
   const fenced = extractFencedJson(trimmed);
   if (fenced) {
     return {
@@ -122,7 +131,11 @@ export const buildDebateParsedOutput = (
     rationale: extracted.rationale,
     raw_assistant_text: finalContent,
     embed_text: extracted.embed_text,
-    parser_version: "debate-v1"
+    parser_version: "debate-v1",
+    parse_error:
+      extracted.parse_status === "failed"
+        ? { message: "Debate output empty or unusable" }
+        : undefined
   };
 };
 
