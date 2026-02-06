@@ -100,8 +100,10 @@ If you touched OpenRouter integration or live behavior, also run:
 
 - Start with a quick repo scan (`ls`, `rg --files`, `rg`).
 - Identify and track files you touch.
-- End with a concise summary and commit(s).
+- End each round with a concise summary and commit(s).
+- Split into multiple commits when there is a clear logical boundary; one commit is fine when changes are tightly coupled.
 - Use Conventional Commits: `type(scope): description` with bullet‑only body lines.
+- Commit body bullets should be sentence-style and start lowercase; keep natural capitalization for proper nouns/acronyms (for example `README`, `OpenRouter`, `JSONL`).
 
 ---
 
