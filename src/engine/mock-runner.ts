@@ -23,6 +23,7 @@ export interface MockRunOptions {
   resolvedConfig: ArbiterResolvedConfig;
   embeddingsJsonlPath: string;
   debugEnabled: boolean;
+  contractFailurePolicy?: "warn" | "exclude" | "fail";
   embeddingDimensions?: number;
   beforeFinalize?: () => Promise<void>;
   stop?: {
@@ -39,6 +40,11 @@ export interface MockRunResult {
   runDir: string;
   kAttempted: number;
   kEligible: number;
+  contractFailures: {
+    fallback: number;
+    failed: number;
+    total: number;
+  };
   embeddingsProvenance: EmbeddingsProvenance;
   embeddingsArrowPath?: string;
 }
@@ -57,6 +63,15 @@ const buildIndependentParsedOutput = (
   parser_version: "mock-v0"
 });
 
+const shouldExcludeContractFailure = (input: {
+  hasDecisionContract: boolean;
+  parseStatus: ArbiterParsedOutputRecord["parse_status"];
+  contractFailurePolicy?: "warn" | "exclude" | "fail";
+}): boolean =>
+  input.hasDecisionContract &&
+  input.contractFailurePolicy === "exclude" &&
+  input.parseStatus !== "success";
+
 export const runMock = async (options: MockRunOptions): Promise<MockRunResult> => {
   const { bus, resolvedConfig } = options;
   const runId = resolvedConfig.run.run_id;
@@ -66,6 +81,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
     resolvedConfig.measurement.embedding_max_chars ?? DEFAULT_EMBEDDING_MAX_CHARS;
   const delayMs = Number(process.env.ARBITER_MOCK_DELAY_MS ?? 0);
   const forceEmptyEmbedText = process.env.ARBITER_MOCK_EMPTY_EMBED === "1";
+  const hasDecisionContract = Boolean(resolvedConfig.protocol.decision_contract);
 
   const { plan, planSha256 } = generateTrialPlan(resolvedConfig);
   bus.emit({
@@ -97,6 +113,10 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
   const workerCount = Math.max(1, resolvedConfig.execution.workers);
   let attempted = 0;
   let eligible = 0;
+  const contractFailures = {
+    fallback: 0,
+    failed: 0
+  };
   const embeddingGenerationIds = new Set<string>();
   let stopReason: "k_max_reached" | "user_interrupt" | "converged" = "k_max_reached";
   let incomplete = false;
@@ -220,15 +240,46 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
 
       bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
 
-    const parsedRecord = buildDebateParsedOutput(
-      entry.trial_id,
-      finalPayload,
-      resolvedConfig.protocol.decision_contract ?? undefined
-    );
+      const parsedRecord = buildDebateParsedOutput(
+        entry.trial_id,
+        finalPayload,
+        resolvedConfig.protocol.decision_contract ?? undefined
+      );
+      if (hasDecisionContract && parsedRecord.parse_status !== "success") {
+        if (parsedRecord.parse_status === "fallback") {
+          contractFailures.fallback += 1;
+        } else if (parsedRecord.parse_status === "failed") {
+          contractFailures.failed += 1;
+        }
+      }
       const rawEmbedText = forceEmptyEmbedText ? "" : parsedRecord.embed_text ?? "";
       const preparation = prepareEmbedText(rawEmbedText, embeddingMaxChars);
       parsedRecord.embed_text = preparation.text || undefined;
       bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+
+      if (
+        shouldExcludeContractFailure({
+          hasDecisionContract,
+          parseStatus: parsedRecord.parse_status,
+          contractFailurePolicy: options.contractFailurePolicy
+        })
+      ) {
+        const embeddingRecord: ArbiterDebugEmbeddingJSONLRecord = {
+          trial_id: entry.trial_id,
+          embedding_status: "skipped",
+          vector_b64: null,
+          dtype: "float32",
+          encoding: "float32le_base64",
+          skip_reason: "contract_parse_excluded",
+          embed_text_sha256: undefined,
+          embed_text_truncated: preparation.truncated,
+          embed_text_original_chars: preparation.original_chars,
+          embed_text_final_chars: preparation.final_chars,
+          truncation_reason: preparation.truncation_reason
+        };
+        bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
+        return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
+      }
 
       if (preparation.was_empty) {
         const embeddingRecord: ArbiterDebugEmbeddingJSONLRecord = {
@@ -304,8 +355,39 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       forceEmptyEmbedText ? "" : parsedRecord.embed_text ?? "",
       embeddingMaxChars
     );
+    if (hasDecisionContract && parsedRecord.parse_status !== "success") {
+      if (parsedRecord.parse_status === "fallback") {
+        contractFailures.fallback += 1;
+      } else if (parsedRecord.parse_status === "failed") {
+        contractFailures.failed += 1;
+      }
+    }
     parsedRecord.embed_text = preparation.text || undefined;
     bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+
+    if (
+      shouldExcludeContractFailure({
+        hasDecisionContract,
+        parseStatus: parsedRecord.parse_status,
+        contractFailurePolicy: options.contractFailurePolicy
+      })
+    ) {
+      const embeddingRecord: ArbiterDebugEmbeddingJSONLRecord = {
+        trial_id: entry.trial_id,
+        embedding_status: "skipped",
+        vector_b64: null,
+        dtype: "float32",
+        encoding: "float32le_base64",
+        skip_reason: "contract_parse_excluded",
+        embed_text_sha256: undefined,
+        embed_text_truncated: preparation.truncated,
+        embed_text_original_chars: preparation.original_chars,
+        embed_text_final_chars: preparation.final_chars,
+        truncation_reason: preparation.truncation_reason
+      };
+      bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
+      return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
+    }
 
     if (preparation.was_empty) {
       const embeddingRecord: ArbiterDebugEmbeddingJSONLRecord = {
@@ -457,7 +539,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       });
       provenance = finalizeResult.provenance;
     }
-    if (!options.debugEnabled && provenance.status === "arrow_generated") {
+    if (!options.debugEnabled && provenance.status !== "jsonl_fallback") {
       if (existsSync(options.embeddingsJsonlPath)) {
         rmSync(options.embeddingsJsonlPath, { force: true });
       }
@@ -465,7 +547,9 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       if (existsSync(debugDir) && readdirSync(debugDir).length === 0) {
         rmSync(debugDir, { recursive: true, force: true });
       }
-      provenance = { ...provenance, debug_jsonl_present: false };
+      if (provenance.status === "arrow_generated") {
+        provenance = { ...provenance, debug_jsonl_present: false };
+      }
     }
 
     bus.emit({ type: "embeddings.finalized", payload: { provenance } });
@@ -486,6 +570,11 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       runDir: options.runDir,
       kAttempted: attempted,
       kEligible: eligible,
+      contractFailures: {
+        fallback: contractFailures.fallback,
+        failed: contractFailures.failed,
+        total: contractFailures.fallback + contractFailures.failed
+      },
       embeddingsProvenance: provenance,
       embeddingsArrowPath:
         provenance.status === "arrow_generated"

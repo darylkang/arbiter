@@ -82,7 +82,7 @@ Check `manifest.json` (`stop_reason`) and the last records in `convergence_trace
 They are **similarity groups** in the embedding space. They are not semantic categories. If you change the embedding model, the groupings will change.
 
 ### “Why were some trials excluded?”
-Only trials with successful embeddings are “eligible.” Look at `embeddings.provenance.json` and `debug/embeddings.jsonl` (if present) for skip/failure reasons.
+Only trials with successful embeddings are “eligible.” Look at `embeddings.provenance.json` and `debug/embeddings.jsonl` (if present) for skip/failure reasons. If you run with `--contract-failure exclude`, contract parse failures are intentionally excluded from eligibility.
 
 ### “Why does requested vs actual model differ?”
 Providers may alias or substitute models. Arbiter logs **requested** and **actual** identifiers in `trials.jsonl` (and `embeddings.provenance.json`). Always cite actual identifiers in results.

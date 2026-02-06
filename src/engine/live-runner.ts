@@ -33,6 +33,7 @@ export interface LiveRunOptions {
   resolvedConfig: ArbiterResolvedConfig;
   embeddingsJsonlPath: string;
   debugEnabled: boolean;
+  contractFailurePolicy?: "warn" | "exclude" | "fail";
   beforeFinalize?: () => Promise<void>;
   stop?: {
     shouldStop: () => boolean;
@@ -48,6 +49,11 @@ export interface LiveRunResult {
   runDir: string;
   kAttempted: number;
   kEligible: number;
+  contractFailures: {
+    fallback: number;
+    failed: number;
+    total: number;
+  };
   embeddingsProvenance: EmbeddingsProvenance;
   embeddingsArrowPath?: string;
 }
@@ -89,22 +95,41 @@ const createTimeoutSignal = (
 ): { signal: AbortSignal; cancel: () => void; didTimeout: () => boolean } => {
   let timedOut = false;
   const controller = new AbortController();
-  const timeout = setTimeout(() => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  let parentListenerAttached = false;
+  const onParentAbort = (): void => {
+    controller.abort();
+    cleanup();
+  };
+  const cleanup = (): void => {
+    if (timeout) {
+      clearTimeout(timeout);
+      timeout = null;
+    }
+    if (parentSignal && parentListenerAttached) {
+      parentSignal.removeEventListener("abort", onParentAbort);
+      parentListenerAttached = false;
+    }
+  };
+
+  timeout = setTimeout(() => {
     timedOut = true;
     controller.abort();
+    cleanup();
   }, timeoutMs);
 
   if (parentSignal) {
     if (parentSignal.aborted) {
       controller.abort();
     } else {
-      parentSignal.addEventListener("abort", () => controller.abort(), { once: true });
+      parentSignal.addEventListener("abort", onParentAbort, { once: true });
+      parentListenerAttached = true;
     }
   }
 
   return {
     signal: controller.signal,
-    cancel: () => clearTimeout(timeout),
+    cancel: cleanup,
     didTimeout: () => timedOut
   };
 };
@@ -211,12 +236,24 @@ const normalizeErrorCode = (code: unknown): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const isContractParseFailure = (input: {
+  hasDecisionContract: boolean;
+  trialSucceeded: boolean;
+  parseStatus: ArbiterParsedOutputRecord["parse_status"];
+}): boolean => input.hasDecisionContract && input.trialSucceeded && input.parseStatus !== "success";
+
+const shouldExcludeContractFailure = (input: {
+  contractParseFailure: boolean;
+  contractFailurePolicy?: "warn" | "exclude" | "fail";
+}): boolean => input.contractParseFailure && input.contractFailurePolicy === "exclude";
+
 export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> => {
   const { bus, resolvedConfig } = options;
   const runId = resolvedConfig.run.run_id;
   const startedAt = new Date().toISOString();
   const embeddingMaxChars =
     resolvedConfig.measurement.embedding_max_chars ?? DEFAULT_EMBEDDING_MAX_CHARS;
+  const hasDecisionContract = Boolean(resolvedConfig.protocol.decision_contract);
 
   const { plan, planSha256 } = generateTrialPlan(resolvedConfig);
   const personaMap = new Map(
@@ -255,6 +292,10 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
   const workerCount = Math.max(1, resolvedConfig.execution.workers);
   let attempted = 0;
   let eligible = 0;
+  const contractFailures = {
+    fallback: 0,
+    failed: 0
+  };
   let embeddingDimensions: number | null = null;
   let actualEmbeddingModel: string | null = null;
   const embeddingGenerationIds = new Set<string>();
@@ -613,6 +654,18 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         turn2.content,
         resolvedConfig.protocol.decision_contract ?? undefined
       );
+      const contractParseFailure = isContractParseFailure({
+        hasDecisionContract,
+        trialSucceeded: true,
+        parseStatus: parsedRecord.parse_status
+      });
+      if (contractParseFailure) {
+        if (parsedRecord.parse_status === "fallback") {
+          contractFailures.fallback += 1;
+        } else if (parsedRecord.parse_status === "failed") {
+          contractFailures.failed += 1;
+        }
+      }
       const preparation = prepareEmbedText(parsedRecord.embed_text ?? "", embeddingMaxChars);
       parsedRecord.embed_text = preparation.text || undefined;
       const trialRecord: ArbiterTrialRecord = {
@@ -630,6 +683,25 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
 
       bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
       bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+
+      if (
+        shouldExcludeContractFailure({
+          contractParseFailure,
+          contractFailurePolicy: options.contractFailurePolicy
+        })
+      ) {
+        bus.emit({
+          type: "embedding.recorded",
+          payload: {
+            embedding_record: buildSkippedEmbedding(
+              entry.trial_id,
+              "contract_parse_excluded",
+              preparation
+            )
+          }
+        });
+        return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
+      }
 
       if (preparation.was_empty) {
         bus.emit({
@@ -833,6 +905,18 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
           parseError
         );
 
+    const contractParseFailure = isContractParseFailure({
+      hasDecisionContract,
+      trialSucceeded: trialRecord.status === "success",
+      parseStatus: parsedRecord.parse_status
+    });
+    if (contractParseFailure) {
+      if (parsedRecord.parse_status === "fallback") {
+        contractFailures.fallback += 1;
+      } else if (parsedRecord.parse_status === "failed") {
+        contractFailures.failed += 1;
+      }
+    }
     const preparation = prepareEmbedText(parsedRecord.embed_text ?? "", embeddingMaxChars);
     parsedRecord.embed_text = preparation.text || undefined;
     bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
@@ -844,6 +928,25 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
           embedding_record: buildSkippedEmbedding(
             entry.trial_id,
             "trial_not_success",
+            preparation
+          )
+        }
+      });
+      return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
+    }
+
+    if (
+      shouldExcludeContractFailure({
+        contractParseFailure,
+        contractFailurePolicy: options.contractFailurePolicy
+      })
+    ) {
+      bus.emit({
+        type: "embedding.recorded",
+        payload: {
+          embedding_record: buildSkippedEmbedding(
+            entry.trial_id,
+            "contract_parse_excluded",
             preparation
           )
         }
@@ -1048,7 +1151,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
           : undefined;
     }
 
-    if (!options.debugEnabled && provenance.status === "arrow_generated") {
+    if (!options.debugEnabled && provenance.status !== "jsonl_fallback") {
       if (existsSync(options.embeddingsJsonlPath)) {
         rmSync(options.embeddingsJsonlPath, { force: true });
       }
@@ -1056,7 +1159,9 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       if (existsSync(debugDir) && readdirSync(debugDir).length === 0) {
         rmSync(debugDir, { recursive: true, force: true });
       }
-      provenance = { ...provenance, debug_jsonl_present: false };
+      if (provenance.status === "arrow_generated") {
+        provenance = { ...provenance, debug_jsonl_present: false };
+      }
     }
 
     bus.emit({ type: "embeddings.finalized", payload: { provenance } });
@@ -1077,6 +1182,11 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       runDir: options.runDir,
       kAttempted: attempted,
       kEligible: eligible,
+      contractFailures: {
+        fallback: contractFailures.fallback,
+        failed: contractFailures.failed,
+        total: contractFailures.fallback + contractFailures.failed
+      },
       embeddingsProvenance: provenance,
       embeddingsArrowPath: arrowPath
     };

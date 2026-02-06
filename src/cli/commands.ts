@@ -141,14 +141,12 @@ export type RunCommandOptions = {
 export const runResolve = (parsed: ParsedArgs, assetRoot: string): void => {
   const configPath = getFlag(parsed.flags, "--config") ?? parsed.positional[0] ?? DEFAULT_CONFIG_PATH;
   const runsDir = getFlag(parsed.flags, "--out") ?? "runs";
-  const debug = hasFlag(parsed.flags, "--debug");
 
   const warningSink = createConsoleWarningSink();
   const { runId, runDir } = runResolveService({
     configPath,
     assetRoot,
     runsDir,
-    debug,
     warningSink
   });
 

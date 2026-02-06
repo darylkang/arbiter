@@ -185,6 +185,10 @@ const extractIdFromBody = (body: unknown): string | null => {
 const toNumber = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
 
+const isFiniteNumberArray = (value: unknown): value is number[] =>
+  Array.isArray(value) &&
+  value.every((item) => typeof item === "number" && Number.isFinite(item));
+
 const extractUsageFromBody = (body: unknown): TokenUsage | null => {
   if (!body || typeof body !== "object" || !("usage" in body)) {
     return null;
@@ -270,6 +274,16 @@ const requestWithRetry = async (
   const baseUrl = resolveBaseUrl(options.baseUrl);
   const retry = options.retry ?? { maxRetries: 0, backoffMs: 0 };
   let attempt = 0;
+  const waitBackoff = async (): Promise<void> => {
+    if (retry.backoffMs <= 0) {
+      return;
+    }
+    await delay(
+      retry.backoffMs,
+      undefined,
+      options.signal ? { signal: options.signal } : undefined
+    );
+  };
 
   const isAbortError = (error: unknown): boolean => {
     if (!error || typeof error !== "object") {
@@ -306,9 +320,7 @@ const requestWithRetry = async (
       const classification = classifyError(response.status, responseBody);
       if (classification.retryable && attempt < retry.maxRetries) {
         attempt += 1;
-        if (retry.backoffMs > 0) {
-          await delay(retry.backoffMs);
-        }
+        await waitBackoff();
         continue;
       }
 
@@ -340,9 +352,7 @@ const requestWithRetry = async (
       }
       if (attempt < retry.maxRetries) {
         attempt += 1;
-        if (retry.backoffMs > 0) {
-          await delay(retry.backoffMs);
-        }
+        await waitBackoff();
         continue;
       }
       throw new OpenRouterError("OpenRouter request failed", {
@@ -407,8 +417,8 @@ export const embedText = async (input: {
   const result = await requestWithRetry("/embeddings", requestPayload, input.options ?? {});
   const data = result.responseBody as { data?: Array<{ embedding?: number[] }> };
   const vector = data?.data?.[0]?.embedding;
-  if (!vector || !Array.isArray(vector)) {
-    throw new OpenRouterError("OpenRouter embedding response missing vector", {
+  if (!isFiniteNumberArray(vector)) {
+    throw new OpenRouterError("OpenRouter embedding response missing or invalid vector", {
       retryable: false,
       modelUnavailable: false,
       retryCount: result.retryCount,

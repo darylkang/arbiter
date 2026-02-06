@@ -79,6 +79,7 @@ export class EventBus {
     if (!handlers || handlers.length === 0) {
       return;
     }
-    handlers.forEach((handler) => handler(event.payload));
+    const snapshot = handlers.slice();
+    snapshot.forEach((handler) => handler(event.payload));
   }
 }

@@ -309,6 +309,210 @@ const verifyEmbeddingsArrow = (results: VerifyResult[], arrowPath: string): void
   }
 };
 
+const countContractParseOutcomes = (input: {
+  trialRecords: unknown[];
+  parsedRecords: unknown[];
+}): {
+  fallback: number;
+  failed: number;
+  total: number;
+  success: number;
+} => {
+  const statusByTrial = new Map<number, string>();
+  for (const record of input.trialRecords) {
+    const trial = record as { trial_id?: number; status?: string };
+    if (Number.isInteger(trial.trial_id) && typeof trial.status === "string") {
+      statusByTrial.set(trial.trial_id as number, trial.status);
+    }
+  }
+
+  let fallback = 0;
+  let failed = 0;
+  let success = 0;
+  for (const record of input.parsedRecords) {
+    const parsed = record as { trial_id?: number; parse_status?: string };
+    if (!Number.isInteger(parsed.trial_id)) {
+      continue;
+    }
+    const trialStatus = statusByTrial.get(parsed.trial_id as number);
+    if (trialStatus !== "success") {
+      continue;
+    }
+    if (parsed.parse_status === "success") {
+      success += 1;
+    } else if (parsed.parse_status === "fallback") {
+      fallback += 1;
+    } else if (parsed.parse_status === "failed") {
+      failed += 1;
+    }
+  }
+
+  return { fallback, failed, total: fallback + failed, success };
+};
+
+const verifyEligibilityCoherence = (input: {
+  results: VerifyResult[];
+  manifest: {
+    k_eligible?: number;
+  } | null;
+  embeddingsProvenance: {
+    status?: string;
+  } | null;
+  debugEmbeddings: unknown[] | null;
+  arrowPath: string;
+}): void => {
+  const { results, manifest, embeddingsProvenance, debugEmbeddings, arrowPath } = input;
+  const kEligible = manifest?.k_eligible;
+  if (kEligible === undefined) {
+    return;
+  }
+
+  if (embeddingsProvenance?.status === "not_generated" && kEligible > 0) {
+    addResult(
+      results,
+      "FAIL",
+      "embeddings provenance coherence",
+      `status=not_generated but k_eligible=${kEligible}`
+    );
+  } else if (embeddingsProvenance?.status) {
+    addResult(results, "OK", "embeddings provenance coherence");
+  }
+
+  if (debugEmbeddings && debugEmbeddings.length > 0) {
+    const successCount = debugEmbeddings.filter((record) => {
+      const embedding = record as { embedding_status?: string };
+      return embedding.embedding_status === "success";
+    }).length;
+    if (successCount !== kEligible) {
+      addResult(
+        results,
+        "FAIL",
+        "k_eligible coherence",
+        `manifest k_eligible=${kEligible}, debug successes=${successCount}`
+      );
+    } else {
+      addResult(results, "OK", "k_eligible coherence");
+    }
+    return;
+  }
+
+  if (existsSync(arrowPath)) {
+    try {
+      const table = tableFromIPC(readFileSync(arrowPath));
+      if (table.numRows !== kEligible) {
+        addResult(
+          results,
+          "FAIL",
+          "k_eligible coherence",
+          `manifest k_eligible=${kEligible}, embeddings.arrow rows=${table.numRows}`
+        );
+      } else {
+        addResult(results, "OK", "k_eligible coherence");
+      }
+      return;
+    } catch (error) {
+      addResult(
+        results,
+        "FAIL",
+        "k_eligible coherence",
+        error instanceof Error ? error.message : String(error)
+      );
+      return;
+    }
+  }
+
+  if (kEligible > 0) {
+    addResult(
+      results,
+      "FAIL",
+      "k_eligible coherence",
+      `manifest k_eligible=${kEligible}, but no embeddings evidence present`
+    );
+  } else {
+    addResult(results, "OK", "k_eligible coherence");
+  }
+};
+
+const verifyContractPolicyCoherence = (input: {
+  results: VerifyResult[];
+  manifest:
+    | {
+        policy?: { contract_failure_policy?: string };
+        stop_reason?: string;
+        incomplete?: boolean;
+        notes?: string;
+        k_eligible?: number;
+      }
+    | null;
+  config: { protocol?: { decision_contract?: unknown } } | null;
+  trialRecords: unknown[];
+  parsedRecords: unknown[];
+  debugEmbeddings: unknown[] | null;
+}): void => {
+  const { results, manifest, config, trialRecords, parsedRecords, debugEmbeddings } = input;
+  const policy = manifest?.policy?.contract_failure_policy;
+  if (!policy) {
+    return;
+  }
+  if (!config?.protocol?.decision_contract) {
+    addResult(results, "OK", "contract policy coherence", "No decision contract configured");
+    return;
+  }
+
+  const contractParse = countContractParseOutcomes({ trialRecords, parsedRecords });
+
+  if (policy === "fail" && contractParse.total > 0) {
+    const hasExpectedStop = manifest?.stop_reason === "error" && manifest?.incomplete === true;
+    const hasExpectedNotes =
+      typeof manifest?.notes === "string" &&
+      manifest.notes.includes("Contract parse failures");
+    if (!hasExpectedStop || !hasExpectedNotes) {
+      addResult(
+        results,
+        "FAIL",
+        "contract policy coherence",
+        `fail policy requires stop_reason=error, incomplete=true, and contract failure notes`
+      );
+      return;
+    }
+  }
+
+  if (policy === "exclude" && contractParse.total > 0) {
+    if (
+      manifest?.k_eligible !== undefined &&
+      manifest.k_eligible > contractParse.success
+    ) {
+      addResult(
+        results,
+        "FAIL",
+        "contract policy coherence",
+        `exclude policy requires k_eligible <= successful contract parses (${contractParse.success}), got ${manifest.k_eligible}`
+      );
+      return;
+    }
+    if (debugEmbeddings && debugEmbeddings.length > 0) {
+      const excludedCount = debugEmbeddings.filter((record) => {
+        const embedding = record as { embedding_status?: string; skip_reason?: string };
+        return (
+          embedding.embedding_status === "skipped" &&
+          embedding.skip_reason === "contract_parse_excluded"
+        );
+      }).length;
+      if (excludedCount !== contractParse.total) {
+        addResult(
+          results,
+          "FAIL",
+          "contract policy coherence",
+          `exclude policy requires contract_parse_excluded skips=${contractParse.total}, got ${excludedCount}`
+        );
+        return;
+      }
+    }
+  }
+
+  addResult(results, "OK", "contract policy coherence");
+};
+
 const verifyAggregates = (
   results: VerifyResult[],
   aggregates: { [key: string]: unknown } | null,
@@ -357,6 +561,71 @@ const verifyAggregates = (
   addResult(results, "OK", "aggregates vs convergence");
 };
 
+const verifyResolveOnlySemantics = (input: {
+  results: VerifyResult[];
+  runDir: string;
+  manifest:
+    | {
+        k_attempted?: number;
+        k_eligible?: number;
+        incomplete?: boolean;
+        artifacts?: { entries?: Array<{ path: string }> };
+      }
+    | null;
+}): void => {
+  const { results, runDir, manifest } = input;
+  const allowedArtifacts = new Set(["config.resolved.json", "manifest.json"]);
+  const manifestEntries = manifest?.artifacts?.entries ?? [];
+  const invalidManifestEntries = manifestEntries
+    .map((entry) => entry.path)
+    .filter((path) => !allowedArtifacts.has(path));
+  if (invalidManifestEntries.length > 0) {
+    addResult(
+      results,
+      "FAIL",
+      "resolve-only manifest artifacts",
+      `Unexpected entries: ${invalidManifestEntries.join(", ")}`
+    );
+  } else {
+    addResult(results, "OK", "resolve-only manifest artifacts");
+  }
+
+  const disallowedPaths = [
+    "trial_plan.jsonl",
+    "trials.jsonl",
+    "parsed.jsonl",
+    "convergence_trace.jsonl",
+    "aggregates.json",
+    "embeddings.provenance.json",
+    "embeddings.arrow",
+    "clusters/online.state.json",
+    "clusters/online.assignments.jsonl",
+    "debug/embeddings.jsonl"
+  ];
+  const presentDisallowed = disallowedPaths.filter((path) => existsSync(resolve(runDir, path)));
+  if (presentDisallowed.length > 0) {
+    addResult(
+      results,
+      "FAIL",
+      "resolve-only artifact set",
+      `Unexpected files present: ${presentDisallowed.join(", ")}`
+    );
+  } else {
+    addResult(results, "OK", "resolve-only artifact set");
+  }
+
+  if (manifest?.k_attempted !== 0 || manifest?.k_eligible !== 0 || manifest?.incomplete !== false) {
+    addResult(
+      results,
+      "FAIL",
+      "resolve-only counters",
+      `Expected k_attempted=0, k_eligible=0, incomplete=false`
+    );
+  } else {
+    addResult(results, "OK", "resolve-only counters");
+  }
+};
+
 export const verifyRunDir = (runDir: string): VerifyReport => {
   const results: VerifyResult[] = [];
   const manifestPath = resolve(runDir, "manifest.json");
@@ -365,10 +634,21 @@ export const verifyRunDir = (runDir: string): VerifyReport => {
         artifacts?: { entries?: Array<{ path: string }> };
         k_planned?: number;
         k_attempted?: number;
+        k_eligible?: number;
         incomplete?: boolean;
         stop_reason?: string;
+        stopping_mode?: string;
+        notes?: string;
+        policy?: { contract_failure_policy?: string };
       }
     | null;
+
+  const config = verifyJson(
+    results,
+    "config.resolved.json",
+    resolve(runDir, "config.resolved.json"),
+    validateConfig
+  ) as { protocol?: { decision_contract?: unknown } } | null;
 
   const receiptPath = resolve(runDir, "receipt.txt");
   if (existsSync(receiptPath) && manifest?.artifacts?.entries) {
@@ -387,19 +667,24 @@ export const verifyRunDir = (runDir: string): VerifyReport => {
     }
   }
 
-  verifyJson(results, "config.resolved.json", resolve(runDir, "config.resolved.json"), validateConfig);
+  if (manifest?.stopping_mode === "resolve_only") {
+    verifyResolveOnlySemantics({ results, runDir, manifest });
+    const ok = !results.some((result) => result.status === "FAIL");
+    return { results, ok };
+  }
+
   const aggregates = verifyJson(
     results,
     "aggregates.json",
     resolve(runDir, "aggregates.json"),
     validateAggregates
   ) as { [key: string]: unknown } | null;
-  verifyJson(
+  const embeddingsProvenance = verifyJson(
     results,
     "embeddings.provenance.json",
     resolve(runDir, "embeddings.provenance.json"),
     validateEmbeddingsProvenance
-  );
+  ) as { status?: string } | null;
 
   const planRecords = verifyJsonl(
     results,
@@ -432,7 +717,8 @@ export const verifyRunDir = (runDir: string): VerifyReport => {
   verifyTrialRecords(results, trialRecords, parsedRecords, manifest?.k_planned, manifest?.k_attempted);
   verifyStopReason(results, manifest ?? {}, convergenceRecords);
   verifyZeroEligibleSemantics(results, convergenceRecords);
-  verifyEmbeddingsArrow(results, resolve(runDir, "embeddings.arrow"));
+  const embeddingsArrowPath = resolve(runDir, "embeddings.arrow");
+  verifyEmbeddingsArrow(results, embeddingsArrowPath);
 
   const clusterStatePath = resolve(runDir, "clusters", "online.state.json");
   if (existsSync(clusterStatePath)) {
@@ -448,15 +734,32 @@ export const verifyRunDir = (runDir: string): VerifyReport => {
     );
   }
 
+  let debugEmbeddingRecords: unknown[] | null = null;
   const embeddingsDebugPath = resolve(runDir, "debug", "embeddings.jsonl");
   if (existsSync(embeddingsDebugPath)) {
-    verifyJsonl(
+    debugEmbeddingRecords = verifyJsonl(
       results,
       "debug/embeddings.jsonl",
       embeddingsDebugPath,
       validateEmbedding
     );
   }
+
+  verifyEligibilityCoherence({
+    results,
+    manifest,
+    embeddingsProvenance,
+    debugEmbeddings: debugEmbeddingRecords,
+    arrowPath: embeddingsArrowPath
+  });
+  verifyContractPolicyCoherence({
+    results,
+    manifest,
+    config,
+    trialRecords,
+    parsedRecords,
+    debugEmbeddings: debugEmbeddingRecords
+  });
 
   const ok = !results.some((result) => result.status === "FAIL");
   return { results, ok };

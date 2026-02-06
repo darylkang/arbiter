@@ -73,12 +73,7 @@ export const buildResolveManifest = (inputs: ManifestInputs): ArbiterRunManifest
     artifacts: {
       entries: [
         { path: "config.resolved.json" },
-        { path: "manifest.json" },
-        { path: "trials.jsonl", record_count: 0 },
-        { path: "parsed.jsonl", record_count: 0 },
-        { path: "convergence_trace.jsonl", record_count: 0 },
-        { path: "embeddings.provenance.json" },
-        { path: "aggregates.json" }
+        { path: "manifest.json" }
       ]
     }
   };

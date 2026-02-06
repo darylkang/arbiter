@@ -129,8 +129,13 @@ export class ArtifactWriter {
     total_tokens: 0
   };
   private readonly usageByModel = new Map<string, UsageTotals>();
+  private readonly trialStatusById = new Map<number, TrialCompletedPayload["trial_record"]["status"]>();
   private readonly parseCounts = {
     success: 0,
+    fallback: 0,
+    failed: 0
+  };
+  private readonly contractParseCounts = {
     fallback: 0,
     failed: 0
   };
@@ -238,6 +243,9 @@ export class ArtifactWriter {
     }
     this.trialsWriter.append(payload.trial_record);
     this.counts.trials += 1;
+    if (this.resolvedConfig.protocol.decision_contract) {
+      this.trialStatusById.set(payload.trial_record.trial_id, payload.trial_record.status);
+    }
     this.ingestUsage(payload.trial_record);
   }
 
@@ -255,6 +263,17 @@ export class ArtifactWriter {
     } else if (status === "failed") {
       this.parseCounts.failed += 1;
     }
+    if (this.resolvedConfig.protocol.decision_contract) {
+      const trialStatus = this.trialStatusById.get(payload.parsed_record.trial_id);
+      if (trialStatus === "success") {
+        if (status === "fallback") {
+          this.contractParseCounts.fallback += 1;
+        } else if (status === "failed") {
+          this.contractParseCounts.failed += 1;
+        }
+      }
+    }
+    this.trialStatusById.delete(payload.parsed_record.trial_id);
   }
 
   private onEmbeddingRecorded(payload: EmbeddingRecordedPayload): void {
@@ -620,16 +639,19 @@ export class ArtifactWriter {
     if (!this.manifest || !this.policy) {
       return;
     }
+    if (!this.resolvedConfig.protocol.decision_contract) {
+      return;
+    }
     if (this.policy.contract_failure_policy !== "fail") {
       return;
     }
-    const failures = this.parseCounts.fallback + this.parseCounts.failed;
+    const failures = this.contractParseCounts.fallback + this.contractParseCounts.failed;
     if (failures === 0) {
       return;
     }
     this.manifest.stop_reason = "error";
     this.manifest.incomplete = true;
-    const message = `Contract parse failures: fallback=${this.parseCounts.fallback}, failed=${this.parseCounts.failed}`;
+    const message = `Contract parse failures: fallback=${this.contractParseCounts.fallback}, failed=${this.contractParseCounts.failed}`;
     this.manifest.notes = this.manifest.notes ? `${this.manifest.notes}; ${message}` : message;
   }
 }

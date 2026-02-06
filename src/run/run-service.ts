@@ -9,8 +9,8 @@ import { writeResolveArtifacts } from "../artifacts/resolve-artifacts.js";
 import { EventBus } from "../events/event-bus.js";
 import { ArtifactWriter } from "../artifacts/artifact-writer.js";
 import { ClusteringMonitor } from "../clustering/monitor.js";
-import { runMock } from "../engine/mock-runner.js";
-import { runLive } from "../engine/live-runner.js";
+import { runMock, type MockRunResult } from "../engine/mock-runner.js";
+import { runLive, type LiveRunResult } from "../engine/live-runner.js";
 import { validateConfig } from "../config/schema-validation.js";
 import { buildReceiptModel } from "../ui/receipt-model.js";
 import { formatReceiptText } from "../ui/receipt-text.js";
@@ -155,16 +155,33 @@ const registerWarningForwarder = (
   });
 };
 
+const assertContractFailurePolicy = (input: {
+  policy: RunPolicySnapshot;
+  contractFailures: {
+    fallback: number;
+    failed: number;
+    total: number;
+  };
+}): void => {
+  if (input.policy.contract_failure_policy !== "fail") {
+    return;
+  }
+  if (input.contractFailures.total === 0) {
+    return;
+  }
+  throw new Error(
+    `Contract parse failures: fallback=${input.contractFailures.fallback}, failed=${input.contractFailures.failed}`
+  );
+};
+
 export const runResolveService = (options: {
   configPath: string;
   assetRoot: string;
   runsDir?: string;
-  debug?: boolean;
   warningSink?: WarningSink;
 }): { runId: string; runDir: string } => {
   const configPath = resolve(process.cwd(), options.configPath);
   const runsDir = options.runsDir ?? "runs";
-  const debug = options.debug ?? false;
   const warningSink = options.warningSink ?? createConsoleWarningSink();
 
   const configRoot = dirname(configPath);
@@ -172,7 +189,7 @@ export const runResolveService = (options: {
   result.warnings.forEach((warning) => warningSink.warn(warning, "config"));
 
   const runId = generateRunId();
-  const { runDir } = createRunDir({ outRoot: runsDir, runId, debug });
+  const { runDir } = createRunDir({ outRoot: runsDir, runId, debug: false });
 
   result.resolvedConfig.run.run_id = runId;
 
@@ -187,12 +204,7 @@ export const runResolveService = (options: {
   writeResolveArtifacts({
     runDir,
     resolvedConfig: result.resolvedConfig,
-    manifest,
-    catalog: result.catalog,
-    promptManifest: result.promptManifest,
-    catalogSha256: result.catalogSha256,
-    promptManifestSha256: result.promptManifestSha256,
-    debug
+    manifest
   });
 
   return { runId, runDir };
@@ -252,7 +264,7 @@ export const runMockService = async (options: RunServiceOptions): Promise<unknow
 
   const shutdown = setupShutdownHandlers({ warningSink, timeoutMs: 30_000 });
 
-  let mockResult;
+  let mockResult: MockRunResult | undefined;
   let runError: Error | null = null;
   try {
     mockResult = await runMock({
@@ -261,6 +273,7 @@ export const runMockService = async (options: RunServiceOptions): Promise<unknow
       resolvedConfig: result.resolvedConfig,
       embeddingsJsonlPath,
       debugEnabled: debug,
+      contractFailurePolicy: policy.contract_failure_policy,
       beforeFinalize: async () => writer.close(),
       stop: {
         shouldStop: () => monitor.getShouldStop()
@@ -303,6 +316,13 @@ export const runMockService = async (options: RunServiceOptions): Promise<unknow
   if (runError) {
     throw runError;
   }
+  if (!mockResult) {
+    throw new Error("Mock run completed without a result");
+  }
+  assertContractFailurePolicy({
+    policy,
+    contractFailures: mockResult.contractFailures
+  });
 
   return mockResult;
 };
@@ -380,7 +400,7 @@ export const runLiveService = async (
 
   const shutdown = setupShutdownHandlers({ warningSink, timeoutMs: 30_000 });
 
-  let liveResult;
+  let liveResult: LiveRunResult | undefined;
   let runError: Error | null = null;
   try {
     liveResult = await runLive({
@@ -389,6 +409,7 @@ export const runLiveService = async (
       resolvedConfig: result.resolvedConfig,
       embeddingsJsonlPath,
       debugEnabled: debug,
+      contractFailurePolicy: policy.contract_failure_policy,
       beforeFinalize: async () => writer.close(),
       stop: {
         shouldStop: () => monitor.getShouldStop()
@@ -431,6 +452,13 @@ export const runLiveService = async (
   if (runError) {
     throw runError;
   }
+  if (!liveResult) {
+    throw new Error("Live run completed without a result");
+  }
+  assertContractFailurePolicy({
+    policy,
+    contractFailures: liveResult.contractFailures
+  });
 
   return liveResult;
 };

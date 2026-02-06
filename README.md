@@ -155,6 +155,10 @@ runs/<run_id>/
 
 - `--strict` enforces reproducibility guardrails (free/aliased models require explicit allow flags).
 - `--permissive` keeps warn‑only behavior.
+- `--contract-failure warn|exclude|fail` controls contract parse failures:
+  - `warn`: keep fallback outputs eligible.
+  - `exclude`: keep records, but exclude contract parse failures from embedding eligibility/monitoring.
+  - `fail`: mark run as error and return a non‑zero exit code.
 - Policy snapshot is recorded in `manifest.json`.
 
 ---

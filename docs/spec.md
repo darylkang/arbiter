@@ -145,6 +145,10 @@ Resolve‑only (`arbiter resolve`) writes only `config.resolved.json` and a mini
 - `arbiter quickstart` creates `arbiter.config.json`, validates it, runs a mock execution by default, and optionally prompts for a live run.
 - `arbiter validate --live` performs offline schema checks plus an OpenRouter connectivity probe.
 - **Strict/permissive policy**: strict rejects free/aliased models unless explicitly allowed and records policy snapshot in `manifest.json`.
+- **Contract failure policy** (`--contract-failure warn|exclude|fail`):
+  - `warn`: contract parse failures remain eligible for embeddings/monitoring.
+  - `exclude`: keep trial/parsed records but skip embeddings for contract parse failures (excluded from eligibility/monitoring).
+  - `fail`: mark run as error and return non-zero exit status.
 - `arbiter report runs/<run_id>` summarizes results without Python and links to core artifacts.
 - Token usage is recorded when OpenRouter returns `usage` (prompt/completion/total).
 

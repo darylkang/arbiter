@@ -36,10 +36,12 @@ const printUsage = (): void => {
     "  arbiter quickstart [question] [--profile quickstart|heterogeneity|debate|free] [--mock|--live] [--yes] [--out <runs_dir>]"
   );
   console.log("  arbiter validate [config.json] [--live]");
-  console.log("  arbiter resolve [config.json] [--out <runs_dir>] [--debug]");
-  console.log("  arbiter mock-run [config.json] [--out <runs_dir>] [--debug] [--quiet]");
+  console.log("  arbiter resolve [config.json] [--out <runs_dir>]");
   console.log(
-    "  arbiter run [config.json] [--out <runs_dir>] [--debug] [--quiet] [--max-trials N] [--batch-size N] [--workers N] [--strict|--permissive]"
+    "  arbiter mock-run [config.json] [--out <runs_dir>] [--debug] [--quiet] [--contract-failure warn|exclude|fail]"
+  );
+  console.log(
+    "  arbiter run [config.json] [--out <runs_dir>] [--debug] [--quiet] [--max-trials N] [--batch-size N] [--workers N] [--strict|--permissive] [--contract-failure warn|exclude|fail]"
   );
   console.log("  arbiter verify <run_dir>");
   console.log("  arbiter report <run_dir> [--format text|json] [--top N]");
@@ -223,7 +225,11 @@ const runReport = (parsed: ParsedArgs): void => {
     throw new Error("Usage: arbiter report <run_dir>");
   }
   const format = getFlag(parsed.flags, "--format") ?? "text";
-  const top = Number(getFlag(parsed.flags, "--top") ?? 3);
+  const topRaw = getFlag(parsed.flags, "--top");
+  const top = topRaw === undefined ? 3 : Number(topRaw);
+  if (!Number.isInteger(top) || top < 1) {
+    throw new Error("Invalid --top (expected positive integer)");
+  }
   const model = buildReportModel(runDir, top);
 
   if (format === "json") {
