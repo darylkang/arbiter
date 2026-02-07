@@ -40,6 +40,8 @@
     "test:pack": "npm run build && node scripts/test-pack-install.mjs",
     "test:quickstart": "npm run build && node scripts/quickstart-smoke.mjs",
     "test:report": "npm run build && node scripts/report-smoke.mjs",
+    "test:unit": "npm run build && node --test test/unit/*.test.mjs",
+    "test:guards": "node scripts/architecture-guard.mjs",
     "prepublishOnly": "npm run build && npm run test:pack"
   },
   "dependencies": {
