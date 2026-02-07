@@ -10,7 +10,6 @@ import type {
   ConvergenceRecordPayload,
   EmbeddingRecordedPayload,
   EmbeddingsFinalizedPayload,
-  ManifestUpdatedPayload,
   ParsedOutputProducedPayload,
   RunCompletedPayload,
   RunFailedPayload,
@@ -185,7 +184,6 @@ export class ArtifactWriter {
       bus.subscribe("clusters.state", (payload) => this.onClusterState(payload)),
       bus.subscribe("aggregates.computed", (payload) => this.onAggregatesComputed(payload)),
       bus.subscribe("embeddings.finalized", (payload) => this.onEmbeddingsFinalized(payload)),
-      bus.subscribe("manifest.updated", (payload) => this.onManifestUpdated(payload)),
       bus.subscribe("artifact.written", (payload) => this.onArtifactWritten(payload)),
       bus.subscribe("run.completed", (payload) => this.onRunCompleted(payload)),
       bus.subscribe("run.failed", (payload) => this.onRunFailed(payload))
@@ -348,14 +346,6 @@ export class ArtifactWriter {
     }
     this.embeddingsProvenance = payload.provenance;
     writeJsonAtomic(resolve(this.runDir, "embeddings.provenance.json"), payload.provenance);
-  }
-
-  private onManifestUpdated(payload: ManifestUpdatedPayload): void {
-    if (this.validateArtifacts) {
-      assertValid("manifest", validateManifest(payload.manifest), validateManifest.errors);
-    }
-    this.manifest = payload.manifest;
-    writeJsonAtomic(resolve(this.runDir, "manifest.json"), payload.manifest);
   }
 
   private onArtifactWritten(payload: ArtifactWrittenPayload): void {

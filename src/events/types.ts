@@ -1,5 +1,4 @@
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
-import type { ArbiterRunManifest } from "../generated/manifest.types.js";
 import type { ArbiterTrialRecord } from "../generated/trial.types.js";
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
 import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.types.js";
@@ -81,10 +80,6 @@ export type AggregatesComputedPayload = {
   aggregates: ArbiterAggregates;
 };
 
-export type ManifestUpdatedPayload = {
-  manifest: ArbiterRunManifest;
-};
-
 export type ArtifactWrittenPayload = {
   path: string;
   record_count?: number;
@@ -111,7 +106,6 @@ export type Event =
   | { type: "clusters.state"; payload: ClusterStatePayload }
   | { type: "convergence.record"; payload: ConvergenceRecordPayload }
   | { type: "aggregates.computed"; payload: AggregatesComputedPayload }
-  | { type: "manifest.updated"; payload: ManifestUpdatedPayload }
   | { type: "artifact.written"; payload: ArtifactWrittenPayload }
   | { type: "warning.raised"; payload: WarningRaisedPayload };
 
