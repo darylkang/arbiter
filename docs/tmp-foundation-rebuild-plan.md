@@ -1,9 +1,9 @@
-# TEMP: Foundation Rebuild Plan (Merged Codex + Opus, Non-UI First)
+# TEMP: Foundation Rebuild Plan (Non-UI First, Implementation Guide)
 
 Status: Draft for implementation  
-Owners: Codex + Opus synthesis  
+Owner: Arbiter core rebuild effort  
 Created: 2026-02-07  
-Updated: 2026-02-07 (post-Opus audit merge)  
+Updated: 2026-02-07  
 Scope: Non-UI architecture, determinism, artifacts, reliability, test strategy  
 Delete before final merge: Yes (unless explicitly requested to keep)
 
@@ -17,25 +17,13 @@ UI/TUI redesign is explicitly deferred until the foundation reaches the Phase 4 
 
 ---
 
-## 2) Synthesis verdict (Codex + Opus)
-
-### What both audits agree on
+## 2) Current diagnosis
 
 1. Core intent is strong: schema-first, deterministic planning, and provenance are real advantages.
 2. Main risk is structure, not immediate functionality.
 3. `live-runner.ts` / `mock-runner.ts` duplication and size are the top maintainability risk.
 4. `run-service.ts` UI imports are a direct architecture-boundary violation.
-5. Rebuild is low-risk/high-ROI now because the project is pre-release (`0.1.0-alpha.0`).
-
-### Codex plan vs Opus critique
-
-All 5 original Codex plan items are accepted by Opus.  
-Opus-added deltas now adopted into this plan:
-
-1. add a real unit-test layer for pure logic (critical gap)
-2. improve retry semantics (exponential backoff + jitter) and add optional client rate limiting
-3. remove dead/duplicate code early (JSON extractors, vector math, dead event)
-4. defer TUI implementation until the RunLifecycleHooks boundary exists (post-Phase 4)
+5. The rebuild should include unit tests, retry hardening, and dead-code cleanup as first-class workstreams.
 
 ---
 
@@ -310,28 +298,12 @@ Keep and continue running:
 
 ---
 
-## 10) 30/60/90 execution framing
+## 10) Execution sequence (not time-based)
 
-### Day 1-30
-
-1. Phases 0-2 completed
-2. shared utilities extracted
-3. shared batch executor in use
-4. initial unit + property tests live
-
-### Day 31-60
-
-1. Phases 3-5 completed
-2. protocol modules extracted
-3. run-service UI decoupled
-4. immutable compiled-plan boundary live
-
-### Day 61-90
-
-1. Phase 6 completed
-2. retry/rate-limit hardening and async event bus improvements
-3. full cleanup and deletion sweep
-4. TUI work can start only after Phase 4 boundary is already done
+1. Sequence A: Phases 0-2
+2. Sequence B: Phases 3-5
+3. Sequence C: Phase 6 and cleanup sweep
+4. TUI implementation starts only after Phase 4 boundary is complete
 
 ---
 
@@ -346,6 +318,15 @@ Rationale:
 
 Allowed in parallel before Phase 4:
 1. TUI scaffolding in isolated new files only (no shared runtime rewiring)
+
+### UI/TUI readiness decisions to lock now
+
+1. `RunLifecycleHooks` is the only UI integration surface for execution lifecycle.
+2. Hook payloads must stay framework-agnostic (no Ink/React types).
+3. Event payload shape changes require explicit versioning strategy before TUI cutover.
+4. Artifact contract remains source of truth; UI must read from artifacts or typed events, not internal mutable state.
+5. Receipt/report rendering stays in CLI/UI layer; execution core only emits data and events.
+6. TUI command model should map to stable non-UI commands (`resolve`, `mock-run`, `run`, `verify`, `report`) rather than bespoke hidden behavior.
 
 ---
 
@@ -396,4 +377,4 @@ Mandatory gates from AGENTS:
 ## 14) Immediate next step (current conversation)
 
 No implementation starts yet.  
-Use this merged plan as the discussion baseline; confirm sequencing and scope boundaries before Phase 0 execution.
+Use this guide as the baseline, confirm unresolved decisions in section 13 plus UI readiness decisions in section 11, then start Phase 0.
