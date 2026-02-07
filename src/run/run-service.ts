@@ -14,6 +14,7 @@ import { runLive, type LiveRunResult } from "../engine/live-runner.js";
 import { validateConfig } from "../config/schema-validation.js";
 import { evaluatePolicy, type ContractFailurePolicy, type RunPolicySnapshot } from "../config/policy.js";
 import { createConsoleWarningSink, type WarningSink } from "../utils/warnings.js";
+import { compileRunPlan } from "../planning/compiled-plan.js";
 import type { RunLifecycleContext, RunLifecycleHooks } from "./lifecycle-hooks.js";
 
 export type RunServicePolicy = {
@@ -205,6 +206,13 @@ export const runMockService = async (options: RunServiceOptions): Promise<unknow
 
   result.resolvedConfig.run.run_id = runId;
 
+  const compiled = compileRunPlan({
+    runId,
+    runDir,
+    resolvedConfig: result.resolvedConfig,
+    policy
+  });
+
   const debugDir = resolve(runDir, "debug");
   mkdirSync(debugDir, { recursive: true });
   const embeddingsJsonlPath = resolve(debugDir, "embeddings.jsonl");
@@ -216,7 +224,7 @@ export const runMockService = async (options: RunServiceOptions): Promise<unknow
   const writer = new ArtifactWriter({
     runDir,
     runId,
-    resolvedConfig: result.resolvedConfig,
+    resolvedConfig: compiled.resolvedConfig,
     debugEnabled: debug,
     embeddingsJsonlPath,
     catalogVersion: result.catalog.catalog_version,
@@ -226,14 +234,14 @@ export const runMockService = async (options: RunServiceOptions): Promise<unknow
     policy
   });
   writer.attach(bus);
-  const monitor = new ClusteringMonitor(result.resolvedConfig, bus, warningSink);
+  const monitor = new ClusteringMonitor(compiled.resolvedConfig, bus, warningSink);
   monitor.attach();
   const lifecycleContext: RunLifecycleContext = {
     mode: "mock",
     bus,
     runDir,
     runId,
-    resolvedConfig: result.resolvedConfig,
+    resolvedConfig: compiled.resolvedConfig,
     debug,
     quiet,
     receiptMode: options.receiptMode ?? "auto",
@@ -256,7 +264,7 @@ export const runMockService = async (options: RunServiceOptions): Promise<unknow
     mockResult = await runMock({
       bus,
       runDir,
-      resolvedConfig: result.resolvedConfig,
+      resolvedConfig: compiled.resolvedConfig,
       embeddingsJsonlPath,
       debugEnabled: debug,
       contractFailurePolicy: policy.contract_failure_policy,
@@ -267,6 +275,10 @@ export const runMockService = async (options: RunServiceOptions): Promise<unknow
       shutdown: {
         signal: shutdown.signal,
         isRequested: () => shutdown.isRequested()
+      },
+      precomputedPlan: {
+        plan: compiled.plan,
+        planSha256: compiled.planSha256
       }
     });
   } catch (error) {
@@ -342,6 +354,13 @@ export const runLiveService = async (
     warningSink
   });
 
+  const compiled = compileRunPlan({
+    runId,
+    runDir,
+    resolvedConfig: result.resolvedConfig,
+    policy
+  });
+
   const debugDir = resolve(runDir, "debug");
   mkdirSync(debugDir, { recursive: true });
   const embeddingsJsonlPath = resolve(debugDir, "embeddings.jsonl");
@@ -353,7 +372,7 @@ export const runLiveService = async (
   const writer = new ArtifactWriter({
     runDir,
     runId,
-    resolvedConfig: result.resolvedConfig,
+    resolvedConfig: compiled.resolvedConfig,
     debugEnabled: debug,
     embeddingsJsonlPath,
     catalogVersion: result.catalog.catalog_version,
@@ -363,14 +382,14 @@ export const runLiveService = async (
     policy
   });
   writer.attach(bus);
-  const monitor = new ClusteringMonitor(result.resolvedConfig, bus, warningSink);
+  const monitor = new ClusteringMonitor(compiled.resolvedConfig, bus, warningSink);
   monitor.attach();
   const lifecycleContext: RunLifecycleContext = {
     mode: "live",
     bus,
     runDir,
     runId,
-    resolvedConfig: result.resolvedConfig,
+    resolvedConfig: compiled.resolvedConfig,
     debug,
     quiet,
     receiptMode: options.receiptMode ?? "auto",
@@ -393,7 +412,7 @@ export const runLiveService = async (
     liveResult = await runLive({
       bus,
       runDir,
-      resolvedConfig: result.resolvedConfig,
+      resolvedConfig: compiled.resolvedConfig,
       embeddingsJsonlPath,
       debugEnabled: debug,
       contractFailurePolicy: policy.contract_failure_policy,
@@ -404,6 +423,10 @@ export const runLiveService = async (
       shutdown: {
         signal: shutdown.signal,
         isRequested: () => shutdown.isRequested()
+      },
+      precomputedPlan: {
+        plan: compiled.plan,
+        planSha256: compiled.planSha256
       }
     });
   } catch (error) {

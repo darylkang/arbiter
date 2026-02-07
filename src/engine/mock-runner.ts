@@ -12,7 +12,7 @@ import { sha256Hex } from "../utils/hash.js";
 import { encodeFloat32Base64 } from "../utils/float32-base64.js";
 import { createRngForTrial } from "../utils/seeded-rng.js";
 import { DEFAULT_EMBEDDING_MAX_CHARS } from "../config/defaults.js";
-import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
+import { generateTrialPlan, type TrialPlanEntry } from "../planning/planner.js";
 import { runBatchWithWorkers } from "./batch-executor.js";
 import { buildDebateParsedOutput } from "../protocols/debate-v1/parser.js";
 import { prepareEmbedText, EMBED_TEXT_NORMALIZATION } from "./embed-text.js";
@@ -33,6 +33,10 @@ export interface MockRunOptions {
   shutdown?: {
     signal: AbortSignal;
     isRequested: () => boolean;
+  };
+  precomputedPlan?: {
+    plan: ReadonlyArray<Readonly<TrialPlanEntry>>;
+    planSha256: string;
   };
 }
 
@@ -84,7 +88,9 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
   const forceEmptyEmbedText = process.env.ARBITER_MOCK_EMPTY_EMBED === "1";
   const hasDecisionContract = Boolean(resolvedConfig.protocol.decision_contract);
 
-  const { plan, planSha256 } = generateTrialPlan(resolvedConfig);
+  const planData = options.precomputedPlan ?? generateTrialPlan(resolvedConfig);
+  const plan = planData.plan;
+  const planSha256 = planData.planSha256;
   bus.emit({
     type: "run.started",
     payload: {
