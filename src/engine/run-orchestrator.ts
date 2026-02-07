@@ -50,6 +50,10 @@ type RunOrchestrationOptions<State extends ContractFailureState> = {
   embeddingsJsonlPath: string;
   debugEnabled: boolean;
   contractFailurePolicy?: "warn" | "exclude" | "fail";
+  /**
+   * Optional hook invoked before embedding finalization.
+   * Use this to flush/close append-only JSONL writers that the finalizer reads.
+   */
   beforeFinalize?: () => Promise<void>;
   stop?: {
     shouldStop: () => boolean;
@@ -93,6 +97,26 @@ const toRunFailureCode = (error: unknown): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const emitRunFailureEvent = async (input: {
+  bus: EventBus;
+  payload: {
+    run_id: string;
+    completed_at: string;
+    error: string;
+    error_code?: string;
+  };
+}): Promise<void> => {
+  try {
+    input.bus.emit({
+      type: "run.failed",
+      payload: input.payload
+    });
+    await input.bus.flush();
+  } catch {
+    // Preserve the original execution error if failure reporting also fails.
+  }
+};
+
 const cleanupDebugArtifacts = (input: {
   debugEnabled: boolean;
   provenance: EmbeddingsProvenance;
@@ -131,30 +155,6 @@ export const runOrchestration = async <State extends ContractFailureState>(
   const plan = planData.plan;
   const planSha256 = planData.planSha256;
 
-  bus.emit({
-    type: "run.started",
-    payload: {
-      run_id: runId,
-      started_at: startedAt,
-      resolved_config: resolvedConfig,
-      debug_enabled: options.debugEnabled,
-      plan_sha256: planSha256,
-      k_planned: plan.length
-    }
-  });
-
-  for (const entry of plan) {
-    bus.emit({
-      type: "trial.planned",
-      payload: {
-        trial_id: entry.trial_id,
-        protocol: entry.protocol,
-        assigned_config: entry.assigned_config,
-        role_assignments: entry.role_assignments
-      }
-    });
-  }
-
   const kMax = plan.length;
   const batchSize = resolvedConfig.execution.batch_size;
   const workerCount = Math.max(1, resolvedConfig.execution.workers);
@@ -188,6 +188,30 @@ export const runOrchestration = async <State extends ContractFailureState>(
   });
 
   try {
+    bus.emit({
+      type: "run.started",
+      payload: {
+        run_id: runId,
+        started_at: startedAt,
+        resolved_config: resolvedConfig,
+        debug_enabled: options.debugEnabled,
+        plan_sha256: planSha256,
+        k_planned: plan.length
+      }
+    });
+
+    for (const entry of plan) {
+      bus.emit({
+        type: "trial.planned",
+        payload: {
+          trial_id: entry.trial_id,
+          protocol: entry.protocol,
+          assigned_config: entry.assigned_config,
+          role_assignments: entry.role_assignments
+        }
+      });
+    }
+
     for (let batchStart = 0; batchStart < kMax; batchStart += batchSize) {
       const preStop = shouldStop();
       if (preStop.stop) {
@@ -282,18 +306,15 @@ export const runOrchestration = async <State extends ContractFailureState>(
       embeddingsArrowPath
     };
   } catch (error) {
-    const completedAt = new Date().toISOString();
-    const message = error instanceof Error ? error.message : String(error);
-    bus.emit({
-      type: "run.failed",
+    await emitRunFailureEvent({
+      bus,
       payload: {
         run_id: runId,
-        completed_at: completedAt,
-        error: message,
+        completed_at: new Date().toISOString(),
+        error: error instanceof Error ? error.message : String(error),
         error_code: toRunFailureCode(error)
       }
     });
-    await bus.flush();
     throw error;
   }
 };

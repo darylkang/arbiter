@@ -17,6 +17,11 @@ export type RunBatchWithWorkersOptions<Entry, Result> = {
 export const runBatchWithWorkers = async <Entry, Result>(
   options: RunBatchWithWorkersOptions<Entry, Result>
 ): Promise<Result[]> => {
+  const normalizedWorkerCount = Math.floor(options.workerCount);
+  if (!Number.isFinite(normalizedWorkerCount) || normalizedWorkerCount < 1) {
+    throw new Error(`workerCount must be >= 1, got ${options.workerCount}`);
+  }
+
   const results: Result[] = [];
   let index = 0;
   let inFlight = 0;
@@ -29,7 +34,7 @@ export const runBatchWithWorkers = async <Entry, Result>(
         return;
       }
       while (
-        inFlight < options.workerCount &&
+        inFlight < normalizedWorkerCount &&
         index < options.entries.length &&
         !firstError &&
         !options.shouldStop().stop

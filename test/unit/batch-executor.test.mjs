@@ -65,3 +65,15 @@ test("runBatchWithWorkers propagates execution failures", async () => {
 
   assert.deepEqual(executed, [1, 2]);
 });
+
+test("runBatchWithWorkers rejects invalid worker counts", async () => {
+  await assert.rejects(
+    runBatchWithWorkers({
+      entries: [1],
+      workerCount: 0,
+      shouldStop: () => ({ stop: false }),
+      execute: async (entry) => entry
+    }),
+    /workerCount must be >= 1/
+  );
+});

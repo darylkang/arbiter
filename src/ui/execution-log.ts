@@ -6,7 +6,7 @@ export class ExecutionLogger {
   private stream: ReturnType<typeof createWriteStream> | null;
   private unsubs: Array<() => void> = [];
 
-  constructor(private readonly logPath: string) {
+  constructor(logPath: string) {
     this.stream = createWriteStream(logPath, { flags: "a" });
   }
 
@@ -18,11 +18,18 @@ export class ExecutionLogger {
   }
 
   attach(bus: EventBus): void {
+    const onError = (eventType: string, error: unknown): void => {
+      const message = error instanceof Error ? error.message : String(error);
+      this.append(`Execution log subscriber error (${eventType}): ${message}`);
+    };
+
     this.unsubs.push(
-      bus.subscribe("run.started", (payload) => {
-        const question = payload.resolved_config.question?.text ?? "";
-        const protocol = payload.resolved_config.protocol?.type ?? "unknown";
-        const kMax = payload.resolved_config.execution.k_max;
+      bus.subscribeSafe(
+        "run.started",
+        (payload) => {
+          const question = payload.resolved_config.question?.text ?? "";
+          const protocol = payload.resolved_config.protocol?.type ?? "unknown";
+          const kMax = payload.resolved_config.execution.k_max;
         const batchSize = payload.resolved_config.execution.batch_size;
         const workers = payload.resolved_config.execution.workers;
         const models = payload.resolved_config.sampling.models
@@ -32,38 +39,56 @@ export class ExecutionLogger {
         this.append(`Question: ${question}`);
         this.append(
           `Protocol: ${protocol} | trials ${kMax} | batch ${batchSize} | workers ${workers}`
-        );
-        this.append(`Models: ${models}`);
-      })
+          );
+          this.append(`Models: ${models}`);
+        },
+        (error) => onError("run.started", error)
+      )
     );
 
     this.unsubs.push(
-      bus.subscribe("batch.completed", (payload) => {
-        this.append(
-          `Batch ${payload.batch_number} complete: ${payload.trial_ids.length} trials, ${payload.elapsed_ms}ms`
-        );
-      })
+      bus.subscribeSafe(
+        "batch.completed",
+        (payload) => {
+          this.append(
+            `Batch ${payload.batch_number} complete: ${payload.trial_ids.length} trials, ${payload.elapsed_ms}ms`
+          );
+        },
+        (error) => onError("batch.completed", error)
+      )
     );
 
     this.unsubs.push(
-      bus.subscribe("trial.completed", (payload) => {
-        const status = payload.trial_record.status;
-        if (status !== "success") {
-          this.append(`Trial ${payload.trial_record.trial_id} status: ${status}`);
-        }
-      })
+      bus.subscribeSafe(
+        "trial.completed",
+        (payload) => {
+          const status = payload.trial_record.status;
+          if (status !== "success") {
+            this.append(`Trial ${payload.trial_record.trial_id} status: ${status}`);
+          }
+        },
+        (error) => onError("trial.completed", error)
+      )
     );
 
     this.unsubs.push(
-      bus.subscribe("run.completed", (payload) => {
-        this.append(`Run completed: ${payload.run_id} (${payload.stop_reason})`);
-      })
+      bus.subscribeSafe(
+        "run.completed",
+        (payload) => {
+          this.append(`Run completed: ${payload.run_id} (${payload.stop_reason})`);
+        },
+        (error) => onError("run.completed", error)
+      )
     );
 
     this.unsubs.push(
-      bus.subscribe("run.failed", (payload) => {
-        this.append(`Run failed: ${payload.run_id} (${payload.error})`);
-      })
+      bus.subscribeSafe(
+        "run.failed",
+        (payload) => {
+          this.append(`Run failed: ${payload.run_id} (${payload.error})`);
+        },
+        (error) => onError("run.failed", error)
+      )
     );
   }
 
