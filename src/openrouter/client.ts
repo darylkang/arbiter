@@ -27,6 +27,8 @@ export interface OpenRouterRequestOptions {
   retry?: {
     maxRetries: number;
     backoffMs: number;
+    maxBackoffMs?: number;
+    jitter?: "none" | "full";
   };
 }
 
@@ -253,6 +255,38 @@ const classifyError = (
   };
 };
 
+const parseRetryAfterMs = (headers: Record<string, string>): number | null => {
+  const raw = headers["retry-after"];
+  if (!raw) {
+    return null;
+  }
+  const numericSeconds = Number(raw);
+  if (Number.isFinite(numericSeconds) && numericSeconds >= 0) {
+    return Math.round(numericSeconds * 1000);
+  }
+  const asDate = Date.parse(raw);
+  if (Number.isNaN(asDate)) {
+    return null;
+  }
+  return Math.max(0, asDate - Date.now());
+};
+
+const computeBackoffMs = (
+  retry: { backoffMs: number; maxBackoffMs?: number; jitter?: "none" | "full" },
+  attempt: number
+): number => {
+  if (retry.backoffMs <= 0) {
+    return 0;
+  }
+  const maxBackoffMs = retry.maxBackoffMs ?? 30_000;
+  const exponential = retry.backoffMs * Math.pow(2, Math.max(0, attempt - 1));
+  const capped = Math.min(maxBackoffMs, exponential);
+  if ((retry.jitter ?? "full") === "none") {
+    return capped;
+  }
+  return Math.max(0, Math.round(capped * (0.5 + Math.random())));
+};
+
 const requestWithRetry = async (
   path: string,
   requestPayload: Record<string, unknown>,
@@ -274,12 +308,15 @@ const requestWithRetry = async (
   const baseUrl = resolveBaseUrl(options.baseUrl);
   const retry = options.retry ?? { maxRetries: 0, backoffMs: 0 };
   let attempt = 0;
-  const waitBackoff = async (): Promise<void> => {
-    if (retry.backoffMs <= 0) {
+  const waitBackoff = async (retryAfterMs: number | null = null): Promise<void> => {
+    const computedBackoffMs = computeBackoffMs(retry, attempt);
+    const effectiveBackoffMs =
+      retryAfterMs !== null ? Math.max(computedBackoffMs, retryAfterMs) : computedBackoffMs;
+    if (effectiveBackoffMs <= 0) {
       return;
     }
     await delay(
-      retry.backoffMs,
+      effectiveBackoffMs,
       undefined,
       options.signal ? { signal: options.signal } : undefined
     );
@@ -320,7 +357,7 @@ const requestWithRetry = async (
       const classification = classifyError(response.status, responseBody);
       if (classification.retryable && attempt < retry.maxRetries) {
         attempt += 1;
-        await waitBackoff();
+        await waitBackoff(parseRetryAfterMs(headers));
         continue;
       }
 
