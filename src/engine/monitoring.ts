@@ -11,6 +11,10 @@ export type BatchEmbedding = {
   vector: number[];
 };
 
+/**
+ * Updates novelty metrics for a batch and mutates `prior` by appending
+ * the batch embeddings with precomputed norms for incremental monitoring.
+ */
 export const updateNoveltyMetrics = (
   prior: PriorEmbedding[],
   batch: BatchEmbedding[],

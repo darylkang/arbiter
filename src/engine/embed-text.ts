@@ -7,8 +7,6 @@ export type EmbedTextPreparation = {
   was_empty: boolean;
 };
 
-export const EMBED_TEXT_NORMALIZATION = "newline_to_lf+trim_trailing";
-
 export const normalizeEmbedText = (value: string): string => {
   return value.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trimEnd();
 };

@@ -26,13 +26,34 @@ test("runBatchWithWorkers short-circuits when stop is requested", async () => {
   assert.deepEqual(results, []);
 });
 
+test("runBatchWithWorkers returns completion-order results", async () => {
+  const results = await runBatchWithWorkers({
+    entries: [1, 2],
+    workerCount: 2,
+    shouldStop: () => ({ stop: false }),
+    execute: async (entry) => {
+      if (entry === 1) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return entry;
+    }
+  });
+
+  assert.deepEqual(results, [2, 1]);
+});
+
 test("runBatchWithWorkers propagates execution failures", async () => {
+  const executed = [];
   await assert.rejects(
     runBatchWithWorkers({
       entries: [1, 2, 3],
       workerCount: 2,
       shouldStop: () => ({ stop: false }),
       execute: async (entry) => {
+        executed.push(entry);
+        if (entry === 1) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
         if (entry === 2) {
           throw new Error("boom");
         }
@@ -41,4 +62,6 @@ test("runBatchWithWorkers propagates execution failures", async () => {
     }),
     /boom/
   );
+
+  assert.deepEqual(executed, [1, 2]);
 });

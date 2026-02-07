@@ -124,6 +124,13 @@ const parseJsonBody = async (response: Response): Promise<unknown> => {
   }
 };
 
+const isAbortError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  return "name" in error && (error as { name?: string }).name === "AbortError";
+};
+
 const requestGet = async (
   path: string,
   options: OpenRouterRequestOptions
@@ -138,36 +145,54 @@ const requestGet = async (
   }
   const baseUrl = resolveBaseUrl(options.baseUrl);
   const started = Date.now();
-  await waitForOpenRouterToken(options.signal);
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${apiKey}`
-    },
-    signal: options.signal
-  });
-  const latencyMs = Date.now() - started;
-  const responseBody = await parseJsonBody(response);
-  const headers = toHeaderRecord(response.headers);
+  try {
+    await waitForOpenRouterToken(options.signal);
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`
+      },
+      signal: options.signal
+    });
+    const latencyMs = Date.now() - started;
+    const responseBody = await parseJsonBody(response);
+    const headers = toHeaderRecord(response.headers);
 
-  if (response.ok) {
-    return { responseBody, headers, latencyMs };
-  }
-
-  const classification = classifyError(response.status, responseBody);
-  throw new OpenRouterError(
-    classification.message ?? `OpenRouter request failed with status ${response.status}`,
-    {
-      status: response.status,
-      code: classification.code,
-      retryable: classification.retryable,
-      modelUnavailable: classification.modelUnavailable,
-      responseBody,
-      headers,
-      latencyMs,
-      retryCount: 0
+    if (response.ok) {
+      return { responseBody, headers, latencyMs };
     }
-  );
+
+    const classification = classifyError(response.status, responseBody);
+    throw new OpenRouterError(
+      classification.message ?? `OpenRouter request failed with status ${response.status}`,
+      {
+        status: response.status,
+        code: classification.code,
+        retryable: classification.retryable,
+        modelUnavailable: classification.modelUnavailable,
+        responseBody,
+        headers,
+        latencyMs,
+        retryCount: 0
+      }
+    );
+  } catch (error) {
+    if (error instanceof OpenRouterError) {
+      throw error;
+    }
+    if (isAbortError(error)) {
+      throw new OpenRouterError("OpenRouter request aborted", {
+        retryable: false,
+        modelUnavailable: false,
+        retryCount: 0
+      });
+    }
+    throw new OpenRouterError("OpenRouter request failed", {
+      retryable: false,
+      modelUnavailable: false,
+      retryCount: 0
+    });
+  }
 };
 
 const extractModelFromBody = (body: unknown): string | null => {
@@ -322,13 +347,6 @@ const requestWithRetry = async (
       undefined,
       options.signal ? { signal: options.signal } : undefined
     );
-  };
-
-  const isAbortError = (error: unknown): boolean => {
-    if (!error || typeof error !== "object") {
-      return false;
-    }
-    return "name" in error && (error as { name?: string }).name === "AbortError";
   };
 
   while (true) {

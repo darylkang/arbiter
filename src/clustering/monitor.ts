@@ -40,7 +40,6 @@ type StopPolicy = {
 
 export class ClusteringMonitor {
   private readonly bus: EventBus;
-  private readonly config: ArbiterResolvedConfig;
   private readonly noveltyThreshold: number;
   private readonly stopMode: "advisor" | "enforcer";
   private readonly stopPolicy: StopPolicy;
@@ -61,7 +60,6 @@ export class ClusteringMonitor {
   private shouldStopFlag = false;
 
   constructor(config: ArbiterResolvedConfig, bus: EventBus, warningSink?: WarningSink) {
-    this.config = config;
     this.bus = bus;
     this.noveltyThreshold = config.measurement.novelty_threshold;
     this.stopMode = config.execution.stop_mode;
@@ -92,11 +90,31 @@ export class ClusteringMonitor {
 
   attach(): void {
     this.unsubs.push(
-      this.bus.subscribe("trial.completed", (payload) => this.onTrialCompleted(payload)),
-      this.bus.subscribe("embedding.recorded", (payload) => this.onEmbeddingRecorded(payload)),
-      this.bus.subscribe("batch.completed", (payload) => this.onBatchCompleted(payload)),
-      this.bus.subscribe("run.completed", (payload) => this.onRunCompleted(payload)),
-      this.bus.subscribe("run.failed", (payload) => this.onRunFailed(payload))
+      this.bus.subscribeSafe(
+        "trial.completed",
+        (payload) => this.onTrialCompleted(payload),
+        (error) => this.onSubscriberError("trial.completed", error)
+      ),
+      this.bus.subscribeSafe(
+        "embedding.recorded",
+        (payload) => this.onEmbeddingRecorded(payload),
+        (error) => this.onSubscriberError("embedding.recorded", error)
+      ),
+      this.bus.subscribeSafe(
+        "batch.completed",
+        (payload) => this.onBatchCompleted(payload),
+        (error) => this.onSubscriberError("batch.completed", error)
+      ),
+      this.bus.subscribeSafe(
+        "run.completed",
+        (payload) => this.onRunCompleted(payload),
+        (error) => this.onSubscriberError("run.completed", error)
+      ),
+      this.bus.subscribeSafe(
+        "run.failed",
+        (payload) => this.onRunFailed(payload),
+        (error) => this.onSubscriberError("run.failed", error)
+      )
     );
   }
 
@@ -106,6 +124,18 @@ export class ClusteringMonitor {
 
   getShouldStop(): boolean {
     return this.shouldStopFlag;
+  }
+
+  private onSubscriberError(eventType: string, error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    this.bus.emit({
+      type: "warning.raised",
+      payload: {
+        message: `ClusteringMonitor handler failed for ${eventType}: ${message}`,
+        source: "clustering",
+        recorded_at: new Date().toISOString()
+      }
+    });
   }
 
   private onTrialCompleted(_payload: TrialCompletedPayload): void {
@@ -348,12 +378,12 @@ const toDenseArray = (
 const computeJSDivergence = (
   previous: number[],
   current: number[]
-): number => {
+): number | null => {
   const length = Math.max(previous.length, current.length);
   const prevTotal = previous.reduce((sum, value) => sum + value, 0);
   const currTotal = current.reduce((sum, value) => sum + value, 0);
   if (prevTotal === 0 || currTotal === 0) {
-    return 0;
+    return null;
   }
 
   const prevProbs: number[] = [];

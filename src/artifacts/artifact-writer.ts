@@ -35,7 +35,7 @@ import type { ArbiterRunManifest } from "../generated/manifest.types.js";
 import type { ArbiterTrialPlanRecord } from "../generated/trial-plan.types.js";
 import type { RunPolicySnapshot } from "../config/policy.js";
 import { createJsonlWriter, writeJsonAtomic, type JsonlWriter } from "./io.js";
-import { EMBED_TEXT_NORMALIZATION } from "../engine/embed-text.js";
+import { EMBED_TEXT_NORMALIZATION } from "../core/constants.js";
 import type { EmbeddingsProvenance } from "./embeddings-provenance.js";
 import {
   applyContractFailurePolicy,
@@ -70,7 +70,6 @@ const assertValid = (name: string, valid: boolean, errors: unknown): void => {
 
 export class ArtifactWriter {
   private readonly runDir: string;
-  private readonly runId: string;
   private readonly debugEnabled: boolean;
   private readonly resolvedConfig: ArbiterResolvedConfig;
   private readonly catalogVersion: string;
@@ -103,11 +102,6 @@ export class ArtifactWriter {
   };
   private readonly usageTracker = new UsageTracker();
   private readonly trialStatusById = new Map<number, TrialCompletedPayload["trial_record"]["status"]>();
-  private readonly parseCounts = {
-    success: 0,
-    fallback: 0,
-    failed: 0
-  };
   private readonly contractParseCounts = {
     fallback: 0,
     failed: 0
@@ -117,7 +111,6 @@ export class ArtifactWriter {
 
   constructor(options: ArtifactWriterOptions) {
     this.runDir = options.runDir;
-    this.runId = options.runId;
     this.debugEnabled = options.debugEnabled;
     this.resolvedConfig = options.resolvedConfig;
     this.catalogVersion = options.catalogVersion;
@@ -148,20 +141,84 @@ export class ArtifactWriter {
 
   attach(bus: EventBus): void {
     this.unsubs.push(
-      bus.subscribe("run.started", (payload) => this.onRunStarted(payload)),
-      bus.subscribe("trial.planned", (payload) => this.onTrialPlanned(payload)),
-      bus.subscribe("trial.completed", (payload) => this.onTrialCompleted(payload)),
-      bus.subscribe("parsed.output", (payload) => this.onParsedOutput(payload)),
-      bus.subscribe("embedding.recorded", (payload) => this.onEmbeddingRecorded(payload)),
-      bus.subscribe("convergence.record", (payload) => this.onConvergenceRecord(payload)),
-      bus.subscribe("cluster.assigned", (payload) => this.onClusterAssigned(payload)),
-      bus.subscribe("clusters.state", (payload) => this.onClusterState(payload)),
-      bus.subscribe("aggregates.computed", (payload) => this.onAggregatesComputed(payload)),
-      bus.subscribe("embeddings.finalized", (payload) => this.onEmbeddingsFinalized(payload)),
-      bus.subscribe("artifact.written", (payload) => this.onArtifactWritten(payload)),
-      bus.subscribe("run.completed", (payload) => this.onRunCompleted(payload)),
-      bus.subscribe("run.failed", (payload) => this.onRunFailed(payload))
+      bus.subscribeSafe(
+        "run.started",
+        (payload) => this.onRunStarted(payload),
+        (error) => this.onSubscriberError(bus, "run.started", error)
+      ),
+      bus.subscribeSafe(
+        "trial.planned",
+        (payload) => this.onTrialPlanned(payload),
+        (error) => this.onSubscriberError(bus, "trial.planned", error)
+      ),
+      bus.subscribeSafe(
+        "trial.completed",
+        (payload) => this.onTrialCompleted(payload),
+        (error) => this.onSubscriberError(bus, "trial.completed", error)
+      ),
+      bus.subscribeSafe(
+        "parsed.output",
+        (payload) => this.onParsedOutput(payload),
+        (error) => this.onSubscriberError(bus, "parsed.output", error)
+      ),
+      bus.subscribeSafe(
+        "embedding.recorded",
+        (payload) => this.onEmbeddingRecorded(payload),
+        (error) => this.onSubscriberError(bus, "embedding.recorded", error)
+      ),
+      bus.subscribeSafe(
+        "convergence.record",
+        (payload) => this.onConvergenceRecord(payload),
+        (error) => this.onSubscriberError(bus, "convergence.record", error)
+      ),
+      bus.subscribeSafe(
+        "cluster.assigned",
+        (payload) => this.onClusterAssigned(payload),
+        (error) => this.onSubscriberError(bus, "cluster.assigned", error)
+      ),
+      bus.subscribeSafe(
+        "clusters.state",
+        (payload) => this.onClusterState(payload),
+        (error) => this.onSubscriberError(bus, "clusters.state", error)
+      ),
+      bus.subscribeSafe(
+        "aggregates.computed",
+        (payload) => this.onAggregatesComputed(payload),
+        (error) => this.onSubscriberError(bus, "aggregates.computed", error)
+      ),
+      bus.subscribeSafe(
+        "embeddings.finalized",
+        (payload) => this.onEmbeddingsFinalized(payload),
+        (error) => this.onSubscriberError(bus, "embeddings.finalized", error)
+      ),
+      bus.subscribeSafe(
+        "artifact.written",
+        (payload) => this.onArtifactWritten(payload),
+        (error) => this.onSubscriberError(bus, "artifact.written", error)
+      ),
+      bus.subscribeSafe(
+        "run.completed",
+        (payload) => this.onRunCompleted(payload),
+        (error) => this.onSubscriberError(bus, "run.completed", error)
+      ),
+      bus.subscribeSafe(
+        "run.failed",
+        (payload) => this.onRunFailed(payload),
+        (error) => this.onSubscriberError(bus, "run.failed", error)
+      )
     );
+  }
+
+  private onSubscriberError(bus: EventBus, eventType: string, error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    bus.emit({
+      type: "warning.raised",
+      payload: {
+        message: `ArtifactWriter handler failed for ${eventType}: ${message}`,
+        source: "artifacts",
+        recorded_at: new Date().toISOString()
+      }
+    });
   }
 
   detach(): void {
@@ -235,13 +292,6 @@ export class ArtifactWriter {
     this.parsedWriter.append(payload.parsed_record);
     this.counts.parsed += 1;
     const status = payload.parsed_record.parse_status;
-    if (status === "success") {
-      this.parseCounts.success += 1;
-    } else if (status === "fallback") {
-      this.parseCounts.fallback += 1;
-    } else if (status === "failed") {
-      this.parseCounts.failed += 1;
-    }
     if (this.resolvedConfig.protocol.decision_contract) {
       const trialStatus = this.trialStatusById.get(payload.parsed_record.trial_id);
       if (trialStatus === "success") {

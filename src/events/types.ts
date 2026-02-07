@@ -28,6 +28,7 @@ export type RunFailedPayload = {
   run_id: string;
   completed_at: string;
   error: string;
+  error_code?: string;
 };
 
 export type BatchStartedPayload = {

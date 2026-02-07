@@ -1,6 +1,3 @@
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 const canonicalizeValue = (value: unknown): string => {
   if (value === null || typeof value !== "object") {
     return JSON.stringify(value);
