@@ -112,7 +112,6 @@ src/
     live-executor.ts
     mock-executor.ts
     embed-text.ts
-    embedding-finalizer.ts
     status.ts
 
   openrouter/
@@ -127,6 +126,7 @@ src/
 
   artifacts/
     artifact-coordinator.ts
+    embeddings-finalizer.ts
     writers/
       jsonl-writer.ts
       json-atomic.ts
@@ -208,7 +208,6 @@ Exit gate:
 2. refactor live/mock runners onto shared batch orchestration
 3. split independent/debate protocol logic into protocol modules
 4. move contract extraction/validation under `protocols/contract`
-5. add per-role model override support (schema-first + generated types + tests)
 
 Exit gate:
 1. `test:mock-run`, `test:debate`, `test:contracts`, `test:provenance`
@@ -229,12 +228,21 @@ Exit gate:
 
 1. remove dead `manifest.updated` event path
 2. add async-capable event bus with optional `flush()`
-3. add retry jitter + `Retry-After` + optional rate limiter
-4. add compatibility tests for old run directories in `verify`/`report`
-5. complete unit + property test matrix and architecture guard checks
+3. implement versioned event envelope (`type`, `version`, `sequence`, `emitted_at`, `payload`)
+4. add retry jitter + `Retry-After` + optional rate limiter
+5. add compatibility tests for old run directories in `verify`/`report`
+6. complete unit + property test matrix and architecture guard checks
 
 Exit gate:
 1. full AGENTS mandatory suite plus new unit/property/guard tests passes
+
+### Sequence E: Post-hardening feature additions
+
+1. add per-role model override support for debate roles (schema-first + generated types + tests)
+2. document determinism implications and verify plan-hash expectations for affected configs
+
+Exit gate:
+1. `check:types`, `check:schemas`, `test:debate`, `test:mock-run`, `test:verify`
 
 ---
 
