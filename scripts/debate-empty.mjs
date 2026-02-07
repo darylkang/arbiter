@@ -1,4 +1,4 @@
-import { buildDebateParsedOutput } from "../dist/engine/debate-v1.js";
+import { buildDebateParsedOutput } from "../dist/protocols/debate-v1/parser.js";
 import { prepareEmbedText } from "../dist/engine/embed-text.js";
 
 const empty = "   ";

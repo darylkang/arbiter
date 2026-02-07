@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { buildParsedOutputWithContract } from "../dist/engine/contract-extraction.js";
+import { buildParsedOutputWithContract } from "../dist/protocols/contract/extraction.js";
 import { prepareEmbedText } from "../dist/engine/embed-text.js";
 
 const contract = JSON.parse(
