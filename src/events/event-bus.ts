@@ -3,16 +3,36 @@ import type { Event, EventType } from "./types.js";
 type EventPayloadMap = {
   [K in EventType]: Extract<Event, { type: K }>["payload"];
 };
-type EventHandler<T extends EventType> = (payload: EventPayloadMap[T]) => void;
-type AnyHandler = (payload: unknown) => void;
+type EventHandler<T extends EventType> = (payload: EventPayloadMap[T]) => void | Promise<void>;
+type AnyHandler = (payload: unknown) => void | Promise<void>;
 type ErrorHandler = (error: unknown) => void;
 
 export class EventBus {
   private handlers = new Map<EventType, AnyHandler[]>();
+  private pending = new Set<Promise<void>>();
+  private asyncErrors: unknown[] = [];
+
+  private trackPending(result: Promise<void>, onError?: ErrorHandler): void {
+    const wrapped = result
+      .catch((error) => {
+        if (onError) {
+          onError(error);
+          return;
+        }
+        this.asyncErrors.push(error);
+      })
+      .finally(() => {
+        this.pending.delete(wrapped);
+      });
+    this.pending.add(wrapped);
+  }
 
   subscribe<T extends EventType>(type: T, handler: EventHandler<T>): () => void {
     const wrapped: AnyHandler = (payload): void => {
-      handler(payload as EventPayloadMap[T]);
+      const result = handler(payload as EventPayloadMap[T]);
+      if (result && typeof result === "object" && "then" in result) {
+        this.trackPending(result);
+      }
     };
 
     const existing = this.handlers.get(type);
@@ -44,7 +64,10 @@ export class EventBus {
   ): () => void {
     const wrapped: AnyHandler = (payload): void => {
       try {
-        handler(payload as EventPayloadMap[T]);
+        const result = handler(payload as EventPayloadMap[T]);
+        if (result && typeof result === "object" && "then" in result) {
+          this.trackPending(result, onError);
+        }
       } catch (error) {
         if (onError) {
           onError(error);
@@ -81,5 +104,15 @@ export class EventBus {
     }
     const snapshot = handlers.slice();
     snapshot.forEach((handler) => handler(event.payload));
+  }
+
+  async flush(): Promise<void> {
+    while (this.pending.size > 0) {
+      await Promise.allSettled(Array.from(this.pending));
+    }
+    if (this.asyncErrors.length > 0) {
+      const errors = this.asyncErrors.splice(0);
+      throw new AggregateError(errors, "EventBus async handlers failed");
+    }
   }
 }
