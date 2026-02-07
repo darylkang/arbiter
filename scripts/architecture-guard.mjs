@@ -35,9 +35,9 @@ assertNoMatches(
 );
 
 assertNoMatches(
-  "Engine must not import UI modules",
+  "Engine and run layers must not import UI modules",
   "from\\s+[\"'][^\"']*ui/",
-  ["src/engine"]
+  ["src/engine", "src/run"]
 );
 
 assertNoMatches(
