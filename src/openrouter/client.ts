@@ -1,4 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
+import { waitForOpenRouterToken } from "./rate-limiter.js";
 
 export type OpenRouterMessage = {
   role: "system" | "user" | "assistant";
@@ -137,6 +138,7 @@ const requestGet = async (
   }
   const baseUrl = resolveBaseUrl(options.baseUrl);
   const started = Date.now();
+  await waitForOpenRouterToken(options.signal);
   const response = await fetch(`${baseUrl}${path}`, {
     method: "GET",
     headers: {
@@ -332,6 +334,7 @@ const requestWithRetry = async (
   while (true) {
     const started = Date.now();
     try {
+      await waitForOpenRouterToken(options.signal);
       const response = await fetch(`${baseUrl}${path}`, {
         method: "POST",
         headers: {
