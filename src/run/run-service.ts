@@ -12,7 +12,12 @@ import { ClusteringMonitor } from "../clustering/monitor.js";
 import { runMock, type MockRunResult } from "../engine/mock-runner.js";
 import { runLive, type LiveRunResult } from "../engine/live-runner.js";
 import { validateConfig } from "../config/schema-validation.js";
-import { evaluatePolicy, type ContractFailurePolicy, type RunPolicySnapshot } from "../config/policy.js";
+import {
+  evaluatePolicy,
+  type ContractFailurePolicy,
+  type RunPolicySnapshot
+} from "../config/policy.js";
+import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import { createConsoleWarningSink, type WarningSink } from "../utils/warnings.js";
 import { compileRunPlan } from "../planning/compiled-plan.js";
 import type { RunLifecycleContext, RunLifecycleHooks } from "./lifecycle-hooks.js";
@@ -148,6 +153,216 @@ const assertContractFailurePolicy = (input: {
   );
 };
 
+type RunMode = "mock" | "live";
+
+type RunInputs = {
+  configPath: string;
+  runsDir: string;
+  debug: boolean;
+  quiet: boolean;
+  warningSink: WarningSink;
+};
+
+const resolveRunInputs = (options: RunServiceOptions): RunInputs => ({
+  configPath: resolve(process.cwd(), options.configPath),
+  runsDir: options.runsDir ?? "runs",
+  debug: options.debug ?? false,
+  quiet: options.quiet ?? false,
+  warningSink: options.warningSink ?? createConsoleWarningSink()
+});
+
+const applyLiveOverrides = (
+  resolvedConfig: ArbiterResolvedConfig,
+  overrides?: LiveOverrides
+): void => {
+  if (!overrides) {
+    return;
+  }
+
+  if (overrides.maxTrials !== undefined) {
+    resolvedConfig.execution.k_max = Math.max(1, Math.floor(overrides.maxTrials));
+  }
+  if (overrides.batchSize !== undefined) {
+    resolvedConfig.execution.batch_size = Math.max(1, Math.floor(overrides.batchSize));
+  }
+  if (overrides.workers !== undefined) {
+    resolvedConfig.execution.workers = Math.max(1, Math.floor(overrides.workers));
+  }
+
+  if (!validateConfig(resolvedConfig)) {
+    throw new Error("Resolved config became invalid after overrides");
+  }
+};
+
+type PreparedRunContext = {
+  bus: EventBus;
+  writer: ArtifactWriter;
+  monitor: ClusteringMonitor;
+  shutdown: {
+    signal: AbortSignal;
+    isRequested: () => boolean;
+    dispose: () => void;
+  };
+  stopWarningForwarder: () => void;
+  lifecycleContext: RunLifecycleContext;
+  policy: RunPolicySnapshot;
+  compiled: ReturnType<typeof compileRunPlan>;
+  runDir: string;
+  runId: string;
+  embeddingsJsonlPath: string;
+  warningSink: WarningSink;
+};
+
+const prepareRunContext = (input: {
+  mode: RunMode;
+  options: RunServiceOptions;
+  overrides?: LiveOverrides;
+}): PreparedRunContext => {
+  const runInputs = resolveRunInputs(input.options);
+  const configRoot = dirname(runInputs.configPath);
+  const result = resolveConfig({
+    configPath: runInputs.configPath,
+    configRoot,
+    assetRoot: input.options.assetRoot
+  });
+  result.warnings.forEach((warning) => runInputs.warningSink.warn(warning, "config"));
+
+  if (input.mode === "live") {
+    applyLiveOverrides(result.resolvedConfig, input.overrides);
+  }
+
+  const policy = resolvePolicy({
+    resolvedConfig: result.resolvedConfig,
+    catalog: result.catalog,
+    policy: input.options.policy,
+    warningSink: runInputs.warningSink
+  });
+
+  const runId = generateRunId();
+  const { runDir } = createRunDir({ outRoot: runInputs.runsDir, runId, debug: runInputs.debug });
+
+  result.resolvedConfig.run.run_id = runId;
+
+  const compiled = compileRunPlan({
+    runId,
+    runDir,
+    resolvedConfig: result.resolvedConfig,
+    policy
+  });
+
+  const debugDir = resolve(runDir, "debug");
+  mkdirSync(debugDir, { recursive: true });
+  const embeddingsJsonlPath = resolve(debugDir, "embeddings.jsonl");
+
+  const bus = input.options.bus ?? new EventBus();
+  const forwardWarnings = input.options.forwardWarningEvents ?? true;
+  const stopWarningForwarder = registerWarningForwarder(bus, runInputs.warningSink, forwardWarnings);
+
+  const writer = new ArtifactWriter({
+    runDir,
+    runId,
+    resolvedConfig: compiled.resolvedConfig,
+    debugEnabled: runInputs.debug,
+    embeddingsJsonlPath,
+    catalogVersion: result.catalog.catalog_version,
+    catalogSha256: result.catalogSha256,
+    promptManifestSha256: result.promptManifestSha256,
+    packageJsonPath: resolve(input.options.assetRoot, "package.json"),
+    policy
+  });
+  writer.attach(bus);
+
+  const monitor = new ClusteringMonitor(compiled.resolvedConfig, bus, runInputs.warningSink);
+  monitor.attach();
+
+  const lifecycleContext: RunLifecycleContext = {
+    mode: input.mode,
+    bus,
+    runDir,
+    runId,
+    resolvedConfig: compiled.resolvedConfig,
+    debug: runInputs.debug,
+    quiet: runInputs.quiet,
+    receiptMode: input.options.receiptMode ?? "auto",
+    warningSink: runInputs.warningSink
+  };
+
+  const shutdown = setupShutdownHandlers({
+    warningSink: runInputs.warningSink,
+    timeoutMs: 30_000
+  });
+
+  return {
+    bus,
+    writer,
+    monitor,
+    shutdown,
+    stopWarningForwarder,
+    lifecycleContext,
+    policy,
+    compiled,
+    runDir,
+    runId,
+    embeddingsJsonlPath,
+    warningSink: runInputs.warningSink
+  };
+};
+
+const runWithLifecycle = async <T extends { contractFailures: { fallback: number; failed: number; total: number } }>(
+  input: {
+    context: PreparedRunContext;
+    hooks?: RunLifecycleHooks;
+    modeLabel: string;
+    execute: () => Promise<T>;
+  }
+): Promise<T> => {
+  try {
+    await input.hooks?.onRunSetup?.(input.context.lifecycleContext);
+  } catch (error) {
+    input.context.warningSink.warn(
+      `Run lifecycle setup failed: ${error instanceof Error ? error.message : String(error)}`,
+      "lifecycle"
+    );
+  }
+
+  let result: T | undefined;
+  let runError: Error | null = null;
+
+  try {
+    result = await input.execute();
+  } catch (error) {
+    runError = error instanceof Error ? error : new Error(String(error));
+  } finally {
+    input.context.shutdown.dispose();
+    await input.context.writer.close();
+    try {
+      await input.hooks?.onRunFinally?.(input.context.lifecycleContext);
+    } catch (error) {
+      input.context.warningSink.warn(
+        `Run lifecycle finalization failed: ${error instanceof Error ? error.message : String(error)}`,
+        "lifecycle"
+      );
+    }
+    input.context.writer.detach();
+    input.context.monitor.detach();
+    input.context.stopWarningForwarder();
+  }
+
+  if (runError) {
+    throw runError;
+  }
+  if (!result) {
+    throw new Error(`${input.modeLabel} run completed without a result`);
+  }
+
+  assertContractFailurePolicy({
+    policy: input.context.policy,
+    contractFailures: result.contractFailures
+  });
+
+  return result;
+};
+
 export const runResolveService = (options: {
   configPath: string;
   assetRoot: string;
@@ -185,278 +400,72 @@ export const runResolveService = (options: {
 };
 
 export const runMockService = async (options: RunServiceOptions): Promise<unknown> => {
-  const configPath = resolve(process.cwd(), options.configPath);
-  const runsDir = options.runsDir ?? "runs";
-  const debug = options.debug ?? false;
-  const quiet = options.quiet ?? false;
-  const warningSink = options.warningSink ?? createConsoleWarningSink();
-
-  const configRoot = dirname(configPath);
-  const result = resolveConfig({ configPath, configRoot, assetRoot: options.assetRoot });
-  result.warnings.forEach((warning) => warningSink.warn(warning, "config"));
-  const policy = resolvePolicy({
-    resolvedConfig: result.resolvedConfig,
-    catalog: result.catalog,
-    policy: options.policy,
-    warningSink
-  });
-
-  const runId = generateRunId();
-  const { runDir } = createRunDir({ outRoot: runsDir, runId, debug });
-
-  result.resolvedConfig.run.run_id = runId;
-
-  const compiled = compileRunPlan({
-    runId,
-    runDir,
-    resolvedConfig: result.resolvedConfig,
-    policy
-  });
-
-  const debugDir = resolve(runDir, "debug");
-  mkdirSync(debugDir, { recursive: true });
-  const embeddingsJsonlPath = resolve(debugDir, "embeddings.jsonl");
-
-  const bus = options.bus ?? new EventBus();
-  const forwardWarnings = options.forwardWarningEvents ?? true;
-  const stopWarningForwarder = registerWarningForwarder(bus, warningSink, forwardWarnings);
-
-  const writer = new ArtifactWriter({
-    runDir,
-    runId,
-    resolvedConfig: compiled.resolvedConfig,
-    debugEnabled: debug,
-    embeddingsJsonlPath,
-    catalogVersion: result.catalog.catalog_version,
-    catalogSha256: result.catalogSha256,
-    promptManifestSha256: result.promptManifestSha256,
-    packageJsonPath: resolve(options.assetRoot, "package.json"),
-    policy
-  });
-  writer.attach(bus);
-  const monitor = new ClusteringMonitor(compiled.resolvedConfig, bus, warningSink);
-  monitor.attach();
-  const lifecycleContext: RunLifecycleContext = {
+  const context = prepareRunContext({
     mode: "mock",
-    bus,
-    runDir,
-    runId,
-    resolvedConfig: compiled.resolvedConfig,
-    debug,
-    quiet,
-    receiptMode: options.receiptMode ?? "auto",
-    warningSink
-  };
-  try {
-    await options.hooks?.onRunSetup?.(lifecycleContext);
-  } catch (error) {
-    warningSink.warn(
-      `Run lifecycle setup failed: ${error instanceof Error ? error.message : String(error)}`,
-      "lifecycle"
-    );
-  }
-
-  const shutdown = setupShutdownHandlers({ warningSink, timeoutMs: 30_000 });
-
-  let mockResult: MockRunResult | undefined;
-  let runError: Error | null = null;
-  try {
-    mockResult = await runMock({
-      bus,
-      runDir,
-      resolvedConfig: compiled.resolvedConfig,
-      embeddingsJsonlPath,
-      debugEnabled: debug,
-      contractFailurePolicy: policy.contract_failure_policy,
-      beforeFinalize: async () => writer.close(),
-      stop: {
-        shouldStop: () => monitor.getShouldStop()
-      },
-      shutdown: {
-        signal: shutdown.signal,
-        isRequested: () => shutdown.isRequested()
-      },
-      precomputedPlan: {
-        plan: compiled.plan,
-        planSha256: compiled.planSha256
-      }
-    });
-  } catch (error) {
-    runError = error instanceof Error ? error : new Error(String(error));
-  } finally {
-    shutdown.dispose();
-    await writer.close();
-    try {
-      await options.hooks?.onRunFinally?.(lifecycleContext);
-    } catch (error) {
-      warningSink.warn(
-        `Run lifecycle finalization failed: ${error instanceof Error ? error.message : String(error)}`,
-        "lifecycle"
-      );
-    }
-    writer.detach();
-    monitor.detach();
-    stopWarningForwarder();
-  }
-
-  if (runError) {
-    throw runError;
-  }
-  if (!mockResult) {
-    throw new Error("Mock run completed without a result");
-  }
-  assertContractFailurePolicy({
-    policy,
-    contractFailures: mockResult.contractFailures
+    options
   });
 
-  return mockResult;
+  return runWithLifecycle<MockRunResult>({
+    context,
+    hooks: options.hooks,
+    modeLabel: "Mock",
+    execute: () =>
+      runMock({
+        bus: context.bus,
+        runDir: context.runDir,
+        resolvedConfig: context.compiled.resolvedConfig,
+        embeddingsJsonlPath: context.embeddingsJsonlPath,
+        debugEnabled: context.lifecycleContext.debug,
+        contractFailurePolicy: context.policy.contract_failure_policy,
+        beforeFinalize: async () => context.writer.close(),
+        stop: {
+          shouldStop: () => context.monitor.getShouldStop()
+        },
+        shutdown: {
+          signal: context.shutdown.signal,
+          isRequested: () => context.shutdown.isRequested()
+        },
+        precomputedPlan: {
+          plan: context.compiled.plan,
+          planSha256: context.compiled.planSha256
+        }
+      })
+  });
 };
 
 export const runLiveService = async (
   options: RunServiceOptions & { overrides?: LiveOverrides }
 ): Promise<unknown> => {
-  const configPath = resolve(process.cwd(), options.configPath);
-  const runsDir = options.runsDir ?? "runs";
-  const debug = options.debug ?? false;
-  const quiet = options.quiet ?? false;
-  const warningSink = options.warningSink ?? createConsoleWarningSink();
-
-  const configRoot = dirname(configPath);
-  const result = resolveConfig({ configPath, configRoot, assetRoot: options.assetRoot });
-  result.warnings.forEach((warning) => warningSink.warn(warning, "config"));
-
-  const runId = generateRunId();
-  const { runDir } = createRunDir({ outRoot: runsDir, runId, debug });
-
-  result.resolvedConfig.run.run_id = runId;
-  if (options.overrides?.maxTrials !== undefined) {
-    result.resolvedConfig.execution.k_max = Math.max(1, Math.floor(options.overrides.maxTrials));
-  }
-  if (options.overrides?.batchSize !== undefined) {
-    result.resolvedConfig.execution.batch_size = Math.max(
-      1,
-      Math.floor(options.overrides.batchSize)
-    );
-  }
-  if (options.overrides?.workers !== undefined) {
-    result.resolvedConfig.execution.workers = Math.max(1, Math.floor(options.overrides.workers));
-  }
-
-  if (!validateConfig(result.resolvedConfig)) {
-    throw new Error("Resolved config became invalid after overrides");
-  }
-
-  const policy = resolvePolicy({
-    resolvedConfig: result.resolvedConfig,
-    catalog: result.catalog,
-    policy: options.policy,
-    warningSink
-  });
-
-  const compiled = compileRunPlan({
-    runId,
-    runDir,
-    resolvedConfig: result.resolvedConfig,
-    policy
-  });
-
-  const debugDir = resolve(runDir, "debug");
-  mkdirSync(debugDir, { recursive: true });
-  const embeddingsJsonlPath = resolve(debugDir, "embeddings.jsonl");
-
-  const bus = options.bus ?? new EventBus();
-  const forwardWarnings = options.forwardWarningEvents ?? true;
-  const stopWarningForwarder = registerWarningForwarder(bus, warningSink, forwardWarnings);
-
-  const writer = new ArtifactWriter({
-    runDir,
-    runId,
-    resolvedConfig: compiled.resolvedConfig,
-    debugEnabled: debug,
-    embeddingsJsonlPath,
-    catalogVersion: result.catalog.catalog_version,
-    catalogSha256: result.catalogSha256,
-    promptManifestSha256: result.promptManifestSha256,
-    packageJsonPath: resolve(options.assetRoot, "package.json"),
-    policy
-  });
-  writer.attach(bus);
-  const monitor = new ClusteringMonitor(compiled.resolvedConfig, bus, warningSink);
-  monitor.attach();
-  const lifecycleContext: RunLifecycleContext = {
+  const context = prepareRunContext({
     mode: "live",
-    bus,
-    runDir,
-    runId,
-    resolvedConfig: compiled.resolvedConfig,
-    debug,
-    quiet,
-    receiptMode: options.receiptMode ?? "auto",
-    warningSink
-  };
-  try {
-    await options.hooks?.onRunSetup?.(lifecycleContext);
-  } catch (error) {
-    warningSink.warn(
-      `Run lifecycle setup failed: ${error instanceof Error ? error.message : String(error)}`,
-      "lifecycle"
-    );
-  }
-
-  const shutdown = setupShutdownHandlers({ warningSink, timeoutMs: 30_000 });
-
-  let liveResult: LiveRunResult | undefined;
-  let runError: Error | null = null;
-  try {
-    liveResult = await runLive({
-      bus,
-      runDir,
-      resolvedConfig: compiled.resolvedConfig,
-      embeddingsJsonlPath,
-      debugEnabled: debug,
-      contractFailurePolicy: policy.contract_failure_policy,
-      beforeFinalize: async () => writer.close(),
-      stop: {
-        shouldStop: () => monitor.getShouldStop()
-      },
-      shutdown: {
-        signal: shutdown.signal,
-        isRequested: () => shutdown.isRequested()
-      },
-      precomputedPlan: {
-        plan: compiled.plan,
-        planSha256: compiled.planSha256
-      }
-    });
-  } catch (error) {
-    runError = error instanceof Error ? error : new Error(String(error));
-  } finally {
-    shutdown.dispose();
-    await writer.close();
-    try {
-      await options.hooks?.onRunFinally?.(lifecycleContext);
-    } catch (error) {
-      warningSink.warn(
-        `Run lifecycle finalization failed: ${error instanceof Error ? error.message : String(error)}`,
-        "lifecycle"
-      );
-    }
-    writer.detach();
-    monitor.detach();
-    stopWarningForwarder();
-  }
-
-  if (runError) {
-    throw runError;
-  }
-  if (!liveResult) {
-    throw new Error("Live run completed without a result");
-  }
-  assertContractFailurePolicy({
-    policy,
-    contractFailures: liveResult.contractFailures
+    options,
+    overrides: options.overrides
   });
 
-  return liveResult;
+  return runWithLifecycle<LiveRunResult>({
+    context,
+    hooks: options.hooks,
+    modeLabel: "Live",
+    execute: () =>
+      runLive({
+        bus: context.bus,
+        runDir: context.runDir,
+        resolvedConfig: context.compiled.resolvedConfig,
+        embeddingsJsonlPath: context.embeddingsJsonlPath,
+        debugEnabled: context.lifecycleContext.debug,
+        contractFailurePolicy: context.policy.contract_failure_policy,
+        beforeFinalize: async () => context.writer.close(),
+        stop: {
+          shouldStop: () => context.monitor.getShouldStop()
+        },
+        shutdown: {
+          signal: context.shutdown.signal,
+          isRequested: () => context.shutdown.isRequested()
+        },
+        precomputedPlan: {
+          plan: context.compiled.plan,
+          planSha256: context.compiled.planSha256
+        }
+      })
+  });
 };
