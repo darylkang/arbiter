@@ -1,5 +1,6 @@
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
 import { validateDebateDecisionContract } from "../config/schema-validation.js";
+import { extractFencedJson, extractUnfencedJson } from "../core/json-extraction.js";
 import {
   buildParsedOutputWithContract,
   type DecisionContractConfig
@@ -72,7 +73,7 @@ export const extractDebateDecision = (content: string): DebateExtractionResult =
       embed_text: ""
     };
   }
-  const fenced = extractFencedJson(trimmed);
+  const fenced = extractFencedJson(trimmed, parseDecisionObject);
   if (fenced) {
     return {
       outcome: fenced.decision,
@@ -85,7 +86,7 @@ export const extractDebateDecision = (content: string): DebateExtractionResult =
     };
   }
 
-  const unfenced = extractUnfencedJson(trimmed);
+  const unfenced = extractUnfencedJson(trimmed, parseDecisionObject);
   if (unfenced) {
     return {
       outcome: unfenced.decision,
@@ -144,57 +145,12 @@ type DecisionObject = {
   confidence?: "low" | "medium" | "high";
   reasoning?: string;
 };
-
-const extractFencedJson = (content: string): DecisionObject | null => {
-  const regex = /```(?:json)?\s*([\s\S]*?)```/gi;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(content))) {
-    const candidate = match[1]?.trim();
-    if (!candidate) {
-      continue;
-    }
-    const parsed = parseDecisionObject(candidate);
-    if (parsed) {
-      return parsed;
-    }
-  }
-  return null;
-};
-
-const extractUnfencedJson = (content: string): DecisionObject | null => {
-  for (let i = 0; i < content.length; i += 1) {
-    if (content[i] !== "{") {
-      continue;
-    }
-    let depth = 0;
-    for (let j = i; j < content.length; j += 1) {
-      const char = content[j];
-      if (char === "{") depth += 1;
-      if (char === "}") depth -= 1;
-      if (depth === 0) {
-        const candidate = content.slice(i, j + 1);
-        const parsed = parseDecisionObject(candidate);
-        if (parsed) {
-          return parsed;
-        }
-        break;
-      }
-    }
-  }
-  return null;
-};
-
-const parseDecisionObject = (json: string): DecisionObject | null => {
-  try {
-    const parsed = JSON.parse(json) as unknown;
-    if (!validateDebateDecisionContract(parsed)) {
-      return null;
-    }
-    const decision = (parsed as { decision: string }).decision;
-    const confidence = (parsed as { confidence?: "low" | "medium" | "high" }).confidence;
-    const reasoning = (parsed as { reasoning?: string }).reasoning;
-    return { decision, confidence, reasoning };
-  } catch {
+const parseDecisionObject = (value: unknown): DecisionObject | null => {
+  if (!validateDebateDecisionContract(value)) {
     return null;
   }
+  const decision = (value as { decision: string }).decision;
+  const confidence = (value as { confidence?: "low" | "medium" | "high" }).confidence;
+  const reasoning = (value as { reasoning?: string }).reasoning;
+  return { decision, confidence, reasoning };
 };

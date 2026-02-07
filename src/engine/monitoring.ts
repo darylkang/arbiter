@@ -1,3 +1,5 @@
+import { cosineSimilarity, vectorNorm } from "../core/vector-math.js";
+
 export type PriorEmbedding = {
   trial_id: number;
   vector: number[];
@@ -7,30 +9,6 @@ export type PriorEmbedding = {
 export type BatchEmbedding = {
   trial_id: number;
   vector: number[];
-};
-
-const vectorNorm = (vector: number[]): number => {
-  let sum = 0;
-  for (const value of vector) {
-    sum += value * value;
-  }
-  return Math.sqrt(sum);
-};
-
-const cosineSimilarity = (
-  vector: number[],
-  norm: number,
-  priorVector: number[],
-  priorNorm: number
-): number => {
-  if (norm === 0 || priorNorm === 0) {
-    return 0;
-  }
-  let dot = 0;
-  for (let i = 0; i < vector.length; i += 1) {
-    dot += vector[i] * priorVector[i];
-  }
-  return dot / (norm * priorNorm);
 };
 
 export const updateNoveltyMetrics = (
@@ -51,9 +29,8 @@ export const updateNoveltyMetrics = (
     for (const priorEmbedding of prior) {
       const sim = cosineSimilarity(
         embedding.vector,
-        norm,
         priorEmbedding.vector,
-        priorEmbedding.norm
+        { normA: norm, normB: priorEmbedding.norm }
       );
       if (sim > maxSim) {
         maxSim = sim;

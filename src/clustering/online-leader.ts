@@ -1,3 +1,4 @@
+import { cosineSimilarity, vectorNorm } from "../core/vector-math.js";
 import { encodeFloat32Base64 } from "../utils/float32-base64.js";
 
 export type CentroidUpdateRule = "fixed_leader" | "incremental_mean";
@@ -41,25 +42,6 @@ type Cluster = {
   discovered_at_batch: number;
   centroid: number[];
   norm: number;
-};
-
-const vectorNorm = (vector: number[]): number => {
-  let sum = 0;
-  for (const value of vector) {
-    sum += value * value;
-  }
-  return Math.sqrt(sum);
-};
-
-const cosineSimilarity = (vector: number[], norm: number, cluster: Cluster): number => {
-  if (norm === 0 || cluster.norm === 0) {
-    return 0;
-  }
-  let dot = 0;
-  for (let i = 0; i < vector.length; i += 1) {
-    dot += vector[i] * cluster.centroid[i];
-  }
-  return dot / (norm * cluster.norm);
 };
 
 export class OnlineLeaderClustering {
@@ -109,11 +91,17 @@ export class OnlineLeaderClustering {
     }
 
     let bestCluster = this.clusters[0];
-    let bestSimilarity = cosineSimilarity(input.vector, norm, bestCluster);
+    let bestSimilarity = cosineSimilarity(input.vector, bestCluster.centroid, {
+      normA: norm,
+      normB: bestCluster.norm
+    });
 
     for (let i = 1; i < this.clusters.length; i += 1) {
       const candidate = this.clusters[i];
-      const similarity = cosineSimilarity(input.vector, norm, candidate);
+      const similarity = cosineSimilarity(input.vector, candidate.centroid, {
+        normA: norm,
+        normB: candidate.norm
+      });
       if (similarity > bestSimilarity) {
         bestSimilarity = similarity;
         bestCluster = candidate;

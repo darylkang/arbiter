@@ -1,6 +1,7 @@
 import Ajv2020 from "ajv/dist/2020.js";
 import type { Options, ValidateFunction } from "ajv";
 
+import { extractFencedJson, extractUnfencedJson } from "../core/json-extraction.js";
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
 import { canonicalStringify } from "../utils/canonical-json.js";
 
@@ -34,46 +35,6 @@ export const buildContractValidator = (
 
 export const formatDecisionContractClause = (schema: Record<string, unknown>): string =>
   `Respond with ONLY a JSON object matching this schema:\n${canonicalStringify(schema)}\nNo additional text.`;
-
-const extractFencedJson = (content: string): unknown | null => {
-  const regex = /```(?:json)?\s*([\s\S]*?)```/gi;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(content))) {
-    const candidate = match[1]?.trim();
-    if (!candidate) {
-      continue;
-    }
-    try {
-      return JSON.parse(candidate) as unknown;
-    } catch {
-      continue;
-    }
-  }
-  return null;
-};
-
-const extractUnfencedJson = (content: string): unknown | null => {
-  for (let i = 0; i < content.length; i += 1) {
-    if (content[i] !== "{") {
-      continue;
-    }
-    let depth = 0;
-    for (let j = i; j < content.length; j += 1) {
-      const char = content[j];
-      if (char === "{") depth += 1;
-      if (char === "}") depth -= 1;
-      if (depth === 0) {
-        const candidate = content.slice(i, j + 1);
-        try {
-          return JSON.parse(candidate) as unknown;
-        } catch {
-          break;
-        }
-      }
-    }
-  }
-  return null;
-};
 
 const truncateRationale = (
   value: unknown,
