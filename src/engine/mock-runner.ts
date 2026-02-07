@@ -14,9 +14,9 @@ import { createRngForTrial } from "../utils/seeded-rng.js";
 import { DEFAULT_EMBEDDING_MAX_CHARS } from "../config/defaults.js";
 import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
 import { runBatchWithWorkers } from "./batch-executor.js";
-import { buildDebateParsedOutput } from "./debate-v1.js";
+import { buildDebateParsedOutput } from "../protocols/debate-v1/parser.js";
 import { prepareEmbedText, EMBED_TEXT_NORMALIZATION } from "./embed-text.js";
-import { buildParsedOutputWithContract } from "./contract-extraction.js";
+import { buildParsedOutputWithContract } from "../protocols/contract/extraction.js";
 
 export interface MockRunOptions {
   bus: EventBus;

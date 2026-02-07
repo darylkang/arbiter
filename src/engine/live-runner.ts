@@ -20,13 +20,14 @@ import {
 import { DEFAULT_EMBEDDING_MAX_CHARS } from "../config/defaults.js";
 import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
 import { runBatchWithWorkers } from "./batch-executor.js";
-import { buildDebateMessages, buildDebateParsedOutput } from "./debate-v1.js";
+import { buildDebateMessages } from "../protocols/debate-v1/messages.js";
+import { buildDebateParsedOutput } from "../protocols/debate-v1/parser.js";
 import { deriveFailureStatus } from "./status.js";
 import { prepareEmbedText, type EmbedTextPreparation, EMBED_TEXT_NORMALIZATION } from "./embed-text.js";
 import {
   formatDecisionContractClause,
   buildParsedOutputWithContract
-} from "./contract-extraction.js";
+} from "../protocols/contract/extraction.js";
 
 export interface LiveRunOptions {
   bus: EventBus;
