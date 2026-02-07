@@ -1,294 +1,399 @@
-# TEMP: Foundation Rebuild Plan (Non-UI First, Zero Legacy Residue)
+# TEMP: Foundation Rebuild Plan (Merged Codex + Opus, Non-UI First)
 
 Status: Draft for implementation  
-Owner: Codex  
+Owners: Codex + Opus synthesis  
 Created: 2026-02-07  
-Scope: Non-UI architecture, runtime, artifacts, determinism, provenance  
+Updated: 2026-02-07 (post-Opus audit merge)  
+Scope: Non-UI architecture, determinism, artifacts, reliability, test strategy  
 Delete before final merge: Yes (unless explicitly requested to keep)
 
 ---
 
-## 1) Intent
+## 1) Objective
 
-Rebuild Arbiter from first principles so the core system is deterministic, auditable, and evolvable, with zero legacy architecture residue at cutover.  
-UI/UX redesign is deferred to the next stage unless blocked by a core interface decision.
+Rebuild Arbiter from first principles so the foundation is deterministic, auditable, and easy to evolve, then cut over with zero legacy architecture residue (excluding git history).
 
----
-
-## 2) What is already strong
-
-- Schema-first workflow is real and enforced.
-- Determinism invariants are mostly implemented and tested.
-- Artifact and provenance discipline are already above average.
-- Non-UI quality gates pass locally (types, schemas, mock/live-adjacent smoke, verify, clustering, contracts, embeddings, pack).
+UI/TUI redesign is explicitly deferred until the foundation reaches the Phase 4 boundary defined below.
 
 ---
 
-## 3) High-priority findings from deep audit
+## 2) Synthesis verdict (Codex + Opus)
 
-### P1: orchestration/UI boundary is still mixed
+### What both audits agree on
 
-- `src/run/run-service.ts` imports UI concerns directly:
-  - receipt formatting/rendering/writing
-  - execution log rendering
-- This violates clean layering, even if `engine -> ui` imports are currently avoided.
+1. Core intent is strong: schema-first, deterministic planning, and provenance are real advantages.
+2. Main risk is structure, not immediate functionality.
+3. `live-runner.ts` / `mock-runner.ts` duplication and size are the top maintainability risk.
+4. `run-service.ts` UI imports are a direct architecture-boundary violation.
+5. Rebuild is low-risk/high-ROI now because the project is pre-release (`0.1.0-alpha.0`).
 
-Evidence:
-- `/Users/darylkang/Developer/arbiter/src/run/run-service.ts:15`
-- `/Users/darylkang/Developer/arbiter/src/run/run-service.ts:19`
+### Codex plan vs Opus critique
 
-### P1: engine owns artifact finalization details
+All 5 original Codex plan items are accepted by Opus.  
+Opus-added deltas now adopted into this plan:
 
-- Engine runners call embedding finalization and debug file cleanup directly.
-- This spreads persistence concerns into execution core and weakens event-driven separation.
+1. add a real unit-test layer for pure logic (critical gap)
+2. improve retry semantics (exponential backoff + jitter) and add optional client rate limiting
+3. remove dead/duplicate code early (JSON extractors, vector math, dead event)
+4. defer TUI implementation until the RunLifecycleHooks boundary exists (post-Phase 4)
 
-Evidence:
-- `/Users/darylkang/Developer/arbiter/src/engine/live-runner.ts:9`
-- `/Users/darylkang/Developer/arbiter/src/engine/live-runner.ts:1141`
-- `/Users/darylkang/Developer/arbiter/src/engine/mock-runner.ts:9`
-- `/Users/darylkang/Developer/arbiter/src/engine/mock-runner.ts:534`
+---
 
-### P1: concurrent batch failure semantics can leave in-flight work running
+## 3) Highest-severity findings
 
-- `runBatch` rejects on first trial error but does not actively cancel remaining in-flight work.
-- This creates brittle semantics under provider/network faults and complicates predictable shutdown.
+### High
 
-Evidence:
-- `/Users/darylkang/Developer/arbiter/src/engine/live-runner.ts:1034`
-- `/Users/darylkang/Developer/arbiter/src/engine/mock-runner.ts:432`
+1. God module risk in live execution path  
+Evidence: `/Users/darylkang/Developer/arbiter/src/engine/live-runner.ts`
 
-### P1: policy behavior is split across service and artifact writer
+2. Structural duplication across live and mock paths  
+Evidence: `/Users/darylkang/Developer/arbiter/src/engine/live-runner.ts`, `/Users/darylkang/Developer/arbiter/src/engine/mock-runner.ts`
 
-- `contract_failure_policy=fail` has both pre-return checks and manifest mutation behavior.
-- Functional behavior is correct today, but policy is not centralized in a single authoritative state transition model.
+3. No unit-test layer for pure algorithms (integration-only test posture)
 
-Evidence:
-- `/Users/darylkang/Developer/arbiter/src/run/run-service.ts:166`
-- `/Users/darylkang/Developer/arbiter/src/artifacts/artifact-writer.ts:638`
+4. Architecture boundary violation at service layer (`run-service` importing UI)  
+Evidence: `/Users/darylkang/Developer/arbiter/src/run/run-service.ts:15`
 
-### P2: repeated validator compilation on hot path
+### Medium
 
-- Decision contract validator is compiled for each parsed output call.
-- Compile once per run contract and reuse.
+1. Duplicate JSON extraction logic in contract/debate paths
+2. Duplicate vector math in monitoring/clustering paths
+3. Event bus is sync-only (no async handler flush semantics)
+4. Fixed retry backoff without jitter
+5. Clustering novelty computation grows O(k^2) with run scale
+6. Dead event path (`manifest.updated`) exists but is not used
 
-Evidence:
-- `/Users/darylkang/Developer/arbiter/src/engine/contract-extraction.ts:190`
+### Low
 
-### P2: JSONL stream writes do not honor backpressure
-
-- Writer appends via `stream.write()` without drain handling or explicit write result checks.
-- Works for current scale, but this is an avoidable reliability ceiling.
-
-Evidence:
-- `/Users/darylkang/Developer/arbiter/src/artifacts/io.ts:15`
-
-### P2: verification path is memory-heavy for large runs
-
-- `verify-run` reads full JSONL files into memory with `readFileSync`.
-- Should stream and aggregate to keep verification bounded and fast.
-
-Evidence:
-- `/Users/darylkang/Developer/arbiter/src/tools/verify-run.ts:38`
-
-### P2: module size and duplication are high
-
-- `live-runner.ts` and `mock-runner.ts` duplicate substantial execution structure.
-- Increases risk and slows changes.
-
-Current hotspots:
-- `src/engine/live-runner.ts` (~1200 LOC)
-- `src/engine/mock-runner.ts` (~593 LOC)
-- `src/artifacts/artifact-writer.ts` (~657 LOC)
+1. Hardcoded debate protocol path in config resolution
+2. Missing event versioning/deprecation strategy
+3. Scattered literal prompt-type strings
 
 ---
 
 ## 4) Rebuild principles
 
-1. Determinism is a product feature, not an implementation detail.
-2. Events are canonical for run progression; artifact files are projections.
-3. Execution core must not know about rendering or terminal behavior.
-4. Policy must be centralized in explicit state transitions.
-5. Failure and cancellation semantics must be deterministic and testable.
+1. Determinism is a product feature, not a side-effect.
+2. Engine emits events; artifacts are projections.
+3. Execution core is UI-agnostic and transport-agnostic.
+4. Policy outcomes come from one state transition model.
+5. Failure and cancellation semantics are explicit and testable.
 6. Cutover means deletion, not compatibility shims.
 
 ---
 
-## 5) Target architecture (clean-slate, non-UI)
+## 5) Target architecture (explicit module layout)
 
-### Layers
+```text
+src/
+  core/
+    vector-math.ts
+    json-extraction.ts
+    seeded-rng.ts
+    canonical-json.ts
+    hash.ts
+    float32-base64.ts
 
-- `domain/`
-  - pure logic: planner, stopping, parsing rules, clustering math, policy decisions
-  - no IO, no time, no network
-- `application/`
-  - run coordinator state machine
-  - batch scheduler, cancellation orchestration
-  - emits typed domain events
-- `ports/`
-  - model provider, embedding provider, artifact sink, clock, rng, logger
-- `adapters/`
-  - OpenRouter adapter
-  - filesystem artifact projector/writer
-  - CLI adapter
+  config/
+    resolve-config.ts
+    schema-validation.ts
+    policy.ts
+    manifest.ts
+    defaults.ts
 
-### Core flow
+  planning/
+    planner.ts
+    compiled-plan.ts
 
-1. `compile-run` stage:
-  - load + validate config/catalog/prompts/contracts
-  - apply defaults and policy
-  - build immutable `compiled-run` package
-2. `execute-run` stage:
-  - consume `compiled-run` only
-  - generate deterministic trial plan
-  - run batch state machine
-  - emit events
-3. `project-artifacts` stage:
-  - consume event stream
-  - write JSONL append-only during run
-  - finalize atomically
+  protocols/
+    types.ts
+    independent/
+      executor.ts
+      parser.ts
+    debate-v1/
+      executor.ts
+      messages.ts
+      parser.ts
+    contract/
+      extraction.ts
+      validator.ts
+
+  engine/
+    batch-executor.ts
+    trial-executor.ts
+    live-executor.ts
+    mock-executor.ts
+    embed-text.ts
+    embedding-finalizer.ts
+    status.ts
+
+  transport/
+    openrouter/
+      client.ts
+      retry.ts
+      rate-limiter.ts
+      types.ts
+
+  events/
+    event-bus.ts
+    types.ts
+
+  artifacts/
+    artifact-coordinator.ts
+    writers/
+      jsonl-writer.ts
+      json-atomic.ts
+    run-dir.ts
+    run-id.ts
+    embeddings-provenance.ts
+
+  clustering/
+    online-leader.ts
+    monitor.ts
+
+  run/
+    run-service.ts
+    lifecycle-hooks.ts
+
+  cli/
+  ui/
+  tools/
+  generated/
+```
+
+---
+
+## 6) Control flow and boundaries
+
+### Runtime flow
+
+1. CLI parse
+2. resolve + validate + policy
+3. compile immutable run package (`CompiledRunPlan`)
+4. run-service executes plan with lifecycle hooks
+5. engine batch executor runs trial executor
+6. event subscribers project artifacts and monitor convergence
+7. finalization (atomic writes, embeddings finalize)
+8. lifecycle hooks render/report at CLI layer
 
 ### Boundary rules
 
-- No `engine|domain|application -> ui` imports.
-- No filesystem/network access from domain logic.
-- Artifact projection must be replaceable without touching execution core.
+1. no `engine|planning|core|run -> ui` imports
+2. no filesystem/network in `core`
+3. no `Math.random` in `core|planning|engine|clustering`
+4. config object immutable once execution starts
 
 ---
 
-## 6) Proposed 2026 stack (non-UI foundation)
+## 7) Technology choices (2026)
 
-Note: pin exact versions at implementation start and validate in CI.
+### Adopt
 
-- Runtime:
-  - Node.js 24 LTS
-  - TypeScript 5.9+ strict mode
-- Package management:
-  - `pnpm` workspaces (single package now, workspace-ready structure)
-  - `changesets` for release discipline
-- Lint/format/static:
-  - `Biome` for formatting + lint baseline
-  - `knip` for dead code/dependency drift checks
-- Testing:
-  - `Vitest` for unit/integration tests
-  - `fast-check` for determinism/property tests
-- Observability:
-  - OpenTelemetry SDK (traces/metrics around run lifecycle)
-  - structured JSON logs
-- Schema/runtime validation:
-  - JSON Schema 2020-12 + Ajv
-  - precompiled validators for hot paths where useful
+1. Node.js 24 LTS
+2. TypeScript 5.9+ strict
+3. JSON Schema 2020-12 + Ajv (continue)
+4. Apache Arrow artifact format (continue)
+5. `Biome` for formatting/linting
+6. `fast-check` for property tests
+7. OpenTelemetry instrumentation hooks (minimal initial footprint)
 
----
+### Testing runner decision
 
-## 7) Implementation plan (non-UI)
+Default baseline: built-in `node:test` for unit tests (lower tooling overhead, native ESM).  
+If DX needs become material, re-evaluate `Vitest` later without changing test strategy.
 
-### Phase 0: lock invariants and constraints
+### Transport hardening
 
-- Write/confirm architecture tests for forbidden imports and layer boundaries.
-- Freeze artifact contract expectations against `docs/spec.md` and schemas.
-
-Exit criteria:
-- Boundary tests fail on any illegal import path.
-
-### Phase 1: create new foundation package layout
-
-- Introduce clean module tree under `src/core` (or equivalent):
-  - `domain`, `application`, `ports`, `adapters`
-- Keep existing runtime intact initially; no behavior changes yet.
-
-Exit criteria:
-- New module skeleton compiles with zero behavior wiring.
-
-### Phase 2: compile-run boundary
-
-- Implement deterministic `compile-run` output artifact.
-- Ensure execution consumes only compiled inputs.
-
-Exit criteria:
-- Same input config produces same compiled package hash.
-
-### Phase 3: unified executor
-
-- Build one batch executor used by both mock and live provider adapters.
-- Define explicit cancellation/error policy for in-flight tasks.
-
-Exit criteria:
-- Mock and live share one execution state machine.
-
-### Phase 4: artifact projector extraction
-
-- Move finalization, file projection, and cleanup out of runners.
-- Runners emit events; projector writes artifacts.
-
-Exit criteria:
-- Engine has no artifact finalization logic.
-
-### Phase 5: policy centralization
-
-- Centralize contract-failure policy handling in execution state transitions.
-- Keep manifest mutation logic declarative and derived from terminal state.
-
-Exit criteria:
-- Policy outcomes derive from one source of truth.
-
-### Phase 6: legacy cutover and deletion
-
-- Switch CLI wiring to new core.
-- Remove obsolete legacy modules and glue.
-- Keep UI untouched for now except boundary-safe integration points.
-
-Exit criteria:
-- No legacy core paths referenced by CLI/runtime.
+1. exponential backoff + jitter
+2. optional token-bucket rate limiting (client-side)
 
 ---
 
-## 8) Zero-legacy acceptance criteria (for foundation stage)
+## 8) Phased implementation plan (non-UI)
 
-1. No runtime imports from deprecated core paths.
-2. No duplicate runner implementations with divergent logic.
-3. No artifact finalization inside engine runners.
-4. No policy split across unrelated layers.
-5. All mandatory checks pass:
-   - `npm run check:types`
-   - `npm run check:schemas`
-   - `npm run test:mock-run`
-   - `npm run test:templates`
-   - `npm run test:verify`
-   - `npm run test:debate`
-   - `npm run test:clustering`
-   - `npm run test:embeddings`
-   - `npm run test:pack`
-   - `npm run test:ui` (even if UI is deferred, existing suite must stay green)
+### Phase 0: architecture guardrails and invariants
+
+1. add guard tests for forbidden imports, `Math.random`, and dead legacy paths
+2. lock artifact invariants with verify checks
+
+Exit gate:
+1. boundary guard script fails on violations
+
+### Phase 1: extract shared pure utilities (no behavior change)
+
+1. extract shared vector math into `core/vector-math.ts`
+2. extract shared JSON extraction into `core/json-extraction.ts`
+3. delete duplicated helpers at old call sites
+
+Exit gate:
+1. `check:types`, `test:mock-run`, `test:clustering`, `test:debate` all pass
+
+### Phase 2: shared batch executor and trial interface
+
+1. introduce `TrialExecutor` interface
+2. move batch worker-pool loop into `engine/batch-executor.ts`
+3. refactor live/mock to use shared batch orchestration
+
+Exit gate:
+1. behavior parity in existing integration tests
+2. runner LOC drops significantly
+
+### Phase 3: protocol extraction and executor decomposition
+
+1. split independent/debate protocol logic into protocol modules
+2. move contract extraction/validation under `protocols/contract`
+3. keep live/mock executors thin
+
+Exit gate:
+1. `test:debate`, `test:contracts`, `test:mock-run` pass
+
+### Phase 4: run-service decoupling from UI (critical boundary)
+
+1. define `RunLifecycleHooks`
+2. remove direct UI imports from `run-service`
+3. move receipt/log presentation wiring to CLI layer hooks
+4. deduplicate shared setup between mock/live service functions
+
+Exit gate:
+1. `rg 'from.*../ui/' src/run/` returns zero matches
+2. all existing test suites remain green
+
+### Phase 5: immutable compiled plan boundary
+
+1. introduce frozen `CompiledRunPlan`
+2. move planner to `planning/`
+3. ensure execution consumes read-only compiled inputs
+
+Exit gate:
+1. deterministic plan reproducibility checks pass
+
+### Phase 6: hardening and cleanup
+
+1. remove dead `manifest.updated` event path
+2. add async-capable event bus with optional `flush()`
+3. implement retry jitter and optional client rate limiter
+4. complete unit + property test matrix
+
+Exit gate:
+1. full mandatory suite + new unit/property/guard tests pass
 
 ---
 
-## 9) Risks and mitigations
+## 9) Test strategy (explicit)
 
-- Risk: accidental behavior drift during decomposition.
-  - Mitigation: preserve golden-run fixtures and invariant/property tests.
-- Risk: migration stall from oversized PRs.
-  - Mitigation: phase gates with strict exit criteria and small, atomic commits.
-- Risk: hidden coupling from CLI/UI integration.
-  - Mitigation: import boundary checks in CI and adapter-only wiring.
+### Unit tests (new, critical)
+
+Targets:
+1. seeded RNG / planner sampling
+2. JSON extraction + contract parsing
+3. vector math, entropy, divergence
+4. online leader clustering
+5. batch executor stop/error behavior
+
+### Integration tests (existing scripts, keep)
+
+Keep and continue running:
+1. mock/debate/contracts/clustering/embeddings/provenance/verify/templates/pack/ui scripts
+
+### Property tests
+
+1. deterministic seed -> deterministic plan hash
+2. cosine similarity range bounds
+3. canonical JSON stability
+4. entropy non-negativity
+
+### Architecture guard tests
+
+1. forbidden import checks
+2. no `Math.random` in deterministic core paths
+3. no stale dead events
 
 ---
 
-## 10) Opus review integration placeholder
+## 10) 30/60/90 execution framing
 
-When Opus audit arrives, add:
+### Day 1-30
 
-1. agreement items
-2. disagreements and rationale
-3. architecture deltas adopted
-4. roadmap changes
+1. Phases 0-2 completed
+2. shared utilities extracted
+3. shared batch executor in use
+4. initial unit + property tests live
+
+### Day 31-60
+
+1. Phases 3-5 completed
+2. protocol modules extracted
+3. run-service UI decoupled
+4. immutable compiled-plan boundary live
+
+### Day 61-90
+
+1. Phase 6 completed
+2. retry/rate-limit hardening and async event bus improvements
+3. full cleanup and deletion sweep
+4. TUI work can start only after Phase 4 boundary is already done
 
 ---
 
-## 11) Immediate next step after Opus response
+## 11) UI/TUI decision
 
-Produce a merged architecture decision record:
+Decision: defer implementation until non-UI Phase 4 is complete.
 
-- `docs/tmp-foundation-rebuild-plan.md` (this file, updated)
-- includes final module map, migration sequence, and deletion checklist
-- then start Phase 0 implementation
+Rationale:
+1. TUI should depend on `RunLifecycleHooks`, not today’s coupled service layer
+2. concurrent core+TUI rewiring creates avoidable merge and rollback risk
+3. pre-release status favors architecture-first sequencing
 
+Allowed in parallel before Phase 4:
+1. TUI scaffolding in isolated new files only (no shared runtime rewiring)
+
+---
+
+## 12) Zero-legacy acceptance criteria
+
+1. no duplicate core helper implementations remain
+2. no `run-service` or `engine` imports from `ui`
+3. no artifact finalization logic inside engine executors
+4. no dead event paths retained
+5. no `Math.random` in deterministic core paths
+
+Validation commands:
+
+```bash
+rg 'const extractFencedJson' src
+rg 'const vectorNorm' src
+rg 'const cosineSimilarity' src
+rg 'from.*\.\./ui/' src/run/
+rg 'from.*\.\./ui/' src/engine/
+rg 'manifest\.updated' src
+rg 'Math\.random' src/core/ src/engine/ src/clustering/ src/planning/
+```
+
+Mandatory gates from AGENTS:
+1. `npm run check:types`
+2. `npm run check:schemas`
+3. `npm run test:mock-run`
+4. `npm run test:templates`
+5. `npm run test:verify`
+6. `npm run test:debate`
+7. `npm run test:clustering`
+8. `npm run test:embeddings`
+9. `npm run test:pack`
+10. `npm run test:ui`
+11. `npm run test:provenance` (if OpenRouter/live behavior touched)
+
+---
+
+## 13) Open questions before implementation
+
+1. Should `verify` guarantee compatibility for pre-rebuild run directories?
+2. What is the target upper bound for `k_max` (to size novelty computation strategy)?
+3. Do we want heterogeneous debate roles (different models per proposer/critic) in this rebuild?
+4. Do we want `pnpm` migration in this phase, or defer package-manager change until after core cutover?
+
+---
+
+## 14) Immediate next step (current conversation)
+
+No implementation starts yet.  
+Use this merged plan as the discussion baseline; confirm sequencing and scope boundaries before Phase 0 execution.
