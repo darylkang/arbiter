@@ -19,6 +19,7 @@ import {
 } from "../openrouter/client.js";
 import { DEFAULT_EMBEDDING_MAX_CHARS } from "../config/defaults.js";
 import { generateTrialPlan, type TrialPlanEntry } from "./planner.js";
+import { runBatchWithWorkers } from "./batch-executor.js";
 import { buildDebateMessages, buildDebateParsedOutput } from "./debate-v1.js";
 import { deriveFailureStatus } from "./status.js";
 import { prepareEmbedText, type EmbedTextPreparation, EMBED_TEXT_NORMALIZATION } from "./embed-text.js";
@@ -1031,37 +1032,6 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
     }
   };
 
-  const runBatch = async (entries: TrialPlanEntry[]): Promise<TrialResult[]> => {
-    const results: TrialResult[] = [];
-    let index = 0;
-    let inFlight = 0;
-
-    return new Promise((resolve, reject) => {
-      const launch = (): void => {
-        while (inFlight < workerCount && index < entries.length && !shouldStop().stop) {
-          const entry = entries[index];
-          index += 1;
-          inFlight += 1;
-          executeTrial(entry)
-            .then((result) => {
-              results.push(result);
-              inFlight -= 1;
-              launch();
-            })
-            .catch((error) => {
-              reject(error);
-            });
-        }
-
-        if ((index >= entries.length || shouldStop().stop) && inFlight === 0) {
-          resolve(results);
-        }
-      };
-
-      launch();
-    });
-  };
-
   try {
     for (let batchStart = 0; batchStart < kMax; batchStart += batchSize) {
       const preStop = shouldStop();
@@ -1081,7 +1051,12 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         payload: { batch_number: batchNumber, trial_ids: batchIds }
       });
 
-      const results = await runBatch(batchEntries);
+      const results = await runBatchWithWorkers({
+        entries: batchEntries,
+        workerCount,
+        shouldStop,
+        execute: executeTrial
+      });
 
       const completedIds = results.map((result) => result.trial_id).sort((a, b) => a - b);
       bus.emit({
