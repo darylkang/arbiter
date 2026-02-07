@@ -9,6 +9,7 @@ import { EventBus } from "../../events/event-bus.js";
 import type { Event, EventType } from "../../events/types.js";
 import { buildReceiptModel } from "../receipt-model.js";
 import { formatReceiptText } from "../receipt-text.js";
+import { createUiRunLifecycleHooks } from "../run-lifecycle-hooks.js";
 import { buildReportModel, formatReportText } from "../../tools/report-run.js";
 import { runLiveService, runMockService } from "../../run/run-service.js";
 import { createEventWarningSink, type WarningRecord } from "../../utils/warnings.js";
@@ -439,7 +440,7 @@ export const PremiumWizard: React.FC = () => {
             quiet: true,
             bus: busInstance,
             receiptMode: "writeOnly",
-            forceInk: true,
+            hooks: createUiRunLifecycleHooks({ forceInk: true }),
             warningSink,
             forwardWarningEvents: false
           });
@@ -455,7 +456,7 @@ export const PremiumWizard: React.FC = () => {
             quiet: true,
             bus: busInstance,
             receiptMode: "writeOnly",
-            forceInk: true,
+            hooks: createUiRunLifecycleHooks({ forceInk: true }),
             warningSink,
             forwardWarningEvents: false
           });

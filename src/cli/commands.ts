@@ -6,7 +6,9 @@ import { resolveConfig } from "../config/resolve-config.js";
 import { validateConfig } from "../config/schema-validation.js";
 import { EventBus } from "../events/event-bus.js";
 import { evaluatePolicy, type ContractFailurePolicy } from "../config/policy.js";
+import type { RunLifecycleHooks } from "../run/lifecycle-hooks.js";
 import { runLiveService, runMockService, runResolveService } from "../run/run-service.js";
+import { createUiRunLifecycleHooks } from "../ui/run-lifecycle-hooks.js";
 import { createConsoleWarningSink } from "../utils/warnings.js";
 
 export const DEFAULT_CONFIG_PATH = "arbiter.config.json";
@@ -135,6 +137,7 @@ export type RunCommandOptions = {
   bus?: EventBus;
   receiptMode?: "auto" | "writeOnly" | "skip";
   forceInk?: boolean;
+  hooks?: RunLifecycleHooks;
   showPreview?: boolean;
 };
 
@@ -165,6 +168,9 @@ export const runMockCommand = async (
   const quiet = hasFlag(parsed.flags, "--quiet");
   const policy = resolvePolicyFlags(parsed.flags);
   const warningSink = createConsoleWarningSink();
+  const hooks =
+    options?.hooks ??
+    createUiRunLifecycleHooks({ forceInk: options?.forceInk });
 
   return runMockService({
     configPath,
@@ -174,7 +180,7 @@ export const runMockCommand = async (
     quiet,
     bus: options?.bus,
     receiptMode: options?.receiptMode,
-    forceInk: options?.forceInk,
+    hooks,
     warningSink,
     forwardWarningEvents: true,
     policy
@@ -212,6 +218,9 @@ export const runLiveCommand = async (
 
   const policy = resolvePolicyFlags(parsed.flags);
   const warningSink = createConsoleWarningSink();
+  const hooks =
+    options?.hooks ??
+    createUiRunLifecycleHooks({ forceInk: options?.forceInk });
 
   return runLiveService({
     configPath,
@@ -221,7 +230,7 @@ export const runLiveCommand = async (
     quiet,
     bus: options?.bus,
     receiptMode: options?.receiptMode,
-    forceInk: options?.forceInk,
+    hooks,
     warningSink,
     forwardWarningEvents: true,
     policy,

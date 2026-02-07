@@ -12,13 +12,9 @@ import { ClusteringMonitor } from "../clustering/monitor.js";
 import { runMock, type MockRunResult } from "../engine/mock-runner.js";
 import { runLive, type LiveRunResult } from "../engine/live-runner.js";
 import { validateConfig } from "../config/schema-validation.js";
-import { buildReceiptModel } from "../ui/receipt-model.js";
-import { formatReceiptText } from "../ui/receipt-text.js";
-import { renderReceiptInk } from "../ui/receipt-ink.js";
-import { writeReceiptText } from "../ui/receipt-writer.js";
-import { ExecutionLogger } from "../ui/execution-log.js";
 import { evaluatePolicy, type ContractFailurePolicy, type RunPolicySnapshot } from "../config/policy.js";
 import { createConsoleWarningSink, type WarningSink } from "../utils/warnings.js";
+import type { RunLifecycleContext, RunLifecycleHooks } from "./lifecycle-hooks.js";
 
 export type RunServicePolicy = {
   strict?: boolean;
@@ -35,7 +31,7 @@ export type RunServiceOptions = {
   quiet?: boolean;
   bus?: EventBus;
   receiptMode?: "auto" | "writeOnly" | "skip";
-  forceInk?: boolean;
+  hooks?: RunLifecycleHooks;
   warningSink?: WarningSink;
   forwardWarningEvents?: boolean;
   policy?: RunServicePolicy;
@@ -71,29 +67,6 @@ const resolvePolicy = (input: {
   }
 
   return evaluation.policy;
-};
-
-const maybeRenderReceipt = async (
-  runDir: string,
-  useInk: boolean,
-  mode: "auto" | "writeOnly" | "skip"
-): Promise<string | null> => {
-  if (mode === "skip") {
-    return null;
-  }
-  const model = buildReceiptModel(runDir);
-  const text = formatReceiptText(model);
-  const path = writeReceiptText(runDir, text);
-
-  if (mode === "auto") {
-    if (useInk) {
-      await renderReceiptInk(model);
-    } else {
-      process.stdout.write(text);
-    }
-  }
-
-  return path;
 };
 
 const setupShutdownHandlers = (input: {
@@ -255,11 +228,24 @@ export const runMockService = async (options: RunServiceOptions): Promise<unknow
   writer.attach(bus);
   const monitor = new ClusteringMonitor(result.resolvedConfig, bus, warningSink);
   monitor.attach();
-  const useInk = options.forceInk ?? Boolean(process.stdout.isTTY && !quiet);
-  const executionLogPath = resolve(runDir, "execution.log");
-  const logger = useInk ? new ExecutionLogger(executionLogPath) : null;
-  if (logger) {
-    logger.attach(bus);
+  const lifecycleContext: RunLifecycleContext = {
+    mode: "mock",
+    bus,
+    runDir,
+    runId,
+    resolvedConfig: result.resolvedConfig,
+    debug,
+    quiet,
+    receiptMode: options.receiptMode ?? "auto",
+    warningSink
+  };
+  try {
+    await options.hooks?.onRunSetup?.(lifecycleContext);
+  } catch (error) {
+    warningSink.warn(
+      `Run lifecycle setup failed: ${error instanceof Error ? error.message : String(error)}`,
+      "lifecycle"
+    );
   }
 
   const shutdown = setupShutdownHandlers({ warningSink, timeoutMs: 30_000 });
@@ -288,28 +274,16 @@ export const runMockService = async (options: RunServiceOptions): Promise<unknow
   } finally {
     shutdown.dispose();
     await writer.close();
-    await logger?.close();
-    if (logger) {
-      bus.emit({ type: "artifact.written", payload: { path: "execution.log" } });
-    }
     try {
-      const receiptPath = await maybeRenderReceipt(
-        runDir,
-        useInk,
-        options.receiptMode ?? "auto"
-      );
-      if (receiptPath) {
-        bus.emit({ type: "artifact.written", payload: { path: "receipt.txt" } });
-      }
+      await options.hooks?.onRunFinally?.(lifecycleContext);
     } catch (error) {
       warningSink.warn(
-        `Failed to render receipt: ${error instanceof Error ? error.message : String(error)}`,
-        "receipt"
+        `Run lifecycle finalization failed: ${error instanceof Error ? error.message : String(error)}`,
+        "lifecycle"
       );
     }
     writer.detach();
     monitor.detach();
-    logger?.detach();
     stopWarningForwarder();
   }
 
@@ -391,11 +365,24 @@ export const runLiveService = async (
   writer.attach(bus);
   const monitor = new ClusteringMonitor(result.resolvedConfig, bus, warningSink);
   monitor.attach();
-  const useInk = options.forceInk ?? Boolean(process.stdout.isTTY && !quiet);
-  const executionLogPath = resolve(runDir, "execution.log");
-  const logger = useInk ? new ExecutionLogger(executionLogPath) : null;
-  if (logger) {
-    logger.attach(bus);
+  const lifecycleContext: RunLifecycleContext = {
+    mode: "live",
+    bus,
+    runDir,
+    runId,
+    resolvedConfig: result.resolvedConfig,
+    debug,
+    quiet,
+    receiptMode: options.receiptMode ?? "auto",
+    warningSink
+  };
+  try {
+    await options.hooks?.onRunSetup?.(lifecycleContext);
+  } catch (error) {
+    warningSink.warn(
+      `Run lifecycle setup failed: ${error instanceof Error ? error.message : String(error)}`,
+      "lifecycle"
+    );
   }
 
   const shutdown = setupShutdownHandlers({ warningSink, timeoutMs: 30_000 });
@@ -424,28 +411,16 @@ export const runLiveService = async (
   } finally {
     shutdown.dispose();
     await writer.close();
-    await logger?.close();
-    if (logger) {
-      bus.emit({ type: "artifact.written", payload: { path: "execution.log" } });
-    }
     try {
-      const receiptPath = await maybeRenderReceipt(
-        runDir,
-        useInk,
-        options.receiptMode ?? "auto"
-      );
-      if (receiptPath) {
-        bus.emit({ type: "artifact.written", payload: { path: "receipt.txt" } });
-      }
+      await options.hooks?.onRunFinally?.(lifecycleContext);
     } catch (error) {
       warningSink.warn(
-        `Failed to render receipt: ${error instanceof Error ? error.message : String(error)}`,
-        "receipt"
+        `Run lifecycle finalization failed: ${error instanceof Error ? error.message : String(error)}`,
+        "lifecycle"
       );
     }
     writer.detach();
     monitor.detach();
-    logger?.detach();
     stopWarningForwarder();
   }
 
