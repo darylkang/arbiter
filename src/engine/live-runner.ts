@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import { finalizeEmbeddingsToArrow } from "../artifacts/embeddings.js";
+import { finalizeEmbeddingsToArrow } from "../embeddings/finalize.js";
 import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js";
 import { EMBED_TEXT_NORMALIZATION } from "../core/constants.js";
 import type { EventBus } from "../events/event-bus.js";
