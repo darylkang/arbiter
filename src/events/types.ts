@@ -110,3 +110,15 @@ export type Event =
   | { type: "warning.raised"; payload: WarningRaisedPayload };
 
 export type EventType = Event["type"];
+
+export type EventPayloadMap = {
+  [K in EventType]: Extract<Event, { type: K }>["payload"];
+};
+
+export type EventEnvelope<T extends EventType = EventType> = {
+  type: T;
+  version: 1;
+  sequence: number;
+  emitted_at: string;
+  payload: EventPayloadMap[T];
+};

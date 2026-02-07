@@ -1,16 +1,19 @@
-import type { Event, EventType } from "./types.js";
+import type { Event, EventEnvelope, EventPayloadMap, EventType } from "./types.js";
 
-type EventPayloadMap = {
-  [K in EventType]: Extract<Event, { type: K }>["payload"];
-};
 type EventHandler<T extends EventType> = (payload: EventPayloadMap[T]) => void | Promise<void>;
+type EventEnvelopeHandler<T extends EventType> = (
+  event: EventEnvelope<T>
+) => void | Promise<void>;
 type AnyHandler = (payload: unknown) => void | Promise<void>;
+type AnyEnvelopeHandler = (event: EventEnvelope) => void | Promise<void>;
 type ErrorHandler = (error: unknown) => void;
 
 export class EventBus {
   private handlers = new Map<EventType, AnyHandler[]>();
+  private envelopeHandlers = new Map<EventType, AnyEnvelopeHandler[]>();
   private pending = new Set<Promise<void>>();
   private asyncErrors: unknown[] = [];
+  private sequence = 0;
 
   private trackPending(result: Promise<void>, onError?: ErrorHandler): void {
     const wrapped = result
@@ -57,6 +60,39 @@ export class EventBus {
     };
   }
 
+  subscribeEnvelope<T extends EventType>(
+    type: T,
+    handler: EventEnvelopeHandler<T>
+  ): () => void {
+    const wrapped: AnyEnvelopeHandler = (event): void => {
+      const result = handler(event as EventEnvelope<T>);
+      if (result && typeof result === "object" && "then" in result) {
+        this.trackPending(result);
+      }
+    };
+
+    const existing = this.envelopeHandlers.get(type);
+    if (existing) {
+      existing.push(wrapped);
+    } else {
+      this.envelopeHandlers.set(type, [wrapped]);
+    }
+
+    return (): void => {
+      const handlers = this.envelopeHandlers.get(type);
+      if (!handlers) {
+        return;
+      }
+      const index = handlers.indexOf(wrapped);
+      if (index >= 0) {
+        handlers.splice(index, 1);
+      }
+      if (handlers.length === 0) {
+        this.envelopeHandlers.delete(type);
+      }
+    };
+  }
+
   subscribeSafe<T extends EventType>(
     type: T,
     handler: EventHandler<T>,
@@ -97,13 +133,69 @@ export class EventBus {
     };
   }
 
-  emit(event: Event): void {
-    const handlers = this.handlers.get(event.type);
-    if (!handlers || handlers.length === 0) {
-      return;
+  subscribeEnvelopeSafe<T extends EventType>(
+    type: T,
+    handler: EventEnvelopeHandler<T>,
+    onError?: ErrorHandler
+  ): () => void {
+    const wrapped: AnyEnvelopeHandler = (event): void => {
+      try {
+        const result = handler(event as EventEnvelope<T>);
+        if (result && typeof result === "object" && "then" in result) {
+          this.trackPending(result, onError);
+        }
+      } catch (error) {
+        if (onError) {
+          onError(error);
+        }
+      }
+    };
+
+    const existing = this.envelopeHandlers.get(type);
+    if (existing) {
+      existing.push(wrapped);
+    } else {
+      this.envelopeHandlers.set(type, [wrapped]);
     }
-    const snapshot = handlers.slice();
-    snapshot.forEach((handler) => handler(event.payload));
+
+    return (): void => {
+      const handlers = this.envelopeHandlers.get(type);
+      if (!handlers) {
+        return;
+      }
+      const index = handlers.indexOf(wrapped);
+      if (index >= 0) {
+        handlers.splice(index, 1);
+      }
+      if (handlers.length === 0) {
+        this.envelopeHandlers.delete(type);
+      }
+    };
+  }
+
+  emit(event: Event): EventEnvelope {
+    const envelope: EventEnvelope = {
+      type: event.type,
+      version: 1,
+      sequence: this.sequence,
+      emitted_at: new Date().toISOString(),
+      payload: event.payload as EventPayloadMap[EventType]
+    };
+    this.sequence += 1;
+
+    const handlers = this.handlers.get(event.type);
+    if (handlers && handlers.length > 0) {
+      const snapshot = handlers.slice();
+      snapshot.forEach((handler) => handler(event.payload));
+    }
+
+    const envelopeHandlers = this.envelopeHandlers.get(event.type);
+    if (envelopeHandlers && envelopeHandlers.length > 0) {
+      const snapshot = envelopeHandlers.slice();
+      snapshot.forEach((handler) => handler(envelope));
+    }
+
+    return envelope;
   }
 
   async flush(): Promise<void> {

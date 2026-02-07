@@ -3,6 +3,10 @@ import { EventBus } from "../dist/events/event-bus.js";
 
 const bus = new EventBus();
 let safeErrorCaptured = false;
+const firstEnvelope = bus.emit({ type: "run.started", payload: { run_id: "seed-sequence" } });
+assert.equal(firstEnvelope.sequence, 0, "Expected first envelope sequence to start at 0");
+assert.equal(firstEnvelope.version, 1, "Expected event envelope version 1");
+assert.equal(typeof firstEnvelope.emitted_at, "string", "Expected emitted_at to be a string");
 
 bus.subscribeSafe(
   "run.started",
@@ -28,6 +32,18 @@ try {
   threw = true;
 }
 assert.equal(threw, true, "Expected strict handler error to bubble");
+
+const envelopeBus = new EventBus();
+let envelopeSeen = false;
+envelopeBus.subscribeEnvelope("run.started", (event) => {
+  envelopeSeen = true;
+  assert.equal(event.type, "run.started");
+  assert.equal(event.version, 1);
+  assert.equal(event.sequence, 0);
+  assert.equal(event.payload.run_id, "envelope");
+});
+envelopeBus.emit({ type: "run.started", payload: { run_id: "envelope" } });
+assert.equal(envelopeSeen, true, "Expected envelope handler to receive event envelope");
 
 const asyncBus = new EventBus();
 let asyncCompleted = false;
