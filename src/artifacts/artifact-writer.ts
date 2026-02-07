@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { EventBus } from "../events/event-bus.js";
@@ -33,13 +33,17 @@ import {
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterRunManifest } from "../generated/manifest.types.js";
 import type { ArbiterTrialPlanRecord } from "../generated/trial-plan.types.js";
-import { DEFAULT_STOP_POLICY } from "../config/defaults.js";
 import type { RunPolicySnapshot } from "../config/policy.js";
-import { canonicalStringify } from "../utils/canonical-json.js";
-import { sha256Hex } from "../utils/hash.js";
 import { createJsonlWriter, writeJsonAtomic, type JsonlWriter } from "./io.js";
 import { EMBED_TEXT_NORMALIZATION } from "../engine/embed-text.js";
 import type { EmbeddingsProvenance } from "./embeddings-provenance.js";
+import {
+  applyContractFailurePolicy,
+  buildArtifactEntries,
+  buildInitialManifest,
+  type ArtifactCounts
+} from "./manifest-builder.js";
+import { UsageTracker } from "./usage-tracker.js";
 
 export interface ArtifactWriterOptions {
   runDir: string;
@@ -54,31 +58,6 @@ export interface ArtifactWriterOptions {
   validateArtifacts?: boolean;
   policy?: RunPolicySnapshot;
 }
-
-type ArtifactCounts = {
-  trialPlan: number;
-  trials: number;
-  parsed: number;
-  convergence: number;
-  embeddings: number;
-  embeddingSuccess: number;
-  embeddingFailed: number;
-  embeddingSkipped: number;
-  clusterAssignments: number;
-};
-
-type UsageTotals = {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-  cost?: number;
-};
-
-const readPackageVersion = (packageJsonPath: string): string => {
-  const raw = readFileSync(packageJsonPath, "utf8");
-  const parsed = JSON.parse(raw) as { version?: string };
-  return parsed.version ?? "0.0.0";
-};
 
 const assertValid = (name: string, valid: boolean, errors: unknown): void => {
   if (valid) {
@@ -122,12 +101,7 @@ export class ArtifactWriter {
     embeddingSkipped: 0,
     clusterAssignments: 0
   };
-  private readonly usageTotals: UsageTotals = {
-    prompt_tokens: 0,
-    completion_tokens: 0,
-    total_tokens: 0
-  };
-  private readonly usageByModel = new Map<string, UsageTotals>();
+  private readonly usageTracker = new UsageTracker();
   private readonly trialStatusById = new Map<number, TrialCompletedPayload["trial_record"]["status"]>();
   private readonly parseCounts = {
     success: 0,
@@ -216,9 +190,16 @@ export class ArtifactWriter {
 
   private onRunStarted(payload: RunStartedPayload): void {
     writeJsonAtomic(resolve(this.runDir, "config.resolved.json"), payload.resolved_config);
-    const manifest = this.buildInitialManifest(payload);
-    this.manifest = manifest;
-    writeJsonAtomic(resolve(this.runDir, "manifest.json"), manifest);
+    this.manifest = buildInitialManifest({
+      payload,
+      resolvedConfig: this.resolvedConfig,
+      catalogVersion: this.catalogVersion,
+      catalogSha256: this.catalogSha256,
+      promptManifestSha256: this.promptManifestSha256,
+      packageJsonPath: this.packageJsonPath,
+      policy: this.policy
+    });
+    writeJsonAtomic(resolve(this.runDir, "manifest.json"), this.manifest);
   }
 
   private onTrialPlanned(payload: TrialPlannedPayload): void {
@@ -244,7 +225,7 @@ export class ArtifactWriter {
     if (this.resolvedConfig.protocol.decision_contract) {
       this.trialStatusById.set(payload.trial_record.trial_id, payload.trial_record.status);
     }
-    this.ingestUsage(payload.trial_record);
+    this.usageTracker.ingestTrial(payload.trial_record);
   }
 
   private onParsedOutput(payload: ParsedOutputProducedPayload): void {
@@ -351,7 +332,15 @@ export class ArtifactWriter {
   private onArtifactWritten(payload: ArtifactWrittenPayload): void {
     this.extraArtifacts.set(payload.path, { path: payload.path, record_count: payload.record_count });
     if (this.manifestFinalized && this.manifest) {
-      this.manifest.artifacts = { entries: this.buildArtifactEntries() };
+      this.manifest.artifacts = {
+        entries: buildArtifactEntries({
+          debugEnabled: this.debugEnabled,
+          clusteringEnabled: this.clusteringEnabled,
+          counts: this.counts,
+          embeddingsProvenance: this.embeddingsProvenance,
+          extraArtifacts: this.extraArtifacts.values()
+        })
+      };
       if (this.validateArtifacts) {
         assertValid("manifest", validateManifest(this.manifest), validateManifest.errors);
       }
@@ -393,6 +382,7 @@ export class ArtifactWriter {
       throw new Error("Manifest is not initialized");
     }
     this.ensureEmbeddingsProvenance("no_embeddings_generated");
+
     const completedAt = payload.completed_at;
     this.manifest.completed_at = completedAt;
     this.manifest.timestamps = {
@@ -401,14 +391,32 @@ export class ArtifactWriter {
     };
     this.manifest.stop_reason = payload.stop_reason;
     this.manifest.incomplete = payload.incomplete;
-    this.applyContractFailurePolicy();
+
+    applyContractFailurePolicy({
+      manifest: this.manifest,
+      resolvedConfig: this.resolvedConfig,
+      policy: this.policy,
+      contractParseCounts: this.contractParseCounts
+    });
+
     this.manifest.k_attempted = this.counts.trials;
     this.manifest.k_eligible = this.counts.embeddingSuccess;
-    const usage = this.buildUsageSummary();
+
+    const usage = this.usageTracker.buildSummary();
     if (usage) {
       this.manifest.usage = usage;
     }
-    this.manifest.artifacts = { entries: this.buildArtifactEntries() };
+
+    this.manifest.artifacts = {
+      entries: buildArtifactEntries({
+        debugEnabled: this.debugEnabled,
+        clusteringEnabled: this.clusteringEnabled,
+        counts: this.counts,
+        embeddingsProvenance: this.embeddingsProvenance,
+        extraArtifacts: this.extraArtifacts.values()
+      })
+    };
+
     this.manifestFinalized = true;
     if (this.validateArtifacts) {
       assertValid("manifest", validateManifest(this.manifest), validateManifest.errors);
@@ -421,6 +429,7 @@ export class ArtifactWriter {
       throw new Error("Manifest is not initialized");
     }
     this.ensureEmbeddingsProvenance("run_failed_before_embeddings");
+
     const completedAt = payload.completed_at;
     this.manifest.completed_at = completedAt;
     this.manifest.timestamps = {
@@ -432,216 +441,26 @@ export class ArtifactWriter {
     this.manifest.notes = payload.error;
     this.manifest.k_attempted = this.counts.trials;
     this.manifest.k_eligible = this.counts.embeddingSuccess;
-    const usage = this.buildUsageSummary();
+
+    const usage = this.usageTracker.buildSummary();
     if (usage) {
       this.manifest.usage = usage;
     }
-    this.manifest.artifacts = { entries: this.buildArtifactEntries() };
+
+    this.manifest.artifacts = {
+      entries: buildArtifactEntries({
+        debugEnabled: this.debugEnabled,
+        clusteringEnabled: this.clusteringEnabled,
+        counts: this.counts,
+        embeddingsProvenance: this.embeddingsProvenance,
+        extraArtifacts: this.extraArtifacts.values()
+      })
+    };
+
     this.manifestFinalized = true;
     if (this.validateArtifacts) {
       assertValid("manifest", validateManifest(this.manifest), validateManifest.errors);
     }
     writeJsonAtomic(resolve(this.runDir, "manifest.json"), this.manifest);
-  }
-
-  private buildInitialManifest(payload: RunStartedPayload): ArbiterRunManifest {
-    const configSha256 = sha256Hex(canonicalStringify(payload.resolved_config));
-    const arbiterVersion = readPackageVersion(this.packageJsonPath);
-    const stopPolicy = this.resolvedConfig.execution.stop_policy ?? DEFAULT_STOP_POLICY;
-
-    const manifest: ArbiterRunManifest = {
-      schema_version: "1.0.0",
-      arbiter_version: arbiterVersion,
-      run_id: payload.run_id,
-      started_at: payload.started_at,
-      completed_at: payload.started_at,
-      timestamps: {
-        started_at: payload.started_at,
-        completed_at: payload.started_at
-      },
-      stop_reason: "completed",
-      stopping_mode: this.resolvedConfig.execution.stop_mode,
-      incomplete: false,
-      k_attempted: 0,
-      k_eligible: 0,
-      k_min: this.resolvedConfig.execution.k_min,
-      k_min_count_rule: this.resolvedConfig.execution.k_min_count_rule,
-      stop_policy: {
-        novelty_epsilon: stopPolicy.novelty_epsilon,
-        similarity_threshold: stopPolicy.similarity_threshold,
-        patience: stopPolicy.patience,
-        k_min_eligible: this.resolvedConfig.execution.k_min
-      },
-      hash_algorithm: "sha256",
-      config_sha256: configSha256,
-      plan_sha256: payload.plan_sha256,
-      k_planned: payload.k_planned,
-      model_catalog_version: this.catalogVersion,
-      model_catalog_sha256: this.catalogSha256,
-      prompt_manifest_sha256: this.promptManifestSha256,
-      provenance: {
-        arbiter_version: arbiterVersion,
-        config_sha256: configSha256,
-        plan_sha256: payload.plan_sha256,
-        model_catalog_version: this.catalogVersion,
-        model_catalog_sha256: this.catalogSha256,
-        prompt_manifest_sha256: this.promptManifestSha256,
-        hash_algorithm: "sha256"
-      },
-      artifacts: { entries: [] }
-    };
-
-    if (this.policy) {
-      manifest.policy = this.policy;
-    }
-
-    return manifest;
-  }
-
-  private buildArtifactEntries(): Array<{ path: string; record_count?: number; note?: string }> {
-    const entries: Array<{ path: string; record_count?: number; note?: string }> = [
-      { path: "config.resolved.json" },
-      { path: "manifest.json" },
-      { path: "trial_plan.jsonl", record_count: this.counts.trialPlan },
-      { path: "trials.jsonl", record_count: this.counts.trials },
-      { path: "parsed.jsonl", record_count: this.counts.parsed },
-      { path: "convergence_trace.jsonl", record_count: this.counts.convergence },
-      { path: "embeddings.provenance.json" },
-      { path: "aggregates.json" }
-    ];
-
-    if (this.embeddingsProvenance?.status === "arrow_generated") {
-      entries.push({ path: "embeddings.arrow" });
-    }
-
-    if (this.debugEnabled || this.embeddingsProvenance?.status === "jsonl_fallback") {
-      entries.push({
-        path: "debug/embeddings.jsonl",
-        record_count: this.counts.embeddings
-      });
-    }
-
-    if (this.clusteringEnabled) {
-      entries.push({
-        path: "clusters/online.assignments.jsonl",
-        record_count: this.counts.clusterAssignments
-      });
-      entries.push({ path: "clusters/online.state.json" });
-    }
-
-    for (const entry of this.extraArtifacts.values()) {
-      entries.push(entry);
-    }
-
-    return entries;
-  }
-
-  private normalizeUsage(input: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    total_tokens?: number;
-    cost?: number;
-  }): UsageTotals | null {
-    const prompt = Number.isFinite(input.prompt_tokens) ? (input.prompt_tokens as number) : 0;
-    const completion = Number.isFinite(input.completion_tokens) ? (input.completion_tokens as number) : 0;
-    const total =
-      Number.isFinite(input.total_tokens) ? (input.total_tokens as number) : prompt + completion;
-    if (prompt === 0 && completion === 0 && total === 0 && !Number.isFinite(input.cost)) {
-      return null;
-    }
-    const usage: UsageTotals = {
-      prompt_tokens: prompt,
-      completion_tokens: completion,
-      total_tokens: total
-    };
-    if (Number.isFinite(input.cost)) {
-      usage.cost = input.cost as number;
-    }
-    return usage;
-  }
-
-  private addUsage(target: UsageTotals, addition: UsageTotals): void {
-    target.prompt_tokens += addition.prompt_tokens;
-    target.completion_tokens += addition.completion_tokens;
-    target.total_tokens += addition.total_tokens;
-    if (addition.cost !== undefined) {
-      target.cost = (target.cost ?? 0) + addition.cost;
-    }
-  }
-
-  private ingestUsage(trialRecord: TrialCompletedPayload["trial_record"]): void {
-    const useUsage = (usage: UsageTotals, modelKey: string): void => {
-      this.addUsage(this.usageTotals, usage);
-      const existing = this.usageByModel.get(modelKey) ?? {
-        prompt_tokens: 0,
-        completion_tokens: 0,
-        total_tokens: 0
-      };
-      this.addUsage(existing, usage);
-      this.usageByModel.set(modelKey, existing);
-    };
-
-    if (trialRecord.usage) {
-      const normalized = this.normalizeUsage(trialRecord.usage);
-      if (normalized) {
-        const modelKey = trialRecord.actual_model ?? trialRecord.requested_model_slug;
-        useUsage(normalized, modelKey);
-      }
-    }
-
-    if (trialRecord.calls) {
-      for (const call of trialRecord.calls) {
-        if (!call.usage) {
-          continue;
-        }
-        const normalized = this.normalizeUsage(call.usage);
-        if (!normalized) {
-          continue;
-        }
-        const modelKey = call.model_actual ?? call.model_requested;
-        useUsage(normalized, modelKey);
-      }
-    }
-  }
-
-  private buildUsageSummary(): ArbiterRunManifest["usage"] | undefined {
-    if (
-      this.usageTotals.prompt_tokens === 0 &&
-      this.usageTotals.completion_tokens === 0 &&
-      this.usageTotals.total_tokens === 0 &&
-      this.usageTotals.cost === undefined
-    ) {
-      return undefined;
-    }
-
-    const byModel: Record<string, UsageTotals> = {};
-    for (const [model, usage] of this.usageByModel.entries()) {
-      byModel[model] = usage;
-    }
-
-    return {
-      totals: this.usageTotals,
-      ...(Object.keys(byModel).length > 0 ? { by_model: byModel } : {})
-    };
-  }
-
-  private applyContractFailurePolicy(): void {
-    if (!this.manifest || !this.policy) {
-      return;
-    }
-    if (!this.resolvedConfig.protocol.decision_contract) {
-      return;
-    }
-    if (this.policy.contract_failure_policy !== "fail") {
-      return;
-    }
-    const failures = this.contractParseCounts.fallback + this.contractParseCounts.failed;
-    if (failures === 0) {
-      return;
-    }
-    this.manifest.stop_reason = "error";
-    this.manifest.incomplete = true;
-    const message = `Contract parse failures: fallback=${this.contractParseCounts.fallback}, failed=${this.contractParseCounts.failed}`;
-    this.manifest.notes = this.manifest.notes ? `${this.manifest.notes}; ${message}` : message;
   }
 }
