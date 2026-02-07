@@ -171,6 +171,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
           elapsed_ms: Date.now() - batchStartTime
         }
       });
+      await bus.flush();
 
       attempted += results.length;
       eligible += results.filter((result) => result.embedding.status === "success").length;
@@ -240,6 +241,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
     }
 
     bus.emit({ type: "embeddings.finalized", payload: { provenance } });
+    await bus.flush();
 
     const completedAt = new Date().toISOString();
     bus.emit({
@@ -251,6 +253,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         incomplete
       }
     });
+    await bus.flush();
 
     return {
       runId,
@@ -272,6 +275,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
       type: "run.failed",
       payload: { run_id: runId, completed_at: completedAt, error: message }
     });
+    await bus.flush();
     throw error;
   }
 };

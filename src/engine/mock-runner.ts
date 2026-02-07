@@ -164,6 +164,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
           elapsed_ms: Date.now() - batchStartTime
         }
       });
+      await bus.flush();
 
       attempted += results.length;
       eligible += results.filter((result) => result.embedding.status === "success").length;
@@ -227,6 +228,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
     }
 
     bus.emit({ type: "embeddings.finalized", payload: { provenance } });
+    await bus.flush();
 
     const completedAt = new Date().toISOString();
     bus.emit({
@@ -238,6 +240,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
         incomplete
       }
     });
+    await bus.flush();
 
     return {
       runId,
@@ -262,6 +265,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       type: "run.failed",
       payload: { run_id: runId, completed_at: completedAt, error: message }
     });
+    await bus.flush();
     throw error;
   }
 };
