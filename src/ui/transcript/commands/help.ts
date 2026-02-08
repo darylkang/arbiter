@@ -2,7 +2,7 @@ import type { TranscriptCommand } from "./types.js";
 
 const HELP_TEXT = [
   "commands:",
-  "  /new                   start guided intake (question -> decode -> personas -> models -> protocol -> advanced -> mode -> review)",
+  "  /new                   start guided intake (question -> labels -> decode -> personas -> models -> protocol -> advanced -> mode -> review)",
   "  /run [mock|live]       execute current config (defaults to mock)",
   "  /analyze [run_dir]     select or set run directory and show summary",
   "  /report [run_dir]      print report for a run",
@@ -10,7 +10,11 @@ const HELP_TEXT = [
   "  /receipt [run_dir]     render run receipt",
   "  /warnings              show warning summary",
   "  /help                  show this help",
-  "  /quit                  exit transcript ui"
+  "  /quit                  exit transcript ui",
+  "",
+  "input:",
+  "  enter                  submit one-line input",
+  "  ctrl+d                 submit multiline input (if enabled)"
 ].join("\n");
 
 export const helpCommand: TranscriptCommand = {

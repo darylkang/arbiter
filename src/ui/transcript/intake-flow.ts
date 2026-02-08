@@ -15,6 +15,7 @@ type ProtocolSelection = "independent" | "debate-standard" | "debate-adversarial
 type ReviewAction =
   | "start"
   | "edit-question"
+  | "change-labels"
   | "change-personas"
   | "change-models"
   | "change-protocol"
@@ -22,8 +23,9 @@ type ReviewAction =
   | "change-mode"
   | "cancel-setup";
 
-const MIN_QUESTION_LENGTH = 8;
+const MIN_QUESTION_LENGTH = 1;
 const MAX_QUESTION_LENGTH = 500;
+const MIN_LABEL_COUNT = 2;
 
 const isRunModeSelection = (value: string): value is RunModeSelection => {
   return value === "mock" || value === "live" || value === "save-only";
@@ -37,6 +39,7 @@ const isReviewAction = (value: string): value is ReviewAction => {
   return (
     value === "start" ||
     value === "edit-question" ||
+    value === "change-labels" ||
     value === "change-personas" ||
     value === "change-models" ||
     value === "change-protocol" ||
@@ -46,15 +49,42 @@ const isReviewAction = (value: string): value is ReviewAction => {
   );
 };
 
+const normalizeLineEndings = (value: string): string => value.replace(/\r\n?/g, "\n");
+
 const validateQuestion = (question: string): string | null => {
-  if (question.length === 0) {
-    return "Question is required.";
+  const normalized = normalizeLineEndings(question);
+  const trimmed = normalized.trim();
+
+  if (trimmed.length === 0) {
+    return "Question is required. Enter at least one non-space character.";
   }
-  if (question.length < MIN_QUESTION_LENGTH) {
+  if (trimmed.length < MIN_QUESTION_LENGTH) {
     return `Question must be at least ${MIN_QUESTION_LENGTH} characters.`;
   }
-  if (question.length > MAX_QUESTION_LENGTH) {
-    return `Question must be ${MAX_QUESTION_LENGTH} characters or fewer.`;
+  if (normalized.length > MAX_QUESTION_LENGTH) {
+    return `Question is too long (max ${MAX_QUESTION_LENGTH} characters). Shorten and try again.`;
+  }
+  return null;
+};
+
+const parseLabels = (value: string): string[] => {
+  const unique = new Map<string, string>();
+  for (const token of value.split(",")) {
+    const label = token.trim();
+    if (!label) {
+      continue;
+    }
+    const key = label.toLowerCase();
+    if (!unique.has(key)) {
+      unique.set(key, label);
+    }
+  }
+  return Array.from(unique.values());
+};
+
+const validateLabels = (labels: string[]): string | null => {
+  if (labels.length < MIN_LABEL_COUNT) {
+    return "At least two unique labels are required when labels are enabled.";
   }
   return null;
 };
@@ -87,8 +117,14 @@ const formatReviewBody = (input: {
       ? `debate (${input.flow.debateVariant})`
       : "independent";
 
+  const labels =
+    input.flow.labelMode === "custom"
+      ? input.flow.labels.join(", ")
+      : "free-form";
+
   return [
     `Question: ${input.flow.question}`,
+    `Labels: ${labels}`,
     `Decode: temp ${input.flow.temperature.toFixed(2)}, top_p ${input.flow.topP.toFixed(2)}, max_tokens ${input.flow.maxTokens}, seed ${input.flow.seed}`,
     `Personas: ${personas}`,
     `Models: ${models}`,
@@ -101,21 +137,23 @@ const formatReviewBody = (input: {
 const flowStageLabel = (flow: GuidedSetupState): string => {
   switch (flow.stage) {
     case "question":
-      return "Step 1/8";
+      return "Step 1/9";
+    case "labels":
+      return "Step 2/9";
     case "decode":
-      return "Step 2/8";
+      return "Step 3/9";
     case "personas":
-      return "Step 3/8";
+      return "Step 4/9";
     case "models":
-      return "Step 4/8";
+      return "Step 5/9";
     case "protocol":
-      return "Step 5/8";
+      return "Step 6/9";
     case "advanced":
-      return "Step 6/8";
+      return "Step 7/9";
     case "mode":
-      return "Step 7/8";
+      return "Step 8/9";
     case "review":
-      return "Step 8/8";
+      return "Step 9/9";
     default:
       return "Step";
   }
@@ -183,6 +221,7 @@ export const createIntakeFlowController = (input: {
               : `Write configuration and start ${flow.runMode} run`
         },
         { id: "edit-question", label: "Edit question" },
+        { id: "change-labels", label: "Change labels" },
         { id: "change-personas", label: "Change personas" },
         { id: "change-models", label: "Change models" },
         { id: "change-protocol", label: "Change protocol" },
@@ -205,6 +244,9 @@ export const createIntakeFlowController = (input: {
           case "edit-question":
             syncQuestionEditor();
             input.appendStatus("Edit your question, then press Enter to continue.");
+            return;
+          case "change-labels":
+            openLabelsOverlay();
             return;
           case "change-personas":
             openPersonaOverlay();
@@ -500,6 +542,61 @@ export const createIntakeFlowController = (input: {
     flow.seed = preset.seed;
   };
 
+  const openLabelsOverlay = (): void => {
+    const flow = input.state.newFlow;
+    if (!flow) {
+      return;
+    }
+
+    flow.stage = "labels";
+    const customSelected = flow.labelMode === "custom";
+
+    input.state.overlay = {
+      kind: "select",
+      title: `${flowStageLabel(flow)} · Decision labels`,
+      items: [
+        {
+          id: "free-form",
+          label: "Free-form responses",
+          description: "Do not constrain decisions to a fixed label set"
+        },
+        {
+          id: "custom",
+          label: "Define labels",
+          description: "Enter comma-separated labels in the next step"
+        }
+      ],
+      selectedIndex: customSelected ? 1 : 0,
+      onSelect: (item) => {
+        if (item.id === "free-form") {
+          flow.labelMode = "free-form";
+          flow.labels = [];
+          input.setInputText("");
+          input.appendStatus("Labels set to free-form responses.");
+          openDecodeOverlay();
+          return;
+        }
+
+        if (item.id === "custom") {
+          flow.labelMode = "custom";
+          input.state.overlay = null;
+          input.setInputText(flow.labels.join(", "));
+          input.appendStatus("Step 2/9. Enter comma-separated labels, then press Enter.");
+          input.requestRender();
+          return;
+        }
+
+        input.appendError(`Invalid labels selection: ${item.id}.`);
+        input.requestRender();
+      },
+      onCancel: () => {
+        syncQuestionEditor();
+      }
+    };
+
+    input.requestRender();
+  };
+
   const openDecodeOverlay = (): void => {
     const flow = input.state.newFlow;
     if (!flow) {
@@ -530,8 +627,7 @@ export const createIntakeFlowController = (input: {
         openPersonaOverlay();
       },
       onCancel: () => {
-        syncQuestionEditor();
-        input.appendStatus("Edit your question, then press Enter to continue.");
+        openLabelsOverlay();
       }
     };
 
@@ -544,7 +640,7 @@ export const createIntakeFlowController = (input: {
       return;
     }
 
-    const question = flow.question.trim();
+    const question = normalizeLineEndings(flow.question).trim();
     const validationError = validateQuestion(question);
     if (validationError) {
       input.appendError(validationError);
@@ -607,9 +703,10 @@ export const createIntakeFlowController = (input: {
         onConfirm: () => {
           input.state.overlay = null;
           input.state.phase = "intake";
+          input.state.configPath = input.state.defaultConfigPath;
           input.state.newFlow = createDefaultGuidedSetup(wizardOptions, runMode);
           input.appendSystem("Set up a new study.");
-          input.appendStatus("Step 1/8. What question are you investigating?");
+          input.appendStatus("Step 1/9. What question are you investigating?");
           input.setInputText("");
           input.requestRender();
         },
@@ -624,9 +721,10 @@ export const createIntakeFlowController = (input: {
     }
 
     input.state.phase = "intake";
+    input.state.configPath = input.state.defaultConfigPath;
     input.state.newFlow = createDefaultGuidedSetup(wizardOptions, runMode);
     input.appendSystem("Set up a new study.");
-    input.appendStatus("Step 1/8. What question are you investigating?");
+    input.appendStatus("Step 1/9. What question are you investigating?");
     input.setInputText("");
     input.requestRender();
   };
@@ -634,29 +732,56 @@ export const createIntakeFlowController = (input: {
   const handlePlainInput = (value: string): void => {
     const flow = input.state.newFlow;
 
-    if (!flow || flow.stage !== "question") {
+    if (!flow) {
       input.appendStatus("Use the guided controls to continue setup.");
       input.requestRender();
       return;
     }
 
-    const question = value.trim();
-    const validationError = validateQuestion(question);
-    if (validationError) {
-      input.appendError(validationError);
-      input.requestRender();
+    if (flow.stage === "question") {
+      const normalized = normalizeLineEndings(value);
+      const validationError = validateQuestion(normalized);
+      if (validationError) {
+        input.appendError(validationError);
+        input.requestRender();
+        return;
+      }
+
+      flow.question = normalized.trim();
+      input.appendStatus("Question recorded.");
+      openLabelsOverlay();
       return;
     }
 
-    flow.question = question;
-    input.appendStatus("Question recorded.");
-    openDecodeOverlay();
+    if (flow.stage === "labels" && flow.labelMode === "custom" && !input.state.overlay) {
+      const labels = parseLabels(value);
+      const validationError = validateLabels(labels);
+      if (validationError) {
+        input.appendError(validationError);
+        input.requestRender();
+        return;
+      }
+
+      flow.labels = labels;
+      input.setInputText(labels.join(", "));
+      input.appendStatus(`Labels recorded: ${labels.join(", ")}.`);
+      openDecodeOverlay();
+      return;
+    }
+
+    input.appendStatus("Use the guided controls to continue setup.");
+    input.requestRender();
   };
 
   const handleEscape = (): boolean => {
     const flow = input.state.newFlow;
     if (!flow) {
       return false;
+    }
+
+    if (flow.stage === "labels" && flow.labelMode === "custom" && !input.state.overlay) {
+      openLabelsOverlay();
+      return true;
     }
 
     if (flow.stage === "question") {

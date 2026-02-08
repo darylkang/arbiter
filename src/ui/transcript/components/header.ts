@@ -30,7 +30,9 @@ export const renderHeader = (state: AppState, width: number): string => {
   const cfg = styleStatusLine(
     "config",
     state.hasConfig,
-    state.hasConfig ? "configuration detected" : "configuration not found"
+    state.hasConfig
+      ? `configuration detected${state.configCount > 1 ? ` (${state.configCount})` : ""}`
+      : "configuration not found"
   );
   const phase = styleStatusLine("phase", true, phaseLabel(state));
 

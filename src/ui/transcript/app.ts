@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
@@ -27,10 +27,15 @@ import { createIntakeFlowController } from "./intake-flow.js";
 import { withSpinner } from "./spinner.js";
 import { loadWizardOptions } from "./wizard-options.js";
 import { writeGuidedConfig } from "./wizard-config.js";
+import { listConfigCandidates, type ConfigCandidate } from "./config-discovery.js";
 
 const DEFAULT_CONFIG_PATH = "arbiter.config.json";
 
-type LaunchAction = "quickstart-mock" | "quickstart-live" | "guided-setup" | "quit";
+type LaunchAction =
+  | { type: "quickstart"; mode: RunMode; configPath: string; sourceMode: RunMode | null }
+  | { type: "guided-setup"; mode: RunMode }
+  | { type: "quit" };
+type StartPathAction = "quickstart" | "guided-setup" | "quit";
 type QuickstartAction = "start" | "back" | "quit";
 type PostRunAction = "report" | "verify" | "new-study" | "quit";
 
@@ -78,14 +83,8 @@ const renderWarningsBlock = (state: AppState): void => {
   });
 };
 
-const isLaunchAction = (value: string): value is LaunchAction => {
-  return (
-    value === "quickstart-mock" ||
-    value === "quickstart-live" ||
-    value === "guided-setup" ||
-    value === "quit"
-  );
-};
+const isStartPathAction = (value: string): value is StartPathAction =>
+  value === "quickstart" || value === "guided-setup" || value === "quit";
 
 const isQuickstartAction = (value: string): value is QuickstartAction => {
   return value === "start" || value === "back" || value === "quit";
@@ -95,18 +94,42 @@ const isPostRunAction = (value: string): value is PostRunAction => {
   return value === "report" || value === "verify" || value === "new-study" || value === "quit";
 };
 
+const readConfigMode = (configPath: string): RunMode | null => {
+  try {
+    const parsed = JSON.parse(readFileSync(configPath, "utf8")) as {
+      mode?: unknown;
+      run?: { mode?: unknown };
+    };
+    if (parsed.run?.mode === "mock" || parsed.run?.mode === "live") {
+      return parsed.run.mode;
+    }
+    if (parsed.mode === "mock" || parsed.mode === "live") {
+      return parsed.mode;
+    }
+  } catch {
+    // Ignore parse errors here; config discovery handles validity.
+  }
+  return null;
+};
+
 export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Promise<void> => {
   const assetRoot = options?.assetRoot ?? getAssetRoot();
   const startupWarnings: string[] = [];
   const wizardOptions = loadWizardOptions(assetRoot);
+  const defaultConfigPath = resolve(process.cwd(), DEFAULT_CONFIG_PATH);
+  const initialConfigCandidates = listConfigCandidates({
+    onError: (message) => startupWarnings.push(message)
+  });
   const initialRunDirs = listRunDirs({
     onError: (message) => startupWarnings.push(message)
   });
   const state = createInitialState({
     version: readPackageVersion(assetRoot),
-    configPath: resolve(process.cwd(), DEFAULT_CONFIG_PATH),
+    configPath: defaultConfigPath,
+    defaultConfigPath,
     hasApiKey: Boolean(process.env.OPENROUTER_API_KEY),
-    hasConfig: existsSync(resolve(process.cwd(), DEFAULT_CONFIG_PATH)),
+    hasConfig: initialConfigCandidates.length > 0,
+    configCount: initialConfigCandidates.length,
     runsCount: initialRunDirs.length
   });
   startupWarnings.forEach((message) => {
@@ -296,34 +319,119 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     });
   };
 
-  const selectLaunchAction = async (): Promise<LaunchAction | null> =>
+  const refreshConfigCandidates = (): ConfigCandidate[] => {
+    const candidates = listConfigCandidates({
+      onError: (message) => appendTranscript(state, "warning", message)
+    });
+    state.hasConfig = candidates.length > 0;
+    state.configCount = candidates.length;
+    return candidates;
+  };
+
+  const selectRunMode = async (): Promise<RunMode | "quit" | null> =>
     new Promise((resolveSelection) => {
       state.overlay = {
         kind: "select",
-        title: "Start a study",
-        body: "Choose how to begin this session.",
+        title: "Select run mode",
         items: [
           {
-            id: "quickstart-mock",
-            label: "Run current config (mock)",
-            description: state.hasConfig
-              ? "Use existing config without external API calls."
-              : "Requires a local arbiter.config.json",
-            disabled: !state.hasConfig
+            id: "live",
+            label: "Live run",
+            description: state.hasApiKey
+              ? "Use OPENROUTER_API_KEY and real model calls."
+              : "Requires OPENROUTER_API_KEY",
+            disabled: !state.hasApiKey
           },
           {
-            id: "quickstart-live",
-            label: "Run current config (live)",
-            description: !state.hasConfig
-              ? "Requires a local arbiter.config.json"
-              : state.hasApiKey
-                ? "Use OPENROUTER_API_KEY for real model calls."
-                : "Requires OPENROUTER_API_KEY",
-            disabled: !state.hasConfig || !state.hasApiKey
+            id: "mock",
+            label: "Mock run",
+            description: "No external API calls."
+          },
+          { id: "quit", label: "Quit" }
+        ],
+        selectedIndex: 0,
+        onSelect: (item) => {
+          if (item.disabled) {
+            appendStatus(state, "That option is currently unavailable.");
+            requestRender();
+            return;
+          }
+          if (item.id !== "live" && item.id !== "mock" && item.id !== "quit") {
+            appendError(state, `Invalid mode action: ${item.id}.`);
+            requestRender();
+            return;
+          }
+          state.overlay = null;
+          requestRender();
+          resolveSelection(item.id);
+        },
+        onCancel: () => {
+          appendStatus(state, "Choose an option to continue.");
+          requestRender();
+          resolveSelection(null);
+        }
+      };
+      requestRender();
+    });
+
+  const selectConfigCandidate = async (candidates: ConfigCandidate[]): Promise<ConfigCandidate | null> =>
+    new Promise((resolveSelection) => {
+      const items = candidates.map((candidate) => ({
+        id: candidate.path,
+        label: candidate.name,
+        description: candidate.valid
+          ? (candidate.isDefault ? "Default configuration file." : "Configuration file.")
+          : candidate.disabledReason ?? "Invalid configuration file.",
+        disabled: !candidate.valid
+      }));
+
+      state.overlay = {
+        kind: "select",
+        title: "Select configuration file",
+        items,
+        selectedIndex: 0,
+        onSelect: (item) => {
+          if (item.disabled) {
+            appendStatus(state, "That option is currently unavailable.");
+            requestRender();
+            return;
+          }
+          const match = candidates.find((candidate) => candidate.path === item.id) ?? null;
+          state.overlay = null;
+          requestRender();
+          resolveSelection(match);
+        },
+        onCancel: () => {
+          state.overlay = null;
+          requestRender();
+          resolveSelection(null);
+        }
+      };
+      requestRender();
+    });
+
+  const selectStartPath = async (mode: RunMode, candidates: ConfigCandidate[]): Promise<LaunchAction | null> =>
+    new Promise((resolveSelection) => {
+      const validCandidates = candidates.filter((candidate) => candidate.valid);
+      const quickstartDisabled = validCandidates.length === 0;
+
+      state.overlay = {
+        kind: "select",
+        title: "Select start path",
+        items: [
+          {
+            id: "quickstart",
+            label: "Quick Start",
+            description: quickstartDisabled
+              ? "Requires a valid configuration file in the working directory."
+              : validCandidates.length === 1
+                ? `Use ${validCandidates[0].name}.`
+                : `Choose from ${validCandidates.length} detected configuration files.`,
+            disabled: quickstartDisabled
           },
           {
             id: "guided-setup",
-            label: "Guided setup",
+            label: "Setup Wizard",
             description: "Create a new configuration step by step."
           },
           { id: "quit", label: "Quit" }
@@ -335,34 +443,98 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
             requestRender();
             return;
           }
-          if (!isLaunchAction(item.id)) {
-            appendError(state, `Invalid launch action: ${item.id}.`);
+          if (!isStartPathAction(item.id)) {
+            appendError(state, `Invalid start path action: ${item.id}.`);
             requestRender();
             return;
           }
-          state.overlay = null;
-          requestRender();
-          resolveSelection(item.id);
+
+          if (item.id === "quit") {
+            state.overlay = null;
+            requestRender();
+            resolveSelection({ type: "quit" });
+            return;
+          }
+
+          if (item.id === "guided-setup") {
+            state.overlay = null;
+            requestRender();
+            resolveSelection({ type: "guided-setup", mode });
+            return;
+          }
+
+          void (async () => {
+            let selected: ConfigCandidate | null = null;
+            if (candidates.length > 1) {
+              selected = await selectConfigCandidate(candidates);
+            } else {
+              selected = validCandidates[0] ?? null;
+            }
+
+            if (!selected) {
+              resolveSelection(null);
+              return;
+            }
+
+            state.overlay = null;
+            requestRender();
+            resolveSelection({
+              type: "quickstart",
+              mode,
+              configPath: selected.path,
+              sourceMode: readConfigMode(selected.path)
+            });
+          })();
         },
         onCancel: () => {
-          appendStatus(state, "Choose an option to continue.");
+          state.overlay = null;
           requestRender();
+          resolveSelection(null);
         }
       };
       requestRender();
     });
 
-  const reviewQuickstart = async (mode: RunMode): Promise<QuickstartAction> =>
+  const selectLaunchAction = async (): Promise<LaunchAction | null> => {
+    const candidates = refreshConfigCandidates();
+    const selectedMode = await selectRunMode();
+    if (!selectedMode) {
+      return null;
+    }
+    if (selectedMode === "quit") {
+      return { type: "quit" };
+    }
+
+    return await selectStartPath(selectedMode, candidates);
+  };
+
+  const reviewQuickstart = async (inputReview: {
+    mode: RunMode;
+    configPath: string;
+    sourceMode: RunMode | null;
+  }): Promise<QuickstartAction> =>
     new Promise((resolveSelection) => {
+      const sourceModeLabel = inputReview.sourceMode ?? "not specified";
+      const overrideLabel =
+        inputReview.sourceMode && inputReview.sourceMode !== inputReview.mode
+          ? "Launch mode overrides configuration mode for this run."
+          : undefined;
+      const bodyLines = [
+        `Config: ${inputReview.configPath}`,
+        `Source config mode: ${sourceModeLabel}`,
+        `Effective run mode: ${inputReview.mode}`,
+        ...(overrideLabel ? [overrideLabel] : [])
+      ];
+
       state.overlay = {
         kind: "select",
         title: "Review run setup",
-        body: [`Config: ${state.configPath}`, `Run mode: ${mode}`].join("\n"),
+        body: bodyLines.join("\n"),
         items: [
           {
             id: "start",
             label: "Start run",
-            description: `Run current configuration in ${mode} mode`
+            description: `Run current configuration in ${inputReview.mode} mode`
           },
           { id: "back", label: "Back" },
           { id: "quit", label: "Quit" }
@@ -634,15 +806,28 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         continue;
       }
 
-      switch (action) {
+      switch (action.type) {
         case "guided-setup":
-          intakeFlow.startNewFlow("mock");
+          intakeFlow.startNewFlow(action.mode);
           choosing = false;
           break;
-        case "quickstart-mock": {
-          const review = await reviewQuickstart("mock");
+
+        case "quickstart": {
+          state.configPath = action.configPath;
+          state.hasConfig = true;
+          const review = await reviewQuickstart({
+            mode: action.mode,
+            configPath: action.configPath,
+            sourceMode: action.sourceMode
+          });
           if (review === "start") {
-            await startRun("mock");
+            if (action.sourceMode && action.sourceMode !== action.mode) {
+              appendStatus(
+                state,
+                `Mode override applied for this run: config=${action.sourceMode}, launch=${action.mode}.`
+              );
+            }
+            await startRun(action.mode);
             choosing = false;
           } else if (review === "quit") {
             shutdown();
@@ -650,22 +835,10 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
           }
           break;
         }
-        case "quickstart-live": {
-          const review = await reviewQuickstart("live");
-          if (review === "start") {
-            await startRun("live");
-            choosing = false;
-          } else if (review === "quit") {
-            shutdown();
-            choosing = false;
-          }
-          break;
-        }
+
         case "quit":
           shutdown();
           choosing = false;
-          break;
-        default:
           break;
       }
     }

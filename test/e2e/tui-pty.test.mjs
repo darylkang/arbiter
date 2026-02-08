@@ -139,10 +139,16 @@ test("pty: guided launch supports /help and /quit", { concurrency: false }, asyn
 
   try {
     await session.waitForText("Welcome to Arbiter.", 20000);
-    await session.waitForText("Start a study", 20000);
-    await session.waitForText("Run current config (mock)", 20000);
-    await session.waitForText("Guided setup", 20000);
-    session.arrowDown(2);
+    await session.waitForText("Select run mode", 20000);
+    await session.waitForText("Live run", 20000);
+    await session.waitForText("Mock run", 20000);
+    session.arrowDown(1);
+    session.pressEnter();
+
+    await session.waitForText("Select start path", 20000);
+    await session.waitForText("Quick Start", 20000);
+    await session.waitForText("Setup Wizard", 20000);
+    session.arrowDown(1);
     session.pressEnter();
 
     await session.waitForText("What question are you investigating?", 20000);
@@ -164,11 +170,17 @@ test("pty: launch overlay remains legible at 80 columns", { concurrency: false }
 
   try {
     await session.waitForText("Welcome to Arbiter.", 20000);
-    await session.waitForText("Start a study", 20000);
-    await session.waitForText("Run current config (mock)", 20000);
-    await session.waitForText("Run current config (live)", 20000);
-    await session.waitForText("Guided setup", 20000);
-    session.arrowDown(3);
+    await session.waitForText("Select run mode", 20000);
+    await session.waitForText("Live run", 20000);
+    await session.waitForText("Mock run", 20000);
+    session.arrowDown(1);
+    session.pressEnter();
+
+    await session.waitForText("Select start path", 20000);
+    await session.waitForText("Quick Start", 20000);
+    await session.waitForText("Requires a valid configuration file", 20000);
+    await session.waitForText("Setup Wizard", 20000);
+    session.arrowDown(2);
     session.pressEnter();
     const exit = await session.waitForExit(20000);
     assert.equal(exit.exitCode, 0);
@@ -183,32 +195,39 @@ test("pty: guided intake flow completes from question to receipt", { concurrency
   const session = createPtySession({ cwd });
 
   try {
-    await session.waitForText("Start a study", 20000);
-    session.arrowDown(2);
+    await session.waitForText("Select run mode", 20000);
+    session.arrowDown(1);
+    session.pressEnter();
+
+    await session.waitForText("Select start path", 20000);
+    session.arrowDown(1);
     session.pressEnter();
 
     await session.waitForText("What question are you investigating?", 20000);
     session.writeLine("How do model ensembles affect novelty saturation in policy QA?");
 
-    await session.waitForText("Step 2/8 · Decode settings", 20000);
+    await session.waitForText("Step 2/9 · Decision labels", 20000);
     session.pressEnter();
 
-    await session.waitForText("Step 3/8 · Personas", 20000);
+    await session.waitForText("Step 3/9 · Decode settings", 20000);
     session.pressEnter();
 
-    await session.waitForText("Step 4/8 · Models", 20000);
+    await session.waitForText("Step 4/9 · Personas", 20000);
     session.pressEnter();
 
-    await session.waitForText("Step 5/8 · Protocol", 20000);
+    await session.waitForText("Step 5/9 · Models", 20000);
     session.pressEnter();
 
-    await session.waitForText("Step 6/8 · Execution depth", 20000);
+    await session.waitForText("Step 6/9 · Protocol", 20000);
     session.pressEnter();
 
-    await session.waitForText("Step 7/8 · Run mode", 20000);
+    await session.waitForText("Step 7/9 · Execution depth", 20000);
     session.pressEnter();
 
-    await session.waitForText("Step 8/8 · Review setup", 20000);
+    await session.waitForText("Step 8/9 · Run mode", 20000);
+    session.pressEnter();
+
+    await session.waitForText("Step 9/9 · Review setup", 20000);
     session.pressEnter();
 
     await session.waitForText("Configuration saved to", 20000);
@@ -237,7 +256,11 @@ test("pty: quickstart mock run completes and writes artifacts", { concurrency: f
   const session = createPtySession({ cwd });
 
   try {
-    await session.waitForText("Start a study", 20000);
+    await session.waitForText("Select run mode", 20000);
+    session.arrowDown(1);
+    session.pressEnter();
+
+    await session.waitForText("Select start path", 20000);
     session.pressEnter();
     await session.waitForText("Review run setup", 20000);
     session.pressEnter();
@@ -280,7 +303,11 @@ test("pty: ctrl+c requests graceful stop during run", { concurrency: false }, as
   });
 
   try {
-    await session.waitForText("Start a study", 20000);
+    await session.waitForText("Select run mode", 20000);
+    session.arrowDown(1);
+    session.pressEnter();
+
+    await session.waitForText("Select start path", 20000);
     session.pressEnter();
     await session.waitForText("Review run setup", 20000);
     session.pressEnter();

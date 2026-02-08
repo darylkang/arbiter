@@ -169,6 +169,10 @@ test("intake flow follows guided setup and starts mock run", async () => {
   assert.equal(inputValue, "");
 
   intake.handlePlainInput("How do we test this guided flow?");
+  assert.equal(state.newFlow?.stage, "labels");
+  assert.equal(state.overlay?.kind, "select");
+  state.overlay?.onSelect({ id: "free-form", label: "Free-form responses" });
+
   assert.equal(state.newFlow?.stage, "decode");
   assert.equal(state.overlay?.kind, "select");
   state.overlay?.onSelect({ id: "balanced", label: "balanced" });
@@ -230,6 +234,10 @@ test("intake flow back-navigation preserves question text", () => {
   assert.equal(inputValue, "How do we test this?");
 
   intake.handlePlainInput("How do we test this?");
+  assert.equal(state.newFlow?.stage, "labels");
+  assert.equal(state.overlay?.kind, "select");
+  state.overlay?.onSelect({ id: "free-form", label: "Free-form responses" });
+
   state.overlay?.onSelect({ id: "balanced", label: "Balanced" });
   assert.equal(state.newFlow?.stage, "personas");
   state.overlay?.onCancel();
@@ -256,10 +264,18 @@ test("intake flow enforces question validation", () => {
   });
 
   intake.startNewFlow();
-  intake.handlePlainInput("short");
+  intake.handlePlainInput("   ");
   assert.equal(state.newFlow?.stage, "question");
   assert.equal(state.overlay, null);
-  assert.ok(errors.some((error) => error.includes("at least 8 characters")));
+  assert.ok(errors.some((error) => error.includes("at least one non-space character")));
+
+  intake.handlePlainInput("A".repeat(501));
+  assert.equal(state.newFlow?.stage, "question");
+  assert.equal(state.overlay, null);
+  assert.ok(errors.some((error) => error.includes("max 500 characters")));
+
+  intake.handlePlainInput("short");
+  assert.equal(state.newFlow?.stage, "labels");
 });
 
 test("intake flow asks for confirmation when restarting an active setup", () => {

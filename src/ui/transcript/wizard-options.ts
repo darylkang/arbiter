@@ -277,6 +277,8 @@ export const createDefaultGuidedSetup = (
   return {
     stage: "question",
     question: "",
+    labelMode: "free-form",
+    labels: [],
     decodePreset: decode.id,
     temperature: decode.temperature,
     topP: decode.topP,

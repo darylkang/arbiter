@@ -48,6 +48,11 @@ export const buildGuidedConfig = (input: {
   const questionText = input.flow.question.trim();
   config.question.text = questionText;
   config.question.question_id = `guided_${slugifyQuestion(questionText)}`;
+  if (input.flow.labelMode === "custom" && input.flow.labels.length > 0) {
+    config.question.source = `guided_labels:${input.flow.labels.join("|")}`;
+  } else {
+    config.question.source = "guided_free_form";
+  }
 
   config.sampling.models = input.flow.modelSlugs.map((model) => ({
     model,
@@ -104,6 +109,11 @@ export const formatGuidedSummary = (input: {
   return [
     "Intake summary",
     `Question: ${input.flow.question}`,
+    `Labels: ${
+      input.flow.labelMode === "custom" && input.flow.labels.length > 0
+        ? input.flow.labels.join(", ")
+        : "free-form"
+    }`,
     `Decode: temp ${input.flow.temperature.toFixed(2)}, top_p ${input.flow.topP.toFixed(2)}, max_tokens ${input.flow.maxTokens}, seed ${input.flow.seed}`,
     `Personas: ${personaNames}`,
     `Models: ${modelNames}`,

@@ -8,6 +8,7 @@ export type DecodePresetId = "balanced" | "focused" | "exploratory";
 export type AdvancedPresetId = "quick" | "standard" | "thorough";
 export type ProtocolChoice = "independent" | "debate_v1";
 export type DebateVariant = "standard" | "adversarial";
+export type LabelMode = "free-form" | "custom";
 
 export type TranscriptEntryKind =
   | "system"
@@ -110,6 +111,7 @@ export type RunProgress = {
 
 export type GuidedSetupStage =
   | "question"
+  | "labels"
   | "decode"
   | "personas"
   | "models"
@@ -121,6 +123,8 @@ export type GuidedSetupStage =
 export type GuidedSetupState = {
   stage: GuidedSetupStage;
   question: string;
+  labelMode: LabelMode;
+  labels: string[];
   decodePreset: DecodePresetId;
   temperature: number;
   topP: number;
@@ -147,7 +151,9 @@ export type AppState = {
   warnings: WarningRecord[];
   warningKeys: Set<string>;
   newFlow: GuidedSetupState | null;
+  defaultConfigPath: string;
   configPath: string;
+  configCount: number;
   runDir: string;
   lastRunDir: string;
   runMode: RunMode | null;
@@ -180,8 +186,10 @@ const defaultRunProgress = (): RunProgress => ({
 export const createInitialState = (input: {
   version: string;
   configPath: string;
+  defaultConfigPath?: string;
   hasApiKey: boolean;
   hasConfig: boolean;
+  configCount?: number;
   runsCount: number;
 }): AppState => ({
   version: input.version,
@@ -193,7 +201,9 @@ export const createInitialState = (input: {
   warnings: [],
   warningKeys: new Set<string>(),
   newFlow: null,
+  defaultConfigPath: input.defaultConfigPath ?? input.configPath,
   configPath: input.configPath,
+  configCount: input.configCount ?? (input.hasConfig ? 1 : 0),
   runDir: "",
   lastRunDir: "",
   runMode: null,
