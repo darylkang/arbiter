@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { ProcessTerminal, TUI } from "@mariozechner/pi-tui";
@@ -69,21 +69,29 @@ const listRunDirs = (): string[] => {
   }
 };
 
+const isDirectoryPath = (path: string): boolean => {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+};
+
 const resolveRunDirArg = (state: AppState, runDirArg?: string): string | null => {
   if (runDirArg && runDirArg.trim().length > 0) {
     const candidate = runDirArg.trim();
     const absolute = resolve(process.cwd(), candidate);
-    if (existsSync(absolute)) {
+    if (isDirectoryPath(absolute)) {
       return absolute;
     }
     const underRuns = resolve(process.cwd(), "runs", candidate);
-    if (existsSync(underRuns)) {
+    if (isDirectoryPath(underRuns)) {
       return underRuns;
     }
     return null;
   }
 
-  if (state.lastRunDir && existsSync(state.lastRunDir)) {
+  if (state.lastRunDir && isDirectoryPath(state.lastRunDir)) {
     return state.lastRunDir;
   }
 

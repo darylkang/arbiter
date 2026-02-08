@@ -249,20 +249,20 @@ const main = async (): Promise<void> => {
   );
   const assetRoot = getAssetRoot();
 
-  if (shouldLaunchTUI) {
-    await launchTranscriptTUI({ assetRoot });
-    return;
-  }
-
-  if (noCommand || filteredArgs.includes("--help") || filteredArgs.includes("-h")) {
-    printUsage();
-    process.exit(0);
-  }
-
-  const command = filteredArgs[0];
-  const parsed = parseArgs(filteredArgs.slice(1));
-
   try {
+    if (shouldLaunchTUI) {
+      await launchTranscriptTUI({ assetRoot });
+      return;
+    }
+
+    if (noCommand || filteredArgs.includes("--help") || filteredArgs.includes("-h")) {
+      printUsage();
+      process.exit(0);
+    }
+
+    const command = filteredArgs[0];
+    const parsed = parseArgs(filteredArgs.slice(1));
+
     if (command === "init") {
       runInit(parsed, assetRoot);
       return;

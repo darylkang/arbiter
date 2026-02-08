@@ -3,11 +3,10 @@ import type { WarningRecord } from "../../utils/warnings.js";
 import type { AppState, RunMode, TranscriptEntryKind } from "./state.js";
 import { resetRunProgress } from "./state.js";
 
-let entryCounter = 0;
-
-const nextEntryId = (): string => {
-  entryCounter += 1;
-  return `entry-${entryCounter}`;
+const nextEntryId = (state: AppState): string => {
+  const current = state.nextTranscriptEntryId;
+  state.nextTranscriptEntryId += 1;
+  return `entry-${current}`;
 };
 
 export const appendTranscript = (
@@ -17,7 +16,7 @@ export const appendTranscript = (
   timestamp = new Date().toISOString()
 ): void => {
   state.transcript.push({
-    id: nextEntryId(),
+    id: nextEntryId(state),
     kind,
     content,
     timestamp

@@ -103,6 +103,7 @@ export type NewFlowState = {
 export type AppState = {
   phase: TranscriptPhase;
   transcript: TranscriptEntry[];
+  nextTranscriptEntryId: number;
   overlay: OverlayState | null;
   runProgress: RunProgress;
   warnings: WarningRecord[];
@@ -145,6 +146,7 @@ export const createInitialState = (input: {
 }): AppState => ({
   phase: "idle",
   transcript: [],
+  nextTranscriptEntryId: 1,
   overlay: null,
   runProgress: defaultRunProgress(),
   warnings: [],
