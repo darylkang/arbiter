@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
@@ -24,24 +24,25 @@ import { renderReceiptForRun } from "./components/receipt-view.js";
 import { formatError } from "./error-format.js";
 import { listRunDirs, resolveRunDirArg, toRunDirLabel } from "./run-dirs.js";
 import { createIntakeFlowController } from "./intake-flow.js";
-import type { ProfileDefinition } from "./profiles.js";
 import { withSpinner } from "./spinner.js";
+import { loadWizardOptions } from "./wizard-options.js";
+import { writeGuidedConfig } from "./wizard-config.js";
 
 const DEFAULT_CONFIG_PATH = "arbiter.config.json";
 
-const writeTemplateConfigFile = (
-  assetRoot: string,
-  templateName: string,
-  question: string,
-  targetPath: string
-): void => {
-  const templatePath = resolve(assetRoot, "resources/templates", `${templateName}.config.json`);
-  const raw = readFileSync(templatePath, "utf8");
-  const template = JSON.parse(raw) as Record<string, unknown>;
-  const questionBlock = (template.question ?? {}) as Record<string, unknown>;
-  questionBlock.text = question;
-  template.question = questionBlock;
-  writeFileSync(targetPath, `${JSON.stringify(template, null, 2)}\n`, "utf8");
+type LaunchAction = "quickstart-mock" | "quickstart-live" | "guided-setup" | "quit";
+type QuickstartAction = "start" | "back" | "quit";
+type PostRunAction = "report" | "verify" | "new-study" | "quit";
+
+const readPackageVersion = (assetRoot: string): string => {
+  try {
+    const pkg = JSON.parse(readFileSync(resolve(assetRoot, "package.json"), "utf8")) as {
+      version?: string;
+    };
+    return pkg.version?.trim() || "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
 };
 
 const appendSystem = (state: AppState, message: string): void => {
@@ -54,6 +55,10 @@ const appendStatus = (state: AppState, message: string): void => {
 
 const appendError = (state: AppState, message: string): void => {
   appendTranscript(state, "error", message);
+};
+
+const appendSummary = (state: AppState, message: string): void => {
+  appendTranscript(state, "status", `Stage 1 · Intake\n${message}`);
 };
 
 const renderWarningsBlock = (state: AppState): void => {
@@ -73,22 +78,32 @@ const renderWarningsBlock = (state: AppState): void => {
   });
 };
 
-type LaunchAction = "run-current" | "new-study" | "quit";
-type PostRunAction = "report" | "verify" | "new-study" | "quit";
+const isLaunchAction = (value: string): value is LaunchAction => {
+  return (
+    value === "quickstart-mock" ||
+    value === "quickstart-live" ||
+    value === "guided-setup" ||
+    value === "quit"
+  );
+};
 
-const isLaunchAction = (value: string): value is LaunchAction =>
-  value === "run-current" || value === "new-study" || value === "quit";
+const isQuickstartAction = (value: string): value is QuickstartAction => {
+  return value === "start" || value === "back" || value === "quit";
+};
 
-const isPostRunAction = (value: string): value is PostRunAction =>
-  value === "report" || value === "verify" || value === "new-study" || value === "quit";
+const isPostRunAction = (value: string): value is PostRunAction => {
+  return value === "report" || value === "verify" || value === "new-study" || value === "quit";
+};
 
 export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Promise<void> => {
   const assetRoot = options?.assetRoot ?? getAssetRoot();
   const startupWarnings: string[] = [];
+  const wizardOptions = loadWizardOptions(assetRoot);
   const initialRunDirs = listRunDirs({
     onError: (message) => startupWarnings.push(message)
   });
   const state = createInitialState({
+    version: readPackageVersion(assetRoot),
     configPath: resolve(process.cwd(), DEFAULT_CONFIG_PATH),
     hasApiKey: Boolean(process.env.OPENROUTER_API_KEY),
     hasConfig: existsSync(resolve(process.cwd(), DEFAULT_CONFIG_PATH)),
@@ -180,8 +195,8 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
   const resolveOverlayOptions = (): OverlayOptions => {
     const termWidth = Math.max(24, tui.terminal.columns);
     const termHeight = Math.max(12, tui.terminal.rows);
-    const width = Math.max(24, Math.min(84, termWidth - 2, Math.floor(termWidth * 0.74)));
-    const maxHeight = Math.max(8, Math.min(26, termHeight - 4, Math.floor(termHeight * 0.65)));
+    const width = Math.max(28, Math.min(92, termWidth - 2, Math.floor(termWidth * 0.74)));
+    const maxHeight = Math.max(10, Math.min(28, termHeight - 4, Math.floor(termHeight * 0.7)));
     return {
       width,
       maxHeight,
@@ -275,25 +290,41 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     new Promise((resolveSelection) => {
       state.overlay = {
         kind: "select",
-        title: "Choose how to continue",
+        title: "Start a study",
+        body: "Choose how to begin this session.",
         items: [
           {
-            id: "run-current",
-            label: "Run with current configuration",
-            description: "Start a mock run with the existing config"
+            id: "quickstart-mock",
+            label: "Run current configuration (mock)",
+            description: state.hasConfig
+              ? "Use existing config without external API calls"
+              : "Requires a local arbiter.config.json",
+            disabled: !state.hasConfig
           },
           {
-            id: "new-study",
-            label: "Set up a new study",
-            description: "Create a new configuration through guided setup"
+            id: "quickstart-live",
+            label: "Run current configuration (live)",
+            description: !state.hasConfig
+              ? "Requires a local arbiter.config.json"
+              : state.hasApiKey
+                ? "Uses OPENROUTER_API_KEY and real model calls"
+                : "Requires OPENROUTER_API_KEY",
+            disabled: !state.hasConfig || !state.hasApiKey
           },
           {
-            id: "quit",
-            label: "Quit"
-          }
+            id: "guided-setup",
+            label: "Guided setup",
+            description: "Create a new configuration step by step"
+          },
+          { id: "quit", label: "Quit" }
         ],
         selectedIndex: 0,
         onSelect: (item) => {
+          if (item.disabled) {
+            appendStatus(state, "That option is currently unavailable.");
+            requestRender();
+            return;
+          }
           if (!isLaunchAction(item.id)) {
             appendError(state, `Invalid launch action: ${item.id}.`);
             requestRender();
@@ -306,6 +337,41 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         onCancel: () => {
           appendStatus(state, "Choose an option to continue.");
           requestRender();
+        }
+      };
+      requestRender();
+    });
+
+  const reviewQuickstart = async (mode: RunMode): Promise<QuickstartAction> =>
+    new Promise((resolveSelection) => {
+      state.overlay = {
+        kind: "select",
+        title: "Review run setup",
+        body: [`Config: ${state.configPath}`, `Run mode: ${mode}`].join("\n"),
+        items: [
+          {
+            id: "start",
+            label: "Start run",
+            description: `Run current configuration in ${mode} mode`
+          },
+          { id: "back", label: "Back" },
+          { id: "quit", label: "Quit" }
+        ],
+        selectedIndex: 0,
+        onSelect: (item) => {
+          if (!isQuickstartAction(item.id)) {
+            appendError(state, `Invalid action: ${item.id}.`);
+            requestRender();
+            return;
+          }
+          state.overlay = null;
+          requestRender();
+          resolveSelection(item.id);
+        },
+        onCancel: () => {
+          state.overlay = null;
+          requestRender();
+          resolveSelection("back");
         }
       };
       requestRender();
@@ -344,7 +410,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     return new Promise((resolveSelection) => {
       state.overlay = {
         kind: "select",
-        title: "Choose next action",
+        title: "Choose the next action",
         items,
         selectedIndex: 0,
         onSelect: (item) => {
@@ -358,7 +424,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
           resolveSelection(item.id);
         },
         onCancel: () => {
-          appendStatus(state, "Choose the next action to continue.");
+          appendStatus(state, "Choose an option to continue.");
           requestRender();
         }
       };
@@ -440,8 +506,8 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       return;
     }
 
-    let done = false;
-    while (!done && state.phase === "post-run") {
+    let doneActions = false;
+    while (!doneActions && state.phase === "post-run") {
       const action = await selectPostRunAction();
       if (!action) {
         continue;
@@ -455,12 +521,12 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
           await showVerify(state.runDir || undefined);
           break;
         case "new-study":
-          intakeFlow.startNewFlow();
-          done = true;
+          intakeFlow.startNewFlow("mock");
+          doneActions = true;
           break;
         case "quit":
           shutdown();
-          done = true;
+          doneActions = true;
           break;
         default:
           break;
@@ -477,13 +543,19 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
 
   const intakeFlow = createIntakeFlowController({
     state,
+    wizardOptions,
     requestRender,
     appendSystem: (message) => appendSystem(state, message),
     appendStatus: (message) => appendStatus(state, message),
     appendError: (message) => appendError(state, message),
     appendWarning: (message) => appendTranscript(state, "warning", message),
-    writeTemplateConfig: (profile: ProfileDefinition, question: string) => {
-      writeTemplateConfigFile(assetRoot, profile.template, question, state.configPath);
+    appendSummary: (message) => appendSummary(state, message),
+    writeGuidedConfig: (flow) => {
+      writeGuidedConfig({
+        outputPath: state.configPath,
+        assetRoot,
+        flow
+      });
     },
     startRun,
     setInputText: (value) => {
@@ -508,7 +580,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     requestRender,
     exit: shutdown,
     startRun,
-    startNewFlow: intakeFlow.startNewFlow,
+    startNewFlow: () => intakeFlow.startNewFlow("mock"),
     showWarnings,
     showReport,
     showVerify,
@@ -545,30 +617,50 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
   layout.focusInput();
   tui.start();
 
-  if (state.hasConfig) {
-    void (async () => {
+  void (async () => {
+    let choosing = true;
+    while (choosing) {
       const action = await selectLaunchAction();
       if (!action) {
-        return;
+        continue;
       }
 
       switch (action) {
-        case "run-current":
-          await startRun("mock");
+        case "guided-setup":
+          intakeFlow.startNewFlow("mock");
+          choosing = false;
           break;
-        case "new-study":
-          intakeFlow.startNewFlow();
+        case "quickstart-mock": {
+          const review = await reviewQuickstart("mock");
+          if (review === "start") {
+            await startRun("mock");
+            choosing = false;
+          } else if (review === "quit") {
+            shutdown();
+            choosing = false;
+          }
           break;
+        }
+        case "quickstart-live": {
+          const review = await reviewQuickstart("live");
+          if (review === "start") {
+            await startRun("live");
+            choosing = false;
+          } else if (review === "quit") {
+            shutdown();
+            choosing = false;
+          }
+          break;
+        }
         case "quit":
           shutdown();
+          choosing = false;
           break;
         default:
           break;
       }
-    })();
-  } else {
-    intakeFlow.startNewFlow();
-  }
+    }
+  })();
 
   await done;
 };

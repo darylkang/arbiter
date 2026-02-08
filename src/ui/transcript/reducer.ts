@@ -85,6 +85,16 @@ const formatStopReason = (stopReason: string): string => {
   }
 };
 
+const formatBatchStatusSummary = (counts: Record<string, number>): string | null => {
+  const entries = Object.entries(counts).filter(([, count]) => count > 0);
+  if (entries.length === 0) {
+    return null;
+  }
+  return entries
+    .map(([status, count]) => `${count} ${status}`)
+    .join(" • ");
+};
+
 const assertNeverEvent = (event: never): never => {
   throw new Error(`Unhandled event type: ${JSON.stringify(event)}`);
 };
@@ -94,10 +104,14 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
     case "run.started": {
       state.runProgress.active = true;
       state.runProgress.planned = event.payload.k_planned ?? state.runProgress.planned;
+      const workers = event.payload.resolved_config?.execution?.workers;
+      if (typeof workers === "number" && workers > 0) {
+        state.runProgress.workerCount = workers;
+      }
       appendTranscript(
         state,
         "status",
-        `Run started: ${event.payload.run_id} | protocol ${event.payload.resolved_config.protocol.type} | planned ${event.payload.k_planned ?? "-"}`,
+        `Run started: ${event.payload.run_id}. Planned trials: ${event.payload.k_planned ?? "-"}.`,
         event.payload.started_at
       );
       break;
@@ -128,7 +142,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
         appendWarningOnce(
           state,
           "model-mismatch",
-          "requested and actual models differ for some trials; see trials.jsonl actual_model",
+          "Requested and actual models differ for some trials. See trials.jsonl actual_model.",
           "provenance"
         );
       }
@@ -141,7 +155,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
         appendWarningOnce(
           state,
           "retries",
-          "some calls required retries; inspect trials.jsonl retry counts",
+          "Some calls required retries. Inspect trials.jsonl retry counts.",
           "runtime"
         );
       }
@@ -150,7 +164,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
         appendWarningOnce(
           state,
           "model-unavailable",
-          "some trials failed with model_unavailable",
+          "Some trials failed with model_unavailable.",
           "runtime"
         );
       }
@@ -159,18 +173,14 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
         appendWarningOnce(
           state,
           "rate-limit",
-          "rate-limit errors occurred; some trials may have failed",
+          "Rate-limit errors occurred. Some trials may have failed.",
           "runtime"
         );
       }
 
       if (record.status !== "success") {
-        appendTranscript(
-          state,
-          "status",
-          `Trial ${record.trial_id} status: ${record.status}`,
-          record.attempt?.completed_at ?? new Date().toISOString()
-        );
+        state.runProgress.batchStatusCounts[record.status] =
+          (state.runProgress.batchStatusCounts[record.status] ?? 0) + 1;
       }
       break;
     }
@@ -200,16 +210,25 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
         total: event.payload.trial_ids.length,
         completed: 0
       };
+      state.runProgress.batchStatusCounts = {};
       break;
     }
 
     case "batch.completed": {
+      const elapsed = event.payload.elapsed_ms;
+      const trialCount = event.payload.trial_ids.length;
+      const batchNumber = event.payload.batch_number;
       state.runProgress.currentBatch = undefined;
       appendTranscript(
         state,
         "progress",
-        `Batch ${event.payload.batch_number} complete in ${event.payload.elapsed_ms}ms (${event.payload.trial_ids.length} trials).`
+        `Batch ${batchNumber} complete in ${elapsed}ms (${trialCount} trials).`
       );
+
+      const summary = formatBatchStatusSummary(state.runProgress.batchStatusCounts);
+      if (summary) {
+        appendTranscript(state, "status", `Batch ${batchNumber} statuses: ${summary}.`);
+      }
       break;
     }
 
@@ -224,7 +243,10 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
           clusterCount: record.cluster_count
         }
       ];
-      state.runProgress.noveltyTrend = [...state.runProgress.noveltyTrend.slice(-12), record.novelty_rate ?? null];
+      state.runProgress.noveltyTrend = [
+        ...state.runProgress.noveltyTrend.slice(-12),
+        record.novelty_rate ?? null
+      ];
       state.runProgress.stopStatus = {
         mode: record.stop.mode,
         wouldStop: record.stop.would_stop,
@@ -246,7 +268,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
         appendWarningOnce(
           state,
           "parse-fallback",
-          `${state.runProgress.parseFallback} trial(s) used fallback parsing; review parsed.jsonl`,
+          `${state.runProgress.parseFallback} trial(s) used fallback parsing. Review parsed.jsonl.`,
           "parsing"
         );
       }
@@ -254,7 +276,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
         appendWarningOnce(
           state,
           "parse-failed",
-          `${state.runProgress.parseFailed} trial(s) had failed parsing`,
+          `${state.runProgress.parseFailed} trial(s) had failed parsing.`,
           "parsing"
         );
       }

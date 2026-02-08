@@ -2,8 +2,7 @@ import type { RunProgress } from "../state.js";
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
-const renderProgressBar = (value: number, max: number): string => {
-  const width = 24;
+const renderBar = (value: number, max: number, width: number): string => {
   const safeMax = max <= 0 ? 1 : max;
   const ratio = clamp(value / safeMax, 0, 1);
   const filled = Math.round(width * ratio);
@@ -11,27 +10,59 @@ const renderProgressBar = (value: number, max: number): string => {
   return `[${"■".repeat(filled)}${"·".repeat(empty)}] ${value}/${safeMax}`;
 };
 
-const formatMaybe = (value: number | null | undefined, digits = 3): string => {
-  if (value === undefined || value === null) {
-    return "null";
+const renderWorkerRows = (progress: RunProgress): string[] => {
+  const workerCount = Math.max(0, progress.workerCount);
+  if (workerCount === 0) {
+    return [];
   }
-  return value.toFixed(digits);
+
+  const visibleWorkers = Math.min(workerCount, 12);
+  const remainingInBatch = progress.currentBatch
+    ? Math.max(0, progress.currentBatch.total - progress.currentBatch.completed)
+    : 0;
+  const busyWorkers = Math.min(workerCount, remainingInBatch);
+
+  const rows = Array.from({ length: visibleWorkers }, (_, index) => {
+    const workerId = String(index + 1).padStart(2, "0");
+    const busy = index < busyWorkers;
+    return `w${workerId} ${busy ? "[■■■···] busy" : "[······] idle"}`;
+  });
+
+  const hidden = workerCount - visibleWorkers;
+  if (hidden > 0) {
+    rows.push(`+${hidden} additional workers`);
+  }
+
+  return rows;
 };
 
 export const renderProgressSummary = (progress: RunProgress): string => {
+  const master = renderBar(progress.attempted, progress.planned, 24);
   const currentBatch = progress.currentBatch
     ? `batch ${progress.currentBatch.batchNumber}: ${progress.currentBatch.completed}/${progress.currentBatch.total}`
     : "batch idle";
   const latest = progress.recentBatches[progress.recentBatches.length - 1];
-  const convergence = latest
-    ? `novelty ${formatMaybe(latest.noveltyRate)} | mean_sim ${formatMaybe(latest.meanMaxSim)} | clusters ${latest.clusterCount ?? "-"}`
-    : "novelty -";
-  const usageCost = progress.usage.cost !== undefined ? ` | cost ${progress.usage.cost.toFixed(6)}` : "";
 
-  return [
-    `progress ${renderProgressBar(progress.attempted, progress.planned)}`,
-    `eligible ${progress.eligible} | ${currentBatch}`,
-    `tokens in ${progress.usage.prompt} out ${progress.usage.completion} total ${progress.usage.total}${usageCost}`,
-    convergence
-  ].join("\n");
+  const statusParts: string[] = [];
+  if (progress.stopStatus) {
+    statusParts.push(
+      `stop ${progress.stopStatus.mode}: ${progress.stopStatus.shouldStop ? "stop" : "continue"}`
+    );
+  }
+  if (latest?.clusterCount !== undefined) {
+    statusParts.push(`clusters ${latest.clusterCount}`);
+  }
+
+  const lines = [
+    `progress ${master}`,
+    `eligible ${progress.eligible} | ${currentBatch}`
+  ];
+
+  if (statusParts.length > 0) {
+    lines.push(statusParts.join(" | "));
+  }
+
+  lines.push(...renderWorkerRows(progress));
+
+  return lines.join("\n");
 };

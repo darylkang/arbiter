@@ -3,7 +3,10 @@ import { getBannerLines, makeDivider, palette, styleStatusLine } from "../theme.
 
 const phaseLabel = (state: AppState): string => {
   if (state.phase === "intake") {
-    return "setting up";
+    if (!state.newFlow) {
+      return "setting up";
+    }
+    return `setting up (${state.newFlow.stage})`;
   }
   if (state.phase === "running") {
     return "running";
@@ -16,24 +19,26 @@ const phaseLabel = (state: AppState): string => {
 
 export const renderHeader = (state: AppState, width: number): string => {
   const title = palette.headline("ARBITER");
+  const subtitle = palette.steel("Research-grade experiment harness for response distributions.");
+  const version = palette.steel(`v${state.version}`);
+
   const api = styleStatusLine(
     "api",
     state.hasApiKey,
-    state.hasApiKey ? "OPENROUTER key loaded" : "missing OPENROUTER_API_KEY"
+    state.hasApiKey ? "OPENROUTER key detected" : "OPENROUTER key missing"
   );
   const cfg = styleStatusLine(
     "config",
     state.hasConfig,
-    state.hasConfig ? "arbiter.config.json detected" : "no local config"
+    state.hasConfig ? "configuration detected" : "configuration not found"
   );
-  const runs = styleStatusLine("runs", state.runsCount > 0, `${state.runsCount} available`);
   const phase = styleStatusLine("phase", true, phaseLabel(state));
 
   return [
     ...getBannerLines(width).map((line) => palette.amber(line)),
     title,
-    `${api}    ${cfg}`,
-    `${runs}    ${phase}`,
+    `${subtitle}  ${version}`,
+    `${api}    ${cfg}    ${phase}`,
     makeDivider(width)
   ].join("\n");
 };

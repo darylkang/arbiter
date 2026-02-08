@@ -1,32 +1,50 @@
-import {
-  createProfileItems,
-  findProfileById,
-  isProfileId,
-  type ProfileDefinition
-} from "./profiles.js";
-import type { ProfileId } from "./profiles.js";
-import type { AppState, RunMode, RunModeSelection } from "./state.js";
+import type { AppState, GuidedSetupState, RunMode, RunModeSelection } from "./state.js";
 import { formatError } from "./error-format.js";
+import {
+  DEFAULT_WIZARD_OPTIONS,
+  createDefaultGuidedSetup,
+  getAdvancedPreset,
+  getDecodePreset,
+  type AdvancedPreset,
+  type DecodePreset,
+  type WizardOptions
+} from "./wizard-options.js";
+
+type ProtocolSelection = "independent" | "debate-standard" | "debate-adversarial";
 
 type ReviewAction =
-  | "start-run"
+  | "start"
   | "edit-question"
-  | "change-profile"
+  | "change-personas"
+  | "change-models"
+  | "change-protocol"
+  | "change-advanced"
   | "change-mode"
   | "cancel-setup";
 
 const MIN_QUESTION_LENGTH = 8;
 const MAX_QUESTION_LENGTH = 500;
 
-const isRunModeSelection = (value: string): value is RunModeSelection =>
-  value === "mock" || value === "live" || value === "save-only";
+const isRunModeSelection = (value: string): value is RunModeSelection => {
+  return value === "mock" || value === "live" || value === "save-only";
+};
 
-const isReviewAction = (value: string): value is ReviewAction =>
-  value === "start-run" ||
-  value === "edit-question" ||
-  value === "change-profile" ||
-  value === "change-mode" ||
-  value === "cancel-setup";
+const isProtocolSelection = (value: string): value is ProtocolSelection => {
+  return value === "independent" || value === "debate-standard" || value === "debate-adversarial";
+};
+
+const isReviewAction = (value: string): value is ReviewAction => {
+  return (
+    value === "start" ||
+    value === "edit-question" ||
+    value === "change-personas" ||
+    value === "change-models" ||
+    value === "change-protocol" ||
+    value === "change-advanced" ||
+    value === "change-mode" ||
+    value === "cancel-setup"
+  );
+};
 
 const validateQuestion = (question: string): string | null => {
   if (question.length === 0) {
@@ -41,23 +59,89 @@ const validateQuestion = (question: string): string | null => {
   return null;
 };
 
+const buildChecklistSelection = (items: string[], selected: string[]): Array<{ id: string; selected: boolean }> => {
+  const selectedSet = new Set(selected);
+  return items.map((id) => ({
+    id,
+    selected: selectedSet.has(id)
+  }));
+};
+
+const formatReviewBody = (input: {
+  flow: GuidedSetupState;
+  options: WizardOptions;
+}): string => {
+  const personaLabels = new Map(input.options.personas.map((persona) => [persona.id, persona.label]));
+  const modelLabels = new Map(input.options.models.map((model) => [model.slug, model.label]));
+
+  const personas = input.flow.personaIds
+    .map((id) => personaLabels.get(id) ?? id)
+    .join(", ");
+
+  const models = input.flow.modelSlugs
+    .map((slug) => modelLabels.get(slug) ?? slug)
+    .join(", ");
+
+  const protocol =
+    input.flow.protocol === "debate_v1"
+      ? `debate (${input.flow.debateVariant})`
+      : "independent";
+
+  return [
+    `Question: ${input.flow.question}`,
+    `Decode: temp ${input.flow.temperature.toFixed(2)}, top_p ${input.flow.topP.toFixed(2)}, max_tokens ${input.flow.maxTokens}, seed ${input.flow.seed}`,
+    `Personas: ${personas}`,
+    `Models: ${models}`,
+    `Protocol: ${protocol}`,
+    `Execution: k_max ${input.flow.kMax}, workers ${input.flow.workers}, batch_size ${input.flow.batchSize}`,
+    `Run mode: ${input.flow.runMode}`
+  ].join("\n");
+};
+
+const flowStageLabel = (flow: GuidedSetupState): string => {
+  switch (flow.stage) {
+    case "question":
+      return "Step 1 of 8";
+    case "decode":
+      return "Step 2 of 8";
+    case "personas":
+      return "Step 3 of 8";
+    case "models":
+      return "Step 4 of 8";
+    case "protocol":
+      return "Step 5 of 8";
+    case "advanced":
+      return "Step 6 of 8";
+    case "mode":
+      return "Step 7 of 8";
+    case "review":
+      return "Step 8 of 8";
+    default:
+      return "Step";
+  }
+};
+
 export type IntakeFlowController = {
-  startNewFlow: () => void;
+  startNewFlow: (runMode?: RunModeSelection) => void;
   handlePlainInput: (value: string) => void;
   handleEscape: () => boolean;
 };
 
 export const createIntakeFlowController = (input: {
   state: AppState;
+  wizardOptions?: WizardOptions;
   requestRender: () => void;
   appendSystem: (message: string) => void;
   appendStatus: (message: string) => void;
   appendError: (message: string) => void;
   appendWarning: (message: string) => void;
-  writeTemplateConfig: (profile: ProfileDefinition, question: string) => void;
+  appendSummary: (message: string) => void;
+  writeGuidedConfig: (flow: GuidedSetupState) => void;
   startRun: (mode: RunMode) => Promise<void>;
   setInputText: (value: string) => void;
 }): IntakeFlowController => {
+  const wizardOptions = input.wizardOptions ?? DEFAULT_WIZARD_OPTIONS;
+
   const cancelFlow = (message = "Setup cancelled."): void => {
     input.state.overlay = null;
     input.state.newFlow = null;
@@ -67,119 +151,86 @@ export const createIntakeFlowController = (input: {
     input.requestRender();
   };
 
-  const startQuestionStep = (message?: string): void => {
+  const syncQuestionEditor = (): void => {
     const flow = input.state.newFlow;
     if (!flow) {
       return;
     }
-
     flow.stage = "question";
     input.state.phase = "intake";
     input.state.overlay = null;
-
-    if (message) {
-      input.appendStatus(message);
-    }
-
     input.setInputText(flow.question);
     input.requestRender();
   };
 
-  const buildReviewBody = (question: string, profileLabel: string, mode: RunModeSelection): string => {
-    return [
-      `Question: ${question}`,
-      `Profile: ${profileLabel}`,
-      `Run mode: ${mode}`
-    ].join("\n");
-  };
-
-  const finalizeIntake = (profileId: ProfileId, runMode: RunModeSelection): void => {
-    const flow = input.state.newFlow;
-    const question = flow?.question?.trim() ?? "";
-
-    const questionError = validateQuestion(question);
-    if (questionError) {
-      input.appendError(questionError);
-      startQuestionStep("Please update your question and continue.");
-      return;
-    }
-
-    const profile = findProfileById(profileId);
-    if (!profile) {
-      input.appendError(`Unknown profile id: ${profileId}`);
-      cancelFlow();
-      return;
-    }
-
-    try {
-      input.writeTemplateConfig(profile, question);
-      input.state.hasConfig = true;
-      input.state.question = question;
-      input.state.profileId = profile.id;
-      input.state.newFlow = null;
-      input.state.overlay = null;
-      input.state.phase = "idle";
-
-      input.setInputText("");
-      input.appendStatus(`Configuration saved to ${input.state.configPath}.`);
-      input.appendStatus(`Selected profile: ${profile.label}.`);
-      if (profile.warning) {
-        input.appendWarning(profile.warning);
-      }
-
-      input.requestRender();
-
-      if (runMode === "save-only") {
-        input.appendStatus("Setup complete. Choose the next action when you are ready.");
-        input.requestRender();
-        return;
-      }
-
-      if (runMode === "live" && !input.state.hasApiKey) {
-        input.appendError("OpenRouter API key not found. Live runs require OPENROUTER_API_KEY.");
-        input.requestRender();
-        return;
-      }
-
-      void input.startRun(runMode);
-    } catch (error) {
-      input.appendError(`Failed to write configuration: ${formatError(error)}`);
-      cancelFlow();
-    }
-  };
-
-  const openProfileOverlay = (): void => {
+  const openReviewOverlay = (): void => {
     const flow = input.state.newFlow;
     if (!flow) {
       return;
     }
 
-    flow.stage = "profile";
-
-    const items = createProfileItems();
-    const selectedIndex = Math.max(
-      0,
-      items.findIndex((item) => item.id === flow.profileId)
-    );
-
+    flow.stage = "review";
     input.state.overlay = {
       kind: "select",
-      title: "Select a profile",
-      items,
-      selectedIndex,
+      title: `${flowStageLabel(flow)} · Review study setup`,
+      body: formatReviewBody({ flow, options: wizardOptions }),
+      items: [
+        {
+          id: "start",
+          label: "Start",
+          description:
+            flow.runMode === "save-only"
+              ? "Write configuration and return"
+              : `Write configuration and start ${flow.runMode} run`
+        },
+        { id: "edit-question", label: "Edit question" },
+        { id: "change-personas", label: "Change personas" },
+        { id: "change-models", label: "Change models" },
+        { id: "change-protocol", label: "Change protocol" },
+        { id: "change-advanced", label: "Change advanced settings" },
+        { id: "change-mode", label: "Change run mode" },
+        { id: "cancel-setup", label: "Cancel setup" }
+      ],
+      selectedIndex: 0,
       onSelect: (item) => {
-        if (!isProfileId(item.id)) {
-          input.appendError(`Invalid profile selection: ${item.id}`);
+        if (!isReviewAction(item.id)) {
+          input.appendError(`Invalid review action: ${item.id}.`);
           input.requestRender();
           return;
         }
 
-        flow.profileId = item.id;
-        input.state.profileId = item.id;
-        openModeOverlay();
+        switch (item.id) {
+          case "start":
+            void finalizeFlow();
+            return;
+          case "edit-question":
+            syncQuestionEditor();
+            input.appendStatus("Edit your question, then press Enter to continue.");
+            return;
+          case "change-personas":
+            openPersonaOverlay();
+            return;
+          case "change-models":
+            openModelOverlay();
+            return;
+          case "change-protocol":
+            openProtocolOverlay();
+            return;
+          case "change-advanced":
+            openAdvancedOverlay();
+            return;
+          case "change-mode":
+            openModeOverlay();
+            return;
+          case "cancel-setup":
+            cancelFlow();
+            return;
+          default:
+            return;
+        }
       },
       onCancel: () => {
-        startQuestionStep("Edit your question, then press Enter to continue.");
+        openModeOverlay();
       }
     };
 
@@ -188,9 +239,7 @@ export const createIntakeFlowController = (input: {
 
   const openModeOverlay = (): void => {
     const flow = input.state.newFlow;
-    if (!flow?.profileId) {
-      input.appendError("Missing profile selection in setup flow.");
-      cancelFlow();
+    if (!flow) {
       return;
     }
 
@@ -215,17 +264,17 @@ export const createIntakeFlowController = (input: {
         label: "Save only",
         description: "Write configuration and return"
       }
-    ] as const;
+    ];
 
     const selectedIndex = Math.max(
       0,
-      items.findIndex((item) => item.id === flow.mode)
+      items.findIndex((item) => item.id === flow.runMode)
     );
 
     input.state.overlay = {
       kind: "select",
-      title: "Select a run mode",
-      items: [...items],
+      title: `${flowStageLabel(flow)} · Select run mode`,
+      items,
       selectedIndex,
       onSelect: (item) => {
         if (item.disabled) {
@@ -235,92 +284,313 @@ export const createIntakeFlowController = (input: {
         }
 
         if (!isRunModeSelection(item.id)) {
-          input.appendError(`Invalid run mode selection: ${item.id}`);
+          input.appendError(`Invalid run mode selection: ${item.id}.`);
           input.requestRender();
           return;
         }
 
-        flow.mode = item.id;
+        flow.runMode = item.id;
         openReviewOverlay();
       },
       onCancel: () => {
-        openProfileOverlay();
+        openAdvancedOverlay();
       }
     };
 
     input.requestRender();
   };
 
-  const openReviewOverlay = (): void => {
+  const applyAdvancedPreset = (flow: GuidedSetupState, preset: AdvancedPreset): void => {
+    flow.advancedPreset = preset.id;
+    flow.kMax = preset.kMax;
+    flow.workers = preset.workers;
+    flow.batchSize = preset.batchSize;
+  };
+
+  const openAdvancedOverlay = (): void => {
     const flow = input.state.newFlow;
-    if (!flow?.profileId || !flow.mode) {
-      input.appendError("Incomplete setup state. Returning to profile selection.");
-      openProfileOverlay();
+    if (!flow) {
       return;
     }
 
-    const profile = findProfileById(flow.profileId);
-    if (!profile) {
-      input.appendError(`Unknown profile id: ${flow.profileId}`);
+    flow.stage = "advanced";
+
+    const items = wizardOptions.advancedPresets.map((preset) => ({
+      id: preset.id,
+      label: preset.label,
+      description: `${preset.description} • k_max ${preset.kMax}, workers ${preset.workers}, batch ${preset.batchSize}`
+    }));
+
+    const selectedIndex = Math.max(
+      0,
+      items.findIndex((item) => item.id === flow.advancedPreset)
+    );
+
+    input.state.overlay = {
+      kind: "select",
+      title: `${flowStageLabel(flow)} · Configure execution depth`,
+      items,
+      selectedIndex,
+      onSelect: (item) => {
+        const preset = getAdvancedPreset(item.id as GuidedSetupState["advancedPreset"]);
+        applyAdvancedPreset(flow, preset);
+        openModeOverlay();
+      },
+      onCancel: () => {
+        openProtocolOverlay();
+      }
+    };
+
+    input.requestRender();
+  };
+
+  const openProtocolOverlay = (): void => {
+    const flow = input.state.newFlow;
+    if (!flow) {
+      return;
+    }
+
+    flow.stage = "protocol";
+
+    const items = [
+      {
+        id: "independent",
+        label: "Independent",
+        description: "Single-pass responses"
+      },
+      {
+        id: "debate-standard",
+        label: "Debate (standard)",
+        description: "Proposer-critic with balanced critique"
+      },
+      {
+        id: "debate-adversarial",
+        label: "Debate (adversarial)",
+        description: "Sharper critique and wider disagreement pressure"
+      }
+    ];
+
+    const selectedId: ProtocolSelection =
+      flow.protocol === "debate_v1"
+        ? flow.debateVariant === "adversarial"
+          ? "debate-adversarial"
+          : "debate-standard"
+        : "independent";
+
+    const selectedIndex = Math.max(
+      0,
+      items.findIndex((item) => item.id === selectedId)
+    );
+
+    input.state.overlay = {
+      kind: "select",
+      title: `${flowStageLabel(flow)} · Select protocol`,
+      items,
+      selectedIndex,
+      onSelect: (item) => {
+        if (!isProtocolSelection(item.id)) {
+          input.appendError(`Invalid protocol selection: ${item.id}.`);
+          input.requestRender();
+          return;
+        }
+
+        if (item.id === "independent") {
+          flow.protocol = "independent";
+          flow.debateVariant = "standard";
+        } else {
+          flow.protocol = "debate_v1";
+          flow.debateVariant = item.id === "debate-adversarial" ? "adversarial" : "standard";
+        }
+
+        openAdvancedOverlay();
+      },
+      onCancel: () => {
+        openModelOverlay();
+      }
+    };
+
+    input.requestRender();
+  };
+
+  const openModelOverlay = (): void => {
+    const flow = input.state.newFlow;
+    if (!flow) {
+      return;
+    }
+
+    flow.stage = "models";
+
+    const items = wizardOptions.models.map((model) => ({
+      id: model.slug,
+      label: model.label,
+      description: model.description,
+      selected: flow.modelSlugs.includes(model.slug)
+    }));
+
+    input.state.overlay = {
+      kind: "checklist",
+      title: `${flowStageLabel(flow)} · Select models`,
+      items,
+      selectedIndex: items.length,
+      onConfirm: (selectedIds) => {
+        if (selectedIds.length === 0) {
+          input.appendError("Select at least one model.");
+          input.requestRender();
+          return;
+        }
+
+        flow.modelSlugs = selectedIds;
+        openProtocolOverlay();
+      },
+      onCancel: () => {
+        openPersonaOverlay();
+      }
+    };
+
+    input.requestRender();
+  };
+
+  const openPersonaOverlay = (): void => {
+    const flow = input.state.newFlow;
+    if (!flow) {
+      return;
+    }
+
+    flow.stage = "personas";
+
+    const selectedEntries = buildChecklistSelection(
+      wizardOptions.personas.map((persona) => persona.id),
+      flow.personaIds
+    );
+
+    input.state.overlay = {
+      kind: "checklist",
+      title: `${flowStageLabel(flow)} · Select personas`,
+      items: wizardOptions.personas.map((persona) => {
+        const selected = selectedEntries.find((entry) => entry.id === persona.id);
+        return {
+          id: persona.id,
+          label: persona.label,
+          description: persona.description,
+          selected: selected?.selected ?? false
+        };
+      }),
+      selectedIndex: wizardOptions.personas.length,
+      onConfirm: (selectedIds) => {
+        if (selectedIds.length === 0) {
+          input.appendError("Select at least one persona.");
+          input.requestRender();
+          return;
+        }
+        flow.personaIds = selectedIds;
+        openModelOverlay();
+      },
+      onCancel: () => {
+        openDecodeOverlay();
+      }
+    };
+
+    input.requestRender();
+  };
+
+  const applyDecodePreset = (flow: GuidedSetupState, preset: DecodePreset): void => {
+    flow.decodePreset = preset.id;
+    flow.temperature = preset.temperature;
+    flow.topP = preset.topP;
+    flow.maxTokens = preset.maxTokens;
+    flow.seed = preset.seed;
+  };
+
+  const openDecodeOverlay = (): void => {
+    const flow = input.state.newFlow;
+    if (!flow) {
+      return;
+    }
+
+    flow.stage = "decode";
+
+    const items = wizardOptions.decodePresets.map((preset) => ({
+      id: preset.id,
+      label: preset.label,
+      description: `${preset.description} • temp ${preset.temperature.toFixed(2)}, top_p ${preset.topP.toFixed(2)}, max_tokens ${preset.maxTokens}`
+    }));
+
+    const selectedIndex = Math.max(
+      0,
+      items.findIndex((item) => item.id === flow.decodePreset)
+    );
+
+    input.state.overlay = {
+      kind: "select",
+      title: `${flowStageLabel(flow)} · Choose decoding behavior`,
+      items,
+      selectedIndex,
+      onSelect: (item) => {
+        const preset = getDecodePreset(item.id as GuidedSetupState["decodePreset"]);
+        applyDecodePreset(flow, preset);
+        openPersonaOverlay();
+      },
+      onCancel: () => {
+        syncQuestionEditor();
+        input.appendStatus("Edit your question, then press Enter to continue.");
+      }
+    };
+
+    input.requestRender();
+  };
+
+  const finalizeFlow = async (): Promise<void> => {
+    const flow = input.state.newFlow;
+    if (!flow) {
+      return;
+    }
+
+    const question = flow.question.trim();
+    const validationError = validateQuestion(question);
+    if (validationError) {
+      input.appendError(validationError);
+      syncQuestionEditor();
+      return;
+    }
+
+    flow.question = question;
+
+    try {
+      input.writeGuidedConfig(flow);
+    } catch (error) {
+      input.appendError(`Failed to write configuration: ${formatError(error)}`);
       cancelFlow();
       return;
     }
 
-    flow.stage = "review";
+    input.state.hasConfig = true;
+    input.state.question = question;
+    input.state.newFlow = null;
+    input.state.overlay = null;
+    input.state.phase = "idle";
+    input.setInputText("");
 
-    input.state.overlay = {
-      kind: "select",
-      title: "Review study setup",
-      body: buildReviewBody(flow.question, profile.label, flow.mode),
-      items: [
-        { id: "start-run", label: "Start run", description: "Create config and begin execution" },
-        { id: "edit-question", label: "Edit question" },
-        { id: "change-profile", label: "Change profile" },
-        { id: "change-mode", label: "Change run mode" },
-        { id: "cancel-setup", label: "Cancel setup" }
-      ],
-      selectedIndex: 0,
-      onSelect: (item) => {
-        if (!isReviewAction(item.id)) {
-          input.appendError(`Invalid review action: ${item.id}`);
-          input.requestRender();
-          return;
-        }
-
-        switch (item.id) {
-          case "start-run":
-            if (!flow.profileId || !flow.mode) {
-              input.appendError("Incomplete setup state. Please review your selections.");
-              input.requestRender();
-              return;
-            }
-            finalizeIntake(flow.profileId, flow.mode);
-            return;
-          case "edit-question":
-            startQuestionStep("Edit your question, then press Enter to continue.");
-            return;
-          case "change-profile":
-            openProfileOverlay();
-            return;
-          case "change-mode":
-            openModeOverlay();
-            return;
-          case "cancel-setup":
-            cancelFlow();
-            return;
-          default:
-            return;
-        }
-      },
-      onCancel: () => {
-        openModeOverlay();
-      }
-    };
+    input.appendStatus(`Configuration saved to ${input.state.configPath}.`);
+    input.appendSummary(formatReviewBody({ flow, options: wizardOptions }));
 
     input.requestRender();
+
+    if (flow.runMode === "save-only") {
+      input.appendStatus("Setup complete. Choose the next action when you are ready.");
+      input.requestRender();
+      return;
+    }
+
+    if (flow.runMode === "live" && !input.state.hasApiKey) {
+      input.appendError("OpenRouter API key not found. Live runs require OPENROUTER_API_KEY.");
+      input.requestRender();
+      return;
+    }
+
+    await input.startRun(flow.runMode);
   };
 
-  const startNewFlow = (): void => {
+  const startNewFlow = (runMode: RunModeSelection = "mock"): void => {
     if (input.state.phase === "running") {
       input.appendStatus("Run in progress. Wait for completion before starting a new setup.");
       input.requestRender();
@@ -338,12 +608,9 @@ export const createIntakeFlowController = (input: {
         onConfirm: () => {
           input.state.overlay = null;
           input.state.phase = "intake";
-          input.state.newFlow = {
-            stage: "question",
-            question: ""
-          };
+          input.state.newFlow = createDefaultGuidedSetup(wizardOptions, runMode);
           input.appendSystem("Set up a new study.");
-          input.appendStatus("What question are you investigating?");
+          input.appendStatus("Step 1 of 8. What question are you investigating?");
           input.setInputText("");
           input.requestRender();
         },
@@ -358,12 +625,9 @@ export const createIntakeFlowController = (input: {
     }
 
     input.state.phase = "intake";
-    input.state.newFlow = {
-      stage: "question",
-      question: ""
-    };
+    input.state.newFlow = createDefaultGuidedSetup(wizardOptions, runMode);
     input.appendSystem("Set up a new study.");
-    input.appendStatus("What question are you investigating?");
+    input.appendStatus("Step 1 of 8. What question are you investigating?");
     input.setInputText("");
     input.requestRender();
   };
@@ -381,14 +645,13 @@ export const createIntakeFlowController = (input: {
     const validationError = validateQuestion(question);
     if (validationError) {
       input.appendError(validationError);
-      input.setInputText(value);
       input.requestRender();
       return;
     }
 
     flow.question = question;
-    input.state.question = question;
-    openProfileOverlay();
+    input.appendStatus("Question recorded.");
+    openDecodeOverlay();
   };
 
   const handleEscape = (): boolean => {

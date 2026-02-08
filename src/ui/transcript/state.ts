@@ -1,9 +1,13 @@
 import type { WarningRecord } from "../../utils/warnings.js";
-import type { ProfileId } from "./profiles.js";
 
 export type TranscriptPhase = "idle" | "intake" | "running" | "post-run";
 export type RunMode = "mock" | "live";
 export type RunModeSelection = RunMode | "save-only";
+
+export type DecodePresetId = "balanced" | "focused" | "exploratory";
+export type AdvancedPresetId = "quick" | "standard" | "thorough";
+export type ProtocolChoice = "independent" | "debate_v1";
+export type DebateVariant = "standard" | "adversarial";
 
 export type TranscriptEntryKind =
   | "system"
@@ -70,11 +74,13 @@ export type RunProgress = {
   parseSuccess: number;
   parseFallback: number;
   parseFailed: number;
+  workerCount: number;
   currentBatch?: {
     batchNumber: number;
     total: number;
     completed: number;
   };
+  batchStatusCounts: Record<string, number>;
   recentBatches: Array<{
     batchNumber: number;
     noveltyRate: number | null;
@@ -95,14 +101,37 @@ export type RunProgress = {
   };
 };
 
-export type NewFlowState = {
-  stage: "question" | "profile" | "mode" | "review";
+export type GuidedSetupStage =
+  | "question"
+  | "decode"
+  | "personas"
+  | "models"
+  | "protocol"
+  | "advanced"
+  | "mode"
+  | "review";
+
+export type GuidedSetupState = {
+  stage: GuidedSetupStage;
   question: string;
-  profileId?: ProfileId;
-  mode?: RunModeSelection;
+  decodePreset: DecodePresetId;
+  temperature: number;
+  topP: number;
+  maxTokens: number;
+  seed: number;
+  personaIds: string[];
+  modelSlugs: string[];
+  protocol: ProtocolChoice;
+  debateVariant: DebateVariant;
+  advancedPreset: AdvancedPresetId;
+  kMax: number;
+  workers: number;
+  batchSize: number;
+  runMode: RunModeSelection;
 };
 
 export type AppState = {
+  version: string;
   phase: TranscriptPhase;
   transcript: TranscriptEntry[];
   nextTranscriptEntryId: number;
@@ -110,13 +139,12 @@ export type AppState = {
   runProgress: RunProgress;
   warnings: WarningRecord[];
   warningKeys: Set<string>;
-  newFlow: NewFlowState | null;
+  newFlow: GuidedSetupState | null;
   configPath: string;
   runDir: string;
   lastRunDir: string;
   runMode: RunMode | null;
   question: string;
-  profileId: ProfileId;
   hasApiKey: boolean;
   hasConfig: boolean;
   runsCount: number;
@@ -130,6 +158,8 @@ const defaultRunProgress = (): RunProgress => ({
   parseSuccess: 0,
   parseFallback: 0,
   parseFailed: 0,
+  workerCount: 0,
+  batchStatusCounts: {},
   recentBatches: [],
   noveltyTrend: [],
   usage: {
@@ -140,11 +170,13 @@ const defaultRunProgress = (): RunProgress => ({
 });
 
 export const createInitialState = (input: {
+  version: string;
   configPath: string;
   hasApiKey: boolean;
   hasConfig: boolean;
   runsCount: number;
 }): AppState => ({
+  version: input.version,
   phase: "idle",
   transcript: [],
   nextTranscriptEntryId: 1,
@@ -158,7 +190,6 @@ export const createInitialState = (input: {
   lastRunDir: "",
   runMode: null,
   question: "",
-  profileId: "quickstart",
   hasApiKey: input.hasApiKey,
   hasConfig: input.hasConfig,
   runsCount: input.runsCount

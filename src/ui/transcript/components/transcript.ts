@@ -5,18 +5,6 @@ import { styleEntryPrefix } from "../theme.js";
 
 const MAX_RENDERED_ENTRIES = 300;
 
-const KIND_TAG: Record<TranscriptEntry["kind"], string> = {
-  system: "sys",
-  user: "you",
-  status: "ops",
-  progress: "run",
-  warning: "warn",
-  error: "err",
-  report: "report",
-  verify: "verify",
-  receipt: "receipt"
-};
-
 export class TranscriptComponent implements Component {
   private entries: TranscriptEntry[] = [];
 
@@ -32,20 +20,19 @@ export class TranscriptComponent implements Component {
     const safeWidth = Math.max(24, width);
 
     if (this.entries.length === 0) {
-      return ["", "[system] Welcome to Arbiter.", ""];
+      return ["", "Guided setup will appear here.", ""];
     }
 
     const lines: string[] = [];
     const entries = this.entries.slice(-MAX_RENDERED_ENTRIES);
     const hiddenEntries = this.entries.length - entries.length;
     if (hiddenEntries > 0) {
-      lines.push(`[system] ... ${hiddenEntries} earlier transcript entries hidden ...`);
+      lines.push(`... ${hiddenEntries} earlier transcript entries hidden ...`);
       lines.push("");
     }
 
     for (const entry of entries) {
-      const tag = KIND_TAG[entry.kind] ?? "log";
-      const prefix = `${styleEntryPrefix(entry.kind, entry.timestamp)} ${tag}> `;
+      const prefix = `${styleEntryPrefix(entry.kind, entry.timestamp)} `;
       const prefixWidth = visibleWidth(prefix);
       const contentWidth = Math.max(8, safeWidth - prefixWidth);
       const rawLines = entry.content.split("\n");

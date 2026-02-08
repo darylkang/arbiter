@@ -8,8 +8,6 @@ import { TranscriptComponent } from "./components/transcript.js";
 import type { AppState } from "./state.js";
 import { editorTheme, palette } from "./theme.js";
 
-const RUNNING_PLACEHOLDER = "Run in progress. Ctrl+C to request graceful stop.";
-
 export type TranscriptLayout = {
   root: Container;
   editor: TranscriptEditor;
@@ -35,39 +33,63 @@ export const createTranscriptLayout = (input: {
   editor.onEscape = input.onEscape;
   editor.onCtrlC = input.onCtrlC;
 
-  root.addChild(header);
-  root.addChild(new Spacer(1));
-  root.addChild(progress);
-  root.addChild(new Spacer(1));
-  root.addChild(transcript);
-  root.addChild(new Spacer(1));
-  root.addChild(editor);
-  root.addChild(new Spacer(1));
-  root.addChild(footer);
+  let showProgress = true;
+  let showEditor = true;
+
+  const rebuildTree = (): void => {
+    root.clear();
+    root.addChild(header);
+    root.addChild(new Spacer(1));
+
+    if (showProgress) {
+      root.addChild(progress);
+      root.addChild(new Spacer(1));
+    }
+
+    root.addChild(transcript);
+    root.addChild(new Spacer(1));
+
+    if (showEditor) {
+      root.addChild(editor);
+      root.addChild(new Spacer(1));
+    }
+
+    root.addChild(footer);
+  };
+
+  rebuildTree();
 
   const sync = (state: AppState): void => {
     const layoutWidth = Math.max(24, input.tui.terminal.columns);
+
+    const nextShowProgress = state.phase === "running" || state.phase === "post-run";
+    const nextShowEditor = state.phase === "idle" || state.phase === "intake";
+    if (nextShowProgress !== showProgress || nextShowEditor !== showEditor) {
+      showProgress = nextShowProgress;
+      showEditor = nextShowEditor;
+      rebuildTree();
+    }
+
     header.setText(renderHeader(state, layoutWidth));
 
-    if (state.runProgress.active || state.phase === "post-run") {
+    if (showProgress) {
       progress.setText(renderProgressSummary(state.runProgress));
     } else {
-      progress.setText(palette.steel("progress idle"));
+      progress.setText("");
     }
 
     transcript.setEntries(state.transcript);
     footer.setText(renderFooter(state, layoutWidth));
 
-    if (state.phase === "running") {
-      editor.disableSubmit = true;
-      if (!editor.getText()) {
-        editor.setText(RUNNING_PLACEHOLDER);
-      }
-    } else {
-      if (editor.getText() === RUNNING_PLACEHOLDER) {
-        editor.setText("");
-      }
+    if (showEditor) {
       editor.disableSubmit = false;
+    } else {
+      editor.setText("");
+      editor.disableSubmit = true;
+    }
+
+    if (!state.hasApiKey && state.phase === "idle" && !state.overlay && !state.newFlow) {
+      footer.setText(`${renderFooter(state, layoutWidth)}\n${palette.warning("live mode is unavailable without OPENROUTER_API_KEY")}`);
     }
   };
 
@@ -76,6 +98,10 @@ export const createTranscriptLayout = (input: {
     editor,
     transcript,
     sync,
-    focusInput: () => input.tui.setFocus(editor)
+    focusInput: () => {
+      if (showEditor) {
+        input.tui.setFocus(editor);
+      }
+    }
   };
 };
