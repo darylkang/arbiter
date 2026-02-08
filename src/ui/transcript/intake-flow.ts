@@ -319,8 +319,6 @@ export const createIntakeFlowController = (input: {
       selectedIndex,
       onSelect: (item) => {
         if (item.disabled) {
-          input.appendStatus("Live mode is unavailable without OPENROUTER_API_KEY.");
-          input.requestRender();
           return;
         }
 
@@ -472,7 +470,7 @@ export const createIntakeFlowController = (input: {
       kind: "checklist",
       title: `${flowStageLabel(flow)} · Models`,
       items,
-      selectedIndex: items.length,
+      selectedIndex: 0,
       onConfirm: (selectedIds) => {
         if (selectedIds.length === 0) {
           input.appendError("Select at least one model.");
@@ -516,7 +514,7 @@ export const createIntakeFlowController = (input: {
           selected: selected?.selected ?? false
         };
       }),
-      selectedIndex: wizardOptions.personas.length,
+      selectedIndex: 0,
       onConfirm: (selectedIds) => {
         if (selectedIds.length === 0) {
           input.appendError("Select at least one persona.");

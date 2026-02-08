@@ -361,8 +361,6 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         selectedIndex: 0,
         onSelect: (item) => {
           if (item.disabled) {
-            appendStatus(state, "That option is currently unavailable.");
-            requestRender();
             return;
           }
           if (item.id !== "live" && item.id !== "mock" && item.id !== "quit") {
@@ -375,8 +373,6 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
           resolveSelection(item.id);
         },
         onCancel: () => {
-          appendStatus(state, "Choose an option to continue.");
-          requestRender();
           resolveSelection(null);
         }
       };
@@ -401,8 +397,6 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         selectedIndex: 0,
         onSelect: (item) => {
           if (item.disabled) {
-            appendStatus(state, "That option is currently unavailable.");
-            requestRender();
             return;
           }
           const match = candidates.find((candidate) => candidate.path === item.id) ?? null;
@@ -448,8 +442,6 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         selectedIndex: 0,
         onSelect: (item) => {
           if (item.disabled) {
-            appendStatus(state, "That option is currently unavailable.");
-            requestRender();
             return;
           }
           if (!isStartPathAction(item.id)) {
@@ -620,7 +612,6 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
           resolveSelection(item.id);
         },
         onCancel: () => {
-          appendStatus(state, "Choose an option to continue.");
           requestRender();
         }
       };

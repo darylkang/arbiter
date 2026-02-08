@@ -10,6 +10,7 @@ import {
 
 import type { ChecklistOverlay, ConfirmOverlay, OverlayState, SelectOverlay } from "../state.js";
 import { selectListTheme } from "../theme.js";
+import { ChecklistList } from "./checklist-list.js";
 
 export type OverlayComponent = {
   component: Component;
@@ -142,20 +143,6 @@ const createConfirmOverlay = (
   };
 };
 
-const buildChecklistRows = (overlay: ChecklistOverlay): SelectItem[] => {
-  const rows: SelectItem[] = overlay.items.map((item) => ({
-    value: item.id,
-    label: `${item.selected ? "☑" : "☐"} ${item.label}`
-  }));
-
-  rows.push(
-    { value: "__confirm__", label: "◉ Apply selections" },
-    { value: "__cancel__", label: "◉ Cancel" }
-  );
-
-  return rows;
-};
-
 const buildChecklistBody = (): string => {
   return "Use Space to toggle options.\nPress Enter to continue.";
 };
@@ -165,41 +152,30 @@ const createChecklistOverlay = (
   requestRefresh: () => void,
   renderOptions: OverlayRenderOptions
 ): OverlayComponent => {
-  const renderRows = (): SelectItem[] => buildChecklistRows(overlay);
-  const list = new SelectList(
-    renderRows(),
+  const list = new ChecklistList(
+    overlay.items,
     Math.max(8, Math.min(14, overlay.items.length + 2)),
-    selectListTheme
+    selectListTheme,
+    {
+      confirmLabel: "Apply selections",
+      cancelLabel: "Cancel"
+    }
   );
 
   const maxIndex = overlay.items.length + 1;
   list.setSelectedIndex(Math.max(0, Math.min(overlay.selectedIndex, maxIndex)));
 
-  list.onSelectionChange = (item): void => {
-    const index = renderRows().findIndex((candidate) => candidate.value === item.value);
-    if (index >= 0) {
-      overlay.selectedIndex = index;
-    }
+  list.onSelectionChange = (index): void => {
+    overlay.selectedIndex = index;
   };
 
-  list.onSelect = (item): void => {
-    if (item.value === "__confirm__") {
-      const selectedIds = overlay.items.filter((entry) => entry.selected).map((entry) => entry.id);
-      overlay.onConfirm(selectedIds);
-      return;
-    }
-
-    if (item.value === "__cancel__") {
-      overlay.onCancel();
-      return;
-    }
-
-    const target = overlay.items.find((entry) => entry.id === item.value);
-    if (!target || target.disabled) {
-      return;
-    }
-    target.selected = !target.selected;
+  list.onToggle = (): void => {
     requestRefresh();
+  };
+
+  list.onConfirm = (): void => {
+    const selectedIds = overlay.items.filter((entry) => entry.selected).map((entry) => entry.id);
+    overlay.onConfirm(selectedIds);
   };
 
   list.onCancel = (): void => {

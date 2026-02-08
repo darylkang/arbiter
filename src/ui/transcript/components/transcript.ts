@@ -392,6 +392,49 @@ const buildCards = (state: AppState, width: number): StageCard[] => {
   return cards.slice(-MAX_RENDERED_CARDS);
 };
 
+const buildOverlayBackdropCard = (state: AppState, width: number): StageCard => {
+  if (state.phase === "running") {
+    const progress = renderProgressSummary(state.runProgress, width).split("\n").slice(0, 2);
+    return {
+      kind: "run",
+      status: "active",
+      title: "Run in progress",
+      lines: [
+        ...progress,
+        "A selection panel is open. Complete it to continue."
+      ]
+    };
+  }
+
+  if (state.phase === "post-run") {
+    return {
+      kind: "receipt",
+      status: "active",
+      title: "Session complete",
+      lines: [
+        state.runDir ? `Run directory: ${state.runDir}` : "Run directory pending.",
+        "Use the action selector to continue."
+      ]
+    };
+  }
+
+  if (state.newFlow) {
+    return {
+      kind: "intake",
+      status: "active",
+      title: stageTitleForStep(state.newFlow),
+      lines: ["A selection panel is open. Use arrow keys and Enter to continue."]
+    };
+  }
+
+  return {
+    kind: "launch",
+    status: "active",
+    title: "Guided setup",
+    lines: ["Choose a run mode and setup path to begin."]
+  };
+};
+
 export class TranscriptComponent implements Component {
   private state: AppState | null = null;
   private lastRenderedLineCount = 0;
@@ -412,11 +455,9 @@ export class TranscriptComponent implements Component {
       return [blankLine, "Initializing transcript...", blankLine];
     }
 
-    // When an overlay is active, render a clean backdrop so list text does not
-    // visually blend with underlying stage cards in constrained terminals.
     let lines: string[] = [];
     if (state.overlay) {
-      lines = [blankLine, blankLine, blankLine];
+      lines = [...renderCard(buildOverlayBackdropCard(state, safeWidth), safeWidth), blankLine];
     } else {
       const cards = buildCards(state, safeWidth);
       for (const card of cards) {

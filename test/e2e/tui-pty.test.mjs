@@ -20,6 +20,11 @@ const stripAnsi = (value) =>
     .replace(ANSI_CSI_REGEX, "")
     .replace(/\r/g, "");
 
+const sleep = (ms) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 const withTimeout = async (promise, timeoutMs, label) => {
   let timeoutId = null;
   const timeout = new Promise((_, reject) => {
@@ -179,6 +184,20 @@ const createPtySession = (input) => {
   };
 };
 
+const moveToApplySelections = async (session, stepTitle) => {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const output = session.getOutput();
+    const stepIndex = output.lastIndexOf(stepTitle);
+    const applyIndex = output.lastIndexOf("→ ◉ Apply selections");
+    if (stepIndex >= 0 && applyIndex > stepIndex) {
+      return;
+    }
+    session.arrowDown(1);
+    await sleep(40);
+  }
+  throw new Error("failed to focus Apply selections row");
+};
+
 test("pty: guided launch supports /help and /quit", { concurrency: false }, async () => {
   const session = createPtySession({ cwd: REPO_ROOT });
 
@@ -258,9 +277,11 @@ test("pty: guided intake flow completes from question to receipt", { concurrency
     session.pressEnter();
 
     await session.waitForText("Step 4/9 · Personas", 20000);
+    await moveToApplySelections(session, "Step 4/9 · Personas");
     session.pressEnter();
 
     await session.waitForText("Step 5/9 · Models", 20000);
+    await moveToApplySelections(session, "Step 5/9 · Models");
     session.pressEnter();
 
     await session.waitForText("Step 6/9 · Protocol", 20000);
