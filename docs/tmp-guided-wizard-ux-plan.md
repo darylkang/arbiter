@@ -1,536 +1,445 @@
-# Arbiter Guided Main Entry UX Plan
+# Arbiter Guided Main Entry UX Specification
 
-Status: proposal (authoritative temporary guide)
+Status: draft (authoritative temporary spec)
 Last updated: 2026-02-08
-Scope: interactive main entrypoint (`arbiter` in TTY)
-Out of scope: backend algorithm changes, artifact schema changes, non-interactive CLI scripting behavior (except consistency updates explicitly listed)
-
----
-
-## 1) Purpose and Inputs
-
-This document defines the target UX for Arbiter's primary interactive experience.
-
-It consolidates direction from:
-
-- `/Users/darylkang/Developer/arbiter/docs/390167d1-955e-4c05-9382-d496df53fa65_Arbiter_UIUX.pdf`
+Primary source of truth: `/Users/darylkang/Developer/arbiter/docs/390167d1-955e-4c05-9382-d496df53fa65_Arbiter_UIUX.pdf`
+Supporting context:
 - `/Users/darylkang/Developer/arbiter/docs/d6dc560d-2aa7-4e58-9ad4-a75da8e7e53e_Reasoning_as_a_Distribution.pdf`
 - `/Users/darylkang/Developer/arbiter/docs/d824e33f-082c-43dc-b8a6-c17a50b05ffb_Related_Work.pdf`
-- local OpenClaw interaction patterns in `/Users/darylkang/Developer/openclaw/src/wizard/*`
-
-This is the single temporary source of truth for the guided-entry rebuild and should be the primary review artifact for external design audits.
+- `/Users/darylkang/Developer/openclaw/src/wizard/*`
 
 ---
 
-## 2) Product Vision (Ground Truth)
+## 1) Scope
 
-Arbiter is a research-grade experimentation harness for analyzing model behavior as a distribution, not for producing one "best answer."
+This specification defines the interactive main entry experience for `arbiter` in a TTY.
 
-The interactive product should help users:
+In scope:
+- guided intake and setup
+- run progress cockpit
+- receipt and post-run guidance
+- interaction model, copy standards, and visual behavior
+- implementation sequencing and acceptance gates
 
-1. set up a valid experiment quickly,
-2. run it safely with explicit tradeoffs,
-3. interpret results responsibly with uncertainty-aware framing,
-4. continue to the next action without dead ends.
-
-The UX goal is not "terminal power-user speed" first. The UX goal is high-confidence experiment setup and interpretation with minimal cognitive overhead.
-
----
-
-## 3) Problem Statement
-
-Current interactive behavior is significantly improved but still perceived as "terminal-first" rather than "guided-product-first."
-
-Primary gap:
-
-- Users can still feel they are operating a shell with commands instead of being led through a clear research workflow.
-
-Desired shift:
-
-- From command orchestration by the user
-- To guided orchestration by the product, with commands as optional accelerators
+Out of scope:
+- backend algorithm semantics
+- artifact schema changes
+- non-interactive scripting behavior
 
 ---
 
-## 4) UX Outcomes
+## 2) Product Intent
+
+Arbiter is a professional research tool for distributional experimentation.
+
+The interactive experience must optimize for:
+1. high-confidence experiment setup
+2. safe execution defaults
+3. clear interpretation boundaries
+4. fast continuation to the next research step
+
+The main entrypoint should feel like a guided product workflow, not a shell session.
+
+---
+
+## 3) Legacy-Free UX Decision
+
+The guided main entrypoint must not depend on command literacy.
+
+Hard rules:
+1. No slash-command requirement in the primary path.
+2. No command-first onboarding language.
+3. No command hints as the dominant call to action during setup.
+4. First-run completion must be possible with only arrow keys, enter, escape, and text input.
+
+Advanced command paths may continue to exist elsewhere in the product surface, but they are not the contract for the guided main entrypoint.
+
+---
+
+## 4) Experience Outcomes
 
 The design is successful when all are true:
-
-1. A first-time user can complete a mock run from launch to receipt without typing slash commands.
-2. The product asks one clear question at a time.
-3. Keyboard flow is obvious: arrow keys, enter, escape, space where relevant.
-4. Run progress is readable and calm under load.
-5. Receipt and next actions are explicit and immediate.
-6. Copy is professional, precise, and research-appropriate.
-7. Live execution is always explicit and safe.
+1. A first-time user can launch, configure, run, and finish a mock study without learning commands.
+2. Every step asks one clear question and provides one primary action.
+3. Live mode is explicit and safe.
+4. Run progress communicates status without noise.
+5. Receipt provides immediate interpretation context and next actions.
+6. Language is precise, neutral, and documentation-grade.
 
 ---
 
-## 5) Experience Principles
+## 5) Core Experience Model
 
-1. Guided by default
-Interactive launch starts a guided flow immediately.
+The guided experience has three stages.
 
-2. One decision per step
-Each screen/step has one decision and one primary action.
+## 5.1 Stage A: Intake
 
-3. Safe defaults
-Mock is default. Live is explicit and confirmed.
+Goal: build a valid run plan with minimal cognitive overhead.
 
-4. Progressive disclosure
-Advanced controls are available but collapsed by default.
+Step sequence:
+1. Research question input
+2. Profile selection
+3. Run mode selection
+4. Review and confirm
 
-5. Research clarity over theatrics
-Visual energy is useful only if it improves comprehension.
+Advanced options are collapsed by default.
 
-6. Commands are secondary
-Slash commands remain, but are not required for the main journey.
+## 5.2 Stage B: Run Progress
 
-7. Professional language everywhere
-Use concise, documentation-grade copy with concrete next actions.
+Goal: provide confidence during execution.
 
----
+Required signals:
+- planned, attempted, eligible counts
+- active batch progress and elapsed time
+- token usage and cost when available
+- warning stream and stop reasoning
 
-## 6) Main Entrypoint Contract
+## 5.3 Stage C: Receipt and Next Actions
 
-## 6.1 Launch behavior
+Goal: prevent post-run dead ends.
 
-When user runs `arbiter` in a TTY:
-
-- enter guided intake immediately,
-- show short orientation text,
-- set focus to first prompt input.
-
-When user runs `arbiter` in non-TTY:
-
-- preserve existing CLI behavior and help conventions.
-
-## 6.2 Primary stages
-
-Arbiter guided flow has three top-level stages:
-
-1. Intake
-2. Run progress
-3. Receipt and next actions
-
-The guided engine controls stage transitions.
+Required outputs:
+- run outcome summary
+- receipt excerpt
+- explicit action selector:
+  - view report
+  - verify run
+  - start another study
+  - quit
 
 ---
 
-## 7) Stage A: Intake (Guided Setup)
+## 6) Interaction Contract
 
-## 7.1 Step sequence
+## 6.1 Keyboard model
 
-Step A1: Research question
+Required keys:
+- Arrow up/down: move selection focus
+- Enter: confirm current selection
+- Escape: back/cancel current interaction
+- Space: toggle checklist options where multi-select is used
+- Ctrl+C: request graceful interrupt while running
 
-- Input prompt: "What question are you investigating?"
-- Validation:
-  - required,
-  - min length 8,
-  - max length 500.
-- Action: Continue
+No hidden keys are required for the main path.
 
-Step A2: Profile selection
+## 6.2 Selection components
 
-- Arrow-key single-select list with short descriptions.
-- Rounded choice row styling (focus + selected state).
-- Action: Continue
-- Secondary: Back
+Use rounded, high-clarity row treatments inspired by OpenClaw.
 
-Step A3: Run mode selection
+Single-select rows must show:
+- focused state
+- selected state
+- disabled state with inline explanation
 
-- Options:
-  - mock (default, recommended)
-  - live
-  - save-only
-- If no API key, live option is disabled with a clear inline reason.
-- Action: Continue
-- Secondary: Back
+Checklist rows must show:
+- explicit checked/unchecked indicator
+- focused row indicator
 
-Step A4: Review and confirm
+## 6.3 Cancel behavior
 
-Summary includes:
+Cancel is first-class at every intake step.
 
-- question,
-- selected profile/template,
-- run mode,
-- advanced overrides (if changed).
+Rules:
+1. Escape returns to the previous step where valid.
+2. Cancel from review returns to idle safely.
+3. Starting a new intake while one is active requires confirmation before discarding partial inputs.
+
+---
+
+## 7) Visual and Motion System
+
+## 7.1 Tone and style
+
+Visual tone: premium, restrained, professional.
+
+Principles:
+- strong hierarchy
+- calm color usage
+- meaningful motion only
+- no decorative effects that reduce clarity
+
+## 7.2 Palette
+
+Use semantic Gruvbox-dark tokens consistently across the guided surfaces:
+- brand
+- accent
+- success
+- warning
+- error
+- info
+- muted
+- primary text
+
+Fallback rules:
+- respect `NO_COLOR`
+- support reduced color terminals
+- preserve readability at narrow widths
+
+## 7.3 Spinner policy
+
+Use spinners only at real async boundaries:
+- run startup
+- report generation
+- verification
+- any setup operation with noticeable latency
+
+Spinner cleanup is mandatory on success, failure, and cancellation.
+
+---
+
+## 8) Copy System
+
+All in-product text should read like professional technical documentation.
+
+Rules:
+1. Sentence case.
+2. Direct action language.
+3. No slang or internal codenames.
+4. Errors must include what failed and what to do next.
+5. Warnings must be factual and non-alarmist.
+6. Help text must use progressive disclosure.
+
+Preferred examples:
+- "Set up a new study."
+- "Select a run mode."
+- "OpenRouter API key not found. Live runs require OPENROUTER_API_KEY."
+- "Run complete. Choose the next action."
+
+Avoid:
+- playful internal references
+- vague motivational copy
+- ambiguous error phrasing
+
+---
+
+## 9) Layout Contract
+
+The guided main entrypoint uses four persistent regions:
+
+1. Header
+- product title
+- environment status (API key/config/runs)
+- current stage indicator
+
+2. Transcript panel
+- concise system narrative
+- run events and warnings
+- receipt/report/verify summaries
+
+3. Guided interaction panel
+- current step prompt
+- selector/checklist/input controls
+- primary and secondary actions
+
+4. Footer
+- context-accurate key hints only
+- warning count
+
+The guided panel is the primary interaction surface during Stage A and Stage C.
+
+---
+
+## 10) Intake Specification
+
+## 10.1 Question step
+
+Prompt: "What question are you investigating?"
+
+Validation:
+- required
+- min length: 8
+- max length: 500
+
+Primary action: Continue
+Secondary action: Cancel
+
+## 10.2 Profile step
+
+Single-select list with short profile descriptions.
+
+Primary action: Continue
+Secondary actions: Back, Cancel
+
+## 10.3 Run mode step
+
+Options:
+- mock (default)
+- live
+- save-only
+
+If API key is missing:
+- live appears disabled
+- explanation is visible inline
+
+Primary action: Continue
+Secondary actions: Back, Cancel
+
+## 10.4 Review step
+
+Show:
+- question
+- selected profile
+- selected mode
+- advanced overrides (only when changed)
 
 Actions:
-
 - Start run (primary)
 - Edit question
 - Change profile
 - Change mode
 - Cancel setup
 
-## 7.2 Advanced controls
+---
 
-Collapsed "Advanced" group under review:
+## 11) Run Progress Specification
 
-- max trials,
-- batch size,
-- workers,
-- strict/permissive,
-- contract failure policy.
+During Stage B, the progress surface must provide:
+1. run status headline
+2. counts (planned/attempted/eligible)
+3. active batch indicator and elapsed time
+4. token/cost summary when available
+5. warning stream access
 
-Defaults remain visible; overrides are explicit.
+Behavior:
+- avoid transcript spam
+- dedupe repeating warnings
+- preserve critical failures in visible context
 
-## 7.3 Cancel and restart semantics
-
-- Escape goes back one step (where valid).
-- Cancel returns to idle with state preserved when safe.
-- If a new setup is started mid-intake, product asks confirmation before discarding partial input.
+Interrupt:
+- first Ctrl+C requests graceful stop
+- repeated interrupt shows clear escalation messaging
 
 ---
 
-## 8) Stage B: Run Progress (Operational Clarity)
+## 12) Receipt Specification
 
-## 8.1 Progress panel requirements
+Immediately after run completion or failure:
+1. show run outcome summary
+2. show receipt excerpt
+3. show action selector with default focus on most likely next action
 
-Always visible while running:
-
-- planned / attempted / eligible,
-- current batch index and elapsed time,
-- token usage (prompt, completion, total),
-- cost estimate if available,
-- stop/convergence signals.
-
-## 8.2 Transcript updates
-
-Append concise, structured events:
-
-- run start,
-- batch start/completion,
-- non-success trial statuses,
-- warnings,
-- run completion/failure.
-
-Do not flood transcript with low-value noise.
-
-## 8.3 Warnings
-
-- Warnings are deduped and visible.
-- `/warnings` shows full warning history.
-- Warning copy is factual and actionable.
-
-## 8.4 Interrupt semantics
-
-- Ctrl+C while running requests graceful stop.
-- Repeated Ctrl+C communicates escalation behavior clearly.
-
----
-
-## 9) Stage C: Receipt and Next Actions
-
-Immediately after completion or failure:
-
-1. render receipt summary block,
-2. state completion/failure plainly,
-3. present next actions in an explicit selector.
-
-Next actions:
-
+Action selector options:
 - View report
 - Verify run
 - Start new study
 - Quit
 
-No blank state after run completion.
-
----
-
-## 10) Interaction and Visual System
-
-## 10.1 Layout regions
-
-1. Header
-- brand line,
-- environment status (API key/config/runs count),
-- concise run mode indicator.
-
-2. Main transcript
-- system narrative,
-- key run events,
-- warnings/errors,
-- receipt/report summaries.
-
-3. Guided step panel
-- current question,
-- selector/checklist controls,
-- focused input/editor.
-
-4. Footer hints
-- context-specific key hints,
-- warnings count,
-- mode label.
-
-## 10.2 Selection components
-
-Adopt OpenClaw-inspired interaction quality:
-
-- rounded single-choice rows,
-- clear focused state with arrow-key navigation,
-- checkboxes with space toggle for multi-select contexts,
-- consistent enter/escape semantics.
-
-## 10.3 Motion and feedback
-
-Use motion sparingly:
-
-- spinner only for meaningful async boundaries:
-  - run setup start,
-  - report generation,
-  - verify run,
-  - config write where latency is material.
-- no decorative idle animation.
-- no distracting micro-motion in typing flows.
-
-## 10.4 Color system
-
-- Keep Gruvbox-dark semantic palette.
-- Keep TTY/non-TTY, NO_COLOR, and fallback behavior strict and consistent.
-- Keep semantic mapping stable across CLI and TUI surfaces.
-
----
-
-## 11) Copy System (Professional Standard)
-
-All user-facing copy should match documentation-grade quality.
-
-Rules:
-
-1. Sentence case, direct language.
-2. Use concrete verbs in actions.
-3. Explain failures with cause and next step.
-4. Avoid slang and internal codenames.
-5. Keep warnings objective and concise.
-6. Use progressive disclosure in help content.
-
-Preferred examples:
-
-- "Set up a new study."
-- "Select a run mode."
-- "OpenRouter API key not found. Live runs require OPENROUTER_API_KEY."
-- "Run complete. Review the receipt or open a report."
-
----
-
-## 12) Command Role in Guided Mode
-
-Slash commands remain available for advanced users:
-
-- `/help`
-- `/new`
-- `/run [mock|live]`
-- `/report [run_dir]`
-- `/verify [run_dir]`
-- `/receipt [run_dir]`
-- `/warnings`
-- `/quit`
-
-But guided startup must not depend on discovering `/new`.
+No blank post-run state is allowed.
 
 ---
 
 ## 13) Implementation Architecture
 
-## 13.1 Required modules
-
-Introduce and centralize guided flow logic:
-
+Required modules:
 - `src/ui/transcript/flow/flow-types.ts`
 - `src/ui/transcript/flow/flow-machine.ts`
 - `src/ui/transcript/flow/flow-actions.ts`
 - `src/ui/transcript/flow/flow-render.ts`
 
-Purpose:
+Design intent:
+1. keep flow transitions explicit and testable
+2. keep `app.ts` as orchestration, not state-machine logic
+3. keep guided behavior centralized to avoid drift
 
-- keep flow transitions pure and testable,
-- keep `app.ts` orchestration thin,
-- reduce behavioral drift across overlays, commands, and startup.
-
-## 13.2 State model
-
-Use explicit intake substates with a discriminated union:
-
-- `question`
-- `profile`
-- `mode`
-- `review`
-
-Track wizard metadata:
-
-- active,
-- step index,
-- started at timestamp,
-- dirty/unsaved edits indicator.
-
-## 13.3 Integration boundaries (must stay unchanged)
-
-- Engine emits events.
-- UI subscribes via EventBus.
-- RunLifecycleHooks remains UI-agnostic interface.
-- Artifact semantics and schemas remain unchanged.
+Integration boundaries must remain:
+- engine emits events
+- UI subscribes via EventBus
+- RunLifecycleHooks remain framework-agnostic
+- artifact invariants remain unchanged
 
 ---
 
-## 14) Delivery Plan (Sequenced)
+## 14) Delivery Plan
 
 Phase 0: Spec lock
+- approve this spec as execution contract
 
-- Approve this doc as implementation contract.
-- Freeze scope for first pass.
+Phase 1: Flow machine extraction
+- explicit state transitions and guards
+- complete unit transition matrix
 
-Gate:
+Phase 2: Guided startup and panel wiring
+- interactive launch enters guided intake immediately
+- one-step-at-a-time rendering
 
-- explicit sign-off.
+Phase 3: Selection and keyboard polish
+- rounded choices, checklist clarity, cancel/back consistency
 
-Phase 1: Guided flow state machine
+Phase 4: Progress and spinner polish
+- async feedback wrapper
+- strict cleanup guarantees
 
-- implement flow machine and transition guards,
-- test transition matrix thoroughly.
-
-Gate:
-
-- unit tests for all transitions and guardrails.
-
-Phase 2: Guided startup and step panel
-
-- auto-enter guided intake on interactive launch,
-- one-question-at-a-time step panel.
-
-Gate:
-
-- PTY journey: launch -> review without slash commands.
-
-Phase 3: Selection polish
-
-- rounded choice bubbles,
-- checkbox and focus behavior consistency,
-- keyboard hints aligned with actual controls.
-
-Gate:
-
-- interaction tests and visual checks for 80x24 and narrow terminals.
-
-Phase 4: Async feedback polish
-
-- spinner wrapper and usage policy,
-- ensure spinner cleanup on success/failure/interruption.
-
-Gate:
-
-- no spinner artifacts in failure or abort paths.
-
-Phase 5: Post-run action menu
-
-- explicit selector for report/verify/new/quit,
-- direct transition paths with clear return behavior.
-
-Gate:
-
-- full PTY journey pass through receipt and next actions.
+Phase 5: Receipt action loop
+- explicit post-run action selector
+- report/verify/new/quit loop
 
 Phase 6: Hardening and docs alignment
-
-- help and README alignment,
-- copy pass for professional tone,
-- fallback checks for NO_COLOR and narrow terminal mode.
-
-Gate:
-
-- all quality gates pass.
+- copy pass
+- narrow-width and NO_COLOR verification
+- final consistency pass with help/docs
 
 ---
 
-## 15) Test Strategy
+## 15) Test Plan
 
-## 15.1 Unit tests
+## 15.1 Unit
+- flow transitions
+- validation guards
+- cancel and restart safety
+- run mode safety guards
 
-- flow transitions,
-- validation guards,
-- cancellation/back behavior,
-- warning dedupe and run-mode safety guards.
+## 15.2 Integration
+- guided startup auto-enters intake
+- step selections update state coherently
+- review start triggers run controller
+- completion/failure transitions are deterministic
 
-## 15.2 Integration tests
+## 15.3 PTY E2E
+1. launch -> intake -> mock run -> receipt -> quit
+2. launch -> live without key -> blocked with explanation
+3. launch -> cancel and resume intake -> complete
+4. completion -> action selector -> report/verify/new cycle
 
-- startup enters guided flow,
-- flow selections update state correctly,
-- review start triggers run controller,
-- interrupted run returns coherent state.
-
-## 15.3 PTY E2E tests
-
-Minimum critical paths:
-
-1. launch -> full mock run -> receipt -> quit,
-2. launch -> attempt live without key -> blocked explanation,
-3. launch -> cancel/resume intake -> complete,
-4. post-run action menu -> report -> verify -> new study.
-
-## 15.4 Copy and docs checks
-
-- key prompts and errors tested for expected wording patterns,
-- help output contains consistent terminology.
+## 15.4 Copy checks
+- key prompts and errors match professional tone rules
+- no stale command-first onboarding text in guided path
 
 ---
 
-## 16) Acceptance Criteria (Premium Bar)
+## 16) Acceptance Criteria
 
-1. First-run mock study can be completed with no slash commands.
-2. Keyboard navigation is complete and discoverable.
-3. Live path is explicit and safe.
-4. Guided flow feels coherent end-to-end.
-5. Progress and receipt are readable under normal and narrow widths.
-6. Copy quality is consistent with professional research tooling.
-7. Commands remain available without dominating the default journey.
-8. Backend invariants remain untouched.
-9. All existing quality gates remain green.
+1. Guided flow is the default TTY entry experience.
+2. Full first-run journey is command-free.
+3. Keyboard navigation is complete and discoverable.
+4. Live behavior is explicit and safe.
+5. Progress and receipt are clear under normal and narrow widths.
+6. Copy quality is consistent and professional.
+7. All existing quality gates remain green.
 
 ---
 
 ## 17) Risks and Mitigations
 
-Risk: flow complexity grows too fast
+Risk: guided flow regresses power-user speed
+- Mitigation: keep advanced surfaces available outside guided primary path.
 
-- Mitigation: flow machine first, UI wiring second.
+Risk: polish work outruns behavior correctness
+- Mitigation: enforce phase gates and behavioral tests before visual refinements.
 
-Risk: visual polish outruns behavioral correctness
+Risk: interaction drift across modules
+- Mitigation: central flow machine and strict integration boundaries.
 
-- Mitigation: stage gates require passing behavior tests before polish phases.
-
-Risk: power-user workflows regress
-
-- Mitigation: preserve command shortcuts and explicit help.
-
-Risk: style drift across CLI and TUI
-
-- Mitigation: shared design tokens and copy style checks.
+Risk: over-animation
+- Mitigation: spinner policy and motion budget in review checklist.
 
 ---
 
-## 18) Definition of Done for Guided Entry Rebuild
+## 18) Definition of Done
 
 Done means:
-
-- `arbiter` in TTY launches a guided research setup flow by default,
-- user can complete intake, run, and receipt action loop without commands,
-- interaction quality matches the intended "alive but professional" bar,
-- documentation and help are aligned with behavior,
-- all quality gates pass.
-
----
-
-## 19) Immediate Next Step
-
-Use this doc as the reference artifact for independent audit.
-
-Request external review to stress-test:
-
-- flow clarity,
-- interaction design,
-- implementation sequencing,
-- testing depth,
-- risks and omissions.
+1. `arbiter` in TTY launches a guided workflow by default.
+2. User can reach receipt and next actions without command knowledge.
+3. The experience feels alive, calm, and professional.
+4. Documentation/help reflect actual behavior.
+5. All quality gates pass.
 
