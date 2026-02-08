@@ -244,7 +244,7 @@ test("pty: quickstart mock run completes and writes artifacts", { concurrency: f
 
     await session.waitForText("Starting mock run.", 20000);
     await session.waitForText("Run complete:", 30000);
-    await session.waitForText("Arbiter Receipt", 30000);
+    await session.waitForText("Run ID:", 30000);
     await session.waitForText("Choose the next action", 30000);
 
     const runDirs = readdirSync(join(cwd, "runs"), { withFileTypes: true })
