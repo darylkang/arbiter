@@ -8,7 +8,7 @@ import { TranscriptComponent } from "./components/transcript.js";
 import type { AppState } from "./state.js";
 import { editorTheme, palette } from "./theme.js";
 
-const RUNNING_PLACEHOLDER = "run in progress... ctrl+c to request graceful stop";
+const RUNNING_PLACEHOLDER = "Run in progress. Ctrl+C to request graceful stop.";
 
 export type TranscriptLayout = {
   root: Container;

@@ -14,7 +14,7 @@ import { formatVerifyReport, verifyRunDir } from "../../tools/verify-run.js";
 import { getAssetRoot } from "../../utils/asset-root.js";
 import { appendTranscript } from "./reducer.js";
 import { createRunController } from "./run-controller.js";
-import type { AppState, OverlayState } from "./state.js";
+import type { AppState, OverlayState, RunMode } from "./state.js";
 import { createInitialState } from "./state.js";
 import { createTranscriptLayout } from "./layout.js";
 import { createOverlayComponent } from "./components/overlay.js";
@@ -57,11 +57,11 @@ const appendError = (state: AppState, message: string): void => {
 
 const renderWarningsBlock = (state: AppState): void => {
   if (state.warnings.length === 0) {
-    appendStatus(state, "warnings: none");
+    appendStatus(state, "Warnings: none.");
     return;
   }
 
-  appendStatus(state, `warnings (${state.warnings.length}):`);
+  appendStatus(state, `Warnings (${state.warnings.length}):`);
   state.warnings.forEach((warning) => {
     appendTranscript(
       state,
@@ -71,6 +71,15 @@ const renderWarningsBlock = (state: AppState): void => {
     );
   });
 };
+
+type LaunchAction = "run-current" | "new-study" | "quit";
+type PostRunAction = "report" | "verify" | "new-study" | "quit";
+
+const isLaunchAction = (value: string): value is LaunchAction =>
+  value === "run-current" || value === "new-study" || value === "quit";
+
+const isPostRunAction = (value: string): value is PostRunAction =>
+  value === "report" || value === "verify" || value === "new-study" || value === "quit";
 
 export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Promise<void> => {
   const assetRoot = options?.assetRoot ?? getAssetRoot();
@@ -138,7 +147,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     },
     onEscape: () => {
       if (state.overlay) {
-        state.overlay = null;
+        state.overlay.onCancel();
         requestRender();
         return;
       }
@@ -151,7 +160,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         appendTranscript(
           state,
           "warning",
-          "interrupt requested. waiting for in-flight trials to finish"
+          "Interrupt requested. Waiting for in-flight trials to finish."
         );
         requestRender();
         return;
@@ -195,12 +204,12 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       overlayState = null;
     }
 
-    const component = createOverlayComponent(state.overlay, () => {
+    const overlayComponent = createOverlayComponent(state.overlay, () => {
       requestRender();
     });
     overlayState = state.overlay;
-    tui.showOverlay(component, resolveOverlayOptions());
-    tui.setFocus(component);
+    tui.showOverlay(overlayComponent.component, resolveOverlayOptions());
+    tui.setFocus(overlayComponent.focusTarget);
   };
 
   const reportRunDirError = (message: string): void => {
@@ -220,7 +229,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       onError: reportRunDirError
     });
     if (runDirs.length === 0) {
-      appendError(state, "no run directories found in ./runs");
+      appendError(state, "No run directories found in ./runs.");
       requestRender();
       return null;
     }
@@ -234,7 +243,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     return new Promise((resolveSelection) => {
       state.overlay = {
         kind: "select",
-        title: "select run directory",
+        title: "Select run directory",
         items,
         selectedIndex: 0,
         onSelect: (item) => {
@@ -246,9 +255,104 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         },
         onCancel: () => {
           state.overlay = null;
-          appendStatus(state, "run selection cancelled");
+          appendStatus(state, "Run selection cancelled.");
           requestRender();
           resolveSelection(null);
+        }
+      };
+      requestRender();
+    });
+  };
+
+  const selectLaunchAction = async (): Promise<LaunchAction | null> =>
+    new Promise((resolveSelection) => {
+      state.overlay = {
+        kind: "select",
+        title: "Choose how to continue",
+        items: [
+          {
+            id: "run-current",
+            label: "Run with current configuration",
+            description: "Start a mock run with the existing config"
+          },
+          {
+            id: "new-study",
+            label: "Set up a new study",
+            description: "Create a new configuration through guided setup"
+          },
+          {
+            id: "quit",
+            label: "Quit"
+          }
+        ],
+        selectedIndex: 0,
+        onSelect: (item) => {
+          if (!isLaunchAction(item.id)) {
+            appendError(state, `invalid launch action: ${item.id}`);
+            requestRender();
+            return;
+          }
+          state.overlay = null;
+          requestRender();
+          resolveSelection(item.id);
+        },
+        onCancel: () => {
+          appendStatus(state, "Choose an option to continue.");
+          requestRender();
+        }
+      };
+      requestRender();
+    });
+
+  const selectPostRunAction = async (): Promise<PostRunAction | null> => {
+    const items =
+      state.runDir.trim().length > 0
+        ? [
+            {
+              id: "report",
+              label: "View report",
+              description: "Open a concise run report"
+            },
+            {
+              id: "verify",
+              label: "Verify run",
+              description: "Validate run artifacts and invariants"
+            },
+            {
+              id: "new-study",
+              label: "Start new study",
+              description: "Begin guided setup for another run"
+            },
+            { id: "quit", label: "Quit" }
+          ]
+        : [
+            {
+              id: "new-study",
+              label: "Start new study",
+              description: "Begin guided setup for another run"
+            },
+            { id: "quit", label: "Quit" }
+          ];
+
+    return new Promise((resolveSelection) => {
+      state.overlay = {
+        kind: "select",
+        title: "Choose next action",
+        items,
+        selectedIndex: 0,
+        onSelect: (item) => {
+          if (!isPostRunAction(item.id)) {
+            appendError(state, `invalid post-run action: ${item.id}`);
+            requestRender();
+            return;
+          }
+          state.overlay = null;
+          requestRender();
+          resolveSelection(item.id);
+        },
+        onCancel: () => {
+          appendStatus(state, "Choose the next action to continue.");
+          requestRender();
         }
       };
       requestRender();
@@ -263,7 +367,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     try {
       appendTranscript(state, "receipt", renderReceiptForRun(runDir));
     } catch (error) {
-      appendError(state, `failed to render receipt: ${formatError(error)}`);
+      appendError(state, `Failed to render receipt: ${formatError(error)}`);
     }
     requestRender();
   };
@@ -277,7 +381,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       const report = formatReportText(buildReportModel(runDir, 3));
       appendTranscript(state, "report", report);
     } catch (error) {
-      appendError(state, `failed to build report: ${formatError(error)}`);
+      appendError(state, `Failed to build report: ${formatError(error)}`);
     }
     requestRender();
   };
@@ -291,7 +395,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       const verify = formatVerifyReport(verifyRunDir(runDir));
       appendTranscript(state, "verify", verify);
     } catch (error) {
-      appendError(state, `failed to verify run: ${formatError(error)}`);
+      appendError(state, `Failed to verify run: ${formatError(error)}`);
     }
     requestRender();
   };
@@ -301,7 +405,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     if (!runDir) {
       return;
     }
-    appendStatus(state, `analyzing ${runDir}`);
+    appendStatus(state, `Analyzing ${runDir}.`);
     await showVerify(runDir);
     await showReport(runDir);
   };
@@ -309,6 +413,46 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
   const showWarnings = async (): Promise<void> => {
     renderWarningsBlock(state);
     requestRender();
+  };
+
+  const showPostRunActions = async (): Promise<void> => {
+    if (state.phase !== "post-run") {
+      return;
+    }
+
+    let done = false;
+    while (!done && state.phase === "post-run") {
+      const action = await selectPostRunAction();
+      if (!action) {
+        continue;
+      }
+
+      switch (action) {
+        case "report":
+          await showReport(state.runDir || undefined);
+          break;
+        case "verify":
+          await showVerify(state.runDir || undefined);
+          break;
+        case "new-study":
+          intakeFlow.startNewFlow();
+          done = true;
+          break;
+        case "quit":
+          shutdown();
+          done = true;
+          break;
+        default:
+          break;
+      }
+    }
+  };
+
+  const startRun = async (mode: RunMode): Promise<void> => {
+    await runController.startRun(mode);
+    if (state.phase === "post-run") {
+      await showPostRunActions();
+    }
   };
 
   const intakeFlow = createIntakeFlowController({
@@ -321,7 +465,10 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     writeTemplateConfig: (profile: ProfileDefinition, question: string) => {
       writeTemplateConfigFile(assetRoot, profile.template, question, state.configPath);
     },
-    startRun: async (mode) => runController.startRun(mode)
+    startRun,
+    setInputText: (value) => {
+      layout.editor.setText(value);
+    }
   });
 
   const commandContext: CommandContext = {
@@ -340,9 +487,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     },
     requestRender,
     exit: shutdown,
-    startRun: async (mode) => {
-      await runController.startRun(mode);
-    },
+    startRun,
     startNewFlow: intakeFlow.startNewFlow,
     showWarnings,
     showReport,
@@ -373,13 +518,37 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     }
   };
 
-  appendSystem(state, "welcome to arbiter transcript runtime");
-  appendSystem(state, "type /new to start a study, or /help for command reference");
+  appendSystem(state, "Welcome to Arbiter.");
 
   tui.addChild(layout.root);
   layout.sync(state);
   layout.focusInput();
   tui.start();
+
+  if (state.hasConfig) {
+    void (async () => {
+      const action = await selectLaunchAction();
+      if (!action) {
+        return;
+      }
+
+      switch (action) {
+        case "run-current":
+          await startRun("mock");
+          break;
+        case "new-study":
+          intakeFlow.startNewFlow();
+          break;
+        case "quit":
+          shutdown();
+          break;
+        default:
+          break;
+      }
+    })();
+  } else {
+    intakeFlow.startNewFlow();
+  }
 
   await done;
 };

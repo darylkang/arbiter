@@ -32,7 +32,7 @@ export class TranscriptComponent implements Component {
     const safeWidth = Math.max(24, width);
 
     if (this.entries.length === 0) {
-      return ["", "[system] type /new to begin, /help for commands.", ""];
+      return ["", "[system] Welcome to Arbiter.", ""];
     }
 
     const lines: string[] = [];

@@ -97,7 +97,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
       appendTranscript(
         state,
         "status",
-        `run started: ${event.payload.run_id} | protocol ${event.payload.resolved_config.protocol.type} | planned ${event.payload.k_planned ?? "-"}`,
+        `Run started: ${event.payload.run_id} | protocol ${event.payload.resolved_config.protocol.type} | planned ${event.payload.k_planned ?? "-"}`,
         event.payload.started_at
       );
       break;
@@ -168,7 +168,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
         appendTranscript(
           state,
           "status",
-          `trial ${record.trial_id} status: ${record.status}`,
+          `Trial ${record.trial_id} status: ${record.status}`,
           record.attempt?.completed_at ?? new Date().toISOString()
         );
       }
@@ -203,7 +203,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
       appendTranscript(
         state,
         "progress",
-        `batch ${event.payload.batch_number} started (${event.payload.trial_ids.length} trials)`
+        `Batch ${event.payload.batch_number} started (${event.payload.trial_ids.length} trials).`
       );
       break;
     }
@@ -213,7 +213,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
       appendTranscript(
         state,
         "progress",
-        `batch ${event.payload.batch_number} complete in ${event.payload.elapsed_ms}ms (${event.payload.trial_ids.length} trials)`
+        `Batch ${event.payload.batch_number} complete in ${event.payload.elapsed_ms}ms (${event.payload.trial_ids.length} trials).`
       );
       break;
     }
@@ -238,7 +238,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
       appendTranscript(
         state,
         "progress",
-        `convergence batch ${record.batch_number}: novelty ${record.novelty_rate ?? "null"}, mean_sim ${record.mean_max_sim_to_prior ?? "null"}, clusters ${record.cluster_count}`
+        `Convergence batch ${record.batch_number}: novelty ${record.novelty_rate ?? "null"}, mean_sim ${record.mean_max_sim_to_prior ?? "null"}, clusters ${record.cluster_count}.`
       );
       break;
     }
@@ -249,7 +249,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
       appendTranscript(
         state,
         "status",
-        `run complete: ${formatStopReason(event.payload.stop_reason)}${event.payload.incomplete ? " (incomplete)" : ""}`,
+        `Run complete: ${formatStopReason(event.payload.stop_reason)}${event.payload.incomplete ? " (incomplete)" : ""}.`,
         event.payload.completed_at
       );
       if (state.runProgress.parseFallback > 0) {
@@ -274,7 +274,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
     case "run.failed": {
       state.runProgress.active = false;
       state.phase = "post-run";
-      appendTranscript(state, "error", `run failed: ${event.payload.error}`, event.payload.completed_at);
+      appendTranscript(state, "error", `Run failed: ${event.payload.error}`, event.payload.completed_at);
       break;
     }
 

@@ -10,14 +10,23 @@ import {
 import type { ChecklistOverlay, ConfirmOverlay, OverlayState, SelectOverlay } from "../state.js";
 import { selectListTheme } from "../theme.js";
 
+export type OverlayComponent = {
+  component: Component;
+  focusTarget: Component;
+};
+
 const mapSelectItems = (items: SelectOverlay["items"]): SelectItem[] =>
   items.map((item) => ({
     value: item.id,
-    label: `◉ ${item.label}`,
-    description: item.description
+    label: `${item.disabled ? "◌" : "◉"} ${item.label}`,
+    description: item.disabled
+      ? item.description
+        ? `${item.description} (unavailable)`
+        : "unavailable"
+      : item.description
   }));
 
-const createSelectOverlay = (overlay: SelectOverlay): Component => {
+const createSelectOverlay = (overlay: SelectOverlay): OverlayComponent => {
   const list = new SelectList(mapSelectItems(overlay.items), Math.max(7, Math.min(12, overlay.items.length)), selectListTheme);
   list.setSelectedIndex(Math.max(0, Math.min(overlay.selectedIndex, overlay.items.length - 1)));
   list.onSelectionChange = (item): void => {
@@ -35,10 +44,13 @@ const createSelectOverlay = (overlay: SelectOverlay): Component => {
   list.onCancel = (): void => {
     overlay.onCancel();
   };
-  return withTitle(overlay.title, list);
+  return {
+    component: withTitle(overlay.title, list, overlay.body),
+    focusTarget: list
+  };
 };
 
-const createConfirmOverlay = (overlay: ConfirmOverlay): Component => {
+const createConfirmOverlay = (overlay: ConfirmOverlay): OverlayComponent => {
   const choices: SelectItem[] = [
     { value: "confirm", label: `◉ ${overlay.confirmLabel}`, description: overlay.body },
     { value: "cancel", label: `◉ ${overlay.cancelLabel}` }
@@ -58,7 +70,10 @@ const createConfirmOverlay = (overlay: ConfirmOverlay): Component => {
   list.onCancel = (): void => {
     overlay.onCancel();
   };
-  return withTitle(overlay.title, list);
+  return {
+    component: withTitle(overlay.title, list),
+    focusTarget: list
+  };
 };
 
 const buildChecklistItems = (overlay: ChecklistOverlay): SelectItem[] => {
@@ -79,7 +94,7 @@ const buildChecklistItems = (overlay: ChecklistOverlay): SelectItem[] => {
 const createChecklistOverlay = (
   overlay: ChecklistOverlay,
   requestRefresh: () => void
-): Component => {
+): OverlayComponent => {
   const list = new SelectList(
     buildChecklistItems(overlay),
     Math.max(8, Math.min(14, overlay.items.length + 2)),
@@ -120,12 +135,19 @@ const createChecklistOverlay = (
     overlay.onCancel();
   };
 
-  return withTitle(overlay.title, list);
+  return {
+    component: withTitle(overlay.title, list),
+    focusTarget: list
+  };
 };
 
-const withTitle = (title: string, component: Component): Component => {
+const withTitle = (title: string, component: Component, body?: string): Component => {
   const container = new Container();
   container.addChild(new Text(title, 1, 0));
+  if (body) {
+    container.addChild(new Spacer(1));
+    container.addChild(new Text(body, 1, 0));
+  }
   container.addChild(new Spacer(1));
   container.addChild(component);
   return container;
@@ -138,7 +160,7 @@ const assertNever = (value: never): never => {
 export const createOverlayComponent = (
   overlay: OverlayState,
   requestRefresh: () => void
-): Component => {
+): OverlayComponent => {
   switch (overlay.kind) {
     case "select":
       return createSelectOverlay(overlay);

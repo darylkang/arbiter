@@ -81,25 +81,33 @@ export const createRunController = (input: {
 
   const startRun = async (mode: RunMode): Promise<void> => {
     if (runPromise) {
-      appendTranscript(input.state, "status", "a run is already active");
+      appendTranscript(input.state, "status", "A run is already active.");
       input.requestRender();
       return;
     }
 
     if (!resolvedDeps.configExists(input.state.configPath)) {
-      appendTranscript(input.state, "error", "missing arbiter.config.json. run /new first");
+      appendTranscript(
+        input.state,
+        "error",
+        `Configuration not found at ${input.state.configPath}. Set up a new study first.`
+      );
       input.requestRender();
       return;
     }
 
     if (mode === "live" && !process.env.OPENROUTER_API_KEY) {
-      appendTranscript(input.state, "error", "OPENROUTER_API_KEY missing. use /run mock or set the key");
+      appendTranscript(
+        input.state,
+        "error",
+        "OpenRouter API key not found. Live runs require OPENROUTER_API_KEY."
+      );
       input.requestRender();
       return;
     }
 
     beginRun(input.state, mode);
-    appendTranscript(input.state, "status", `starting ${mode} run...`);
+    appendTranscript(input.state, "status", `Starting ${mode} run.`);
     input.requestRender();
 
     const bus = resolvedDeps.createBus();
@@ -165,7 +173,7 @@ export const createRunController = (input: {
           input.state.runDir = runDir;
           input.state.lastRunDir = runDir;
           input.state.runsCount = resolvedDeps.listRunsCount();
-          appendTranscript(input.state, "status", `artifacts written: ${runDir}`);
+          appendTranscript(input.state, "status", `Artifacts written to ${runDir}.`);
           try {
             appendTranscript(input.state, "receipt", resolvedDeps.renderReceipt(runDir));
           } catch (error) {
@@ -178,7 +186,7 @@ export const createRunController = (input: {
           }
         }
       } catch (error) {
-        appendTranscript(input.state, "error", `run execution failed: ${formatError(error)}`);
+        appendTranscript(input.state, "error", `Run execution failed: ${formatError(error)}`);
         input.state.phase = "post-run";
       } finally {
         try {

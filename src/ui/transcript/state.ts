@@ -3,6 +3,7 @@ import type { ProfileId } from "./profiles.js";
 
 export type TranscriptPhase = "idle" | "intake" | "running" | "post-run";
 export type RunMode = "mock" | "live";
+export type RunModeSelection = RunMode | "save-only";
 
 export type TranscriptEntryKind =
   | "system"
@@ -32,6 +33,7 @@ export type OverlayItem = {
 export type SelectOverlay = {
   kind: "select";
   title: string;
+  body?: string;
   items: OverlayItem[];
   selectedIndex: number;
   onSelect: (item: OverlayItem) => void;
@@ -94,9 +96,10 @@ export type RunProgress = {
 };
 
 export type NewFlowState = {
-  stage: "await_question" | "select_profile" | "select_mode";
-  question?: string;
+  stage: "question" | "profile" | "mode" | "review";
+  question: string;
   profileId?: ProfileId;
+  mode?: RunModeSelection;
 };
 
 export type AppState = {
