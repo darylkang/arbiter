@@ -55,7 +55,7 @@ npm install -g @darylkang/arbiter
 ### Option B: Install from source (editable/local development)
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/darylkang/arbiter.git
 cd arbiter
 npm install
 npm run build
