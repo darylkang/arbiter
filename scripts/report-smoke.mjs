@@ -54,7 +54,7 @@ const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
 const cliPath = resolve("dist/cli/index.js");
-execSync(`node ${cliPath} mock-run --config ${configPath} --out ${runsDir}`, {
+execSync(`node ${cliPath} run --config ${configPath} --out ${runsDir}`, {
   stdio: "inherit"
 });
 

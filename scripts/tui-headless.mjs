@@ -15,11 +15,13 @@ const run = (args) => {
 
 const noArgs = run([]);
 assert.equal(noArgs.status, 0);
-assert.match(noArgs.stdout, /Usage:/);
+assert.match(noArgs.stdout, /Workflow:/);
 assert.doesNotMatch(noArgs.stdout, /wizard/i);
+assert.doesNotMatch(noArgs.stdout, /quickstart/);
+assert.doesNotMatch(noArgs.stdout, /mock-run/);
 
 const headlessOnly = run(["--headless"]);
 assert.equal(headlessOnly.status, 0);
-assert.match(headlessOnly.stdout, /Usage:/);
+assert.match(headlessOnly.stdout, /Workflow:/);
 
 console.log("tui headless smoke: ok");

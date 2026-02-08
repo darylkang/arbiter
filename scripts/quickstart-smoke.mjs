@@ -8,9 +8,14 @@ const runsDir = resolve(tempRoot, "runs");
 const cliPath = resolve("dist/cli/index.js");
 
 execSync(
-  `node ${cliPath} quickstart "Quickstart smoke question" --profile quickstart --mock --yes --out ${runsDir}`,
+  `node ${cliPath} init "Quickstart smoke question" --template quickstart_independent`,
   { cwd: tempRoot, stdio: "inherit" }
 );
+
+execSync(`node ${cliPath} run --out ${runsDir}`, {
+  cwd: tempRoot,
+  stdio: "inherit"
+});
 
 const runDirs = readdirSync(runsDir);
 if (runDirs.length !== 1) {

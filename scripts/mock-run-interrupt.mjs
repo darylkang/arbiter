@@ -76,7 +76,7 @@ writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
 const child = spawn(
   "node",
-  ["dist/cli/index.js", "mock-run", "--config", configPath, "--out", runsDir, "--debug"],
+  ["dist/cli/index.js", "run", "--config", configPath, "--out", runsDir, "--debug"],
   {
     stdio: "inherit",
     env: { ...process.env, ARBITER_MOCK_DELAY_MS: "25" }
@@ -90,7 +90,7 @@ const exitCode = await new Promise((resolve) => {
 });
 
 if (exitCode !== 0) {
-  throw new Error(`mock-run interrupt smoke failed with code ${exitCode}`);
+  throw new Error(`run interrupt smoke failed with code ${exitCode}`);
 }
 
 const runDirs = readdirSync(runsDir);

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { tableFromIPC } from "apache-arrow";
 import { validateManifest } from "../dist/config/schema-validation.js";
 
-const tempRoot = resolve(tmpdir(), `arbiter-mock-run-${Date.now()}`);
+const tempRoot = resolve(tmpdir(), `arbiter-run-${Date.now()}`);
 const runsDir = resolve(tempRoot, "runs");
 mkdirSync(runsDir, { recursive: true });
 
@@ -20,7 +20,7 @@ const protocols = promptManifest.entries.filter(
 );
 
 if (catalog.models.length < 1 || personas.length < 2 || protocols.length < 1) {
-  throw new Error("Not enough catalog/prompt entries for mock-run smoke test");
+  throw new Error("Not enough catalog/prompt entries for run smoke test");
 }
 
 const config = {
@@ -72,7 +72,7 @@ const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
 execSync(
-  `node dist/cli/index.js mock-run --config ${configPath} --out ${runsDir} --debug`,
+  `node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`,
   { stdio: "inherit" }
 );
 
@@ -108,7 +108,7 @@ for (const relPath of requiredPaths) {
 const manifestPath = resolve(runDir, "manifest.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 if (!validateManifest(manifest)) {
-  throw new Error("Manifest failed schema validation in mock-run smoke test");
+  throw new Error("Manifest failed schema validation in run smoke test");
 }
 
 const artifactPaths = manifest.artifacts?.entries?.map((entry) => entry.path) ?? [];

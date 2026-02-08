@@ -68,7 +68,7 @@ const config = {
 const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
-execSync(`node dist/cli/index.js mock-run --config ${configPath} --out ${runsDir}`, {
+execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir}`, {
   stdio: "ignore"
 });
 

@@ -67,7 +67,7 @@ const config = {
 const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
-execSync(`node dist/cli/index.js mock-run --config ${configPath} --out ${runsDir} --debug`, {
+execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`, {
   stdio: "ignore",
   env: { ...process.env, ARBITER_RECEIPT_FAIL: "1" }
 });

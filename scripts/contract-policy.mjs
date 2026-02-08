@@ -25,7 +25,7 @@ const runMock = (policy, outDir) =>
     "node",
     [
       "dist/cli/index.js",
-      "mock-run",
+      "run",
       "--config",
       configPath,
       "--out",

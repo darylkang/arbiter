@@ -21,7 +21,7 @@ try {
   execSync(`${binPath} init "Pack smoke question"`, { cwd: tempRoot, stdio: "inherit" });
   execSync(`${binPath} validate`, { cwd: tempRoot, stdio: "inherit" });
   execSync(
-    `${binPath} mock-run --config arbiter.config.json --out runs --max-trials 2 --batch-size 1 --workers 1`,
+    `${binPath} run --config arbiter.config.json --out runs --max-trials 2 --batch-size 1 --workers 1`,
     { cwd: tempRoot, stdio: "pipe" }
   );
 
@@ -32,10 +32,10 @@ try {
   }
   const runDir = resolve(runsDir, runDirs[0]);
   if (!existsSync(resolve(runDir, "manifest.json"))) {
-    throw new Error("manifest.json missing after pack mock-run");
+    throw new Error("manifest.json missing after pack run");
   }
   if (!existsSync(resolve(runDir, "receipt.txt"))) {
-    throw new Error("receipt.txt missing after pack mock-run");
+    throw new Error("receipt.txt missing after pack run");
   }
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });

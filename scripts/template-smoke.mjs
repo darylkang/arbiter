@@ -25,7 +25,7 @@ for (const template of templates) {
   });
 
   execSync(
-    `node ${cliPath} mock-run --config arbiter.config.json --out ${runsDir} --max-trials 2 --batch-size 1 --workers 1`,
+    `node ${cliPath} run --config arbiter.config.json --out ${runsDir} --max-trials 2 --batch-size 1 --workers 1`,
     { cwd: tempRoot, stdio: "inherit" }
   );
 

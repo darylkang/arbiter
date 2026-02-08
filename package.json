@@ -42,6 +42,7 @@
     "test:report": "npm run build && node scripts/report-smoke.mjs",
     "test:unit": "npm run build && node --test test/unit/*.test.mjs",
     "test:e2e:tui": "npm run build && node --test test/e2e/*.test.mjs",
+    "test:cli-contracts": "npm run build && node scripts/cli-output-contracts.mjs",
     "test:guards": "node scripts/architecture-guard.mjs",
     "prepublishOnly": "npm run build && npm run test:pack"
   },

@@ -20,7 +20,7 @@ const protocols = promptManifest.entries.filter(
 );
 
 if (catalog.models.length < 1 || personas.length < 2 || protocols.length < 1) {
-  throw new Error("Not enough catalog/prompt entries for debate mock-run test");
+  throw new Error("Not enough catalog/prompt entries for debate run test");
 }
 
 const config = {
@@ -71,7 +71,7 @@ const config = {
 const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
-execSync(`node dist/cli/index.js mock-run --config ${configPath} --out ${runsDir} --debug`, {
+execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`, {
   stdio: "inherit"
 });
 
