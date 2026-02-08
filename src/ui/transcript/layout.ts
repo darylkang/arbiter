@@ -3,7 +3,6 @@ import { Container, Spacer, Text, type TUI } from "@mariozechner/pi-tui";
 import { renderFooter } from "./components/footer.js";
 import { renderHeader } from "./components/header.js";
 import { TranscriptEditor } from "./components/input.js";
-import { renderProgressSummary } from "./components/progress.js";
 import { TranscriptComponent } from "./components/transcript.js";
 import type { AppState } from "./state.js";
 import { editorTheme, palette } from "./theme.js";
@@ -24,7 +23,6 @@ export const createTranscriptLayout = (input: {
 }): TranscriptLayout => {
   const root = new Container();
   const header = new Text("", 0, 0);
-  const progress = new Text("", 0, 0);
   const transcript = new TranscriptComponent();
   const editor = new TranscriptEditor(input.tui, editorTheme);
   const footer = new Text("", 0, 0);
@@ -33,18 +31,28 @@ export const createTranscriptLayout = (input: {
   editor.onEscape = input.onEscape;
   editor.onCtrlC = input.onCtrlC;
 
-  let showProgress = true;
   let showEditor = true;
+
+  const shouldShowEditor = (state: AppState): boolean => {
+    if (state.phase === "running") {
+      return true;
+    }
+    if (state.phase !== "intake") {
+      return false;
+    }
+    if (!state.newFlow || state.overlay) {
+      return false;
+    }
+    return (
+      state.newFlow.stage === "question" ||
+      (state.newFlow.stage === "labels" && state.newFlow.labelMode === "custom")
+    );
+  };
 
   const rebuildTree = (): void => {
     root.clear();
     root.addChild(header);
     root.addChild(new Spacer(1));
-
-    if (showProgress) {
-      root.addChild(progress);
-      root.addChild(new Spacer(1));
-    }
 
     root.addChild(transcript);
     root.addChild(new Spacer(1));
@@ -62,27 +70,23 @@ export const createTranscriptLayout = (input: {
   const sync = (state: AppState): void => {
     const layoutWidth = Math.max(24, input.tui.terminal.columns);
 
-    const nextShowProgress = state.phase === "running" || state.phase === "post-run";
-    const nextShowEditor = state.phase === "idle" || state.phase === "intake";
-    if (nextShowProgress !== showProgress || nextShowEditor !== showEditor) {
-      showProgress = nextShowProgress;
+    const nextShowEditor = shouldShowEditor(state);
+    if (nextShowEditor !== showEditor) {
       showEditor = nextShowEditor;
       rebuildTree();
     }
 
     header.setText(renderHeader(state, layoutWidth));
-
-    if (showProgress) {
-      progress.setText(renderProgressSummary(state.runProgress, layoutWidth));
-    } else {
-      progress.setText("");
-    }
-
-    transcript.setEntries(state.transcript);
+    transcript.setState(state);
     footer.setText(renderFooter(state, layoutWidth));
 
     if (showEditor) {
-      editor.disableSubmit = false;
+      if (state.phase === "running") {
+        editor.setText("Run in progress. Ctrl+C to request graceful stop.");
+        editor.disableSubmit = true;
+      } else {
+        editor.disableSubmit = false;
+      }
     } else {
       editor.setText("");
       editor.disableSubmit = true;

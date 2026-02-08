@@ -55,32 +55,11 @@ const BANNER_LINES = [
 ];
 
 export const getBannerLines = (width: number): string[] =>
-  width >= 72 ? BANNER_LINES : [];
+  width >= 120 ? BANNER_LINES : [];
 
 export const makeDivider = (width: number): string => {
   const lineWidth = Math.max(24, Math.min(width, 78));
   return palette.steel("─".repeat(lineWidth));
-};
-
-export const styleEntryPrefix = (kind: string, timestamp: string): string => {
-  const hhmmss = timestamp.slice(11, 19);
-  const prefix = `[${hhmmss}]`;
-  if (kind === "error") {
-    return palette.crimson(prefix);
-  }
-  if (kind === "warning") {
-    return palette.warning(prefix);
-  }
-  if (kind === "user") {
-    return palette.cyan(prefix);
-  }
-  if (kind === "progress") {
-    return palette.phosphor(prefix);
-  }
-  if (kind === "receipt" || kind === "report" || kind === "verify") {
-    return palette.orange(prefix);
-  }
-  return palette.steel(prefix);
 };
 
 export const styleStatusLine = (label: string, ok: boolean, detail: string): string => {

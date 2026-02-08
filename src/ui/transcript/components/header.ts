@@ -36,11 +36,16 @@ export const renderHeader = (state: AppState, width: number): string => {
   );
   const phase = styleStatusLine("phase", true, phaseLabel(state));
 
-  return [
-    ...getBannerLines(width).map((line) => palette.amber(line)),
-    title,
-    `${subtitle}  ${version}`,
-    `${api}    ${cfg}    ${phase}`,
+  const bannerLines = getBannerLines(width).map((line) => palette.amber(line));
+  const compact = state.phase === "intake";
+
+  const lines = [
+    ...bannerLines,
+    `${title}  ${version}`,
+    compact ? `${phase}` : `${api}    ${cfg}    ${phase}`,
+    compact ? subtitle : palette.steel("Follow the guided flow. Completed stage blocks remain in history."),
     makeDivider(width)
-  ].join("\n");
+  ];
+
+  return lines.join("\n");
 };
