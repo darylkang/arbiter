@@ -1,11 +1,3 @@
-export type ProfileDefinition = {
-  id: "quickstart" | "heterogeneity" | "debate" | "free";
-  template: string;
-  label: string;
-  description: string;
-  warning?: string;
-};
-
 export const PROFILES = [
   {
     id: "quickstart",
@@ -33,9 +25,16 @@ export const PROFILES = [
     warning:
       "free-tier models are useful for prototyping; use pinned paid models for research-grade studies"
   }
-] as const satisfies readonly ProfileDefinition[];
+ ] as const;
 
-export type ProfileId = ProfileDefinition["id"];
+export type ProfileId = (typeof PROFILES)[number]["id"];
+export type ProfileDefinition = {
+  id: ProfileId;
+  template: string;
+  label: string;
+  description: string;
+  warning?: string;
+};
 
 export type ProfileOverlayItem = {
   id: string;
@@ -43,7 +42,8 @@ export type ProfileOverlayItem = {
   description?: string;
 };
 
-export const listProfiles = (): ProfileDefinition[] => [...PROFILES];
+export const listProfiles = (): ProfileDefinition[] =>
+  PROFILES.map((profile) => ({ ...profile }));
 
 export const findProfileById = (profileId: ProfileId): ProfileDefinition | undefined =>
   PROFILES.find((entry) => entry.id === profileId);
