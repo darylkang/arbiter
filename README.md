@@ -1,195 +1,268 @@
 # Arbiter
 
-Arbiter is a research‑grade CLI for studying **LLM behavior as a distribution** under repeated heterogeneous sampling. Each trial draws a configuration from an explicit distribution Q(c), produces an output, and applies a fixed measurement procedure *M* (embedding + optional online clustering) to estimate a response landscape. **Distributional convergence** means the *observed distribution* stabilizes under a fixed instrument—it is not a claim of correctness.
+Arbiter is a research-grade CLI for studying **LLM response distributions** under repeated, controlled sampling.
 
-Arbiter is intentionally **audit‑first**: JSON Schemas define artifacts, resolved configs embed the exact prompts/contracts used, and every run emits a reproducible artifact pack.
+It is designed for teams that need:
 
-## Critical assumptions (must read)
+- deterministic trial planning,
+- auditable artifact outputs,
+- reproducible run verification,
+- and clear provenance for requested vs. actual model behavior.
 
-- **Embedding groups are measurement artifacts**
-  - “Groups” (clusters) reflect similarity in the embedding space, not semantic truth. Different embedding models or parameters yield different groupings.
-- **Stopping does not imply correctness**
-  - Convergence‑aware stopping indicates **novelty saturation** under the current measurement procedure. It does **not** mean answers are correct or consensus exists.
-- **Free‑tier models are exploration‑only**
-  - Models with `:free` suffix are rate‑limited and may be substituted. They are suitable for onboarding and prototyping, not publishable research.
-- **Provenance is recorded, not guaranteed**
-  - You may request one model and receive another. Arbiter records **requested vs actual** identifiers, but cannot guarantee provider behavior.
-
-> Arbiter discovers emergent response clusters—these are measurement artifacts contingent on the embedding model and clustering parameters, not ground‑truth categories. Distributional convergence indicates that additional sampling is unlikely to reveal new response modes; it does not indicate correctness or consensus. Runs using free‑tier models (`:free` suffix) are rate‑limited and subject to model substitution; they are suitable for exploration and onboarding but should not be used for publishable research. Always report the full measurement procedure (M) and actual model identifiers when citing Arbiter results.
+Arbiter focuses on **measurement quality** and **traceability**. It does not claim model correctness.
 
 ---
 
-## Table of contents
-- [What Arbiter is (and is not)](#what-arbiter-is-and-is-not)
-- [Quickstart (<60 seconds)](#quickstart-60-seconds)
-- [Understanding your results](#understanding-your-results)
-- [Premium CLI wizard](#premium-cli-wizard)
-- [Profiles / templates](#profiles--templates)
-- [Protocols](#protocols)
-- [Decision contracts](#decision-contracts)
-- [Outputs (artifact pack)](#outputs-artifact-pack)
-- [Guardrails / policy](#guardrails--policy)
-- [Model reproducibility & provenance](#model-reproducibility--provenance)
-- [Contributing / further docs](#contributing--further-docs)
+## What Arbiter does
+
+Arbiter runs many trials against a fixed question and configuration, then records:
+
+- trial-level outputs,
+- parsed outcomes,
+- embedding-based novelty signals,
+- optional clustering state,
+- and a complete run manifest for verification.
+
+This supports analysis of how response behavior changes across model/persona/protocol sampling choices.
 
 ---
 
-## What Arbiter is (and is not)
+## Core principles
 
-**Arbiter is:**
-- A deterministic, schema‑driven sampling harness for studying response distributions.
-- An audit‑grade artifact generator for reproducible experiments.
-- A CLI that supports mock runs, live OpenRouter runs, and report/verify tooling.
-
-**Arbiter is not:**
-- A benchmark or correctness scorer.
-- An offline clustering/visualization tool (that lives in separate Python workflows).
-- A UI‑heavy product that hides the audit trail (the wizard is optional; artifacts remain the source of truth).
+- **Schema-first**: output contracts are defined by JSON Schemas.
+- **Deterministic planning**: trial plans are seeded and reproducible.
+- **Audit-first artifacts**: runs emit machine-verifiable files, not just terminal logs.
+- **Provenance-aware**: requested and actual model identifiers are both recorded.
 
 ---
 
-## Quickstart (<60 seconds)
+## Requirements
 
-### Premium wizard (TTY)
+- Node.js `>=24`
+- macOS/Linux terminal (TTY for interactive mode)
+- OpenRouter API key only for live runs (`OPENROUTER_API_KEY`)
 
+---
+
+## Install
+
+### Option A: Install globally from npm
+
+```bash
+npm install -g @darylkang/arbiter
 ```
+
+### Option B: Install from source (editable/local development)
+
+```bash
+git clone <your-repo-url>
+cd arbiter
+npm install
+npm run build
+npm link
+```
+
+Verify installation:
+
+```bash
+arbiter --version
+arbiter --help
+```
+
+---
+
+## Quick start
+
+### Interactive mode (TTY)
+
+Launch the interactive transcript UI:
+
+```bash
 arbiter
 ```
 
-### Headless quickstart
+### Headless mock run (recommended first run)
 
-```
-# Create a config, validate it, then run a mock experiment (default)
-arbiter init "What are the tradeoffs of event sourcing?"
+```bash
+arbiter init "What tradeoffs appear in event-driven architecture decisions?"
 arbiter validate
 arbiter run
 ```
 
-### Live run (OpenRouter key required)
+Then inspect outputs:
 
+```bash
+arbiter receipt runs/<run_id>
+arbiter report runs/<run_id>
+arbiter verify runs/<run_id>
 ```
-export OPENROUTER_API_KEY=...your key...
+
+### Live run (real model calls)
+
+```bash
+export OPENROUTER_API_KEY=<your_key>
 arbiter validate --live
 arbiter run --live
 ```
 
-Notes:
-- `arbiter run` defaults to mock mode.
-- Use `arbiter run --live --yes` for non-interactive live runs.
-- Results go to `runs/<run_id>/`.
-- `arbiter --headless` prints help and keeps everything headless.
+For non-interactive environments (CI, pipes), add `--yes`:
 
----
-
-## Understanding your results
-
-Start here after any run:
-- `receipt.txt` (summary)
-- `arbiter report runs/<run_id>` (human‑readable overview)
-- `arbiter verify runs/<run_id>` (schema + invariant checks)
-
-Full guide: **[docs/interpreting-results.md](docs/interpreting-results.md)**
-
----
-
-## Premium CLI wizard
-
-The wizard is a guided flow for questions → profiles → review → run → receipt. It **does not** change execution semantics: the engine and artifacts remain the source of truth. Use `--headless` if you want pure CLI scripting.
-
----
-
-## Profiles / templates
-
-Profiles are curated **templates** that run the same engine with different defaults.
-
-- Quickstart: `quickstart_independent`
-- Heterogeneity mix: `heterogeneity_mix`
-- Proposer–critic–revision: `debate_v1`
-- Free tier: `free_quickstart` (exploration only)
-
-Guide: **[templates/README.md](templates/README.md)**
-
----
-
-## Protocols
-
-- `independent` — single call per trial.
-- `debate_v1` — **proposer–critic–revision** (3 calls per trial). The contract clause, when configured, is appended only to the final proposer system prompt.
-
----
-
-## Decision contracts
-
-Decision contracts define a strict JSON shape for outputs and a canonical embedding target. The built‑in preset `binary_decision_v1` expects:
-- `decision`: "yes" | "no"
-- `rationale`: string (required, maxLength 500)
-- `confidence`: number in [0,1] (optional)
-
-By default, `binary_decision_v1` embeds the **rationale**. If the rationale exceeds 500 chars, it is truncated deterministically and `rationale_truncated=true` is recorded in `parsed.jsonl`.
-
----
-
-## Outputs (artifact pack)
-
-Each run creates `runs/<run_id>/` with the following artifacts:
-
+```bash
+arbiter run --live --yes
 ```
+
+---
+
+## Command reference
+
+Use `arbiter <command> --help` for full flags and examples.
+
+| Command | Purpose |
+|---|---|
+| `arbiter` | Launch interactive transcript UI in TTY (or show help in headless mode) |
+| `arbiter init [question]` | Create a config file from a template |
+| `arbiter run [config]` | Execute a study (mock by default) |
+| `arbiter validate [config]` | Validate config and policy; optional live connectivity check |
+| `arbiter report <run_dir>` | Generate a readable summary report |
+| `arbiter verify <run_dir>` | Verify run artifacts against schemas and invariants |
+| `arbiter receipt <run_dir>` | Print a concise run receipt |
+| `arbiter resolve [config]` | Emit resolved config and deterministic trial plan without executing |
+
+---
+
+## Default run behavior
+
+- `arbiter run` defaults to **mock mode**.
+- `arbiter run --live` enables real API calls.
+- If API key is missing, mock mode still works.
+- Live mode requires `OPENROUTER_API_KEY`.
+
+---
+
+## Templates and profiles
+
+Arbiter ships curated templates in `templates/`:
+
+- `default`
+- `quickstart_independent`
+- `heterogeneity_mix`
+- `debate_v1`
+- `free_quickstart`
+- `full`
+
+Example:
+
+```bash
+arbiter init --template debate_v1 "Should cities prioritize housing affordability over job growth?"
+```
+
+---
+
+## Output artifacts
+
+Each run writes to:
+
+```text
 runs/<run_id>/
-  config.resolved.json         # self-contained config w/ embedded prompt + contract text
-  manifest.json                # provenance, counts, hashes, stop_reason
-  trial_plan.jsonl             # deterministic plan (trial_id ordered)
-  trials.jsonl                 # trial records (calls, timing, actual_model nullable)
-  parsed.jsonl                 # parsed outputs + embed_text
-  embeddings.arrow             # Arrow IPC float32 vectors (if produced)
-  embeddings.provenance.json   # embeddings status + counts + generation_id(s)
-  convergence_trace.jsonl      # batch metrics (clustering metrics if enabled)
-  aggregates.json              # run-level aggregates
-  receipt.txt                  # plain-text run receipt
-  clusters/                    # only when clustering enabled
-    online.state.json
-    online.assignments.jsonl
-  debug/                        # only with --debug
-    embeddings.jsonl           # append-only base64 float32le
+```
+
+Typical files include:
+
+- `config.resolved.json`
+- `manifest.json`
+- `trial_plan.jsonl`
+- `trials.jsonl`
+- `parsed.jsonl`
+- `convergence_trace.jsonl`
+- `aggregates.json`
+- `embeddings.provenance.json`
+- `embeddings.arrow` (when embeddings are generated)
+- `receipt.txt`
+- `clusters/` (when clustering is enabled)
+- `debug/` (when `--debug` is enabled)
+
+---
+
+## Interpreting results responsibly
+
+Arbiter measures **distributional behavior**, not correctness.
+
+Important guidance:
+
+- Convergence indicates novelty saturation under the configured measurement setup.
+- Embedding clusters are measurement artifacts, not ground-truth semantic classes.
+- Free-tier models are useful for exploration but not ideal for publication-grade claims.
+- Always report measurement settings and model provenance when sharing results.
+
+---
+
+## Guardrails and policy controls
+
+For policy-sensitive runs:
+
+- `--strict` enforces model policy constraints.
+- `--permissive` keeps warn-only behavior.
+- `--allow-free` and `--allow-aliased` allow specific exceptions in strict mode.
+- `--contract-failure warn|exclude|fail` controls parse-failure handling.
+
+Use `arbiter run --help` for full details.
+
+---
+
+## Reproducibility and provenance
+
+Arbiter records:
+
+- deterministic trial plan (seeded),
+- requested and actual model identifiers,
+- artifact hashes and counts in manifest,
+- embedding generation metadata when available.
+
+Use verification before trusting downstream analyses:
+
+```bash
+arbiter verify runs/<run_id>
 ```
 
 ---
 
-## Guardrails / policy
+## Troubleshooting
 
-- `--strict` enforces reproducibility guardrails (free/aliased models require explicit allow flags).
-- `--permissive` keeps warn‑only behavior.
-- `--contract-failure warn|exclude|fail` controls contract parse failures:
-  - `warn`: keep fallback outputs eligible.
-  - `exclude`: keep records, but exclude contract parse failures from embedding eligibility/monitoring.
-  - `fail`: mark run as error and return a non‑zero exit code.
-- Policy snapshot is recorded in `manifest.json`.
+### `error: config not found ...`
 
----
+Initialize a config first:
 
-## Model reproducibility & provenance
-
-- `actual_model` is taken from the **OpenRouter response body** `model` field (nullable if missing).
-- Embeddings provenance stores `generation_id` for optional later audit (e.g., `/api/v1/generation?id=<id>`).
-- Token usage is recorded when OpenRouter returns `usage` (prompt/completion/total).
-
----
-
-## Contributing / further docs
-
-- **Contract snapshot:** `docs/spec.md`
-- **Results guide:** `docs/interpreting-results.md`
-- **Template guide:** `templates/README.md`
-- **Agent/contributor rules:** `AGENTS.md`
-- **Config reference (examples):** `examples/config_reference.md`
-
----
-
-## Repository development
-
+```bash
+arbiter init "Your research question"
 ```
-npm install
-npm run build
-node dist/cli/index.js init "My question"
-node dist/cli/index.js validate
-node dist/cli/index.js run
+
+### Live run fails with missing API key
+
+Set key in environment:
+
+```bash
+export OPENROUTER_API_KEY=<your_key>
 ```
+
+### You need only planning, not execution
+
+Use resolve-only:
+
+```bash
+arbiter resolve
+```
+
+---
+
+## Documentation
+
+- Specification: `docs/spec.md`
+- Results interpretation: `docs/interpreting-results.md`
+- Template guide: `templates/README.md`
+- Contributor/agent rules: `AGENTS.md`
+
+---
+
+## License
+
+MIT
