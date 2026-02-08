@@ -131,6 +131,10 @@ const withTitle = (title: string, component: Component): Component => {
   return container;
 };
 
+const assertNever = (value: never): never => {
+  throw new Error(`Unhandled overlay kind: ${JSON.stringify(value)}`);
+};
+
 export const createOverlayComponent = (
   overlay: OverlayState,
   requestRefresh: () => void
@@ -143,6 +147,6 @@ export const createOverlayComponent = (
     case "checklist":
       return createChecklistOverlay(overlay, requestRefresh);
     default:
-      return createSelectOverlay(overlay as SelectOverlay);
+      return assertNever(overlay);
   }
 };

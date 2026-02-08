@@ -3,6 +3,8 @@ import type { WarningRecord } from "../../utils/warnings.js";
 import type { AppState, RunMode, TranscriptEntryKind } from "./state.js";
 import { resetRunProgress } from "./state.js";
 
+const MAX_TRANSCRIPT_ENTRIES = 1000;
+
 const nextEntryId = (state: AppState): string => {
   const current = state.nextTranscriptEntryId;
   state.nextTranscriptEntryId += 1;
@@ -21,6 +23,9 @@ export const appendTranscript = (
     content,
     timestamp
   });
+  if (state.transcript.length > MAX_TRANSCRIPT_ENTRIES) {
+    state.transcript.splice(0, state.transcript.length - MAX_TRANSCRIPT_ENTRIES);
+  }
 };
 
 export const appendWarning = (state: AppState, warning: WarningRecord): void => {
@@ -78,6 +83,10 @@ const formatStopReason = (stopReason: string): string => {
     default:
       return stopReason;
   }
+};
+
+const assertNeverEvent = (event: never): never => {
+  throw new Error(`Unhandled event type: ${JSON.stringify(event)}`);
 };
 
 export const applyRunEvent = (state: AppState, event: Event): void => {
@@ -269,7 +278,16 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
       break;
     }
 
-    default:
+    case "trial.planned":
+    case "embeddings.finalized":
+    case "cluster.assigned":
+    case "clusters.state":
+    case "aggregates.computed":
+    case "artifact.written":
+    case "warning.raised":
       break;
+
+    default:
+      assertNeverEvent(event);
   }
 };

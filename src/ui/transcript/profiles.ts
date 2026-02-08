@@ -42,6 +42,9 @@ export const listProfiles = (): ProfileDefinition[] => PROFILES;
 export const findProfileById = (profileId: ProfileId): ProfileDefinition | undefined =>
   PROFILES.find((entry) => entry.id === profileId);
 
+export const isProfileId = (value: string): value is ProfileId =>
+  PROFILES.some((entry) => entry.id === value);
+
 export const createProfileItems = (): OverlayItem[] =>
   PROFILES.map((profile) => ({
     id: profile.id,

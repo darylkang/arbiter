@@ -10,7 +10,7 @@ import { attachRunEventHandler } from "./handlers/event-handler.js";
 import { attachWarningHandler } from "./handlers/warning-handler.js";
 import { renderReceiptForRun } from "./components/receipt-view.js";
 import { formatError } from "./error-format.js";
-import { listRunDirs } from "./run-dirs.js";
+import { listRunDirs, RUNS_DIR_NAME } from "./run-dirs.js";
 
 export type RunController = {
   startRun: (mode: RunMode) => Promise<void>;
@@ -118,7 +118,7 @@ export const createRunController = (input: {
         const common = {
           configPath: input.state.configPath,
           assetRoot: input.assetRoot,
-          runsDir: "runs",
+          runsDir: RUNS_DIR_NAME,
           debug: false,
           quiet: false,
           bus,

@@ -4,7 +4,11 @@ import { resolve } from "node:path";
 import type { AppState } from "./state.js";
 import { formatError } from "./error-format.js";
 
-const RUNS_DIR_NAME = "runs";
+export const RUNS_DIR_NAME = "runs";
+
+type ListRunDirsOptions = {
+  onError?: (message: string) => void;
+};
 
 const isDirectoryPath = (path: string): boolean => {
   try {
@@ -14,7 +18,7 @@ const isDirectoryPath = (path: string): boolean => {
   }
 };
 
-export const listRunDirs = (): string[] => {
+export const listRunDirs = (options?: ListRunDirsOptions): string[] => {
   try {
     const runRoot = resolve(process.cwd(), RUNS_DIR_NAME);
     const entries = readdirSync(runRoot, { withFileTypes: true });
@@ -26,7 +30,7 @@ export const listRunDirs = (): string[] => {
   } catch (error) {
     const maybeCode = (error as { code?: unknown }).code;
     if (maybeCode !== "ENOENT") {
-      console.warn(`[arbiter:tui] failed to list run directories: ${formatError(error)}`);
+      options?.onError?.(`[arbiter:tui] failed to list run directories: ${formatError(error)}`);
     }
     return [];
   }
@@ -53,8 +57,7 @@ export const resolveRunDirArg = (
     return state.lastRunDir;
   }
 
-  const all = listRunDirs();
-  return all.length > 0 ? all[0] : null;
+  return null;
 };
 
 export const toRunDirLabel = (runDir: string): string => {

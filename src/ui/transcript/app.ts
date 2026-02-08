@@ -14,7 +14,7 @@ import { formatVerifyReport, verifyRunDir } from "../../tools/verify-run.js";
 import { getAssetRoot } from "../../utils/asset-root.js";
 import { appendTranscript } from "./reducer.js";
 import { createRunController } from "./run-controller.js";
-import type { AppState, OverlayState, ProfileId, RunMode } from "./state.js";
+import type { AppState, OverlayState } from "./state.js";
 import { createInitialState } from "./state.js";
 import { createTranscriptLayout } from "./layout.js";
 import { createOverlayComponent } from "./components/overlay.js";
@@ -22,12 +22,13 @@ import { executeCommandInput, listSlashCommands } from "./commands/registry.js";
 import type { CommandContext } from "./commands/types.js";
 import { renderReceiptForRun } from "./components/receipt-view.js";
 import { formatError } from "./error-format.js";
-import { createProfileItems, findProfileById } from "./profiles.js";
 import { listRunDirs, resolveRunDirArg, toRunDirLabel } from "./run-dirs.js";
+import { createIntakeFlowController } from "./intake-flow.js";
+import type { ProfileDefinition } from "./profiles.js";
 
 const DEFAULT_CONFIG_PATH = "arbiter.config.json";
 
-const writeTemplateConfig = (
+const writeTemplateConfigFile = (
   assetRoot: string,
   templateName: string,
   question: string,
@@ -60,9 +61,8 @@ const renderWarningsBlock = (state: AppState): void => {
     return;
   }
 
-  const recent = state.warnings.slice(-5);
   appendStatus(state, `warnings (${state.warnings.length}):`);
-  recent.forEach((warning) => {
+  state.warnings.forEach((warning) => {
     appendTranscript(
       state,
       "warning",
@@ -74,11 +74,18 @@ const renderWarningsBlock = (state: AppState): void => {
 
 export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Promise<void> => {
   const assetRoot = options?.assetRoot ?? getAssetRoot();
+  const startupWarnings: string[] = [];
+  const initialRunDirs = listRunDirs({
+    onError: (message) => startupWarnings.push(message)
+  });
   const state = createInitialState({
     configPath: resolve(process.cwd(), DEFAULT_CONFIG_PATH),
     hasApiKey: Boolean(process.env.OPENROUTER_API_KEY),
     hasConfig: existsSync(resolve(process.cwd(), DEFAULT_CONFIG_PATH)),
-    runsCount: listRunDirs().length
+    runsCount: initialRunDirs.length
+  });
+  startupWarnings.forEach((message) => {
+    appendTranscript(state, "warning", message);
   });
 
   const tui = new TUI(new ProcessTerminal());
@@ -188,6 +195,10 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     tui.setFocus(component);
   };
 
+  const reportRunDirError = (message: string): void => {
+    appendTranscript(state, "warning", message);
+  };
+
   const selectRunDir = async (runDirArg?: string): Promise<string | null> => {
     const resolvedRunDir = resolveRunDirArg(state, runDirArg);
     if (resolvedRunDir) {
@@ -197,7 +208,9 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       return resolvedRunDir;
     }
 
-    const runDirs = listRunDirs();
+    const runDirs = listRunDirs({
+      onError: reportRunDirError
+    });
     if (runDirs.length === 0) {
       appendError(state, "no run directories found in ./runs");
       requestRender();
@@ -290,139 +303,18 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     requestRender();
   };
 
-  const finalizeIntake = (inputProfileId: ProfileId, runMode: RunMode | "none"): void => {
-    const flow = state.newFlow;
-    const question = flow?.question?.trim();
-    if (!question) {
-      appendError(state, "missing question text in intake flow");
-      state.newFlow = null;
-      state.phase = "idle";
-      requestRender();
-      return;
-    }
-
-    const profile = findProfileById(inputProfileId);
-    if (!profile) {
-      appendError(state, `unknown profile id: ${inputProfileId}`);
-      state.newFlow = null;
-      state.phase = "idle";
-      requestRender();
-      return;
-    }
-
-    try {
-      writeTemplateConfig(assetRoot, profile.template, question, state.configPath);
-      state.hasConfig = true;
-      state.question = question;
-      state.profileId = profile.id;
-      state.newFlow = null;
-      state.phase = "idle";
-      appendStatus(state, `config written: ${state.configPath}`);
-      appendStatus(state, `profile: ${profile.label} | question: ${question}`);
-      if (profile.warning) {
-        appendTranscript(state, "warning", profile.warning);
-      }
-      requestRender();
-
-      if (runMode === "live" && !state.hasApiKey) {
-        appendError(state, "OPENROUTER_API_KEY is missing; run /run mock or set the key");
-        requestRender();
-        return;
-      }
-
-      if (runMode === "mock" || runMode === "live") {
-        void runController.startRun(runMode);
-      }
-    } catch (error) {
-      appendError(state, `failed to write config: ${formatError(error)}`);
-      state.newFlow = null;
-      state.phase = "idle";
-      requestRender();
-    }
-  };
-
-  const openModeOverlay = (profileId: ProfileId): void => {
-    state.overlay = {
-      kind: "select",
-      title: "select run mode",
-      items: [
-        { id: "mock", label: "run mock now", description: "no external api calls" },
-        {
-          id: "live",
-          label: "run live now",
-          description: "uses OPENROUTER_API_KEY and real model calls"
-        },
-        { id: "none", label: "save only", description: "write config and return to transcript" }
-      ],
-      selectedIndex: 0,
-      onSelect: (item) => {
-        state.overlay = null;
-        finalizeIntake(profileId, item.id as RunMode | "none");
-      },
-      onCancel: () => {
-        state.overlay = null;
-        state.newFlow = null;
-        state.phase = "idle";
-        appendStatus(state, "intake cancelled");
-        requestRender();
-      }
-    };
-    requestRender();
-  };
-
-  const openProfileOverlay = (): void => {
-    state.overlay = {
-      kind: "select",
-      title: "select profile",
-      items: createProfileItems(),
-      selectedIndex: 0,
-      onSelect: (item) => {
-        state.overlay = null;
-        const profileId = item.id as ProfileId;
-        state.profileId = profileId;
-        if (state.newFlow) {
-          state.newFlow.profileId = profileId;
-          state.newFlow.stage = "select_mode";
-        }
-        openModeOverlay(profileId);
-      },
-      onCancel: () => {
-        state.overlay = null;
-        state.newFlow = null;
-        state.phase = "idle";
-        appendStatus(state, "intake cancelled");
-        requestRender();
-      }
-    };
-    requestRender();
-  };
-
-  const startNewFlow = (): void => {
-    if (state.phase === "running") {
-      appendStatus(state, "run in progress. wait for completion before /new");
-      requestRender();
-      return;
-    }
-
-    state.phase = "intake";
-    state.newFlow = { stage: "await_question" };
-    appendSystem(state, "new study intake started. enter your research question, then press enter");
-    requestRender();
-  };
-
-  const handlePlainInput = (value: string): void => {
-    if (state.newFlow?.stage === "await_question") {
-      state.newFlow.question = value;
-      state.newFlow.stage = "select_profile";
-      state.question = value;
-      appendStatus(state, "question recorded. choose a profile");
-      openProfileOverlay();
-      return;
-    }
-
-    appendStatus(state, "input noted. use slash commands (try /help)");
-    requestRender();
-  };
+  const intakeFlow = createIntakeFlowController({
+    state,
+    requestRender,
+    appendSystem: (message) => appendSystem(state, message),
+    appendStatus: (message) => appendStatus(state, message),
+    appendError: (message) => appendError(state, message),
+    appendWarning: (message) => appendTranscript(state, "warning", message),
+    writeTemplateConfig: (profile: ProfileDefinition, question: string) => {
+      writeTemplateConfigFile(assetRoot, profile.template, question, state.configPath);
+    },
+    startRun: async (mode) => runController.startRun(mode)
+  });
 
   const commandContext: CommandContext = {
     state,
@@ -443,7 +335,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     startRun: async (mode) => {
       await runController.startRun(mode);
     },
-    startNewFlow,
+    startNewFlow: intakeFlow.startNewFlow,
     showWarnings,
     showReport,
     showVerify,
@@ -469,7 +361,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     });
 
     if (!handled) {
-      handlePlainInput(trimmed);
+      intakeFlow.handlePlainInput(trimmed);
     }
   };
 
