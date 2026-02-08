@@ -558,3 +558,66 @@ Done means all of the following are true:
 4. Copy quality is consistently professional across TUI and CLI help.
 5. Full quality gates are green.
 6. Vision conformance checklist passes in full.
+
+---
+
+## 17) External Audit Synthesis (Opus, 2026-02-08)
+
+This section records the independent audit synthesis so implementation does not drift.
+
+### 17.1 Overall assessment
+
+External audit grade: **B+** (alignment ~72/100).  
+Interpretation: structure is significantly improved, but the product still feels like a terminal runtime with guardrails rather than a fully guided research product.
+
+### 17.2 Findings we explicitly accept
+
+Accepted as high-priority:
+1. Visual density is still too high (always-on chrome consumes too much vertical space).
+2. Information budget is not strictly stage-adaptive (irrelevant telemetry shown outside running stage).
+3. Progress panel should prioritize decision-relevant run state over raw metrics.
+4. Primary guided path still includes command affordances in places where commands should be optional.
+5. Stage transitions are functionally present but visually under-signaled.
+
+Accepted as medium-priority:
+1. Transcript style remains partially log-oriented.
+2. Copy consistency still has isolated violations.
+3. Post-run completion and next-action language should be unified.
+
+### 17.3 Findings we accept with nuance
+
+1. Transcript-native wizard (vision PDF) vs overlay-first implementation:
+   - We accept Opus's recommendation to keep overlay-first for v1 because it is stable and practical in current architecture.
+   - We treat transcript-native wizarding as a possible future exploration, not a current blocker.
+
+2. Ctrl+C confirmation dialog:
+   - We do not block current work on adding a pre-interrupt confirm step.
+   - Current graceful interrupt behavior is acceptable for v1.
+
+### 17.4 Locked product decisions after audit
+
+The following are now locked for this UX cycle:
+
+1. **No architecture rewrite.** Evolve existing overlay-first system only.
+2. **Stage-adaptive visibility is mandatory.**
+   - Intake/idle: hide progress telemetry.
+   - Running/post-run: show compact progress only.
+3. **Progress panel is compact by default.**
+   - Default display should be concise (bar + current batch context).
+   - Deep metrics belong in report/receipt, not always-on chrome.
+4. **Primary path remains command-free.**
+   - No command references in guided-stage chrome.
+5. **Stage transitions must be visually legible.**
+   - Users should feel context change, not just notice a status label.
+6. **Copy contract is binding.**
+   - Professional, action-oriented, non-operator wording across all guided states.
+
+### 17.5 Execution impact from audit
+
+Implementation sequencing remains valid, but emphasis is now:
+1. Density and information budget first.
+2. Transcript and copy polish second.
+3. Stage-boundary visual clarity third.
+4. Hardening and tests last.
+
+These priorities supersede less impactful polish work.
