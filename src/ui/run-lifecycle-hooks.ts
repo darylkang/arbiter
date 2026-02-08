@@ -3,25 +3,18 @@ import { resolve } from "node:path";
 import type { RunLifecycleContext, RunLifecycleHooks } from "../run/lifecycle-hooks.js";
 import { buildReceiptModel } from "./receipt-model.js";
 import { formatReceiptText } from "./receipt-text.js";
-import { renderReceiptInk } from "./receipt-ink.js";
 import { writeReceiptText } from "./receipt-writer.js";
 import { ExecutionLogger } from "./execution-log.js";
 
-type UiRunLifecycleOptions = {
-  forceInk?: boolean;
-};
+const shouldAttachInteractiveOutputs = (context: RunLifecycleContext): boolean =>
+  Boolean(process.stdout.isTTY && !context.quiet);
 
-const shouldUseInk = (context: RunLifecycleContext, forceInk?: boolean): boolean =>
-  forceInk ?? Boolean(process.stdout.isTTY && !context.quiet);
-
-export const createUiRunLifecycleHooks = (
-  options: UiRunLifecycleOptions = {}
-): RunLifecycleHooks => {
+export const createUiRunLifecycleHooks = (): RunLifecycleHooks => {
   let logger: ExecutionLogger | null = null;
 
   return {
     onRunSetup: (context): void => {
-      if (!shouldUseInk(context, options.forceInk)) {
+      if (!shouldAttachInteractiveOutputs(context)) {
         return;
       }
       const executionLogPath = resolve(context.runDir, "execution.log");
@@ -47,9 +40,7 @@ export const createUiRunLifecycleHooks = (
         context.bus.emit({ type: "artifact.written", payload: { path: "receipt.txt" } });
 
         if (context.receiptMode === "auto") {
-          if (shouldUseInk(context, options.forceInk)) {
-            await renderReceiptInk(model);
-          } else {
+          if (shouldAttachInteractiveOutputs(context)) {
             process.stdout.write(text);
           }
         }

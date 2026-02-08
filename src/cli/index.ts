@@ -23,10 +23,10 @@ import {
   type ParsedArgs
 } from "./commands.js";
 import { resolveCliMode } from "./intent.js";
-import { runPremiumWizard } from "../ui/premium/wizard.js";
+import { launchTranscriptTUI } from "../ui/transcript/app.js";
 
 const printUsage = (): void => {
-  console.log("Premium wizard available in TTY: run `arbiter` with no args.");
+  console.log("Interactive transcript UI available in TTY: run `arbiter` with no args.");
   console.log("Headless flow: arbiter init → arbiter validate → arbiter run");
   console.log("Usage:");
   console.log(
@@ -45,8 +45,7 @@ const printUsage = (): void => {
   );
   console.log("  arbiter verify <run_dir>");
   console.log("  arbiter report <run_dir> [--format text|json] [--top N]");
-  console.log("  arbiter --headless  # disable wizard");
-  console.log("  arbiter --wizard    # force wizard");
+  console.log("  arbiter --headless  # disable interactive transcript ui");
 };
 
 const PROFILE_TEMPLATES: Record<string, string> = {
@@ -244,13 +243,14 @@ const runReport = (parsed: ParsedArgs): void => {
 
 const main = async (): Promise<void> => {
   const args = process.argv.slice(2);
-  const { filteredArgs, noCommand, shouldLaunchWizard } = resolveCliMode(
+  const { filteredArgs, noCommand, shouldLaunchTUI } = resolveCliMode(
     args,
     Boolean(process.stdout.isTTY)
   );
+  const assetRoot = getAssetRoot();
 
-  if (shouldLaunchWizard) {
-    await runPremiumWizard();
+  if (shouldLaunchTUI) {
+    await launchTranscriptTUI({ assetRoot });
     return;
   }
 
@@ -261,7 +261,6 @@ const main = async (): Promise<void> => {
 
   const command = filteredArgs[0];
   const parsed = parseArgs(filteredArgs.slice(1));
-  const assetRoot = getAssetRoot();
 
   try {
     if (command === "init") {

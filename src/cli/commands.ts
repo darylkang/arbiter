@@ -136,7 +136,6 @@ const printRunPreview = (resolvedConfig: ReturnType<typeof resolveConfigForCli>[
 export type RunCommandOptions = {
   bus?: EventBus;
   receiptMode?: "auto" | "writeOnly" | "skip";
-  forceInk?: boolean;
   hooks?: RunLifecycleHooks;
   showPreview?: boolean;
 };
@@ -168,9 +167,7 @@ export const runMockCommand = async (
   const quiet = hasFlag(parsed.flags, "--quiet");
   const policy = resolvePolicyFlags(parsed.flags);
   const warningSink = createConsoleWarningSink();
-  const hooks =
-    options?.hooks ??
-    createUiRunLifecycleHooks({ forceInk: options?.forceInk });
+  const hooks = options?.hooks ?? createUiRunLifecycleHooks();
 
   return runMockService({
     configPath,
@@ -218,9 +215,7 @@ export const runLiveCommand = async (
 
   const policy = resolvePolicyFlags(parsed.flags);
   const warningSink = createConsoleWarningSink();
-  const hooks =
-    options?.hooks ??
-    createUiRunLifecycleHooks({ forceInk: options?.forceInk });
+  const hooks = options?.hooks ?? createUiRunLifecycleHooks();
 
   return runLiveService({
     configPath,
