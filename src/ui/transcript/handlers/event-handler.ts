@@ -10,6 +10,7 @@ const RUN_EVENT_TYPES: EventType[] = [
   "embedding.recorded",
   "batch.started",
   "batch.completed",
+  "worker.status",
   "convergence.record",
   "run.completed",
   "run.failed"

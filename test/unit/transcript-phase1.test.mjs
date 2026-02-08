@@ -203,6 +203,12 @@ test("progress summary formats master progress and worker rows", () => {
     parseFallback: 1,
     parseFailed: 0,
     workerCount: 4,
+    workerStatus: {
+      1: { status: "busy", trialId: 7 },
+      2: { status: "busy", trialId: 8 },
+      3: { status: "idle" },
+      4: { status: "idle" }
+    },
     currentBatch: { batchNumber: 2, total: 5, completed: 3 },
     batchStatusCounts: {},
     recentBatches: [

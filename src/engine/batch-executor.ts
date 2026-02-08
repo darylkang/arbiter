@@ -7,6 +7,13 @@ export type RunBatchWithWorkersOptions<Entry, Result> = {
   workerCount: number;
   shouldStop: () => BatchStopSignal;
   execute: (entry: Entry) => Promise<Result>;
+  onWorkerStatus?: (input: {
+    workerId: number;
+    status: "busy" | "idle";
+    entry: Entry;
+    result?: Result;
+    error?: unknown;
+  }) => void;
 };
 
 /**
@@ -23,6 +30,7 @@ export const runBatchWithWorkers = async <Entry, Result>(
   }
 
   const results: Result[] = [];
+  const availableWorkers = Array.from({ length: normalizedWorkerCount }, (_, index) => index + 1);
   let index = 0;
   let inFlight = 0;
   let settled = false;
@@ -37,11 +45,18 @@ export const runBatchWithWorkers = async <Entry, Result>(
         inFlight < normalizedWorkerCount &&
         index < options.entries.length &&
         !firstError &&
-        !options.shouldStop().stop
+        !options.shouldStop().stop &&
+        availableWorkers.length > 0
       ) {
         const entry = options.entries[index];
+        const workerId = availableWorkers.shift() ?? normalizedWorkerCount;
         index += 1;
         inFlight += 1;
+        options.onWorkerStatus?.({
+          workerId,
+          status: "busy",
+          entry
+        });
         options.execute(entry)
           .then((result) => {
             if (settled) {
@@ -49,10 +64,24 @@ export const runBatchWithWorkers = async <Entry, Result>(
             }
             results.push(result);
             inFlight -= 1;
+            availableWorkers.push(workerId);
+            options.onWorkerStatus?.({
+              workerId,
+              status: "idle",
+              entry,
+              result
+            });
             launch();
           })
           .catch((error) => {
             inFlight -= 1;
+            availableWorkers.push(workerId);
+            options.onWorkerStatus?.({
+              workerId,
+              status: "idle",
+              entry,
+              error
+            });
             if (!firstError) {
               firstError = error;
             }

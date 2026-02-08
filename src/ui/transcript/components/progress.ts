@@ -17,15 +17,14 @@ const renderWorkerRows = (progress: RunProgress): string[] => {
   }
 
   const visibleWorkers = Math.min(workerCount, 12);
-  const remainingInBatch = progress.currentBatch
-    ? Math.max(0, progress.currentBatch.total - progress.currentBatch.completed)
-    : 0;
-  const busyWorkers = Math.min(workerCount, remainingInBatch);
-
   const rows = Array.from({ length: visibleWorkers }, (_, index) => {
     const workerId = String(index + 1).padStart(2, "0");
-    const busy = index < busyWorkers;
-    return `w${workerId} ${busy ? "[■■■···] busy" : "[······] idle"}`;
+    const status = progress.workerStatus[index + 1] ?? { status: "idle" as const };
+    if (status.status === "busy") {
+      const trial = typeof status.trialId === "number" ? ` t${status.trialId}` : "";
+      return `w${workerId} [■■■···] busy${trial}`;
+    }
+    return `w${workerId} [······] idle`;
   });
 
   const hidden = workerCount - visibleWorkers;

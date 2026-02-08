@@ -70,6 +70,23 @@ test("transcript run state transitions to post-run on completion and failure", (
   assert.equal(state.runProgress.active, true);
   assert.equal(state.runProgress.planned, 3);
   assert.equal(state.runProgress.workerCount, 3);
+  assert.deepEqual(state.runProgress.workerStatus, {
+    1: { status: "idle" },
+    2: { status: "idle" },
+    3: { status: "idle" }
+  });
+
+  applyRunEvent(state, {
+    type: "worker.status",
+    payload: {
+      batch_number: 0,
+      worker_id: 2,
+      status: "busy",
+      trial_id: 9,
+      updated_at: "2026-02-08T00:00:02.000Z"
+    }
+  });
+  assert.deepEqual(state.runProgress.workerStatus[2], { status: "busy", trialId: 9 });
 
   applyRunEvent(state, {
     type: "run.completed",
@@ -83,6 +100,7 @@ test("transcript run state transitions to post-run on completion and failure", (
 
   assert.equal(state.phase, "post-run");
   assert.equal(state.runProgress.active, false);
+  assert.deepEqual(state.runProgress.workerStatus[2], { status: "idle" });
 
   beginRun(state, "mock");
   applyRunEvent(state, {

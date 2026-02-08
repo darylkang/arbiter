@@ -42,6 +42,14 @@ export type BatchCompletedPayload = {
   elapsed_ms: number;
 };
 
+export type WorkerStatusPayload = {
+  batch_number: number;
+  worker_id: number;
+  status: "busy" | "idle";
+  trial_id?: number;
+  updated_at: string;
+};
+
 export type TrialPlannedPayload = {
   trial_id: number;
   protocol: ArbiterTrialRecord["protocol"];
@@ -98,6 +106,7 @@ export type Event =
   | { type: "run.failed"; payload: RunFailedPayload }
   | { type: "batch.started"; payload: BatchStartedPayload }
   | { type: "batch.completed"; payload: BatchCompletedPayload }
+  | { type: "worker.status"; payload: WorkerStatusPayload }
   | { type: "trial.planned"; payload: TrialPlannedPayload }
   | { type: "trial.completed"; payload: TrialCompletedPayload }
   | { type: "parsed.output"; payload: ParsedOutputProducedPayload }

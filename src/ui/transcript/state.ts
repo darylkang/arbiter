@@ -75,6 +75,13 @@ export type RunProgress = {
   parseFallback: number;
   parseFailed: number;
   workerCount: number;
+  workerStatus: Record<
+    number,
+    {
+      status: "busy" | "idle";
+      trialId?: number;
+    }
+  >;
   currentBatch?: {
     batchNumber: number;
     total: number;
@@ -159,6 +166,7 @@ const defaultRunProgress = (): RunProgress => ({
   parseFallback: 0,
   parseFailed: 0,
   workerCount: 0,
+  workerStatus: {},
   batchStatusCounts: {},
   recentBatches: [],
   noveltyTrend: [],

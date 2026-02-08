@@ -95,6 +95,23 @@ const formatBatchStatusSummary = (counts: Record<string, number>): string | null
     .join(" • ");
 };
 
+const initializeWorkerStatus = (
+  workerCount: number
+): Record<number, { status: "busy" | "idle"; trialId?: number }> =>
+  Object.fromEntries(
+    Array.from({ length: Math.max(0, workerCount) }, (_, index) => [
+      index + 1,
+      { status: "idle" as const }
+    ])
+  );
+
+const resetWorkersToIdle = (
+  workerStatus: Record<number, { status: "busy" | "idle"; trialId?: number }>
+): Record<number, { status: "busy" | "idle"; trialId?: number }> =>
+  Object.fromEntries(
+    Object.keys(workerStatus).map((workerId) => [Number(workerId), { status: "idle" as const }])
+  );
+
 const assertNeverEvent = (event: never): never => {
   throw new Error(`Unhandled event type: ${JSON.stringify(event)}`);
 };
@@ -107,6 +124,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
       const workers = event.payload.resolved_config?.execution?.workers;
       if (typeof workers === "number" && workers > 0) {
         state.runProgress.workerCount = workers;
+        state.runProgress.workerStatus = initializeWorkerStatus(workers);
       }
       appendTranscript(
         state,
@@ -232,6 +250,13 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
       break;
     }
 
+    case "worker.status": {
+      const { worker_id: workerId, status, trial_id: trialId } = event.payload;
+      state.runProgress.workerStatus[workerId] =
+        status === "busy" ? { status, trialId } : { status };
+      break;
+    }
+
     case "convergence.record": {
       const record = event.payload.convergence_record;
       state.runProgress.recentBatches = [
@@ -257,6 +282,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
 
     case "run.completed": {
       state.runProgress.active = false;
+      state.runProgress.workerStatus = resetWorkersToIdle(state.runProgress.workerStatus);
       state.phase = "post-run";
       appendTranscript(
         state,
@@ -285,6 +311,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
 
     case "run.failed": {
       state.runProgress.active = false;
+      state.runProgress.workerStatus = resetWorkersToIdle(state.runProgress.workerStatus);
       state.phase = "post-run";
       appendTranscript(state, "error", `Run failed: ${event.payload.error}`, event.payload.completed_at);
       break;

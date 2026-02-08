@@ -66,6 +66,39 @@ test("runBatchWithWorkers propagates execution failures", async () => {
   assert.deepEqual(executed, [1, 2]);
 });
 
+test("runBatchWithWorkers emits worker status transitions", async () => {
+  const events = [];
+  const results = await runBatchWithWorkers({
+    entries: [1, 2, 3],
+    workerCount: 2,
+    shouldStop: () => ({ stop: false }),
+    execute: async (entry) => {
+      if (entry === 1) {
+        await new Promise((resolve) => setTimeout(resolve, 15));
+      }
+      return entry;
+    },
+    onWorkerStatus: (event) => {
+      events.push({
+        workerId: event.workerId,
+        status: event.status,
+        entry: event.entry
+      });
+    }
+  });
+
+  assert.equal(results.length, 3);
+  assert.equal(
+    events.filter((event) => event.status === "busy").length,
+    3
+  );
+  assert.equal(
+    events.filter((event) => event.status === "idle").length,
+    3
+  );
+  assert.ok(events.every((event) => event.workerId === 1 || event.workerId === 2));
+});
+
 test("runBatchWithWorkers rejects invalid worker counts", async () => {
   await assert.rejects(
     runBatchWithWorkers({

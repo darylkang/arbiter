@@ -142,6 +142,14 @@ const cleanupDebugArtifacts = (input: {
   return provenance;
 };
 
+const resolveEntryTrialId = (entry: unknown): number | undefined => {
+  if (!entry || typeof entry !== "object" || !("trial_id" in entry)) {
+    return undefined;
+  }
+  const trialId = Reflect.get(entry, "trial_id");
+  return typeof trialId === "number" ? trialId : undefined;
+};
+
 export const runOrchestration = async <State extends ContractFailureState>(
   options: RunOrchestrationOptions<State>
 ): Promise<RunOrchestrationResult> => {
@@ -234,7 +242,19 @@ export const runOrchestration = async <State extends ContractFailureState>(
         entries: batchEntries,
         workerCount,
         shouldStop,
-        execute: executeTrial
+        execute: executeTrial,
+        onWorkerStatus: ({ workerId, status, entry }) => {
+          bus.emit({
+            type: "worker.status",
+            payload: {
+              batch_number: batchNumber,
+              worker_id: workerId,
+              status,
+              trial_id: resolveEntryTrialId(entry),
+              updated_at: new Date().toISOString()
+            }
+          });
+        }
       });
 
       const completedIds = results.map((result) => result.trial_id).sort((a, b) => a - b);
