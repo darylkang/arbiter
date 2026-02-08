@@ -4,7 +4,11 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 
-import { executeCommandInput, listSlashCommands, parseCommandInput } from "../../dist/ui/transcript/commands/registry.js";
+import {
+  executeCommandInput,
+  listSlashCommands,
+  parseCommandInput
+} from "../../dist/ui/transcript/commands/registry.js";
 import { renderFooter } from "../../dist/ui/transcript/components/footer.js";
 import { renderHeader } from "../../dist/ui/transcript/components/header.js";
 import { renderProgressSummary } from "../../dist/ui/transcript/components/progress.js";
@@ -20,6 +24,7 @@ const normalizePath = (value) => value.replace(/^\/private/, "");
 
 const makeState = () =>
   createInitialState({
+    version: "0.1.0-test",
     configPath: "/tmp/arbiter.config.json",
     hasApiKey: false,
     hasConfig: false,
@@ -65,7 +70,7 @@ test("trial completion accumulates usage and deduplicates model-mismatch warning
   assert.equal(state.runProgress.usage.completion, 7);
   assert.equal(state.runProgress.usage.total, 22);
   assert.equal(state.warnings.length, 1);
-  assert.ok(state.warnings[0].message.includes("requested and actual models differ"));
+  assert.ok(state.warnings[0].message.includes("Requested and actual models differ"));
 });
 
 test("beginRun resets warning and progress state", () => {
@@ -166,28 +171,28 @@ test("header/footer adapt to width and warnings", () => {
   const state = makeState();
 
   const narrowHeader = stripAnsi(renderHeader(state, 40));
-  const wideHeader = stripAnsi(renderHeader(state, 80));
+  const wideHeader = stripAnsi(renderHeader(state, 90));
   const narrowLines = narrowHeader.split("\n");
   const wideLines = wideHeader.split("\n");
 
-  assert.equal(getBannerLines(59).length, 0);
-  assert.equal(getBannerLines(60).length > 0, true);
+  assert.equal(getBannerLines(71).length, 0);
+  assert.equal(getBannerLines(72).length > 0, true);
   assert.equal(narrowLines[narrowLines.length - 1].length, 40);
   assert.equal(wideLines[wideLines.length - 1].length, 78);
   assert.equal(narrowHeader.includes("████"), false);
   assert.equal(wideHeader.includes("████"), true);
 
   const footerNoWarnings = stripAnsi(renderFooter(state, 80));
-  assert.ok(footerNoWarnings.includes("warnings 0"));
+  assert.ok(footerNoWarnings.includes("warnings: 0"));
 
   state.warnings.push({ message: "a", recorded_at: "2026-02-08T00:00:00.000Z" });
   state.warnings.push({ message: "b", recorded_at: "2026-02-08T00:00:01.000Z" });
   state.warnings.push({ message: "c", recorded_at: "2026-02-08T00:00:02.000Z" });
   const footerWarnings = stripAnsi(renderFooter(state, 80));
-  assert.ok(footerWarnings.includes("warnings 3 (/warnings)"));
+  assert.ok(footerWarnings.includes("warnings: 3"));
 });
 
-test("progress summary formats convergence and cost details", () => {
+test("progress summary formats master progress and worker rows", () => {
   const state = makeState();
   state.runProgress = {
     active: true,
@@ -197,7 +202,9 @@ test("progress summary formats convergence and cost details", () => {
     parseSuccess: 2,
     parseFallback: 1,
     parseFailed: 0,
+    workerCount: 4,
     currentBatch: { batchNumber: 2, total: 5, completed: 3 },
+    batchStatusCounts: {},
     recentBatches: [
       {
         batchNumber: 2,
@@ -207,6 +214,11 @@ test("progress summary formats convergence and cost details", () => {
       }
     ],
     noveltyTrend: [0.12],
+    stopStatus: {
+      mode: "advisor",
+      wouldStop: false,
+      shouldStop: false
+    },
     usage: {
       prompt: 21,
       completion: 8,
@@ -218,8 +230,9 @@ test("progress summary formats convergence and cost details", () => {
   const summary = renderProgressSummary(state.runProgress);
   assert.ok(summary.includes("4/10"));
   assert.ok(summary.includes("eligible 3"));
-  assert.ok(summary.includes("tokens in 21 out 8 total 29 | cost 0.500000"));
-  assert.ok(summary.includes("novelty 0.120 | mean_sim 0.340 | clusters 4"));
+  assert.ok(summary.includes("batch 2: 3/5"));
+  assert.ok(summary.includes("stop advisor: continue"));
+  assert.ok(summary.includes("w01"));
 });
 
 test("command registry executes all transcript commands and aliases", async () => {

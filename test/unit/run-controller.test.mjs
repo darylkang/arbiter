@@ -6,6 +6,7 @@ import { createInitialState } from "../../dist/ui/transcript/state.js";
 
 const makeState = () =>
   createInitialState({
+    version: "0.1.0-test",
     configPath: "/tmp/arbiter.config.json",
     hasApiKey: false,
     hasConfig: false,

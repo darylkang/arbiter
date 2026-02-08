@@ -97,6 +97,12 @@ const createPtySession = (input) => {
     proc.write("\r");
   };
 
+  const arrowDown = (count = 1) => {
+    for (let index = 0; index < count; index += 1) {
+      proc.write("\u001b[B");
+    }
+  };
+
   const writeCtrlC = () => {
     proc.write("\u0003");
   };
@@ -119,6 +125,7 @@ const createPtySession = (input) => {
     writeLine,
     writeRaw,
     pressEnter,
+    arrowDown,
     writeCtrlC,
     waitForText,
     waitForExit,
@@ -127,11 +134,15 @@ const createPtySession = (input) => {
   };
 };
 
-test("pty: /help then /quit exits cleanly", { concurrency: false }, async () => {
+test("pty: guided launch supports /help and /quit", { concurrency: false }, async () => {
   const session = createPtySession({ cwd: REPO_ROOT });
 
   try {
     await session.waitForText("Welcome to Arbiter.", 20000);
+    await session.waitForText("Start a study", 20000);
+    session.arrowDown(2);
+    session.pressEnter();
+
     await session.waitForText("What question are you investigating?", 20000);
     session.writeLine("/help");
     await session.waitForText("commands:", 20000);
@@ -150,29 +161,44 @@ test("pty: guided intake flow completes from question to receipt", { concurrency
   const session = createPtySession({ cwd });
 
   try {
-    await session.waitForText("Welcome to Arbiter.", 20000);
+    await session.waitForText("Start a study", 20000);
+    session.arrowDown(2);
+    session.pressEnter();
+
     await session.waitForText("What question are you investigating?", 20000);
-
     session.writeLine("How do model ensembles affect novelty saturation in policy QA?");
-    await session.waitForText("Select a profile", 20000);
+
+    await session.waitForText("Step 2 of 8 · Choose decoding behavior", 20000);
     session.pressEnter();
 
-    await session.waitForText("Select a run mode", 20000);
+    await session.waitForText("Step 3 of 8 · Select personas", 20000);
     session.pressEnter();
 
-    await session.waitForText("Review study setup", 20000);
+    await session.waitForText("Step 4 of 8 · Select models", 20000);
+    session.pressEnter();
+
+    await session.waitForText("Step 5 of 8 · Select protocol", 20000);
+    session.pressEnter();
+
+    await session.waitForText("Step 6 of 8 · Configure execution depth", 20000);
+    session.pressEnter();
+
+    await session.waitForText("Step 7 of 8 · Select run mode", 20000);
+    session.pressEnter();
+
+    await session.waitForText("Step 8 of 8 · Review study setup", 20000);
     session.pressEnter();
 
     await session.waitForText("Configuration saved to", 20000);
     await session.waitForText("Run complete:", 45000);
-    await session.waitForText("Choose next action", 45000);
+    await session.waitForText("Choose the next action", 45000);
 
     const runDirs = readdirSync(join(cwd, "runs"), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name);
     assert.ok(runDirs.length >= 1);
 
-    session.writeRaw("\u001b[B\u001b[B\u001b[B");
+    session.arrowDown(3);
     session.pressEnter();
     const exit = await session.waitForExit(20000);
     assert.equal(exit.exitCode, 0);
@@ -182,28 +208,29 @@ test("pty: guided intake flow completes from question to receipt", { concurrency
   }
 });
 
-test("pty: /run mock completes and writes artifacts", { concurrency: false }, async () => {
+test("pty: quickstart mock run completes and writes artifacts", { concurrency: false }, async () => {
   const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-"));
   createMockConfig(cwd, { kMax: 2, kMin: 0, workers: 1, batchSize: 1, questionId: "e2e_mock" });
 
   const session = createPtySession({ cwd });
 
   try {
-    await session.waitForText("Welcome to Arbiter.", 20000);
-    await session.waitForText("Choose how to continue", 20000);
+    await session.waitForText("Start a study", 20000);
+    session.pressEnter();
+    await session.waitForText("Review run setup", 20000);
     session.pressEnter();
 
     await session.waitForText("Starting mock run.", 20000);
     await session.waitForText("Run complete:", 30000);
-    await session.waitForText("Artifacts written to", 30000);
-    await session.waitForText("Choose next action", 30000);
+    await session.waitForText("Arbiter Receipt", 30000);
+    await session.waitForText("Choose the next action", 30000);
 
     const runDirs = readdirSync(join(cwd, "runs"), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name);
     assert.ok(runDirs.length >= 1);
 
-    session.writeRaw("\u001b[B\u001b[B\u001b[B");
+    session.arrowDown(3);
     session.pressEnter();
     const exit = await session.waitForExit(20000);
     assert.equal(exit.exitCode, 0);
@@ -231,17 +258,19 @@ test("pty: ctrl+c requests graceful stop during run", { concurrency: false }, as
   });
 
   try {
-    await session.waitForText("Welcome to Arbiter.", 20000);
-    await session.waitForText("Choose how to continue", 20000);
+    await session.waitForText("Start a study", 20000);
     session.pressEnter();
+    await session.waitForText("Review run setup", 20000);
+    session.pressEnter();
+
     await session.waitForText("Starting mock run.", 20000);
 
     session.writeCtrlC();
     await session.waitForText("Interrupt requested. Waiting for in-flight trials to finish.", 20000);
     await session.waitForText("Run complete:", 45000);
-    await session.waitForText("Choose next action", 45000);
+    await session.waitForText("Choose the next action", 45000);
 
-    session.writeRaw("\u001b[B\u001b[B\u001b[B");
+    session.arrowDown(3);
     session.pressEnter();
     const exit = await session.waitForExit(20000);
     assert.equal(exit.exitCode, 0);

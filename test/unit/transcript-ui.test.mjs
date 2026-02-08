@@ -5,8 +5,45 @@ import { beginRun, applyRunEvent, appendTranscript } from "../../dist/ui/transcr
 import { createInitialState } from "../../dist/ui/transcript/state.js";
 import { createIntakeFlowController } from "../../dist/ui/transcript/intake-flow.js";
 
+const wizardOptions = {
+  personas: [
+    { id: "persona_neutral", label: "Neutral", description: "neutral" },
+    { id: "persona_skeptical", label: "Skeptical", description: "skeptical" }
+  ],
+  models: [
+    { slug: "openai/gpt-4o-mini-2024-07-18", label: "GPT-4o Mini", description: "baseline" },
+    { slug: "anthropic/claude-sonnet-4", label: "Claude Sonnet 4", description: "reasoning" }
+  ],
+  decodePresets: [
+    {
+      id: "balanced",
+      label: "Balanced",
+      description: "balanced",
+      temperature: 0.7,
+      topP: 0.95,
+      maxTokens: 512,
+      seed: 424242
+    }
+  ],
+  advancedPresets: [
+    {
+      id: "standard",
+      label: "Standard",
+      description: "standard",
+      kMax: 20,
+      workers: 4,
+      batchSize: 2
+    }
+  ],
+  protocols: [
+    { id: "independent", label: "Independent", description: "single-pass" },
+    { id: "debate_v1", label: "Debate", description: "proposer-critic" }
+  ]
+};
+
 const makeState = () =>
   createInitialState({
+    version: "0.1.0-test",
     configPath: "/tmp/arbiter.config.json",
     hasApiKey: false,
     hasConfig: false,
@@ -25,13 +62,14 @@ test("transcript run state transitions to post-run on completion and failure", (
     payload: {
       run_id: "run_1",
       started_at: "2026-02-08T00:00:00.000Z",
-      resolved_config: { protocol: { type: "independent" } },
+      resolved_config: { protocol: { type: "independent" }, execution: { workers: 3 } },
       debug_enabled: false,
       k_planned: 3
     }
   });
   assert.equal(state.runProgress.active, true);
   assert.equal(state.runProgress.planned, 3);
+  assert.equal(state.runProgress.workerCount, 3);
 
   applyRunEvent(state, {
     type: "run.completed",
@@ -82,7 +120,7 @@ test("applyRunEvent throws on unknown event type", () => {
   );
 });
 
-test("intake flow follows question -> profile -> mode -> review -> start run", async () => {
+test("intake flow follows guided setup and starts mock run", async () => {
   const state = makeState();
   const logs = [];
   const writes = [];
@@ -91,12 +129,14 @@ test("intake flow follows question -> profile -> mode -> review -> start run", a
 
   const intake = createIntakeFlowController({
     state,
+    wizardOptions,
     requestRender: () => logs.push("render"),
     appendSystem: (message) => logs.push(`system:${message}`),
     appendStatus: (message) => logs.push(`status:${message}`),
     appendError: (message) => logs.push(`error:${message}`),
     appendWarning: (message) => logs.push(`warning:${message}`),
-    writeTemplateConfig: (profile, question) => writes.push({ profile: profile.id, question }),
+    appendSummary: (message) => logs.push(`summary:${message}`),
+    writeGuidedConfig: (flow) => writes.push(flow),
     startRun: async (mode) => {
       runs.push(mode);
     },
@@ -105,27 +145,41 @@ test("intake flow follows question -> profile -> mode -> review -> start run", a
     }
   });
 
-  intake.startNewFlow();
+  intake.startNewFlow("mock");
   assert.equal(state.phase, "intake");
   assert.equal(state.newFlow?.stage, "question");
   assert.equal(inputValue, "");
 
-  intake.handlePlainInput("How do we test this?");
-  assert.equal(state.newFlow?.stage, "profile");
+  intake.handlePlainInput("How do we test this guided flow?");
+  assert.equal(state.newFlow?.stage, "decode");
   assert.equal(state.overlay?.kind, "select");
-  assert.equal(state.overlay?.title, "Select a profile");
-  state.overlay?.onSelect({ id: "quickstart", label: "quickstart" });
+  state.overlay?.onSelect({ id: "balanced", label: "balanced" });
 
+  assert.equal(state.newFlow?.stage, "personas");
+  assert.equal(state.overlay?.kind, "checklist");
+  state.overlay?.onConfirm(["persona_neutral"]);
+
+  assert.equal(state.newFlow?.stage, "models");
+  assert.equal(state.overlay?.kind, "checklist");
+  state.overlay?.onConfirm(["openai/gpt-4o-mini-2024-07-18"]);
+
+  assert.equal(state.newFlow?.stage, "protocol");
   assert.equal(state.overlay?.kind, "select");
-  assert.equal(state.overlay?.title, "Select a run mode");
-  state.overlay?.onSelect({ id: "mock", label: "run mock now" });
+  state.overlay?.onSelect({ id: "independent", label: "Independent" });
+
+  assert.equal(state.newFlow?.stage, "advanced");
+  assert.equal(state.overlay?.kind, "select");
+  state.overlay?.onSelect({ id: "standard", label: "Standard" });
+
+  assert.equal(state.newFlow?.stage, "mode");
+  assert.equal(state.overlay?.kind, "select");
+  state.overlay?.onSelect({ id: "mock", label: "mock" });
+
   assert.equal(state.newFlow?.stage, "review");
   assert.equal(state.overlay?.kind, "select");
-  assert.equal(state.overlay?.title, "Review study setup");
+  state.overlay?.onSelect({ id: "start", label: "Start" });
 
-  state.overlay?.onSelect({ id: "start-run", label: "start run" });
-
-  assert.deepEqual(writes, [{ profile: "quickstart", question: "How do we test this?" }]);
+  assert.equal(writes.length, 1);
   assert.deepEqual(runs, ["mock"]);
   assert.equal(state.phase, "idle");
   assert.equal(state.newFlow, null);
@@ -137,12 +191,14 @@ test("intake flow back-navigation preserves question text", () => {
 
   const intake = createIntakeFlowController({
     state,
+    wizardOptions,
     requestRender: () => {},
     appendSystem: () => {},
     appendStatus: () => {},
     appendError: () => {},
     appendWarning: () => {},
-    writeTemplateConfig: () => {},
+    appendSummary: () => {},
+    writeGuidedConfig: () => {},
     startRun: async () => {},
     setInputText: (value) => {
       inputValue = value;
@@ -156,50 +212,11 @@ test("intake flow back-navigation preserves question text", () => {
   assert.equal(inputValue, "How do we test this?");
 
   intake.handlePlainInput("How do we test this?");
-  state.overlay?.onSelect({ id: "quickstart", label: "quickstart" });
-  assert.equal(state.newFlow?.stage, "mode");
+  state.overlay?.onSelect({ id: "balanced", label: "Balanced" });
+  assert.equal(state.newFlow?.stage, "personas");
   state.overlay?.onCancel();
-  assert.equal(state.newFlow?.stage, "profile");
+  assert.equal(state.newFlow?.stage, "decode");
   assert.equal(state.overlay?.kind, "select");
-  assert.equal(state.overlay?.title, "Select a profile");
-});
-
-test("intake flow rejects invalid profile, mode, and review action selections", () => {
-  const state = makeState();
-  const errors = [];
-
-  const intake = createIntakeFlowController({
-    state,
-    requestRender: () => {},
-    appendSystem: () => {},
-    appendStatus: () => {},
-    appendError: (message) => errors.push(message),
-    appendWarning: () => {},
-    writeTemplateConfig: () => {},
-    startRun: async () => {},
-    setInputText: () => {}
-  });
-
-  intake.startNewFlow();
-  intake.handlePlainInput("Question that is valid.");
-  state.overlay?.onSelect({ id: "not-a-profile", label: "invalid" });
-
-  assert.equal(state.phase, "intake");
-  assert.equal(state.newFlow?.stage, "profile");
-  assert.ok(errors.some((error) => error.toLowerCase().includes("invalid profile selection")));
-
-  intake.handlePlainInput("Question that is valid.");
-  state.overlay?.onSelect({ id: "quickstart", label: "quickstart" });
-  state.overlay?.onSelect({ id: "not-a-mode", label: "invalid" });
-
-  assert.equal(state.phase, "intake");
-  assert.equal(state.newFlow?.stage, "mode");
-  assert.ok(errors.some((error) => error.toLowerCase().includes("invalid run mode selection")));
-
-  state.overlay?.onSelect({ id: "mock", label: "run mock now" });
-  state.overlay?.onSelect({ id: "not-a-review-action", label: "invalid" });
-  assert.equal(state.newFlow?.stage, "review");
-  assert.ok(errors.some((error) => error.toLowerCase().includes("invalid review action")));
 });
 
 test("intake flow enforces question validation", () => {
@@ -208,12 +225,14 @@ test("intake flow enforces question validation", () => {
 
   const intake = createIntakeFlowController({
     state,
+    wizardOptions,
     requestRender: () => {},
     appendSystem: () => {},
     appendStatus: () => {},
     appendError: (message) => errors.push(message),
     appendWarning: () => {},
-    writeTemplateConfig: () => {},
+    appendSummary: () => {},
+    writeGuidedConfig: () => {},
     startRun: async () => {},
     setInputText: () => {}
   });
@@ -231,12 +250,14 @@ test("intake flow asks for confirmation when restarting an active setup", () => 
 
   const intake = createIntakeFlowController({
     state,
+    wizardOptions,
     requestRender: () => {},
     appendSystem: () => {},
     appendStatus: (message) => statuses.push(message),
     appendError: () => {},
     appendWarning: () => {},
-    writeTemplateConfig: () => {},
+    appendSummary: () => {},
+    writeGuidedConfig: () => {},
     startRun: async () => {},
     setInputText: () => {}
   });
@@ -258,12 +279,14 @@ test("intake flow escape cancels from question step", () => {
 
   const intake = createIntakeFlowController({
     state,
+    wizardOptions,
     requestRender: () => {},
     appendSystem: () => {},
     appendStatus: () => {},
     appendError: () => {},
     appendWarning: () => {},
-    writeTemplateConfig: () => {},
+    appendSummary: () => {},
+    writeGuidedConfig: () => {},
     startRun: async () => {},
     setInputText: (value) => {
       inputValue = value;
