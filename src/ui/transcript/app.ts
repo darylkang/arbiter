@@ -548,7 +548,6 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     appendSystem: (message) => appendSystem(state, message),
     appendStatus: (message) => appendStatus(state, message),
     appendError: (message) => appendError(state, message),
-    appendWarning: (message) => appendTranscript(state, "warning", message),
     appendSummary: (message) => appendSummary(state, message),
     writeGuidedConfig: (flow) => {
       writeGuidedConfig({

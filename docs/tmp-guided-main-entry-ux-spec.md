@@ -246,7 +246,7 @@ Warnings must be:
 Preferred:
 - `Welcome to Arbiter.`
 - `What question are you investigating?`
-- `Select a profile.`
+- `Select personas for this study.`
 - `Review setup before starting the run.`
 - `Run complete. Choose the next action.`
 
@@ -260,8 +260,8 @@ Avoid:
 Stage A, question:
 - `What question are you investigating?`
 
-Stage A, profile:
-- `Select a profile.`
+Stage A, personas:
+- `Select personas for this study.`
 
 Stage A, mode:
 - `Select a run mode.`
@@ -421,7 +421,7 @@ Acceptance:
 
 Goals:
 1. lock launch branching behavior,
-2. lock question/profile/mode/review flow,
+2. lock full guided intake sequence (question/decode/personas/models/protocol/advanced/mode/review),
 3. enforce back/cancel semantics and state preservation,
 4. lock live-disabled behavior without API key.
 5. enforce canonical stage copy map.
@@ -629,7 +629,7 @@ and updates the working plan so implementation aligns with the refreshed vision.
 
 ### 18.1 Locked intake flow change (major)
 
-The intake flow is no longer profile-centric as the primary path.  
+The intake flow uses explicit step-by-step setup as the primary path.  
 The canonical Stage 1 wizard becomes:
 
 1. Welcome / mode selection + start path selection (quick start vs setup wizard)
@@ -643,8 +643,8 @@ The canonical Stage 1 wizard becomes:
 9. Review / confirm
 
 Impact:
-- Existing simplified `question -> profile -> mode -> review` must be treated as interim.
-- Profile bundles can remain as optional presets, but cannot replace the explicit step sequence above.
+- Guided intake follows the explicit 9-step sequence above.
+- Profile bundles are not part of the primary guided path.
 
 ### 18.2 Stage 2 presentation requirements (major)
 
@@ -719,7 +719,7 @@ Implementation interpretation:
 
 Before further UI implementation, update the execution plan to:
 
-1. Pivot Stage 1 from profile-led to explicit 8-step wizard.
+1. Maintain Stage 1 as explicit 9-step guided setup.
 2. Add/expand Stage 2 worker-row architecture in layout/state.
 3. Add truthful artifact-manifest rendering in Stage 3.
 4. Add multiline input confirmation with `Ctrl+D`.

@@ -2,7 +2,7 @@ import type { TranscriptCommand } from "./types.js";
 
 const HELP_TEXT = [
   "commands:",
-  "  /new                   start intake flow (question -> profile -> run mode)",
+  "  /new                   start guided intake (question -> decode -> personas -> models -> protocol -> advanced -> mode -> review)",
   "  /run [mock|live]       execute current config (defaults to mock)",
   "  /analyze [run_dir]     select or set run directory and show summary",
   "  /report [run_dir]      print report for a run",

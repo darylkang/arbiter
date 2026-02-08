@@ -134,7 +134,6 @@ export const createIntakeFlowController = (input: {
   appendSystem: (message: string) => void;
   appendStatus: (message: string) => void;
   appendError: (message: string) => void;
-  appendWarning: (message: string) => void;
   appendSummary: (message: string) => void;
   writeGuidedConfig: (flow: GuidedSetupState) => void;
   startRun: (mode: RunMode) => Promise<void>;
