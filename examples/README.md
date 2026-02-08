@@ -19,25 +19,25 @@ npm run build
 Mock run (no API key required):
 
 ```
-node dist/cli/index.js mock-run --config examples/debate_v1.smoke.json --out runs --max-trials 3 --batch-size 1 --workers 1 --debug
+node dist/cli/index.js run --config examples/debate_v1.smoke.json --out runs --max-trials 3 --batch-size 1 --workers 1 --debug
 ```
 
 Live debate v1 smoke (3 trials, sequential):
 
 ```
-node dist/cli/index.js run --config examples/debate_v1.smoke.json --out runs --max-trials 3 --batch-size 1 --workers 1 --debug
+node dist/cli/index.js run --live --yes --config examples/debate_v1.smoke.json --out runs --max-trials 3 --batch-size 1 --workers 1 --debug
 ```
 
 Live debate v1 with clustering:
 
 ```
-node dist/cli/index.js run --config examples/debate_v1.smoke+clustering.json --out runs --max-trials 6 --batch-size 2 --workers 3 --debug
+node dist/cli/index.js run --live --yes --config examples/debate_v1.smoke+clustering.json --out runs --max-trials 6 --batch-size 2 --workers 3 --debug
 ```
 
 Full option surface (independent + clustering):
 
 ```
-node dist/cli/index.js run --config examples/arbiter.full.json --out runs --max-trials 12 --batch-size 3 --workers 3 --debug
+node dist/cli/index.js run --live --yes --config examples/arbiter.full.json --out runs --max-trials 12 --batch-size 3 --workers 3 --debug
 ```
 
 ## Environment

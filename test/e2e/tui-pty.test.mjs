@@ -9,7 +9,7 @@ import pty from "@homebridge/node-pty-prebuilt-multiarch";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const CLI_ENTRY = resolve(REPO_ROOT, "dist/cli/index.js");
-const TEMPLATE_PATH = resolve(REPO_ROOT, "templates/quickstart_independent.config.json");
+const TEMPLATE_PATH = resolve(REPO_ROOT, "resources/templates/quickstart_independent.config.json");
 
 const ANSI_CSI_REGEX = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 const ANSI_OSC_REGEX = /\u001b\][^\u0007]*\u0007/g;

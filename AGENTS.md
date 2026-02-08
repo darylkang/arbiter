@@ -90,7 +90,7 @@ If you touched OpenRouter integration or live behavior, also run:
 
 - **Stopping logic** → update `docs/spec.md` + convergence schema if needed; add tests.
 - **Provenance fields** → update schemas + generated types; verify `verify` still passes.
-- **Contracts** → update `contracts/` + resolver embedding; add contract tests.
+- **Contracts** → update `resources/contracts/` + resolver embedding; add contract tests.
 - **Artifacts** → update `docs/spec.md` artifact list + verify logic.
 - **UI routing** → update `scripts/ui-routing.mjs` and headless smoke tests.
 

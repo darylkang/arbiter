@@ -4,7 +4,7 @@
   "entries": [
     {
       "id": "binary_decision_v1",
-      "path": "contracts/binary_decision_v1.json",
+      "path": "resources/contracts/binary_decision_v1.json",
       "sha256": "cb6cddefd756a000fa1e0f966a00b17d0bacfd592766deaff75096845f0622f9",
       "description": "Binary yes/no decision with bounded rationale."
     }

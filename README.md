@@ -141,7 +141,7 @@ Use `arbiter <command> --help` for full flags and examples.
 
 ## Templates and profiles
 
-Arbiter ships curated templates in `templates/`:
+Arbiter ships curated templates in `resources/templates/`:
 
 - `default`
 - `quickstart_independent`
@@ -258,7 +258,7 @@ arbiter resolve
 
 - Specification: `docs/spec.md`
 - Results interpretation: `docs/interpreting-results.md`
-- Template guide: `templates/README.md`
+- Template guide: `resources/templates/README.md`
 - Contributor/agent rules: `AGENTS.md`
 
 ---

@@ -11,7 +11,7 @@ mkdirSync(runsWarnDir, { recursive: true });
 mkdirSync(runsExcludeDir, { recursive: true });
 mkdirSync(runsFailDir, { recursive: true });
 
-const config = JSON.parse(readFileSync(resolve("templates/default.config.json"), "utf8"));
+const config = JSON.parse(readFileSync(resolve("resources/templates/default.config.json"), "utf8"));
 config.execution.k_max = 4;
 config.execution.batch_size = 2;
 config.execution.workers = 1;

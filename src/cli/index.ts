@@ -106,7 +106,7 @@ const writeTemplateConfigFile = (
   question: string | undefined,
   targetPath: string
 ): void => {
-  const templatePath = resolve(assetRoot, "templates", `${templateName}.config.json`);
+  const templatePath = resolve(assetRoot, "resources/templates", `${templateName}.config.json`);
   if (!existsSync(templatePath)) {
     throw new Error(`Template not found: ${templateName}`);
   }

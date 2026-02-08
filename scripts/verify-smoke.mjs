@@ -7,8 +7,8 @@ const tempRoot = resolve(tmpdir(), `arbiter-verify-${Date.now()}`);
 const runsDir = resolve(tempRoot, "runs");
 mkdirSync(runsDir, { recursive: true });
 
-const catalog = JSON.parse(readFileSync(resolve("catalog/models.json"), "utf8"));
-const promptManifest = JSON.parse(readFileSync(resolve("prompts/manifest.json"), "utf8"));
+const catalog = JSON.parse(readFileSync(resolve("resources/catalog/models.json"), "utf8"));
+const promptManifest = JSON.parse(readFileSync(resolve("resources/prompts/manifest.json"), "utf8"));
 const personas = promptManifest.entries.filter((entry) => entry.type === "participant_persona");
 const protocols = promptManifest.entries.filter(
   (entry) => entry.type === "participant_protocol_template"

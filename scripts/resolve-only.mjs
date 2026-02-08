@@ -8,7 +8,7 @@ const runsDir = resolve(tempRoot, "runs");
 mkdirSync(runsDir, { recursive: true });
 
 try {
-  const config = JSON.parse(readFileSync(resolve("templates/default.config.json"), "utf8"));
+  const config = JSON.parse(readFileSync(resolve("resources/templates/default.config.json"), "utf8"));
   config.question = { text: "Resolve-only smoke prompt", question_id: "resolve_only_q1" };
   const configPath = resolve(tempRoot, "arbiter.config.json");
   writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");

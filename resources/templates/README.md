@@ -11,7 +11,8 @@ arbiter init --template <name>
 Or quickly:
 
 ```
-arbiter quickstart --profile <profile>
+arbiter init "What is your research question?" --template <name>
+arbiter run
 ```
 
 ---
@@ -38,7 +39,8 @@ These map to templates above:
 Example:
 
 ```
-arbiter quickstart "What is the tradeoff between speed and safety?" --profile debate
+arbiter init "What is the tradeoff between speed and safety?" --template debate_v1
+arbiter run
 ```
 
 ---

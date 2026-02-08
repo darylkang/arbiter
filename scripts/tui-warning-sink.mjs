@@ -11,8 +11,8 @@ mkdirSync(tempRoot, { recursive: true });
 const runsDir = resolve(tempRoot, "runs");
 mkdirSync(runsDir, { recursive: true });
 
-const catalog = JSON.parse(readFileSync(resolve("catalog/models.json"), "utf8"));
-const promptManifest = JSON.parse(readFileSync(resolve("prompts/manifest.json"), "utf8"));
+const catalog = JSON.parse(readFileSync(resolve("resources/catalog/models.json"), "utf8"));
+const promptManifest = JSON.parse(readFileSync(resolve("resources/prompts/manifest.json"), "utf8"));
 const persona = promptManifest.entries.find((entry) => entry.type === "participant_persona");
 const protocol = promptManifest.entries.find((entry) => entry.type === "participant_protocol_template");
 if (!catalog.models?.[0] || !persona || !protocol) {

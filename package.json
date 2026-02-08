@@ -13,10 +13,7 @@
   "files": [
     "dist",
     "schemas",
-    "prompts",
-    "catalog",
-    "contracts",
-    "templates",
+    "resources",
     "README.md",
     "LICENSE"
   ],

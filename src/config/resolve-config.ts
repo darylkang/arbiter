@@ -99,14 +99,14 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
   const configRoot = options.configRoot ?? process.cwd();
   const assetRoot = options.assetRoot ?? configRoot;
   const configPath = resolve(configRoot, options.configPath ?? "arbiter.config.json");
-  const catalogPath = resolve(assetRoot, options.catalogPath ?? "catalog/models.json");
+  const catalogPath = resolve(assetRoot, options.catalogPath ?? "resources/catalog/models.json");
   const promptManifestPath = resolve(
     assetRoot,
-    options.promptManifestPath ?? "prompts/manifest.json"
+    options.promptManifestPath ?? "resources/prompts/manifest.json"
   );
   const contractManifestPath = resolve(
     assetRoot,
-    options.contractManifestPath ?? "contracts/manifest.json"
+    options.contractManifestPath ?? "resources/contracts/manifest.json"
   );
 
   const config = readJsonFile<ArbiterResolvedConfig>(configPath);
@@ -245,7 +245,7 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
   }
 
   if (resolvedConfig.protocol.type === "debate_v1") {
-    const protocolPath = resolve(assetRoot, "prompts/protocols/debate_v1/protocol.json");
+    const protocolPath = resolve(assetRoot, "resources/prompts/protocols/debate_v1/protocol.json");
     const protocolSpec = readJsonFile<ArbiterProtocolSpec>(protocolPath);
     assertValid("protocol spec", validateProtocolSpec(protocolSpec), validateProtocolSpec.errors);
 

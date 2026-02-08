@@ -39,7 +39,7 @@ All examples reference the current catalog/prompt IDs. IDs may change as curated
 - Schema: `schemas/config.schema.json`
 - `type`: `independent` or `debate_v1`.
 - `timeouts`: per-call and per-trial limits (debate_v1 applies per-call retries).
-- `decision_contract` (optional): structured JSON contract preset (from `contracts/manifest.json`).
+- `decision_contract` (optional): structured JSON contract preset (from `resources/contracts/manifest.json`).
   - Example: `{ "id": "binary_decision_v1" }`
   - Resolver embeds the full schema + sha256 into `config.resolved.json`.
 
@@ -71,7 +71,7 @@ All examples reference the current catalog/prompt IDs. IDs may change as curated
 - Embeddings provenance schema: `schemas/embeddings-provenance.schema.json`
 - Convergence trace schema: `schemas/convergence-trace.schema.json`
 - Clustering artifacts: `schemas/cluster-state.schema.json`, `schemas/cluster-assignment.schema.json`
-- Decision contracts: `schemas/decision-contract.schema.json` + `contracts/manifest.json`
+- Decision contracts: `schemas/decision-contract.schema.json` + `resources/contracts/manifest.json`
 
 ## Reading embeddings.arrow in Python
 

@@ -8,7 +8,7 @@ const runsDir = resolve(tempRoot, "runs");
 mkdirSync(runsDir, { recursive: true });
 
 execSync(
-  `node dist/cli/index.js run templates/free_quickstart.config.json --out ${runsDir} --debug --quiet`,
+  `node dist/cli/index.js run resources/templates/free_quickstart.config.json --out ${runsDir} --debug --quiet`,
   { stdio: "ignore" }
 );
 

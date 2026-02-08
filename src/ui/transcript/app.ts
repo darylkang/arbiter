@@ -35,7 +35,7 @@ const writeTemplateConfigFile = (
   question: string,
   targetPath: string
 ): void => {
-  const templatePath = resolve(assetRoot, "templates", `${templateName}.config.json`);
+  const templatePath = resolve(assetRoot, "resources/templates", `${templateName}.config.json`);
   const raw = readFileSync(templatePath, "utf8");
   const template = JSON.parse(raw) as Record<string, unknown>;
   const questionBlock = (template.question ?? {}) as Record<string, unknown>;

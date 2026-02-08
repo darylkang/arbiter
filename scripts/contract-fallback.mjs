@@ -4,7 +4,7 @@ import { buildParsedOutputWithContract } from "../dist/protocols/contract/extrac
 import { prepareEmbedText } from "../dist/engine/embed-text.js";
 
 const contract = JSON.parse(
-  readFileSync(resolve("contracts/binary_decision_v1.json"), "utf8")
+  readFileSync(resolve("resources/contracts/binary_decision_v1.json"), "utf8")
 );
 
 const invalidContent = "This is not JSON but is still non-empty.";
