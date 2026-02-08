@@ -29,7 +29,14 @@ Interpretation guardrails:
 
 - The UI/UX PDF defines interaction and presentation behavior.
 - The research PDFs define scientific honesty constraints for copy and metrics framing.
-- If implementation choices conflict, UX fidelity and scientific honesty take precedence.
+- Repository invariants in `AGENTS.md` and `docs/spec.md` take precedence over UX choices:
+  - schema-first workflow
+  - deterministic planning and `trial_id` ordering
+  - append-only JSONL and atomic finalization
+  - provenance from OpenRouter response body fields
+  - engine/UI architecture boundary
+- If a UX choice conflicts with those invariants, UX MUST adapt.
+- If implementation choices conflict within UX constraints, UX fidelity and scientific honesty take precedence.
 
 ---
 
@@ -116,10 +123,32 @@ Path options:
 
 If multiple configs are detected, the user MUST select a config before `Quick Start`.
 
+Config discovery contract:
+
+- Discovery scope MUST be current working directory only (non-recursive).
+- Candidate filenames MUST be:
+  - exact `arbiter.config.json`
+  - any `*.arbiter.json`
+- Non-files MUST be excluded.
+- Invalid JSON files MUST be excluded from quick-start candidates and surfaced with a disabled reason in selection UI.
+- Default selection precedence MUST be:
+  1. `arbiter.config.json` when present and valid
+  2. otherwise lexicographically smallest valid `*.arbiter.json` (case-insensitive by basename)
+
 Mode precedence rule:
 
 - The mode selected at launch gate (`Live`/`Mock`) MUST control the immediate run.
 - If loaded config mode differs, the review card MUST show both values and indicate that launch mode overrides for this run.
+
+Reproducibility contract for mode override:
+
+- Source config file on disk MUST NOT be mutated by launch-mode override.
+- Effective mode MUST be applied in the resolved run configuration used for execution.
+- Run artifacts MUST preserve both:
+  - source config mode
+  - effective run mode
+- Receipt output MUST display both values when they differ.
+- Verify output MUST explicitly report whether a mode override was applied.
 
 ## 5.2 Wizard Step Sequence (Setup Wizard path)
 
@@ -175,7 +204,13 @@ If `Revise` is selected, prior selections MUST remain preserved.
 
 Wizard validation MUST enforce:
 
-- Question: non-empty.
+- Question:
+  - normalize line endings to `\n`
+  - validation uses trimmed value (`trim()`)
+  - minimum length: 1 non-whitespace character
+  - maximum length: 500 characters after normalization
+  - submission key is `Ctrl+D`; `Enter` inserts newline
+  - no silent truncation
 - Labels: if enabled, at least 2 unique labels after trim/dedup.
 - Temperature: each value in `[0.0, 2.0]`; range min <= max.
 - Seed: non-negative integer when fixed.
@@ -186,6 +221,14 @@ Wizard validation MUST enforce:
 - Batch size: `>= 1`.
 - Max trials: `>= 1`.
 - Novelty threshold: `> 0`.
+
+Validation error-copy contract:
+
+- Errors MUST be inline and actionable.
+- Canonical patterns:
+  - "Question is required. Enter at least one non-space character."
+  - "Question is too long (max 500 characters). Shorten and try again."
+  - "At least two unique labels are required when labels are enabled."
 
 ---
 
@@ -420,6 +463,28 @@ Exit criteria:
 
 - visual acceptance checklist passes across supported widths
 
+## Phase F: Hard cutover and legacy removal
+
+Deliverables:
+
+- main-entry path switched fully to the guided stage-card runtime
+- obsolete primary-path modules removed (or retained only behind explicit advanced mode, not default path)
+- obsolete copy and behavior artifacts removed from guided surface
+
+Hard-cutover verification checks:
+
+- no command-first onboarding copy in guided flow
+- no profile-based primary-path decisions in guided flow
+- no raw transcript tag prefixes in primary user narrative
+- no unreachable dead code for prior primary-path intake implementation
+- dependency graph contains no packages used solely by removed primary-path UI
+
+Static verification examples:
+
+- `rg -n \"type /|/new|/help\" src/ui/transcript` MUST NOT match guided-path onboarding copy
+- `rg -n \"profile\" src/ui/transcript` MUST match only advanced/non-primary contexts
+- `rg -n \"sys>|ops>|run>|warn>|err>\" src/ui/transcript` MUST return zero primary-path user copy matches
+
 ---
 
 ## 13. Stress Test: Fidelity to Vision
@@ -440,6 +505,7 @@ Every core PDF requirement MUST map to an explicit contract clause:
 - receipt and action loop -> Section 7
 - keyboard semantics -> Section 8
 - scientific honesty caveats -> Section 6 and Section 10
+- hard cutover and no-legacy behavior -> Section 12 Phase F
 
 If any item is unmapped, implementation MUST be blocked.
 
