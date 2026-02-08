@@ -41,6 +41,7 @@
     "test:quickstart": "npm run build && node scripts/quickstart-smoke.mjs",
     "test:report": "npm run build && node scripts/report-smoke.mjs",
     "test:unit": "npm run build && node --test test/unit/*.test.mjs",
+    "test:e2e:tui": "npm run build && node --test test/e2e/*.test.mjs",
     "test:guards": "node scripts/architecture-guard.mjs",
     "prepublishOnly": "npm run build && npm run test:pack"
   },
@@ -52,6 +53,7 @@
     "dotenv": "^17.2.3"
   },
   "devDependencies": {
+    "@homebridge/node-pty-prebuilt-multiarch": "^0.12.0",
     "@types/node": "^24.0.0",
     "json-schema-to-typescript": "^15.0.0",
     "typescript": "^5.9.0"
