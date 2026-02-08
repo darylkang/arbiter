@@ -394,6 +394,7 @@ const buildCards = (state: AppState, width: number): StageCard[] => {
 
 export class TranscriptComponent implements Component {
   private state: AppState | null = null;
+  private lastRenderedLineCount = 0;
 
   setState(state: AppState): void {
     this.state = state;
@@ -405,22 +406,32 @@ export class TranscriptComponent implements Component {
 
   render(width: number): string[] {
     const safeWidth = Math.max(40, width);
+    const blankLine = " ".repeat(safeWidth);
     const state = this.state;
     if (!state) {
-      return ["", "Initializing transcript...", ""];
+      return [blankLine, "Initializing transcript...", blankLine];
     }
 
-    const cards = buildCards(state, safeWidth);
-    const lines: string[] = [];
+    // When an overlay is active, render a clean backdrop so list text does not
+    // visually blend with underlying stage cards in constrained terminals.
+    let lines: string[] = [];
+    if (state.overlay) {
+      lines = [blankLine, blankLine, blankLine];
+    } else {
+      const cards = buildCards(state, safeWidth);
+      for (const card of cards) {
+        lines.push(...renderCard(card, safeWidth), "");
+      }
 
-    for (const card of cards) {
-      lines.push(...renderCard(card, safeWidth), "");
+      if (lines.length === 0) {
+        lines = [blankLine, "Guided setup will appear here.", blankLine];
+      }
     }
 
-    if (lines.length === 0) {
-      return ["", "Guided setup will appear here.", ""];
+    if (lines.length < this.lastRenderedLineCount) {
+      lines = [...lines, ...new Array(this.lastRenderedLineCount - lines.length).fill(blankLine)];
     }
-
+    this.lastRenderedLineCount = lines.length;
     return lines;
   }
 }

@@ -19,7 +19,11 @@ const phaseLabel = (state: AppState): string => {
 
 export const renderHeader = (state: AppState, width: number): string => {
   const title = palette.headline("ARBITER");
-  const subtitle = palette.steel("Research-grade experiment harness for response distributions.");
+  const subtitle = palette.steel(
+    state.phase === "idle" || state.phase === "intake"
+      ? "Welcome to Arbiter. Research-grade experiment harness for response distributions."
+      : "Research-grade experiment harness for response distributions."
+  );
   const version = palette.steel(`v${state.version}`);
 
   const api = styleStatusLine(
@@ -43,7 +47,7 @@ export const renderHeader = (state: AppState, width: number): string => {
     ...bannerLines,
     `${title}  ${version}`,
     compact ? `${phase}` : `${api}    ${cfg}    ${phase}`,
-    compact ? subtitle : palette.steel("Follow the guided flow. Completed stage blocks remain in history."),
+    compact ? subtitle : subtitle,
     makeDivider(width)
   ];
 

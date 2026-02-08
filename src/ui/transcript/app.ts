@@ -112,6 +112,15 @@ const readConfigMode = (configPath: string): RunMode | null => {
   return null;
 };
 
+const runIdFromRunDir = (runDir: string): string | null => {
+  const trimmed = runDir.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const parts = trimmed.split(/[\\/]/).filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : null;
+};
+
 export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Promise<void> => {
   const assetRoot = options?.assetRoot ?? getAssetRoot();
   const startupWarnings: string[] = [];
@@ -560,6 +569,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     });
 
   const selectPostRunAction = async (): Promise<PostRunAction | null> => {
+    const runId = runIdFromRunDir(state.runDir);
     const items =
       state.runDir.trim().length > 0
         ? [
@@ -593,6 +603,10 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       state.overlay = {
         kind: "select",
         title: "Choose the next action",
+        body:
+          runId && state.runDir.trim().length > 0
+            ? `Run ID: ${runId}\nRun directory: ${state.runDir}`
+            : undefined,
         items,
         selectedIndex: 0,
         onSelect: (item) => {
