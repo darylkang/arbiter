@@ -385,7 +385,8 @@ export const runResolveService = (options: {
     resolvedConfig: result.resolvedConfig,
     catalogVersion: result.catalog.catalog_version,
     catalogSha256: result.catalogSha256,
-    promptManifestSha256: result.promptManifestSha256
+    promptManifestSha256: result.promptManifestSha256,
+    packageJsonPath: resolve(options.assetRoot, "package.json")
   });
 
   writeResolveArtifacts({

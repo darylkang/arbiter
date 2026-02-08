@@ -59,3 +59,26 @@ test("formatDecisionContractClause includes schema and response instructions", (
   assert.equal(clause.includes("Respond with ONLY a JSON object"), true);
   assert.equal(clause.includes('"decision"'), true);
 });
+
+test("extractContractOutput truncates rationale when rationale_max_chars is exceeded", () => {
+  const validate = buildContractValidator(contract.schema);
+  const extracted = extractContractOutput(
+    "```json\n{\"decision\":\"yes\",\"rationale\":\"this rationale is too long\"}\n```",
+    contract,
+    validate
+  );
+
+  assert.equal(extracted.parse_status, "success");
+  assert.equal(extracted.rationale_truncated, true);
+  assert.equal(extracted.rationale, "this rationale i");
+  assert.equal(extracted.embed_text, "this rationale i");
+});
+
+test("extractContractOutput returns failed for empty content", () => {
+  const validate = buildContractValidator(contract.schema);
+  const extracted = extractContractOutput("   \n", contract, validate);
+
+  assert.equal(extracted.parse_status, "failed");
+  assert.equal(extracted.extraction_method, "raw");
+  assert.equal(extracted.embed_text, "");
+});

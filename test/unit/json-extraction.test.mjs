@@ -31,3 +31,24 @@ test("extract helpers support parser predicates", () => {
   assert.deepEqual(fenced, { decision: "yes" });
   assert.deepEqual(unfenced, { decision: "no" });
 });
+
+test("extractUnfencedJson returns the first full object even with nested braces", () => {
+  const value = extractUnfencedJson(
+    'prefix {"decision":"yes","nested":{"decision":"no"}} suffix'
+  );
+  assert.deepEqual(value, {
+    decision: "yes",
+    nested: { decision: "no" }
+  });
+});
+
+test("extractUnfencedJson ignores braces that appear inside JSON strings", () => {
+  const value = extractUnfencedJson(
+    'prefix {"decision":"yes","note":"brace } inside string","ok":true} suffix'
+  );
+  assert.deepEqual(value, {
+    decision: "yes",
+    note: "brace } inside string",
+    ok: true
+  });
+});

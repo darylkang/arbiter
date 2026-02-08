@@ -65,8 +65,28 @@ export function extractUnfencedJson<T>(
       continue;
     }
     let depth = 0;
+    let inString = false;
+    let escaping = false;
     for (let j = i; j < content.length; j += 1) {
       const char = content[j];
+      if (inString) {
+        if (escaping) {
+          escaping = false;
+          continue;
+        }
+        if (char === "\\") {
+          escaping = true;
+          continue;
+        }
+        if (char === "\"") {
+          inString = false;
+        }
+        continue;
+      }
+      if (char === "\"") {
+        inString = true;
+        continue;
+      }
       if (char === "{") depth += 1;
       if (char === "}") depth -= 1;
       if (depth !== 0) {

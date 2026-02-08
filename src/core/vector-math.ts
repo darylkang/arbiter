@@ -16,6 +16,11 @@ export const cosineSimilarity = (
   vectorB: number[],
   options?: CosineSimilarityOptions
 ): number => {
+  if (vectorA.length !== vectorB.length) {
+    throw new Error(
+      `cosineSimilarity requires vectors with equal length (got ${vectorA.length} and ${vectorB.length})`
+    );
+  }
   const normA = options?.normA ?? vectorNorm(vectorA);
   const normB = options?.normB ?? vectorNorm(vectorB);
   if (normA === 0 || normB === 0) {

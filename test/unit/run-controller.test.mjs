@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { EventBus } from "../../dist/events/event-bus.js";
 import { createRunController } from "../../dist/ui/transcript/run-controller.js";
 import { createInitialState } from "../../dist/ui/transcript/state.js";
 
@@ -259,4 +260,39 @@ test("interrupt only signals when a run is active", () => {
   assert.equal(sentSignals.length, 1);
   assert.equal(sentSignals[0].pid, process.pid);
   assert.equal(sentSignals[0].signal, "SIGINT");
+});
+
+test("startRun reports EventBus flush failures as warnings", async () => {
+  const state = makeState();
+  const bus = new EventBus();
+
+  bus.subscribe("run.completed", async () => {
+    throw new Error("flush failure");
+  });
+
+  const controller = createRunController(
+    {
+      assetRoot: process.cwd(),
+      state,
+      requestRender: () => {}
+    },
+    {
+      createBus: () => bus,
+      configExists: () => true,
+      runMock: async (options) => {
+        emitRunStarted(options.bus, "run_flush_warning");
+        emitRunCompleted(options.bus, "run_flush_warning");
+        return { runDir: "/tmp/runs/run_flush_warning" };
+      },
+      createLifecycleHooks: () => ({})
+    }
+  );
+
+  await controller.startRun("mock");
+
+  assert.ok(
+    state.warnings.some((warning) =>
+      warning.message.includes("event flush error")
+    )
+  );
 });

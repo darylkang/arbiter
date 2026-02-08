@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -48,6 +48,33 @@ const createMockConfig = (cwd, options = {}) => {
   writeFileSync(join(cwd, "arbiter.config.json"), `${JSON.stringify(config, null, 2)}\n`, "utf8");
 };
 
+const REQUIRED_RUN_ARTIFACTS = [
+  "aggregates.json",
+  "config.resolved.json",
+  "convergence_trace.jsonl",
+  "embeddings.arrow",
+  "embeddings.provenance.json",
+  "manifest.json",
+  "parsed.jsonl",
+  "receipt.txt",
+  "trial_plan.jsonl",
+  "trials.jsonl"
+];
+
+const assertRunArtifacts = (cwd, runDirName) => {
+  const runDir = join(cwd, "runs", runDirName);
+  for (const artifact of REQUIRED_RUN_ARTIFACTS) {
+    assert.equal(
+      existsSync(join(runDir, artifact)),
+      true,
+      `expected artifact ${artifact} in ${runDir}`
+    );
+  }
+  const manifest = JSON.parse(readFileSync(join(runDir, "manifest.json"), "utf8"));
+  assert.equal(manifest.run_id, runDirName);
+  assert.equal(Array.isArray(manifest.artifacts?.entries), true);
+};
+
 const createPtySession = (input) => {
   const proc = pty.spawn("node", [CLI_ENTRY], {
     name: "xterm-256color",
@@ -69,21 +96,38 @@ const createPtySession = (input) => {
     output += data;
   });
 
-  const waitForText = async (text, timeoutMs = 20000) =>
-    withTimeout(
-      new Promise((resolveText) => {
-        const poll = () => {
-          if (stripAnsi(output).includes(text)) {
-            resolveText(true);
-            return;
-          }
-          setTimeout(poll, 25);
-        };
-        poll();
-      }),
-      timeoutMs,
-      `waitForText(${text})`
-    );
+  const waitForText = (text, timeoutMs = 20000) =>
+    new Promise((resolveText, rejectText) => {
+      const deadline = Date.now() + timeoutMs;
+      const poll = setInterval(() => {
+        if (stripAnsi(output).includes(text)) {
+          clearInterval(poll);
+          resolveText(true);
+          return;
+        }
+        if (Date.now() >= deadline) {
+          clearInterval(poll);
+          rejectText(new Error(`waitForText(${text}) timed out after ${timeoutMs}ms`));
+        }
+      }, 25);
+    });
+
+  const waitForAnyText = (texts, timeoutMs = 20000) =>
+    new Promise((resolveText, rejectText) => {
+      const deadline = Date.now() + timeoutMs;
+      const poll = setInterval(() => {
+        const current = stripAnsi(output);
+        if (texts.some((text) => current.includes(text))) {
+          clearInterval(poll);
+          resolveText(true);
+          return;
+        }
+        if (Date.now() >= deadline) {
+          clearInterval(poll);
+          rejectText(new Error(`waitForAnyText(${texts.join(" | ")}) timed out after ${timeoutMs}ms`));
+        }
+      }, 25);
+    });
 
   const writeLine = (line) => {
     proc.write(`${line}\r`);
@@ -128,6 +172,7 @@ const createPtySession = (input) => {
     arrowDown,
     writeCtrlC,
     waitForText,
+    waitForAnyText,
     waitForExit,
     stop,
     getOutput: () => stripAnsi(output)
@@ -238,6 +283,9 @@ test("pty: guided intake flow completes from question to receipt", { concurrency
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name);
     assert.ok(runDirs.length >= 1);
+    const latestRunDir = runDirs.slice().sort().at(-1);
+    assert.ok(latestRunDir);
+    assertRunArtifacts(cwd, latestRunDir);
 
     session.arrowDown(3);
     session.pressEnter();
@@ -274,6 +322,9 @@ test("pty: quickstart mock run completes and writes artifacts", { concurrency: f
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name);
     assert.ok(runDirs.length >= 1);
+    const latestRunDir = runDirs.slice().sort().at(-1);
+    assert.ok(latestRunDir);
+    assertRunArtifacts(cwd, latestRunDir);
 
     session.arrowDown(3);
     session.pressEnter();
@@ -315,9 +366,24 @@ test("pty: ctrl+c requests graceful stop during run", { concurrency: false }, as
     await session.waitForText("Starting mock run.", 20000);
 
     session.writeCtrlC();
-    await session.waitForText("Interrupt requested. Waiting for in-flight trials to finish.", 20000);
+    await session.waitForAnyText(
+      [
+        "Interrupt requested. Waiting for in-flight trials to finish.",
+        "SIGINT received: stopping new trials, waiting for in-flight to finish",
+        "Run complete:"
+      ],
+      20000
+    );
     await session.waitForText("Run complete:", 45000);
     await session.waitForText("Choose the next action", 45000);
+    assert.ok(
+      [
+        "Interrupt requested. Waiting for in-flight trials to finish.",
+        "SIGINT received: stopping new trials, waiting for in-flight to finish",
+        "Run complete: user interrupted",
+        "Run complete: user_interrupt"
+      ].some((marker) => session.getOutput().includes(marker))
+    );
 
     session.arrowDown(3);
     session.pressEnter();

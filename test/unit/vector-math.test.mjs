@@ -22,3 +22,15 @@ test("cosineSimilarity supports precomputed norms", () => {
   });
   assert.ok(Math.abs(result - 1) < 1e-12);
 });
+
+test("cosineSimilarity returns 0 when either vector norm is zero", () => {
+  assert.equal(cosineSimilarity([0, 0], [1, 2]), 0);
+  assert.equal(cosineSimilarity([1, 2], [0, 0]), 0);
+});
+
+test("cosineSimilarity rejects mismatched vector lengths", () => {
+  assert.throws(
+    () => cosineSimilarity([1, 2, 3], [1, 2]),
+    /requires vectors with equal length/i
+  );
+});

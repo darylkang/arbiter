@@ -278,6 +278,44 @@ test("intake flow enforces question validation", () => {
   assert.equal(state.newFlow?.stage, "labels");
 });
 
+test("intake flow supports custom label entry and deduplicates labels", () => {
+  const state = makeState();
+  const statuses = [];
+  let inputValue = "";
+
+  const intake = createIntakeFlowController({
+    state,
+    wizardOptions,
+    requestRender: () => {},
+    appendSystem: () => {},
+    appendStatus: (message) => statuses.push(message),
+    appendError: () => {},
+    appendWarning: () => {},
+    appendSummary: () => {},
+    writeGuidedConfig: () => {},
+    startRun: async () => {},
+    setInputText: (value) => {
+      inputValue = value;
+    }
+  });
+
+  intake.startNewFlow();
+  intake.handlePlainInput("How do we test custom labels?");
+  assert.equal(state.newFlow?.stage, "labels");
+  assert.equal(state.overlay?.kind, "select");
+  state.overlay?.onSelect({ id: "custom", label: "Define labels" });
+
+  assert.equal(state.newFlow?.stage, "labels");
+  assert.equal(state.overlay, null);
+  assert.equal(inputValue, "");
+
+  intake.handlePlainInput("yes, no, YES,  no ");
+  assert.equal(state.newFlow?.stage, "decode");
+  assert.equal(state.overlay?.kind, "select");
+  assert.deepEqual(state.newFlow?.labels, ["yes", "no"]);
+  assert.ok(statuses.some((status) => status.includes("Labels recorded: yes, no")));
+});
+
 test("intake flow asks for confirmation when restarting an active setup", () => {
   const state = makeState();
   const statuses = [];
@@ -305,6 +343,88 @@ test("intake flow asks for confirmation when restarting an active setup", () => 
   assert.equal(state.overlay?.title, "Discard current setup?");
   state.overlay?.onCancel();
   assert.ok(statuses.some((status) => status.includes("Resuming current setup")));
+});
+
+test("intake flow save-only mode writes config without starting a run", async () => {
+  const state = makeState();
+  const statuses = [];
+  const writes = [];
+  const runs = [];
+
+  const intake = createIntakeFlowController({
+    state,
+    wizardOptions,
+    requestRender: () => {},
+    appendSystem: () => {},
+    appendStatus: (message) => statuses.push(message),
+    appendError: () => {},
+    appendWarning: () => {},
+    appendSummary: () => {},
+    writeGuidedConfig: (flow) => writes.push(flow),
+    startRun: async (mode) => {
+      runs.push(mode);
+    },
+    setInputText: () => {}
+  });
+
+  intake.startNewFlow();
+  intake.handlePlainInput("How do we test save-only mode?");
+  state.overlay?.onSelect({ id: "free-form", label: "Free-form responses" });
+  state.overlay?.onSelect({ id: "balanced", label: "Balanced" });
+  state.overlay?.onConfirm(["persona_neutral"]);
+  state.overlay?.onConfirm(["openai/gpt-4o-mini-2024-07-18"]);
+  state.overlay?.onSelect({ id: "independent", label: "Independent" });
+  state.overlay?.onSelect({ id: "standard", label: "Standard" });
+  state.overlay?.onSelect({ id: "save-only", label: "Save only" });
+  state.overlay?.onSelect({ id: "start", label: "Start" });
+
+  assert.equal(writes.length, 1);
+  assert.deepEqual(runs, []);
+  assert.equal(state.phase, "idle");
+  assert.equal(state.newFlow, null);
+  assert.ok(statuses.some((status) => status.includes("Setup complete. Choose the next action")));
+});
+
+test("intake flow cancels setup when writing guided config fails", async () => {
+  const state = makeState();
+  const errors = [];
+  const statuses = [];
+  const runs = [];
+
+  const intake = createIntakeFlowController({
+    state,
+    wizardOptions,
+    requestRender: () => {},
+    appendSystem: () => {},
+    appendStatus: (message) => statuses.push(message),
+    appendError: (message) => errors.push(message),
+    appendWarning: () => {},
+    appendSummary: () => {},
+    writeGuidedConfig: () => {
+      throw new Error("disk full");
+    },
+    startRun: async (mode) => {
+      runs.push(mode);
+    },
+    setInputText: () => {}
+  });
+
+  intake.startNewFlow();
+  intake.handlePlainInput("How do we test write failures?");
+  state.overlay?.onSelect({ id: "free-form", label: "Free-form responses" });
+  state.overlay?.onSelect({ id: "balanced", label: "Balanced" });
+  state.overlay?.onConfirm(["persona_neutral"]);
+  state.overlay?.onConfirm(["openai/gpt-4o-mini-2024-07-18"]);
+  state.overlay?.onSelect({ id: "independent", label: "Independent" });
+  state.overlay?.onSelect({ id: "standard", label: "Standard" });
+  state.overlay?.onSelect({ id: "mock", label: "Run mock now" });
+  state.overlay?.onSelect({ id: "start", label: "Start" });
+
+  assert.equal(state.phase, "idle");
+  assert.equal(state.newFlow, null);
+  assert.deepEqual(runs, []);
+  assert.ok(errors.some((message) => message.includes("Failed to write configuration")));
+  assert.ok(statuses.some((message) => message.includes("Setup cancelled")));
 });
 
 test("intake flow escape cancels from question step", () => {
