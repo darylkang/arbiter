@@ -18,6 +18,18 @@ export type RunController = {
   dispose: () => void;
 };
 
+type RunControllerDeps = {
+  configExists: (path: string) => boolean;
+  createBus: () => EventBus;
+  createWarningSink: (bus: EventBus) => ReturnType<typeof createEventWarningSink>;
+  createLifecycleHooks: () => ReturnType<typeof createUiRunLifecycleHooks>;
+  runMock: typeof runMockService;
+  runLive: typeof runLiveService;
+  listRunsCount: () => number;
+  renderReceipt: (runDir: string) => string;
+  sendSignal: (pid: number, signal: NodeJS.Signals) => void;
+};
+
 const resolveRunDir = (value: unknown): string | null => {
   if (!value || typeof value !== "object" || !("runDir" in value)) {
     return null;
@@ -30,11 +42,28 @@ const listRunsCount = (): number => {
   return listRunDirs().length;
 };
 
+const defaultRunControllerDeps = (): RunControllerDeps => ({
+  configExists: existsSync,
+  createBus: () => new EventBus(),
+  createWarningSink: (bus) => createEventWarningSink(bus),
+  createLifecycleHooks: () => createUiRunLifecycleHooks(),
+  runMock: runMockService,
+  runLive: runLiveService,
+  listRunsCount,
+  renderReceipt: renderReceiptForRun,
+  sendSignal: (pid, signal) => process.kill(pid, signal)
+});
+
 export const createRunController = (input: {
   assetRoot: string;
   state: AppState;
   requestRender: () => void;
-}): RunController => {
+}, deps?: Partial<RunControllerDeps>): RunController => {
+  const resolvedDeps: RunControllerDeps = {
+    ...defaultRunControllerDeps(),
+    ...deps
+  };
+
   let detachHandlers: (() => void) | null = null;
   let runPromise: Promise<void> | null = null;
 
@@ -42,7 +71,7 @@ export const createRunController = (input: {
     if (input.state.phase !== "running") {
       return;
     }
-    process.kill(process.pid, "SIGINT");
+    resolvedDeps.sendSignal(process.pid, "SIGINT");
   };
 
   const dispose = (): void => {
@@ -57,7 +86,7 @@ export const createRunController = (input: {
       return;
     }
 
-    if (!existsSync(input.state.configPath)) {
+    if (!resolvedDeps.configExists(input.state.configPath)) {
       appendTranscript(input.state, "error", "missing arbiter.config.json. run /new first");
       input.requestRender();
       return;
@@ -73,7 +102,7 @@ export const createRunController = (input: {
     appendTranscript(input.state, "status", `starting ${mode} run...`);
     input.requestRender();
 
-    const bus = new EventBus();
+    const bus = resolvedDeps.createBus();
 
     const runEventUnsub = attachRunEventHandler({
       bus,
@@ -110,8 +139,8 @@ export const createRunController = (input: {
       warningUnsub();
     };
 
-    const warningSink = createEventWarningSink(bus);
-    const hooks = createUiRunLifecycleHooks();
+    const warningSink = resolvedDeps.createWarningSink(bus);
+    const hooks = resolvedDeps.createLifecycleHooks();
 
     runPromise = (async () => {
       try {
@@ -129,16 +158,16 @@ export const createRunController = (input: {
         };
 
         const result =
-          mode === "mock" ? await runMockService(common) : await runLiveService(common);
+          mode === "mock" ? await resolvedDeps.runMock(common) : await resolvedDeps.runLive(common);
 
         const runDir = resolveRunDir(result);
         if (runDir) {
           input.state.runDir = runDir;
           input.state.lastRunDir = runDir;
-          input.state.runsCount = listRunsCount();
+          input.state.runsCount = resolvedDeps.listRunsCount();
           appendTranscript(input.state, "status", `artifacts written: ${runDir}`);
           try {
-            appendTranscript(input.state, "receipt", renderReceiptForRun(runDir));
+            appendTranscript(input.state, "receipt", resolvedDeps.renderReceipt(runDir));
           } catch (error) {
             appendWarningOnce(
               input.state,
