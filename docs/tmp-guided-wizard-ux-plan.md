@@ -18,10 +18,10 @@ Target state: a guided, flow-first experience where the default path actively le
 
 This should feel:
 
-- as simple as an Apple setup flow,
-- as polished as Claude Code,
-- with OpenClaw-inspired interaction patterns (arrow-key lists, clear step prompts, lively but restrained motion),
-- and consistent with Arbiter’s retro arcade / Gruvbox design language.
+- simple and low-friction for first-time users,
+- polished and responsive during long-running operations,
+- keyboard-first with clear step progression and strong affordances,
+- visually consistent with a restrained Gruvbox-based palette.
 
 Core shift:
 
@@ -83,6 +83,9 @@ Use color/motion/spinners purposefully. No visual noise.
 
 6. Command fallback, not command requirement  
 Commands remain available as power-user shortcuts.
+
+7. Professional language at all touchpoints  
+UI and docs copy must be precise, neutral, and research-tool appropriate.
 
 ---
 
@@ -189,6 +192,39 @@ No divergent color logic between wizard and command surfaces.
 - Supporting text: muted, compact.
 - Critical actions: accent + strong affordance.
 
+## 7.5 Copy and tone standards (required)
+
+All user-facing text must read like professional technical product documentation.
+
+Rules:
+
+- Use sentence case and direct language.
+- Prioritize clarity over personality.
+- Avoid slang, jokes, nostalgia labels, or internal codenames.
+- Do not use internal design nicknames in UI text (for example: "1984 Arcade").
+- Keep action labels concrete (`Start run`, `Review settings`, `Verify artifacts`).
+- Error copy must include:
+  - what failed,
+  - why (when known),
+  - what to do next.
+- Warning copy must be factual and concise; no alarmist phrasing.
+- Help copy must use progressive disclosure:
+  - short summary first,
+  - details/examples second.
+
+Examples (preferred):
+
+- `Set up a new study.`
+- `Select a run mode.`
+- `OpenRouter API key not found. Live runs require OPENROUTER_API_KEY.`
+- `Run complete. Review the receipt or open a report.`
+
+Examples (avoid):
+
+- `Let's spin up something cool.`
+- `1984 Arcade mode`
+- `Wizard magic`
+
 ## 7.3 Rounded “choice bubbles”
 
 Adopt rounded choice rows in list overlays using unicode forms:
@@ -222,7 +258,7 @@ Default immediately enters guided intake.
 Expected first transcript messages:
 
 1. Welcome line
-2. “Let’s set up your study.”
+2. “Set up a new study.”
 3. Prompt: “What question are you investigating?”
 
 ## 8.2 Intake step contracts
@@ -356,6 +392,7 @@ Extend `AppState`:
 - keep transcript and header/footer.
 - add a dedicated “step panel” in layout for guided prompts.
 - overlays remain for list/checklist selection; style updated for rounded bubbles.
+- header text must remain professional (`Arbiter`, run status, environment state); no internal vibe labels.
 
 ## 10.4 Controller updates
 
@@ -471,6 +508,21 @@ Gate:
 
 ---
 
+## 12.4 Documentation quality standards
+
+Interactive help, inline guidance, and README/docs updates must follow a consistent technical writing standard:
+
+- Lead with user intent (`what to do`) before implementation details.
+- Use explicit prerequisites and defaults.
+- Keep examples executable as written.
+- Prefer short sections with descriptive headings.
+- Keep terminology consistent across CLI help, TUI prompts, and docs.
+- Avoid ambiguous language (`might`, `should probably`) in operational guidance.
+
+This standard should be treated as a quality gate for UX completion, not an optional polish pass.
+
+---
+
 ## 13) Acceptance Criteria (Premium UX Bar)
 
 1. First-time user can complete a full mock study without typing any slash command.
@@ -481,6 +533,7 @@ Gate:
 6. Help text aligns with actual interactive behavior and commands.
 7. Terminal width degradation is graceful at 40 columns.
 8. All existing backend invariants and artifact behavior remain unchanged.
+9. All user-facing UI/help/docs copy adheres to the professional tone rules in section 7.5.
 
 ---
 
@@ -567,9 +620,11 @@ Do:
 - optimize first-run success and repeatability
 - keep option count low in default path
 - keep advanced controls collapsed behind “advanced”
+- apply professional, documentation-grade copy standards across UI and docs
 
 Do not:
 
 - rebuild backend orchestration for UX changes
 - add decorative animations that do not improve comprehension
 - multiply modes/toggles on the main path
+- expose internal aesthetic labels or codenames in user-facing text
