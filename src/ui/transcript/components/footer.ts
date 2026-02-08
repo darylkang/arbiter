@@ -14,7 +14,7 @@ const contextHints = (state: AppState): string => {
   if (state.phase === "post-run") {
     return "choose a next action to continue";
   }
-  return "guided setup available • /help for advanced commands";
+  return "guided setup available • follow on-screen prompts";
 };
 
 export const renderFooter = (state: AppState, width: number): string => {

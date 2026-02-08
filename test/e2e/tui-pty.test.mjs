@@ -145,6 +145,43 @@ test("pty: /help then /quit exits cleanly", { concurrency: false }, async () => 
   }
 });
 
+test("pty: guided intake flow completes from question to receipt", { concurrency: false }, async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-guided-"));
+  const session = createPtySession({ cwd });
+
+  try {
+    await session.waitForText("Welcome to Arbiter.", 20000);
+    await session.waitForText("What question are you investigating?", 20000);
+
+    session.writeLine("How do model ensembles affect novelty saturation in policy QA?");
+    await session.waitForText("Select a profile", 20000);
+    session.pressEnter();
+
+    await session.waitForText("Select a run mode", 20000);
+    session.pressEnter();
+
+    await session.waitForText("Review study setup", 20000);
+    session.pressEnter();
+
+    await session.waitForText("Configuration saved to", 20000);
+    await session.waitForText("Run complete:", 45000);
+    await session.waitForText("Choose next action", 45000);
+
+    const runDirs = readdirSync(join(cwd, "runs"), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+    assert.ok(runDirs.length >= 1);
+
+    session.writeRaw("\u001b[B\u001b[B\u001b[B");
+    session.pressEnter();
+    const exit = await session.waitForExit(20000);
+    assert.equal(exit.exitCode, 0);
+  } finally {
+    await session.stop();
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("pty: /run mock completes and writes artifacts", { concurrency: false }, async () => {
   const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-"));
   createMockConfig(cwd, { kMax: 2, kMin: 0, workers: 1, batchSize: 1, questionId: "e2e_mock" });

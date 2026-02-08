@@ -141,8 +141,6 @@ export const createIntakeFlowController = (input: {
         return;
       }
 
-      input.appendStatus(`Starting ${runMode} run.`);
-      input.requestRender();
       void input.startRun(runMode);
     } catch (error) {
       input.appendError(`Failed to write configuration: ${formatError(error)}`);

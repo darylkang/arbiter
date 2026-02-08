@@ -203,11 +203,12 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       return;
     }
 
-    if (overlayState) {
-      if (tui.hasOverlay()) {
-        tui.hideOverlay();
-      }
-      overlayState = null;
+    if (overlayState === state.overlay && tui.hasOverlay()) {
+      return;
+    }
+
+    if (tui.hasOverlay()) {
+      tui.hideOverlay();
     }
 
     const overlayComponent = createOverlayComponent(state.overlay, () => {

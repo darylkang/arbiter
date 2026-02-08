@@ -200,11 +200,6 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
         total: event.payload.trial_ids.length,
         completed: 0
       };
-      appendTranscript(
-        state,
-        "progress",
-        `Batch ${event.payload.batch_number} started (${event.payload.trial_ids.length} trials).`
-      );
       break;
     }
 
@@ -235,11 +230,6 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
         wouldStop: record.stop.would_stop,
         shouldStop: record.stop.should_stop
       };
-      appendTranscript(
-        state,
-        "progress",
-        `Convergence batch ${record.batch_number}: novelty ${record.novelty_rate ?? "null"}, mean_sim ${record.mean_max_sim_to_prior ?? "null"}, clusters ${record.cluster_count}.`
-      );
       break;
     }
 
