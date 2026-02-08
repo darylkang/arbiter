@@ -618,6 +618,120 @@ Implementation sequencing remains valid, but emphasis is now:
 1. Density and information budget first.
 2. Transcript and copy polish second.
 3. Stage-boundary visual clarity third.
+
+---
+
+## 18) Vision v2 Incorporation (2026-02-08 PDF Refresh)
+
+This section captures the concrete deltas from:
+`/Users/darylkang/Developer/arbiter/docs/2fafecda-4d35-4fd5-a5a7-5521a0397b54_Arbiter_UIUX_Specification.pdf`
+and updates the working plan so implementation aligns with the refreshed vision.
+
+### 18.1 Locked intake flow change (major)
+
+The intake flow is no longer profile-centric as the primary path.  
+The canonical Stage 1 wizard becomes:
+
+1. Welcome / mode selection + start path selection (quick start vs setup wizard)
+2. Research question (`x`)
+3. Decision label set (`Y`, optional)
+4. Decoding parameters (`H1`)
+5. Prompt/persona selection (`H2`)
+6. Model selection (`H3`, include model version slugs)
+7. Protocol selection (`H4`)
+8. Advanced settings (collapsed by default)
+9. Review / confirm
+
+Impact:
+- Existing simplified `question -> profile -> mode -> review` must be treated as interim.
+- Profile bundles can remain as optional presets, but cannot replace the explicit step sequence above.
+
+### 18.2 Stage 2 presentation requirements (major)
+
+The run stage must support:
+
+1. Compact run summary card.
+2. Master progress bar.
+3. Worker rows (per worker status/progress; summarized only when viewport-constrained).
+4. Batch status card updated at batch boundaries with:
+   - novelty/stability signal,
+   - embedding group count,
+   - stopping status,
+   - inline caveat text.
+
+Required caveats in run context:
+- `Groups reflect embedding similarity, not semantic categories.`
+- `Stopping indicates diminishing novelty, not correctness.`
+
+### 18.3 Stage 3 receipt requirements (major)
+
+The receipt stage must include:
+
+1. Completion banner reflecting stop reason.
+2. Stats table (planned/completed/eligible/elapsed + stopping context).
+3. Truthful artifact manifest from actual filesystem state:
+   - show produced files (`✓`),
+   - show expected-but-missing files (`✗`) with reason.
+4. Reproducibility command.
+5. Next actions list including:
+   - Quit
+   - Start new study
+   - Open run folder
+
+### 18.4 Keyboard and navigation contract updates
+
+1. Arrow keys navigate lists.
+2. Space toggles checkboxes.
+3. Enter confirms list/numeric choices.
+4. Ctrl+D confirms multiline question input.
+5. Escape navigates backward through wizard steps with state preserved.
+6. Ctrl+C:
+   - Stage 2: graceful cancel (drain in-flight trials, then receipt),
+   - Stage 1 / Stage 3: immediate exit.
+
+### 18.5 Launch branching updates
+
+When config files exist:
+- show quick-start and setup-wizard paths,
+- when multiple configs exist, include explicit config selection step before path confirmation.
+
+When config files do not exist:
+- setup wizard path is primary.
+
+### 18.6 Visual and copy system updates
+
+1. Stacked frozen stage blocks remain the primary UX model.
+2. Header remains fixed and informational.
+3. One active interaction target at a time.
+4. Copy must remain professional and research-oriented (no operator shorthand).
+5. Inline confirmations after each step are required.
+
+### 18.7 Reconciled interpretation of density guidance
+
+The prior compactness direction remains valid, but must not erase required run observability.
+
+Implementation interpretation:
+1. Keep Stage A calm and low-density.
+2. In Stage B, show the full required run surface (summary + master progress + worker rows + batch card), using adaptive compaction for narrow terminals.
+3. Preserve caveats inline where metrics appear.
+
+### 18.8 Immediate planning consequences
+
+Before further UI implementation, update the execution plan to:
+
+1. Pivot Stage 1 from profile-led to explicit 8-step wizard.
+2. Add/expand Stage 2 worker-row architecture in layout/state.
+3. Add truthful artifact-manifest rendering in Stage 3.
+4. Add multiline input confirmation with `Ctrl+D`.
+5. Add config-selection branch for multiple configs.
+
+No engine-layer redesign is required by these deltas; this remains a UI-layer refactor centered in:
+- `src/ui/transcript/intake-flow.ts`
+- `src/ui/transcript/state.ts`
+- `src/ui/transcript/layout.ts`
+- `src/ui/transcript/components/progress.ts`
+- `src/ui/transcript/run-controller.ts`
+- `src/ui/transcript/app.ts`
 4. Hardening and tests last.
 
 These priorities supersede less impactful polish work.
