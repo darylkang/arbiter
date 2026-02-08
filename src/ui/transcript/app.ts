@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
@@ -14,7 +14,7 @@ import { formatVerifyReport, verifyRunDir } from "../../tools/verify-run.js";
 import { getAssetRoot } from "../../utils/asset-root.js";
 import { appendTranscript } from "./reducer.js";
 import { createRunController } from "./run-controller.js";
-import type { AppState, OverlayItem, OverlayState, ProfileId, RunMode } from "./state.js";
+import type { AppState, OverlayState, ProfileId, RunMode } from "./state.js";
 import { createInitialState } from "./state.js";
 import { createTranscriptLayout } from "./layout.js";
 import { createOverlayComponent } from "./components/overlay.js";
@@ -22,101 +22,18 @@ import { executeCommandInput, listSlashCommands } from "./commands/registry.js";
 import type { CommandContext } from "./commands/types.js";
 import { renderReceiptForRun } from "./components/receipt-view.js";
 import { formatError } from "./error-format.js";
+import { createProfileItems, findProfileById } from "./profiles.js";
+import { listRunDirs, resolveRunDirArg, toRunDirLabel } from "./run-dirs.js";
 
 const DEFAULT_CONFIG_PATH = "arbiter.config.json";
 
-type ProfileDefinition = {
-  id: ProfileId;
-  template: string;
-  label: string;
-  description: string;
-  warning?: string;
-};
-
-const PROFILES: ProfileDefinition[] = [
-  {
-    id: "quickstart",
-    template: "quickstart_independent",
-    label: "quickstart",
-    description: "single-model baseline with advisor stopping"
-  },
-  {
-    id: "heterogeneity",
-    template: "heterogeneity_mix",
-    label: "heterogeneity",
-    description: "multi-model and multi-persona profile"
-  },
-  {
-    id: "debate",
-    template: "debate_v1",
-    label: "debate",
-    description: "proposer-critic-revision protocol"
-  },
-  {
-    id: "free",
-    template: "free_quickstart",
-    label: "free",
-    description: "free-tier onboarding profile",
-    warning:
-      "free-tier models are useful for prototyping; use pinned paid models for research-grade studies"
-  }
-];
-
-const listRunDirs = (): string[] => {
-  try {
-    const runRoot = resolve(process.cwd(), "runs");
-    const entries = readdirSync(runRoot, { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => resolve(runRoot, entry.name))
-      .sort()
-      .reverse();
-  } catch (error) {
-    const maybeCode = (error as { code?: unknown }).code;
-    if (maybeCode !== "ENOENT") {
-      console.warn(`[arbiter:tui] failed to list run directories: ${formatError(error)}`);
-    }
-    return [];
-  }
-};
-
-const isDirectoryPath = (path: string): boolean => {
-  try {
-    return statSync(path).isDirectory();
-  } catch {
-    return false;
-  }
-};
-
-const resolveRunDirArg = (state: AppState, runDirArg?: string): string | null => {
-  if (runDirArg && runDirArg.trim().length > 0) {
-    const candidate = runDirArg.trim();
-    const absolute = resolve(process.cwd(), candidate);
-    if (isDirectoryPath(absolute)) {
-      return absolute;
-    }
-    const underRuns = resolve(process.cwd(), "runs", candidate);
-    if (isDirectoryPath(underRuns)) {
-      return underRuns;
-    }
-    return null;
-  }
-
-  if (state.lastRunDir && isDirectoryPath(state.lastRunDir)) {
-    return state.lastRunDir;
-  }
-
-  const all = listRunDirs();
-  return all.length > 0 ? all[0] : null;
-};
-
 const writeTemplateConfig = (
   assetRoot: string,
-  profile: ProfileDefinition,
+  templateName: string,
   question: string,
   targetPath: string
 ): void => {
-  const templatePath = resolve(assetRoot, "templates", `${profile.template}.config.json`);
+  const templatePath = resolve(assetRoot, "templates", `${templateName}.config.json`);
   const raw = readFileSync(templatePath, "utf8");
   const template = JSON.parse(raw) as Record<string, unknown>;
   const questionBlock = (template.question ?? {}) as Record<string, unknown>;
@@ -154,13 +71,6 @@ const renderWarningsBlock = (state: AppState): void => {
     );
   });
 };
-
-const createProfileItems = (): OverlayItem[] =>
-  PROFILES.map((profile) => ({
-    id: profile.id,
-    label: profile.label,
-    description: profile.description
-  }));
 
 export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Promise<void> => {
   const assetRoot = options?.assetRoot ?? getAssetRoot();
@@ -296,7 +206,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
 
     const items = runDirs.map((runDir) => ({
       id: runDir,
-      label: runDir.replace(`${resolve(process.cwd(), "runs")}/`, ""),
+      label: toRunDirLabel(runDir),
       description: runDir
     }));
 
@@ -391,7 +301,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       return;
     }
 
-    const profile = PROFILES.find((entry) => entry.id === inputProfileId);
+    const profile = findProfileById(inputProfileId);
     if (!profile) {
       appendError(state, `unknown profile id: ${inputProfileId}`);
       state.newFlow = null;
@@ -401,7 +311,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     }
 
     try {
-      writeTemplateConfig(assetRoot, profile, question, state.configPath);
+      writeTemplateConfig(assetRoot, profile.template, question, state.configPath);
       state.hasConfig = true;
       state.question = question;
       state.profileId = profile.id;

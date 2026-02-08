@@ -1,5 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync } from "node:fs";
 
 import { EventBus } from "../../events/event-bus.js";
 import { runLiveService, runMockService } from "../../run/run-service.js";
@@ -11,6 +10,7 @@ import { attachRunEventHandler } from "./handlers/event-handler.js";
 import { attachWarningHandler } from "./handlers/warning-handler.js";
 import { renderReceiptForRun } from "./components/receipt-view.js";
 import { formatError } from "./error-format.js";
+import { listRunDirs } from "./run-dirs.js";
 
 export type RunController = {
   startRun: (mode: RunMode) => Promise<void>;
@@ -27,12 +27,7 @@ const resolveRunDir = (value: unknown): string | null => {
 };
 
 const listRunsCount = (): number => {
-  try {
-    const entries = readdirSync(resolve(process.cwd(), "runs"), { withFileTypes: true });
-    return entries.filter((entry) => entry.isDirectory()).length;
-  } catch {
-    return 0;
-  }
+  return listRunDirs().length;
 };
 
 export const createRunController = (input: {
