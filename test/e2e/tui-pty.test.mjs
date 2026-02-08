@@ -89,6 +89,14 @@ const createPtySession = (input) => {
     proc.write(`${line}\r`);
   };
 
+  const writeRaw = (chars) => {
+    proc.write(chars);
+  };
+
+  const pressEnter = () => {
+    proc.write("\r");
+  };
+
   const writeCtrlC = () => {
     proc.write("\u0003");
   };
@@ -109,6 +117,8 @@ const createPtySession = (input) => {
 
   return {
     writeLine,
+    writeRaw,
+    pressEnter,
     writeCtrlC,
     waitForText,
     waitForExit,
@@ -121,7 +131,8 @@ test("pty: /help then /quit exits cleanly", { concurrency: false }, async () => 
   const session = createPtySession({ cwd: REPO_ROOT });
 
   try {
-    await session.waitForText("welcome to arbiter transcript runtime", 20000);
+    await session.waitForText("Welcome to Arbiter.", 20000);
+    await session.waitForText("What question are you investigating?", 20000);
     session.writeLine("/help");
     await session.waitForText("commands:", 20000);
     session.writeLine("/quit");
@@ -141,19 +152,22 @@ test("pty: /run mock completes and writes artifacts", { concurrency: false }, as
   const session = createPtySession({ cwd });
 
   try {
-    await session.waitForText("welcome to arbiter transcript runtime", 20000);
-    session.writeLine("/run mock");
+    await session.waitForText("Welcome to Arbiter.", 20000);
+    await session.waitForText("Choose how to continue", 20000);
+    session.pressEnter();
 
-    await session.waitForText("starting mock run", 20000);
-    await session.waitForText("run complete:", 30000);
-    await session.waitForText("artifacts written:", 30000);
+    await session.waitForText("Starting mock run.", 20000);
+    await session.waitForText("Run complete:", 30000);
+    await session.waitForText("Artifacts written to", 30000);
+    await session.waitForText("Choose next action", 30000);
 
     const runDirs = readdirSync(join(cwd, "runs"), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name);
     assert.ok(runDirs.length >= 1);
 
-    session.writeLine("/quit");
+    session.writeRaw("\u001b[B\u001b[B\u001b[B");
+    session.pressEnter();
     const exit = await session.waitForExit(20000);
     assert.equal(exit.exitCode, 0);
   } finally {
@@ -180,15 +194,18 @@ test("pty: ctrl+c requests graceful stop during run", { concurrency: false }, as
   });
 
   try {
-    await session.waitForText("welcome to arbiter transcript runtime", 20000);
-    session.writeLine("/run mock");
-    await session.waitForText("starting mock run", 20000);
+    await session.waitForText("Welcome to Arbiter.", 20000);
+    await session.waitForText("Choose how to continue", 20000);
+    session.pressEnter();
+    await session.waitForText("Starting mock run.", 20000);
 
     session.writeCtrlC();
-    await session.waitForText("interrupt requested. waiting for in-flight trials to finish", 20000);
-    await session.waitForText("run complete:", 45000);
+    await session.waitForText("Interrupt requested. Waiting for in-flight trials to finish.", 20000);
+    await session.waitForText("Run complete:", 45000);
+    await session.waitForText("Choose next action", 45000);
 
-    session.writeLine("/quit");
+    session.writeRaw("\u001b[B\u001b[B\u001b[B");
+    session.pressEnter();
     const exit = await session.waitForExit(20000);
     assert.equal(exit.exitCode, 0);
   } finally {

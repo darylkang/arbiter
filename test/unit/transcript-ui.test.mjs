@@ -82,11 +82,12 @@ test("applyRunEvent throws on unknown event type", () => {
   );
 });
 
-test("intake flow opens overlays, handles cancel, and starts selected run mode", async () => {
+test("intake flow follows question -> profile -> mode -> review -> start run", async () => {
   const state = makeState();
   const logs = [];
   const writes = [];
   const runs = [];
+  let inputValue = "";
 
   const intake = createIntakeFlowController({
     state,
@@ -98,37 +99,72 @@ test("intake flow opens overlays, handles cancel, and starts selected run mode",
     writeTemplateConfig: (profile, question) => writes.push({ profile: profile.id, question }),
     startRun: async (mode) => {
       runs.push(mode);
+    },
+    setInputText: (value) => {
+      inputValue = value;
     }
   });
 
   intake.startNewFlow();
   assert.equal(state.phase, "intake");
-  assert.equal(state.newFlow?.stage, "await_question");
+  assert.equal(state.newFlow?.stage, "question");
+  assert.equal(inputValue, "");
 
   intake.handlePlainInput("How do we test this?");
-  assert.equal(state.newFlow?.stage, "select_profile");
+  assert.equal(state.newFlow?.stage, "profile");
   assert.equal(state.overlay?.kind, "select");
-  assert.equal(state.overlay?.title, "select profile");
-
-  state.overlay?.onCancel();
-  assert.equal(state.phase, "idle");
-  assert.equal(state.newFlow, null);
-
-  intake.startNewFlow();
-  intake.handlePlainInput("How do we test this?");
-  assert.equal(state.overlay?.kind, "select");
+  assert.equal(state.overlay?.title, "Select a profile");
   state.overlay?.onSelect({ id: "quickstart", label: "quickstart" });
 
   assert.equal(state.overlay?.kind, "select");
-  assert.equal(state.overlay?.title, "select run mode");
+  assert.equal(state.overlay?.title, "Select a run mode");
   state.overlay?.onSelect({ id: "mock", label: "run mock now" });
+  assert.equal(state.newFlow?.stage, "review");
+  assert.equal(state.overlay?.kind, "select");
+  assert.equal(state.overlay?.title, "Review study setup");
+
+  state.overlay?.onSelect({ id: "start-run", label: "start run" });
 
   assert.deepEqual(writes, [{ profile: "quickstart", question: "How do we test this?" }]);
   assert.deepEqual(runs, ["mock"]);
   assert.equal(state.phase, "idle");
+  assert.equal(state.newFlow, null);
 });
 
-test("intake flow rejects invalid profile and run-mode selections", () => {
+test("intake flow back-navigation preserves question text", () => {
+  const state = makeState();
+  let inputValue = "";
+
+  const intake = createIntakeFlowController({
+    state,
+    requestRender: () => {},
+    appendSystem: () => {},
+    appendStatus: () => {},
+    appendError: () => {},
+    appendWarning: () => {},
+    writeTemplateConfig: () => {},
+    startRun: async () => {},
+    setInputText: (value) => {
+      inputValue = value;
+    }
+  });
+
+  intake.startNewFlow();
+  intake.handlePlainInput("How do we test this?");
+  state.overlay?.onCancel();
+  assert.equal(state.newFlow?.stage, "question");
+  assert.equal(inputValue, "How do we test this?");
+
+  intake.handlePlainInput("How do we test this?");
+  state.overlay?.onSelect({ id: "quickstart", label: "quickstart" });
+  assert.equal(state.newFlow?.stage, "mode");
+  state.overlay?.onCancel();
+  assert.equal(state.newFlow?.stage, "profile");
+  assert.equal(state.overlay?.kind, "select");
+  assert.equal(state.overlay?.title, "Select a profile");
+});
+
+test("intake flow rejects invalid profile, mode, and review action selections", () => {
   const state = makeState();
   const errors = [];
 
@@ -140,28 +176,56 @@ test("intake flow rejects invalid profile and run-mode selections", () => {
     appendError: (message) => errors.push(message),
     appendWarning: () => {},
     writeTemplateConfig: () => {},
-    startRun: async () => {}
+    startRun: async () => {},
+    setInputText: () => {}
   });
 
   intake.startNewFlow();
-  intake.handlePlainInput("Question?");
+  intake.handlePlainInput("Question that is valid.");
   state.overlay?.onSelect({ id: "not-a-profile", label: "invalid" });
 
-  assert.equal(state.phase, "idle");
-  assert.equal(state.newFlow, null);
-  assert.ok(errors.some((error) => error.includes("invalid profile selection")));
+  assert.equal(state.phase, "intake");
+  assert.equal(state.newFlow?.stage, "profile");
+  assert.ok(errors.some((error) => error.toLowerCase().includes("invalid profile selection")));
 
-  intake.startNewFlow();
-  intake.handlePlainInput("Question?");
+  intake.handlePlainInput("Question that is valid.");
   state.overlay?.onSelect({ id: "quickstart", label: "quickstart" });
   state.overlay?.onSelect({ id: "not-a-mode", label: "invalid" });
 
-  assert.equal(state.phase, "idle");
-  assert.equal(state.newFlow, null);
-  assert.ok(errors.some((error) => error.includes("invalid run mode selection")));
+  assert.equal(state.phase, "intake");
+  assert.equal(state.newFlow?.stage, "mode");
+  assert.ok(errors.some((error) => error.toLowerCase().includes("invalid run mode selection")));
+
+  state.overlay?.onSelect({ id: "mock", label: "run mock now" });
+  state.overlay?.onSelect({ id: "not-a-review-action", label: "invalid" });
+  assert.equal(state.newFlow?.stage, "review");
+  assert.ok(errors.some((error) => error.toLowerCase().includes("invalid review action")));
 });
 
-test("intake flow blocks re-entry while already active", () => {
+test("intake flow enforces question validation", () => {
+  const state = makeState();
+  const errors = [];
+
+  const intake = createIntakeFlowController({
+    state,
+    requestRender: () => {},
+    appendSystem: () => {},
+    appendStatus: () => {},
+    appendError: (message) => errors.push(message),
+    appendWarning: () => {},
+    writeTemplateConfig: () => {},
+    startRun: async () => {},
+    setInputText: () => {}
+  });
+
+  intake.startNewFlow();
+  intake.handlePlainInput("short");
+  assert.equal(state.newFlow?.stage, "question");
+  assert.equal(state.overlay, null);
+  assert.ok(errors.some((error) => error.includes("at least 8 characters")));
+});
+
+test("intake flow asks for confirmation when restarting an active setup", () => {
   const state = makeState();
   const statuses = [];
 
@@ -173,13 +237,17 @@ test("intake flow blocks re-entry while already active", () => {
     appendError: () => {},
     appendWarning: () => {},
     writeTemplateConfig: () => {},
-    startRun: async () => {}
+    startRun: async () => {},
+    setInputText: () => {}
   });
 
   intake.startNewFlow();
+  intake.handlePlainInput("How do we test this?");
   intake.startNewFlow();
 
   assert.equal(state.phase, "intake");
-  assert.equal(state.newFlow?.stage, "await_question");
-  assert.ok(statuses.some((status) => status.includes("intake already active")));
+  assert.equal(state.overlay?.kind, "confirm");
+  assert.equal(state.overlay?.title, "Discard current setup?");
+  state.overlay?.onCancel();
+  assert.ok(statuses.some((status) => status.includes("Resuming current setup")));
 });

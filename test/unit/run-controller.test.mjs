@@ -62,7 +62,9 @@ test("startRun refuses to run when config is missing", async () => {
   assert.equal(state.phase, "idle");
   assert.ok(
     state.transcript.some(
-      (entry) => entry.kind === "error" && entry.content.includes("missing arbiter.config.json")
+      (entry) =>
+        entry.kind === "error" &&
+        entry.content.includes("Configuration not found")
     )
   );
 });
@@ -95,8 +97,7 @@ test("startRun live mode requires OPENROUTER_API_KEY", async () => {
     assert.equal(state.phase, "idle");
     assert.ok(
       state.transcript.some(
-        (entry) =>
-          entry.kind === "error" && entry.content.includes("OPENROUTER_API_KEY missing")
+        (entry) => entry.kind === "error" && entry.content.includes("OpenRouter API key not found")
       )
     );
   } finally {
@@ -162,7 +163,7 @@ test("startRun success path updates run directory, receipt, and progress", async
   assert.equal(state.lastRunDir, "/tmp/runs/run_success");
   assert.equal(state.runsCount, 7);
   assert.ok(state.transcript.some((entry) => entry.kind === "receipt" && entry.content.includes("receipt preview text")));
-  assert.ok(state.transcript.some((entry) => entry.kind === "status" && entry.content.includes("artifacts written")));
+  assert.ok(state.transcript.some((entry) => entry.kind === "status" && entry.content.includes("Artifacts written")));
   assert.ok(renderCount > 0);
 });
 
@@ -188,7 +189,7 @@ test("startRun failure path transitions to post-run with error message", async (
   assert.equal(state.phase, "post-run");
   assert.ok(
     state.transcript.some(
-      (entry) => entry.kind === "error" && entry.content.includes("run execution failed: mock failure")
+      (entry) => entry.kind === "error" && entry.content.includes("Run execution failed: mock failure")
     )
   );
 });
@@ -224,7 +225,7 @@ test("startRun prevents overlapping runs while one is in-flight", async () => {
 
   assert.ok(
     state.transcript.some(
-      (entry) => entry.kind === "status" && entry.content.includes("a run is already active")
+      (entry) => entry.kind === "status" && entry.content.includes("A run is already active")
     )
   );
 
