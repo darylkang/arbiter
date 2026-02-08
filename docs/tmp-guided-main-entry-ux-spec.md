@@ -1,454 +1,520 @@
-# Arbiter Main Entry UX Rebuild Spec (Authoritative)
+# Arbiter Main Entry UX Rebuild Spec (Authoritative Build Contract)
 
-Status: Draft for implementation
-Owner: UI/UX + Product + Engineering
-Scope: `arbiter` TTY main entry path (pre-run through receipt)
-Out of scope: core engine behavior changes (sampling, clustering policy defaults, prompt design)
-
----
-
-## 1. Why Rebuild (Root-Cause Analysis)
-
-The previous iterations improved functionality, but they did not achieve the intended product experience. The root causes are structural, not cosmetic.
-
-### 1.1 Root causes
-
-1. **Wrong primary interaction model**
-   - The UI still behaves like a transcript/log shell with guided overlays layered on top.
-   - Result: the user experiences a terminal with guardrails, not a guided product.
-
-2. **Mixed paradigms in one surface**
-   - Guided flow, command flow, and runtime telemetry all compete in the same visual channel.
-   - Result: cognitive overload and weak stage boundaries.
-
-3. **No strict information budget by stage**
-   - Irrelevant information appears while user is making decisions.
-   - Result: dense screen, difficult scanning, reduced confidence.
-
-4. **Telemetry rendered as primary UX content**
-   - System/run events are printed directly into user-facing narrative.
-   - Result: noisy, operational feel.
-
-5. **Patching legacy flow instead of replacing the foundation**
-   - Prior work optimized existing transcript-first architecture.
-   - Result: local fixes, but global UX shape remained wrong.
-
-### 1.2 Non-negotiable implication
-
-A high-fidelity implementation requires a **clean UX architecture shift**:
-- from transcript-first shell
-- to stage-card guided workflow with constrained telemetry and explicit completion states.
+Status: Draft for implementation  
+Owner: Product, UX, Engineering  
+Scope: TTY main entry path for `arbiter` from launch through receipt  
+Out of scope: Core inference algorithms and policy logic (sampling math, clustering defaults, prompt semantics)
 
 ---
 
-## 2. Product Vision Contract
+## 1. Purpose
 
-This section defines what must be true for the rebuild to be considered successful.
+This document is a strict implementation contract for rebuilding Arbiter main-entry UX from first principles.
 
-### 2.1 Launch behavior
+It is normative. Engineering work should treat **MUST** as required, **SHOULD** as strongly recommended, and **MAY** as optional.
 
-Running `arbiter` in a TTY launches a guided application with:
-- a fixed informational header,
-- stacked stage cards,
-- one primary decision at a time,
-- no command knowledge required for first-run completion.
-
-### 2.2 Three-stage journey
-
-1. **Intake**: gather all experiment setup inputs.
-2. **Run**: show live progress and bounded observability.
-3. **Receipt**: summarize outputs and guide next action.
-
-Completed stages remain visible as frozen cards in scroll history.
-
-### 2.3 Interaction intent
-
-The experience should feel like a polished product workflow:
-- clear prompts,
-- low ambiguity,
-- stable keyboard semantics,
-- calm and readable visual hierarchy.
+Primary objective: the default `arbiter` experience MUST feel like a guided research product, not a terminal log shell.
 
 ---
 
-## 3. UX Principles (Locked)
+## 2. Vision Anchors (Source of Truth)
 
-1. **One primary decision per step**.
-2. **No hidden required commands in the primary guided path**.
-3. **Progressive disclosure over density**.
-4. **Stage transition must feel explicit**.
-5. **Telemetry supports decisions; it does not dominate the surface**.
-6. **Readability over compactness** (wrap text first; truncate only as last resort).
-7. **Professional research tone** (Google-doc quality copy, no slang, no internal jargon).
+This spec is derived from:
 
----
+1. `/Users/darylkang/Developer/arbiter/docs/2fafecda-4d35-4fd5-a5a7-5521a0397b54_Arbiter_UIUX_Specification.pdf`
+2. `/Users/darylkang/Developer/arbiter/docs/d6dc560d-2aa7-4e58-9ad4-a75da8e7e53e_Reasoning_as_a_Distribution.pdf`
+3. `/Users/darylkang/Developer/arbiter/docs/d824e33f-082c-43dc-b8a6-c17a50b05ffb_Related_Work.pdf`
 
-## 4. Target Information Architecture
+Interpretation guardrails:
 
-## 4.1 Fixed header (always visible)
-
-Content:
-- App title (`ARBITER` wordmark)
-- One-line product description
-- Version
-- Environment indicators:
-  - API key present / missing
-  - config present / missing
-
-Rules:
-- Header is informational only.
-- No primary branching choices in header.
-
-## 4.2 Stage cards (scroll, stacked, persistent)
-
-Cards accumulate in this order:
-1. Stage 1 card (Intake summary when complete)
-2. Stage 2 card (Run summary when complete)
-3. Stage 3 card (Receipt + next actions)
-
-Behavior:
-- Active stage card is interactive.
-- Completed stage cards are read-only and preserved in scroll history.
-
-## 4.3 Control surfaces
-
-- **Editor** for free text (question entry only when relevant).
-- **Selection overlays** for structured decisions.
-- **No command dependency** for completing the flow.
-- Commands may remain as secondary power-user affordances, never primary guidance.
+- The UI/UX PDF defines interaction and presentation behavior.
+- The research PDFs define scientific honesty constraints for copy and metrics framing.
+- If implementation choices conflict, UX fidelity and scientific honesty take precedence.
 
 ---
 
-## 5. Stage Specifications
+## 3. Product Contract (Non-Negotiable Outcomes)
 
-## 5.1 Stage 1: Intake
+When a user runs `arbiter` in a TTY:
 
-### 5.1.1 Entry gate
+1. The user MUST be able to complete launch -> intake -> run -> receipt without commands.
+2. The interface MUST use stacked stage blocks with frozen history, below a fixed informational header.
+3. Each step MUST present one primary decision at a time.
+4. Stage transitions MUST be visually explicit.
+5. Runtime telemetry MUST support decisions without dominating the UI.
+6. Copy MUST remain professional, precise, and research-honest.
+7. The guided path MUST keep one active control at a time.
 
-At launch, present start path options based on environment:
+---
 
-- `Run current configuration (mock)`
-  - enabled if config exists
-- `Run current configuration (live)`
-  - enabled if config exists and API key exists
-- `Set up new study`
+## 4. Information Architecture
+
+## 4.1 Fixed Header (Pinned)
+
+The header MUST remain pinned and non-scrollable.
+
+Header contents:
+
+- `ARBITER` wordmark (block/ASCII style)
+- one-line product description
+- semantic version
+- environment indicators:
+  - OpenRouter API key detected: yes/no
+  - local config detected: yes/no (+ count if multiple)
+
+Header rules:
+
+- Header MUST NOT contain primary branching controls.
+- Header MUST update status in place when environment state changes.
+
+## 4.2 Scrollable Transcript-Block Feed
+
+Below header, the UI MUST render a scrollable stage-block feed.
+
+Block lifecycle:
+
+- Active block: interactive and mutable.
+- Frozen block: read-only snapshot retained in scroll history.
+
+Stage order:
+
+1. Stage 1 Intake block
+2. Stage 2 Run block
+3. Stage 3 Receipt block
+
+Selecting “Start new study” MUST append a new Stage 1 block below frozen prior stages.
+
+Frozen blocks MAY be compacted for space, but MUST remain reviewable through scrolling and expansion.
+
+---
+
+## 5. Stage 1 Intake Contract
+
+## 5.1 Entry Gate (Mode + Path)
+
+The intake block MUST begin with a launch gate that branches by environment.
+
+Launch-gate sequence MUST be:
+
+1. Choose run mode (`Live run` or `Mock run`).
+2. Choose start path (`Quick Start` or `Setup Wizard`).
+
+Mode options:
+
+- `Live run`
+  - enabled only when API key exists
+  - disabled state MUST include inline reason
+- `Mock run`
   - always enabled
-- `Quit`
 
-If disabled, item remains visible with explicit reason.
+Path options:
 
-### 5.1.2 Wizard steps (explicit setup path)
+- `Quick Start`
+  - enabled only when at least one config exists
+- `Setup Wizard`
+  - always enabled
 
-Profiles are removed from the primary flow.
+If multiple configs are detected, the user MUST select a config before `Quick Start`.
 
-Wizard steps:
-1. Question input (`x`)
-2. Decode parameters (`d`)
-3. Persona selection (`p`) — checklist
-4. Model selection (`m`) — checklist with versioned model identifiers
-5. Protocol selection (`pi`) — independent/debate + variant
-6. Advanced execution settings
-7. Run mode selection (mock/live/save-only)
-8. Summary + confirmation
+Mode precedence rule:
 
-### 5.1.3 Summary and confirm
+- The mode selected at launch gate (`Live`/`Mock`) MUST control the immediate run.
+- If loaded config mode differs, the review card MUST show both values and indicate that launch mode overrides for this run.
 
-The final intake step must show:
+## 5.2 Wizard Step Sequence (Setup Wizard path)
+
+Profiles are removed from the primary guided path.
+
+The wizard MUST include these steps in order:
+
+1. Research question (`x`, multiline text box)
+2. Decision labels (`Y`, optional finite label set; default free-form)
+3. Decoding parameters (`d`)
+4. Persona selection (`p`, checkbox list, min 1)
+5. Model selection (`m`, checkbox list with versioned slugs)
+6. Protocol selection (`pi`, independent/debate + debate variant if applicable)
+7. Advanced settings (collapsed by default)
+8. Review and confirm
+
+## 5.3 Quick Start Behavior
+
+`Quick Start` MUST:
+
+- load the selected config,
+- skip wizard input steps,
+- still route through Review and confirm before run execution.
+
+## 5.4 Review and Confirm
+
+Review card MUST show:
+
+- mode
 - question
-- decode parameters
-- selected personas
-- selected models
+- labels (or free-form)
+- decoding parameters
+- personas
+- models
 - protocol
-- advanced settings
-- run mode
+- advanced settings summary
+- output path
 
-Actions:
-- Start
-- Edit question
-- Change personas
-- Change models
-- Change protocol
-- Change advanced
-- Change mode
-- Cancel setup
+Review actions MUST include:
 
-### 5.1.4 Back and cancel semantics
+- Accept/start run
+- Revise
 
-- `Esc` goes back one wizard step with state preserved.
-- `Esc` on first step cancels setup.
-- `Ctrl+C` exits when not running.
+If `Revise` is selected, prior selections MUST remain preserved.
 
----
+## 5.5 Back and Cancel Semantics
 
-## 5.2 Stage 2: Run
+- `Esc` MUST go to previous wizard step with state preserved.
+- `Esc` on first wizard step MUST cancel setup and return to gate.
+- `Ctrl+C` outside active run MUST exit.
 
-Stage 2 is a dedicated run card beneath frozen Stage 1.
+## 5.6 Validation Rules
 
-Required elements:
-- Master progress bar
-- Worker status rows (with compaction strategy for large worker counts)
-- Batch boundary status card:
-  - current/last batch
-  - stop-check status
-  - clustering/group summary
+Wizard validation MUST enforce:
 
-Rules:
-- Keep observability, but constrain noise.
-- Trial-level log spam must not flood the primary card.
-- Detailed metrics belong in report/receipt artifacts and optional drill-downs.
-
-Exit conditions:
-- graceful user interrupt (`Ctrl+C`)
-- stopping criteria met
-- max trials reached
-
-When run ends, Stage 2 card freezes.
+- Question: non-empty.
+- Labels: if enabled, at least 2 unique labels after trim/dedup.
+- Temperature: each value in `[0.0, 2.0]`; range min <= max.
+- Seed: non-negative integer when fixed.
+- Personas: at least 1 selected.
+- Models: at least 1 selected.
+- Protocol: exactly 1 selected.
+- Workers: `>= 1`.
+- Batch size: `>= 1`.
+- Max trials: `>= 1`.
+- Novelty threshold: `> 0`.
 
 ---
 
-## 5.3 Stage 3: Receipt
+## 6. Stage 2 Run Contract
 
-Stage 3 appears under Stage 2.
+Stage 2 MUST render as a dedicated run block below frozen Intake.
 
-Required content:
-- run outcome summary
-- key stats
-- artifact locations
-- reproducibility pointers
+Required subregions:
 
-Required next actions:
-- View report
-- Verify run
-- Start new study
+1. Summary card (compact run context)
+2. Master progress bar (planned/completed + elapsed + ETA)
+3. Worker rows (worker id, busy/idle, trial id, mini progress)
+4. Batch status card (refresh at batch boundaries only)
+
+Batch status card MUST include:
+
+- novelty trend/delta
+- embedding group count
+- stopping threshold current vs target
+- stopping status
+- inline caveat:
+  - "Groups reflect embedding similarity, not semantic categories."
+  - "Stopping indicates diminishing novelty, not correctness."
+
+Update cadence:
+
+- master bar and worker rows: per trial completion or throttled <= 100ms
+- batch status card: batch boundary only
+
+Narrative noise budget:
+
+- Per-trial success events MUST NOT append transcript lines.
+- Non-success events SHOULD aggregate at batch boundary instead of one-line-per-trial spam.
+- The run block MUST remain visually stable under high-throughput runs.
+
+Termination conditions:
+
+- threshold met
+- max trials completed
+- user cancel (`Ctrl+C`) with graceful in-flight drain
+
+After termination, Stage 2 MUST freeze with explicit stop reason.
+
+---
+
+## 7. Stage 3 Receipt Contract
+
+Stage 3 MUST render beneath frozen Run block.
+
+Receipt MUST include:
+
+- completion banner
+- results stats card
+- artifact manifest based on actual produced files (no guessed outputs)
+- reproducibility command
+
+Next actions MUST include:
+
 - Quit
+- Start new study
+- Open run folder
 
-Action selector loops until user chooses `Start new study` or `Quit`.
+Action loop behavior:
+
+- Choosing `Start new study` appends a new Stage 1 block.
+- Choosing `Open run folder` opens path or prints path fallback.
+- Choosing `Quit` exits.
 
 ---
 
-## 6. Copy and Content Standards
+## 8. Interaction and Keyboard Contract
 
-All user-facing strings must satisfy:
+Required keyboard behavior:
+
+- Up/Down: move within selection/checkbox lists
+- Space: toggle checkbox
+- Enter: confirm selection
+- Enter in multiline text box: insert newline
+- Ctrl+D: confirm multiline text input
+- Esc: previous step (intake) or cancel first-step intake
+- Ctrl+C during run: graceful cancel (drain in-flight work)
+- Ctrl+C outside run: exit application
+
+Focus rules:
+
+- Exactly one focus owner at any time (`editor` or `overlay`).
+- Overlay opening MUST transfer focus from editor to overlay.
+- Overlay closing MUST restore focus deterministically.
+
+---
+
+## 9. Visual Design System Contract
+
+Visual language MUST be consistent across stages and controls.
+
+Required presentation rules:
+
+- bounded stage cards with clear borders and section hierarchy
+- rounded selection affordance style for active options
+- consistent spacing rhythm
+- one blank line between blocks
+- each wizard step renders a section header
+- each confirmed wizard step renders an inline confirmation line
+- section headers and inline confirmations rendered consistently
+
+Width and wrapping policy:
+
+- Baseline content target: 80 columns.
+- Cards SHOULD cap at 78 characters with side margins when practical.
+- Primary option labels MUST wrap before truncating.
+- Truncation MAY occur only under pathological widths.
+- Narrow-width behavior MUST be defined for `< 90`, `< 72`, `< 56`.
+
+No clipping policy:
+
+- option labels MUST NOT be unreadable under supported widths
+- highlight backgrounds MUST NOT spill across unrelated regions
+- descriptive text MUST NOT overlap footer or neighboring components
+
+---
+
+## 10. Copy and Scientific Honesty Contract
+
+All user-facing text MUST satisfy:
 
 1. Sentence case.
-2. Period-terminated where applicable.
-3. Action-oriented language.
-4. No internal engineering terms (`runtime`, `event bus`, `reducer`, etc.).
-5. No command-first guidance in guided stages.
+2. Direct active voice.
+3. Explicit actionability.
+4. No internal engineering jargon.
+5. No command-first guidance in guided path.
 
-Error message shape:
+Error format MUST include:
+
 - what failed
 - what to do next
 
-Example:
-- "Configuration not found at ./arbiter.config.json. Set up a new study first."
+Scientific honesty requirements:
+
+- Never imply stopping means correctness.
+- Never imply embedding groups are semantic truth categories.
+- Present model availability caveat when listing OpenRouter model choices.
 
 ---
 
-## 7. Rendering Rules (Must-Haves)
+## 11. Architecture Contract (Implementation Boundaries)
 
-1. **Primary options must be readable**.
-   - Do not ellipsize primary decision labels by default.
-   - Use wrapping for explanatory text.
+The rebuild MUST separate three UI channels:
 
-2. **Descriptions must not overwrite adjacent regions**.
-   - Overlay layout must be isolated from footer/background text.
+1. Decision channel: step state, user intent, pending actions
+2. Narrative channel: frozen stage summaries and key milestones
+3. Telemetry channel: raw runtime signals transformed into run-card models
 
-3. **Overlay text policy**
-   - labels: single line if possible; fallback to wrapped rows when needed
-   - descriptions: wrapped, block-style context
-   - truncation only for pathological terminal widths
+Rules:
 
-4. **Narrow terminal degradation**
-   - define compact behavior for widths `< 90`, `< 72`, `< 56`
-   - preserve decision readability before decorative content
+- Raw event streams MUST NOT be dumped directly into primary narrative.
+- Components MUST render typed view models, not perform ad-hoc formatting logic.
+- The UI layer MUST NOT influence engine scheduling or stopping policy.
 
-5. **Stable focus**
-   - one focus owner at a time (editor or overlay list)
-   - no remount loops on simple navigation
+Suggested module responsibilities:
 
----
-
-## 8. Architecture Rebuild Plan (First-Principles)
-
-This is a UX architecture rebuild, not a styling patch.
-
-## 8.1 Required separation
-
-Split UI state channels explicitly:
-
-1. **Decision channel**
-   - current stage, current step, pending actions
-2. **Narrative channel**
-   - frozen stage summaries and key milestone lines
-3. **Telemetry channel**
-   - runtime signal feed mapped to run card widgets
-
-Telemetry should never directly dump into narrative without transformation.
-
-## 8.2 Module responsibilities
-
-- `app.ts`
-  - orchestration only
-  - no formatting logic
-- `intake-flow.ts`
-  - step machine + transition contracts
-- `run-controller.ts`
-  - run lifecycle adapter, no direct UX copy composition beyond event intents
-- `components/*`
-  - pure rendering of typed UI models
-- `copy-map.ts` (new)
-  - canonical strings and message templates
-- `view-model/*` (new)
-  - transforms domain events into stage-card view models
-
-## 8.3 No-lock statement
-
-We are **not** fundamentally locked by backend architecture.
-
-Engine boundaries are already clean. The blocker is frontend model coupling, which this plan resolves by separating channels and stage view-models.
+- `app.ts`: orchestration and composition
+- `intake-flow.ts`: step transitions and validation
+- `run-controller.ts`: lifecycle adaptation and stage handoff
+- `components/*`: pure rendering
+- `copy-map.ts`: canonical strings and templates
+- `view-model/*`: domain-to-UI transformations
 
 ---
 
-## 9. Implementation Phases
+## 12. Implementation Plan (Phased)
 
-## Phase A: Foundation reset
+## Phase A: Foundation and channel separation
 
-Goal:
-- establish stage-card view model and channel separation.
+Deliverables:
 
-Tasks:
-- introduce stage card VM types
-- remove direct event-to-transcript dumping for primary UX paths
-- centralize copy in canonical map
+- typed stage view models
+- copy-map foundation
+- no direct event dump into narrative
 
-Exit:
-- app renders stage cards from VMs
-- no raw run event lines injected into primary narrative by default
+Exit criteria:
 
-## Phase B: Stage 1 fidelity
+- stage cards render from view models
+- telemetry transformation path exists
 
-Goal:
-- complete guided intake exactly as specified.
+## Phase B: Stage 1 complete fidelity
 
-Tasks:
-- implement full step sequence
-- enforce back/cancel semantics
-- implement summary/confirm step
-- remove profile-based primary path
+Deliverables:
 
-Exit:
-- first-run user can complete intake with no commands
-- all step transitions unit + PTY tested
+- full intake gate + Quick Start + config selection
+- full wizard sequence including decision-label step
+- review/confirm with revise
+- full back/cancel semantics
 
-## Phase C: Stage 2 fidelity
+Exit criteria:
 
-Goal:
-- implement bounded observability run card.
+- user can complete Stage 1 without commands
+- state preservation verified across revise/back paths
 
-Tasks:
-- worker rows + master bar + batch card
-- stage-aware compaction for narrow terminals
-- remove run log spam from primary narrative
+## Phase C: Stage 2 complete fidelity
 
-Exit:
-- run card remains legible across widths
-- observability requirements met without transcript noise
+Deliverables:
 
-## Phase D: Stage 3 fidelity
+- run card with master bar, worker rows, batch card
+- cadence controls
+- noise reduction rules
 
-Goal:
-- complete receipt + action loop.
+Exit criteria:
 
-Tasks:
-- structured receipt card
-- deterministic next-action loop
-- resilient report/verify integration
+- run observability is actionable and calm
+- no transcript spam for per-trial noise
 
-Exit:
-- no dead-end post-run states
+## Phase D: Stage 3 and loop closure
 
-## Phase E: Visual polish + hardening
+Deliverables:
 
-Goal:
-- stabilize product quality and prevent drift.
+- receipt card + manifest + reproducibility command
+- next actions with loop (`new study`, `open folder`, `quit`)
 
-Tasks:
-- spacing, wrapping, clipping audits
-- accessibility/fallback checks
-- PTY golden-path + edge-path verification
+Exit criteria:
 
-Exit:
-- UI passes visual acceptance checklist and PTY contract tests
+- no dead-end state after run completion
+
+## Phase E: Visual hardening and polish
+
+Deliverables:
+
+- clipping/spill fixes
+- narrow-width behavior stabilization
+- typography, spacing, and hierarchy polish pass
+
+Exit criteria:
+
+- visual acceptance checklist passes across supported widths
 
 ---
 
-## 10. Testing Strategy (PTY-First)
+## 13. Stress Test: Fidelity to Vision
+
+This section is mandatory pre-implementation validation.
+
+## 13.1 Coverage Matrix
+
+Every core PDF requirement MUST map to an explicit contract clause:
+
+- fixed header -> Section 4.1
+- stacked/frozen stage blocks -> Section 4.2
+- launch gate with live/mock + quick start/setup -> Section 5.1
+- wizard sequence including labels -> Section 5.2
+- review/confirm and revise -> Section 5.4
+- run progress master + workers + batch card -> Section 6
+- cancel/termination behavior -> Section 6
+- receipt and action loop -> Section 7
+- keyboard semantics -> Section 8
+- scientific honesty caveats -> Section 6 and Section 10
+
+If any item is unmapped, implementation MUST be blocked.
+
+## 13.2 Ambiguity Test (Build-Contract Effectiveness)
+
+A contract passes ambiguity testing only if two independent engineers can produce materially similar UX behavior.
+
+The following must be unambiguous in this spec:
+
+- enabled/disabled launch options and reasons
+- wizard step order and required validations
+- quick-start versus setup-wizard transitions
+- revise/back behavior and state preservation
+- run update cadence and what updates where
+- exact receipt action set and loop behavior
+- keyboard ownership and focus transfer rules
+
+Any unresolved ambiguity MUST be promoted to an explicit open question before implementation.
+
+## 13.3 Failure-Mode Test
+
+The contract MUST explicitly define behavior for:
+
+- no API key
+- no config found
+- multiple configs found
+- run cancelled mid-flight
+- partial artifact sets
+- narrow terminal widths
+
+---
+
+## 14. Testing Contract (PTY-First)
 
 Unit tests are required but insufficient.
 
-## 10.1 Required test layers
+Required test layers:
 
-1. **Unit**
-   - transition matrices
+1. Unit:
+   - wizard transition matrix
+   - validations
    - view-model transforms
    - copy-map integrity
-
-2. **Integration**
+2. Integration:
    - stage handoffs
-   - run adapter behavior
-
-3. **PTY end-to-end (mandatory)**
-   - first-run guided flow
-   - quickstart flow
-   - disabled-live handling
-   - backtracking and cancel recovery
+   - run-controller behavior
+   - artifact manifest truthfulness
+3. PTY E2E (mandatory):
+   - first-run journey (no key/no config)
+   - returning journey with Quick Start
+   - multiple-config journey
+   - cancel journey (`Ctrl+C`)
    - post-run action loop
    - narrow-width rendering checks
 
-## 10.2 Visual acceptance checklist (manual + PTY)
+---
 
-- No clipped primary option labels in normal widths.
-- No text spill into adjacent regions.
-- No illegible highlight bands.
-- No command-first copy in guided path.
-- Clear stage boundaries and frozen-card history.
+## 15. Definition of Done
+
+The rebuild is complete only when all are true:
+
+1. `arbiter` default path is guided and command-free for first-run completion.
+2. Header is fixed; stage blocks accumulate and freeze.
+3. Intake, Run, and Receipt contracts are implemented in full.
+4. Visual output is readable and stable at supported widths with no clipping/spill defects.
+5. Scientific honesty caveats appear inline where relevant.
+6. PTY suite covers all required journeys and passes consistently.
+7. Manual visual audit confirms premium, coherent, low-cognitive-load behavior.
 
 ---
 
-## 11. Definition of Done (Rebuild)
+## 16. Open Questions (Explicit, Non-Blocking)
 
-This rebuild is done only when all are true:
+1. Worker row compaction strategy at very high worker counts (`16+`, `32+`).
+2. Whether to expose optional “detailed telemetry” panel in Stage 2.
+3. Whether advanced command affordances should remain visible or move behind an advanced toggle.
 
-1. Main path (`arbiter`) behaves as guided stage-card product, not transcript shell.
-2. User can go launch -> intake -> run -> receipt without commands.
-3. Stage cards freeze and remain reviewable in scroll history.
-4. Run card shows bounded observability with clear progress and worker status.
-5. Receipt stage offers clear next-action loop.
-6. UI remains readable at supported terminal widths with no clipping/spill defects.
-7. PTY suite covers all core paths and passes consistently.
-
----
-
-## 12. Open Questions (Explicit)
-
-1. Stage 2 worker display cap strategy for very high worker counts (`16+`, `32+`).
-2. Whether to add optional collapsible "detailed telemetry" panel in Stage 2.
-3. Whether to expose hidden command affordances in a separate advanced mode only.
-
-These are not blockers for foundational rebuild.
-
----
-
-## 13. Immediate Execution Focus
-
-Immediate priority is **architecture-correct UX foundation**, not incremental styling.
-
-Next execution order:
-1. Phase A (channel separation + stage-card VMs)
-2. Phase B (full intake fidelity)
-3. Phase C (run card observability)
-4. Phase D (receipt/action loop)
-5. Phase E (visual hardening)
-
-No additional feature expansion until Phases A-C are complete.
+These questions MUST NOT block Phases A through D.
