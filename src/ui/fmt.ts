@@ -16,6 +16,9 @@ const BOLD = "\x1b[1m";
 const shouldUseUnicode = (stream: FormatterStream | undefined): boolean =>
   Boolean(stream?.isTTY);
 
+const isSetEnv = (value: string | undefined): boolean =>
+  typeof value === "string" && value.trim().length > 0;
+
 const isTruthyEnv = (value: string | undefined): boolean =>
   typeof value === "string" && value !== "0" && value.trim().length > 0;
 
@@ -23,7 +26,7 @@ const shouldUseColor = (stream: FormatterStream | undefined, env: NodeJS.Process
   if (isTruthyEnv(env.CLICOLOR_FORCE)) {
     return true;
   }
-  if (isTruthyEnv(env.NO_COLOR)) {
+  if (isSetEnv(env.NO_COLOR)) {
     return false;
   }
   if (env.CLICOLOR === "0") {

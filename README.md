@@ -70,7 +70,7 @@ arbiter run
 ```
 export OPENROUTER_API_KEY=...your key...
 arbiter validate --live
-arbiter run
+arbiter run --live
 ```
 
 Notes:

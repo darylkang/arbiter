@@ -39,6 +39,8 @@ const COMMANDS: HelpCommand[] = [
     usage: "arbiter run [config.json] [--live] [--yes] [flags]",
     group: "workflow",
     flags: [
+      { name: "--config <path>", description: "config path (default: arbiter.config.json)" },
+      { name: "--mock", description: "explicitly run in mock mode (default behavior)" },
       { name: "--live", description: "run with real model calls (default mode is mock)" },
       { name: "--yes", description: "skip live-run confirmation prompt" },
       { name: "--out <runs_dir>", description: "output directory (default: runs)" },
@@ -49,6 +51,8 @@ const COMMANDS: HelpCommand[] = [
       { name: "--workers <N>", description: "override execution.workers" },
       { name: "--strict", description: "enforce model policy" },
       { name: "--permissive", description: "warn-only policy mode" },
+      { name: "--allow-free", description: "allow free-tier models in strict mode" },
+      { name: "--allow-aliased", description: "allow aliased models in strict mode" },
       {
         name: "--contract-failure <p>",
         description: "warn|exclude|fail (default: warn)"
@@ -66,9 +70,12 @@ const COMMANDS: HelpCommand[] = [
     usage: "arbiter validate [config.json] [--live]",
     group: "workflow",
     flags: [
+      { name: "--config <path>", description: "config path (default: arbiter.config.json)" },
       { name: "--live", description: "also check OpenRouter connectivity" },
       { name: "--strict", description: "enforce model policy" },
-      { name: "--permissive", description: "warn-only policy mode" }
+      { name: "--permissive", description: "warn-only policy mode" },
+      { name: "--allow-free", description: "allow free-tier models in strict mode" },
+      { name: "--allow-aliased", description: "allow aliased models in strict mode" }
     ],
     examples: ["arbiter validate", "arbiter validate --live"]
   },
@@ -102,7 +109,10 @@ const COMMANDS: HelpCommand[] = [
     summary: "write resolved config and plan only",
     usage: "arbiter resolve [config.json] [--out <runs_dir>]",
     group: "advanced",
-    flags: [{ name: "--out <runs_dir>", description: "output directory (default: runs)" }],
+    flags: [
+      { name: "--config <path>", description: "config path (default: arbiter.config.json)" },
+      { name: "--out <runs_dir>", description: "output directory (default: runs)" }
+    ],
     examples: ["arbiter resolve", "arbiter resolve my.config.json --out runs"]
   }
 ];

@@ -38,6 +38,9 @@ const runHelp = run(["run", "--help"]);
 assert.equal(runHelp.status, 0);
 assert.equal(runHelp.stdout.includes("--live"), true);
 assert.equal(runHelp.stdout.includes("--yes"), true);
+assert.equal(runHelp.stdout.includes("--config"), true);
+assert.equal(runHelp.stdout.includes("--allow-free"), true);
+assert.equal(runHelp.stdout.includes("--allow-aliased"), true);
 assert.equal(runHelp.stdout.includes("--contract-failure"), true);
 
 const unknown = run(["does-not-exist"]);
@@ -46,7 +49,10 @@ assert.equal(stripAnsi(unknown.stderr).includes("unknown command: does-not-exist
 
 const version = run(["--version"]);
 assert.equal(version.status, 0);
-assert.match(version.stdout.trim(), /^\d+\.\d+\.\d+/);
+assert.match(
+  version.stdout.trim(),
+  /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
+);
 
 const tempRoot = mkdtempSync(resolve(tmpdir(), "arbiter-cli-contracts-"));
 try {
@@ -60,6 +66,24 @@ try {
   assert.equal(runMockDefault.status, 0);
   assert.equal(stripAnsi(runMockDefault.stdout).includes("running in mock mode"), true);
   assert.equal(stripAnsi(runMockDefault.stdout).includes("run complete (mock)"), true);
+  assert.equal(runMockDefault.stderr.match(ANSI_REGEX), null);
+
+  const runDirMatch = stripAnsi(runMockDefault.stdout).match(/Run directory:\s+(.+)/);
+  assert.ok(runDirMatch?.[1], "Expected run directory in run output");
+  const runDir = runDirMatch[1].trim();
+
+  const report = run(["report", runDir], { cwd: tempRoot });
+  assert.equal(report.status, 0);
+  assert.equal(stripAnsi(report.stdout).includes("Arbiter Report"), true);
+  assert.equal(stripAnsi(report.stdout).includes("Counts:"), true);
+
+  const verify = run(["verify", runDir], { cwd: tempRoot });
+  assert.equal(verify.status, 0);
+  assert.equal(stripAnsi(verify.stdout).includes("OK"), true);
+
+  const receipt = run(["receipt", runDir], { cwd: tempRoot });
+  assert.equal(receipt.status, 0);
+  assert.equal(stripAnsi(receipt.stdout).includes("Arbiter Receipt"), true);
 
   const runLiveNoYes = run(["run", "--live"], {
     cwd: tempRoot,
@@ -67,6 +91,14 @@ try {
   });
   assert.equal(runLiveNoYes.status, 1);
   assert.equal(stripAnsi(runLiveNoYes.stderr).includes("non-interactive live runs require --yes"), true);
+
+  const missingConfig = run(["run", "--config", "missing.config.json"], { cwd: tempRoot });
+  assert.equal(missingConfig.status, 1);
+  assert.equal(stripAnsi(missingConfig.stderr).includes("config not found"), true);
+  assert.equal(
+    stripAnsi(missingConfig.stderr).includes("arbiter init"),
+    true
+  );
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }

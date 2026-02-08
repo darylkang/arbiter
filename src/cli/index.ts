@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import "dotenv/config";
 
+import { execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -8,9 +9,14 @@ import { stdin as input, stdout as output, stderr } from "node:process";
 
 import { getAssetRoot } from "../utils/asset-root.js";
 import { formatVerifyReport, verifyRunDir } from "../tools/verify-run.js";
-import { buildReportModel, formatReportJson, formatReportText } from "../tools/report-run.js";
+import {
+  buildReportModel,
+  formatReportJson,
+  formatReportText,
+  type ReportModel
+} from "../tools/report-run.js";
 import { listModels } from "../openrouter/client.js";
-import { buildReceiptModel } from "../ui/receipt-model.js";
+import { buildReceiptModel, type ReceiptModel } from "../ui/receipt-model.js";
 import { formatReceiptText } from "../ui/receipt-text.js";
 import { EventBus } from "../events/event-bus.js";
 import {
@@ -47,6 +53,51 @@ const loadPackageVersion = (assetRoot: string): string => {
     version?: string;
   };
   return pkg.version ?? "0.0.0";
+};
+
+const loadGitHash = (assetRoot: string): string | undefined => {
+  try {
+    const hash = execSync("git rev-parse --short HEAD", {
+      cwd: assetRoot,
+      stdio: ["ignore", "pipe", "ignore"],
+      encoding: "utf8"
+    }).trim();
+    return hash.length > 0 ? hash : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const getConfigPathInput = (parsed: ParsedArgs): string =>
+  getFlag(parsed.flags, "--config") ?? parsed.positional[0] ?? DEFAULT_CONFIG_PATH;
+
+const asErrnoException = (error: unknown): NodeJS.ErrnoException | undefined =>
+  error instanceof Error ? (error as NodeJS.ErrnoException) : undefined;
+
+const getCommandErrorPresentation = (input: {
+  error: unknown;
+  command?: string;
+  parsed?: ParsedArgs;
+}): { message: string; suggestion?: string } => {
+  const message = input.error instanceof Error ? input.error.message : String(input.error);
+  const errno = asErrnoException(input.error);
+
+  if (
+    errno?.code === "ENOENT" &&
+    input.command &&
+    input.parsed &&
+    (input.command === "run" || input.command === "validate" || input.command === "resolve")
+  ) {
+    const configPath = resolve(process.cwd(), getConfigPathInput(input.parsed));
+    if (!errno.path || resolve(errno.path) === configPath) {
+      return {
+        message: `config not found at ${configPath}`,
+        suggestion: 'Run `arbiter init "your research question"` to create a config.'
+      };
+    }
+  }
+
+  return { message };
 };
 
 const writeTemplateConfigFile = (
@@ -148,12 +199,21 @@ const formatVerifyForTerminal = (raw: string): string => {
   return `${fmt.header("Arbiter Verify")}\n${lines.join("\n")}\n`;
 };
 
+const requireRunDir = (runDirInput: string): string => {
+  const runDir = resolve(process.cwd(), runDirInput);
+  if (!existsSync(runDir)) {
+    throw new Error(`run directory not found: ${runDir}`);
+  }
+  return runDir;
+};
+
 const runVerify = (parsed: ParsedArgs): void => {
   const runDir = parsed.positional[0];
   if (!runDir) {
     throw new Error("Usage: arbiter verify <run_dir>");
   }
-  const report = verifyRunDir(runDir);
+  const verifiedRunDir = requireRunDir(runDir);
+  const report = verifyRunDir(verifiedRunDir);
   const raw = formatVerifyReport(report);
   process.stdout.write(formatVerifyForTerminal(raw));
   if (!report.ok) {
@@ -161,35 +221,80 @@ const runVerify = (parsed: ParsedArgs): void => {
   }
 };
 
-const formatReportForTerminal = (raw: string): string => {
+const formatUsageSummary = (usage?: ReportModel["usage"]): string | undefined => {
+  if (!usage) {
+    return undefined;
+  }
+  const totals = usage.totals;
+  const cost = totals.cost !== undefined ? ` | cost ${totals.cost.toFixed(6)}` : "";
+  return `in ${totals.prompt_tokens}, out ${totals.completion_tokens}, total ${totals.total_tokens}${cost}`;
+};
+
+const formatReportForTerminal = (model: ReportModel): string => {
   const fmt = createStdoutFormatter();
   if (!fmt.isTTY) {
-    return raw;
+    return formatReportText(model);
   }
 
-  const lines = raw.trim().split("\n");
-  if (lines.length === 0) {
-    return raw;
+  const lines: string[] = [];
+  lines.push(fmt.header("Arbiter Report"));
+  lines.push(fmt.kv("Run ID", model.run_id));
+  lines.push(
+    fmt.kv(
+      "Status",
+      `${model.stop_reason ?? "unknown"}${model.incomplete ? " (incomplete)" : ""}`
+    )
+  );
+  lines.push(
+    fmt.text(
+      `Counts: attempted ${model.counts.attempted ?? 0}, eligible ${model.counts.eligible ?? 0}, success ${model.counts.success ?? 0}, error ${model.counts.error ?? 0}, model_unavailable ${model.counts.model_unavailable ?? 0}, timeout_exhausted ${model.counts.timeout_exhausted ?? 0}`
+    )
+  );
+
+  if (model.policy) {
+    lines.push(
+      fmt.text(
+        `Policy: strict=${model.policy.strict} allow_free=${model.policy.allow_free} allow_aliased=${model.policy.allow_aliased} contract_failure_policy=${model.policy.contract_failure_policy}`
+      )
+    );
   }
 
-  const styled: string[] = [fmt.header(lines[0])];
-  lines.slice(1).forEach((line) => {
-    if (line.startsWith("Status:")) {
-      styled.push(fmt.accent(line));
-      return;
-    }
-    if (line.startsWith("Output:")) {
-      styled.push(fmt.info(line));
-      return;
-    }
-    if (line.startsWith("Contract:")) {
-      styled.push(fmt.warn(line));
-      return;
-    }
-    styled.push(fmt.text(line));
-  });
+  const usageSummary = formatUsageSummary(model.usage);
+  if (usageSummary) {
+    lines.push(fmt.kv("Tokens", usageSummary));
+  }
 
-  return `${styled.join("\n")}\n`;
+  if (model.novelty) {
+    const novelty =
+      model.novelty.last_novelty_rate === null || model.novelty.last_novelty_rate === undefined
+        ? "null"
+        : model.novelty.last_novelty_rate.toFixed(3);
+    const meanMaxSim =
+      model.novelty.last_mean_max_sim === null || model.novelty.last_mean_max_sim === undefined
+        ? "null"
+        : model.novelty.last_mean_max_sim.toFixed(3);
+    lines.push(
+      fmt.text(`Novelty: last=${novelty} | mean_max_sim=${meanMaxSim} | trend=${model.novelty.trend}`)
+    );
+  }
+
+  if (model.contract?.enabled) {
+    const parseCounts = model.contract.parse_status_counts;
+    lines.push(
+      fmt.warn(
+        `Contract: success ${parseCounts.success ?? 0}, fallback ${parseCounts.fallback ?? 0}, failed ${parseCounts.failed ?? 0}`
+      )
+    );
+  }
+
+  if (model.clustering?.enabled) {
+    lines.push(fmt.text(`Clustering: enabled (clusters ${model.clustering.cluster_count ?? 0})`));
+  } else {
+    lines.push(fmt.text("Clustering: disabled"));
+  }
+
+  lines.push(fmt.info(`Output: ${model.run_dir}`));
+  return `${lines.join("\n")}\n`;
 };
 
 const runReport = (parsed: ParsedArgs): void => {
@@ -203,7 +308,8 @@ const runReport = (parsed: ParsedArgs): void => {
   if (!Number.isInteger(top) || top < 1) {
     throw new Error("Invalid --top (expected positive integer)");
   }
-  const model = buildReportModel(runDir, top);
+  const verifiedRunDir = requireRunDir(runDir);
+  const model = buildReportModel(verifiedRunDir, top);
 
   if (format === "json") {
     process.stdout.write(formatReportJson(model));
@@ -212,31 +318,55 @@ const runReport = (parsed: ParsedArgs): void => {
   if (format !== "text") {
     throw new Error("Invalid --format (expected text|json)");
   }
-  process.stdout.write(formatReportForTerminal(formatReportText(model)));
+  process.stdout.write(formatReportForTerminal(model));
 };
 
-const formatReceiptForTerminal = (raw: string): string => {
+const formatReceiptForTerminal = (model: ReceiptModel): string => {
   const fmt = createStdoutFormatter();
   if (!fmt.isTTY) {
-    return raw;
+    return formatReceiptText(model);
   }
-  const lines = raw.trim().split("\n");
-  if (lines.length === 0) {
-    return raw;
+
+  const lines: string[] = [];
+  lines.push(fmt.header("Arbiter Receipt"));
+  lines.push(fmt.kv("Run ID", model.run_id));
+  if (model.stop_reason) {
+    lines.push(fmt.kv("Status", `${model.stop_reason}${model.incomplete ? " (incomplete)" : ""}`));
   }
-  const styled: string[] = [fmt.header(lines[0])];
-  lines.slice(1).forEach((line) => {
-    if (line.startsWith("Status:")) {
-      styled.push(fmt.accent(line));
-      return;
-    }
-    if (line.startsWith("Output:")) {
-      styled.push(fmt.info(line));
-      return;
-    }
-    styled.push(fmt.text(line));
-  });
-  return `${styled.join("\n")}\n`;
+  if (model.question) {
+    lines.push(fmt.kv("Question", model.question));
+  }
+  if (model.protocol) {
+    lines.push(fmt.kv("Protocol", model.protocol));
+  }
+  if (model.model_summary) {
+    lines.push(fmt.kv("Models", model.model_summary));
+  }
+  lines.push(
+    fmt.text(
+      `Trials: planned ${model.counts.k_planned ?? "-"}, attempted ${model.counts.k_attempted ?? "-"}, eligible ${model.counts.k_eligible ?? "-"}`
+    )
+  );
+
+  if (model.usage) {
+    const totals = model.usage.totals;
+    const cost = totals.cost !== undefined ? ` | cost ${totals.cost.toFixed(6)}` : "";
+    lines.push(
+      fmt.kv(
+        "Tokens",
+        `in ${totals.prompt_tokens}, out ${totals.completion_tokens}, total ${totals.total_tokens}${cost}`
+      )
+    );
+  }
+
+  if (model.clustering?.enabled) {
+    lines.push(fmt.text(`Clustering: enabled (clusters ${model.clustering.cluster_count ?? 0})`));
+  } else {
+    lines.push(fmt.text("Clustering: disabled"));
+  }
+
+  lines.push(fmt.info(`Output: ${model.run_dir}`));
+  return `${lines.join("\n")}\n`;
 };
 
 const runReceipt = (parsed: ParsedArgs): void => {
@@ -244,8 +374,9 @@ const runReceipt = (parsed: ParsedArgs): void => {
   if (!runDir) {
     throw new Error("Usage: arbiter receipt <run_dir>");
   }
-  const model = buildReceiptModel(runDir);
-  process.stdout.write(formatReceiptForTerminal(formatReceiptText(model)));
+  const verifiedRunDir = requireRunDir(runDir);
+  const model = buildReceiptModel(verifiedRunDir);
+  process.stdout.write(formatReceiptForTerminal(model));
 };
 
 const createProgressReporter = (bus: EventBus): (() => void) => {
@@ -367,6 +498,8 @@ const main = async (): Promise<void> => {
   const assetRoot = getAssetRoot();
   const fmtOut = createStdoutFormatter();
   const fmtErr = createStderrFormatter();
+  let commandForError: string | undefined;
+  let parsedForError: ParsedArgs | undefined;
 
   try {
     if (shouldLaunchTUI) {
@@ -375,7 +508,9 @@ const main = async (): Promise<void> => {
     }
 
     if (filteredArgs[0] === "--version" || filteredArgs[0] === "-V") {
-      process.stdout.write(`${loadPackageVersion(assetRoot)}\n`);
+      const version = loadPackageVersion(assetRoot);
+      const gitHash = loadGitHash(assetRoot);
+      process.stdout.write(`${version}${gitHash ? `+${gitHash}` : ""}\n`);
       process.exit(0);
     }
 
@@ -386,6 +521,8 @@ const main = async (): Promise<void> => {
 
     const command = filteredArgs[0];
     const parsed = parseArgs(filteredArgs.slice(1));
+    commandForError = command;
+    parsedForError = parsed;
 
     if (hasFlag(parsed.flags, "--help")) {
       const helpCommand = getHelpCommand(command);
@@ -433,8 +570,12 @@ const main = async (): Promise<void> => {
     );
     process.exit(1);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    process.stderr.write(`${fmtErr.errorBlock(message)}\n`);
+    const presented = getCommandErrorPresentation({
+      error,
+      command: commandForError,
+      parsed: parsedForError
+    });
+    process.stderr.write(`${fmtErr.errorBlock(presented.message, presented.suggestion)}\n`);
     process.exit(1);
   }
 };

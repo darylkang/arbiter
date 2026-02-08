@@ -74,3 +74,13 @@ test("formatter supports CLICOLOR_FORCE for non-tty streams", () => {
   assert.equal(fmt.isColorEnabled, true);
   assert.equal(fmt.warn("hello").includes("\u001b["), true);
 });
+
+test("formatter treats NO_COLOR=0 as disabled color", () => {
+  const fmt = createFormatter({
+    stream: ttyStream(),
+    env: { TERM: "xterm-256color", NO_COLOR: "0" }
+  });
+
+  assert.equal(fmt.isColorEnabled, false);
+  assert.equal(fmt.success("ok").includes("\u001b["), false);
+});
