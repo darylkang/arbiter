@@ -142,7 +142,8 @@ Resolve‑only (`arbiter resolve`) writes only `config.resolved.json` and a mini
 ## CLI workflows & guardrails (reference)
 
 - `arbiter` (TTY) launches the premium wizard; use `--headless` for help‑only mode.
-- `arbiter quickstart` creates `arbiter.config.json`, validates it, runs a mock execution by default, and optionally prompts for a live run.
+- `arbiter init` creates `arbiter.config.json` from a template.
+- `arbiter run` executes in mock mode by default; use `--live` for paid real-model calls.
 - `arbiter validate --live` performs offline schema checks plus an OpenRouter connectivity probe.
 - **Strict/permissive policy**: strict rejects free/aliased models unless explicitly allowed and records policy snapshot in `manifest.json`.
 - **Contract failure policy** (`--contract-failure warn|exclude|fail`):

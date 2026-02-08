@@ -59,8 +59,10 @@ arbiter
 ### Headless quickstart
 
 ```
-# Create a config and run a mock experiment (default)
-arbiter quickstart "What are the tradeoffs of event sourcing?"
+# Create a config, validate it, then run a mock experiment (default)
+arbiter init "What are the tradeoffs of event sourcing?"
+arbiter validate
+arbiter run
 ```
 
 ### Live run (OpenRouter key required)
@@ -72,7 +74,8 @@ arbiter run
 ```
 
 Notes:
-- `arbiter quickstart` writes `arbiter.config.json` and runs a mock trial by default.
+- `arbiter run` defaults to mock mode.
+- Use `arbiter run --live --yes` for non-interactive live runs.
 - Results go to `runs/<run_id>/`.
 - `arbiter --headless` prints help and keeps everything headless.
 

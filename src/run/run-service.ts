@@ -171,7 +171,7 @@ const resolveRunInputs = (options: RunServiceOptions): RunInputs => ({
   warningSink: options.warningSink ?? createConsoleWarningSink()
 });
 
-const applyLiveOverrides = (
+const applyExecutionOverrides = (
   resolvedConfig: ArbiterResolvedConfig,
   overrides?: LiveOverrides
 ): void => {
@@ -227,9 +227,7 @@ const prepareRunContext = (input: {
   });
   result.warnings.forEach((warning) => runInputs.warningSink.warn(warning, "config"));
 
-  if (input.mode === "live") {
-    applyLiveOverrides(result.resolvedConfig, input.overrides);
-  }
+  applyExecutionOverrides(result.resolvedConfig, input.overrides);
 
   const policy = resolvePolicy({
     resolvedConfig: result.resolvedConfig,
@@ -399,10 +397,13 @@ export const runResolveService = (options: {
   return { runId, runDir };
 };
 
-export const runMockService = async (options: RunServiceOptions): Promise<unknown> => {
+export const runMockService = async (
+  options: RunServiceOptions & { overrides?: LiveOverrides }
+): Promise<unknown> => {
   const context = prepareRunContext({
     mode: "mock",
-    options
+    options,
+    overrides: options.overrides
   });
 
   return runWithLifecycle<MockRunResult>({
