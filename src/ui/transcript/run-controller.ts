@@ -10,6 +10,7 @@ import type { AppState, RunMode } from "./state.js";
 import { attachRunEventHandler } from "./handlers/event-handler.js";
 import { attachWarningHandler } from "./handlers/warning-handler.js";
 import { renderReceiptForRun } from "./components/receipt-view.js";
+import { formatError } from "./error-format.js";
 
 export type RunController = {
   startRun: (mode: RunMode) => Promise<void>;
@@ -18,10 +19,10 @@ export type RunController = {
 };
 
 const resolveRunDir = (value: unknown): string | null => {
-  if (!value || typeof value !== "object") {
+  if (!value || typeof value !== "object" || !("runDir" in value)) {
     return null;
   }
-  const runDir = (value as { runDir?: unknown }).runDir;
+  const runDir = (value as { runDir: unknown }).runDir;
   return typeof runDir === "string" && runDir.trim().length > 0 ? runDir : null;
 };
 
@@ -39,7 +40,6 @@ export const createRunController = (input: {
   state: AppState;
   requestRender: () => void;
 }): RunController => {
-  let activeBus: EventBus | null = null;
   let detachHandlers: (() => void) | null = null;
   let runPromise: Promise<void> | null = null;
 
@@ -53,7 +53,6 @@ export const createRunController = (input: {
   const dispose = (): void => {
     detachHandlers?.();
     detachHandlers = null;
-    activeBus = null;
   };
 
   const startRun = async (mode: RunMode): Promise<void> => {
@@ -80,18 +79,16 @@ export const createRunController = (input: {
     input.requestRender();
 
     const bus = new EventBus();
-    activeBus = bus;
 
     const runEventUnsub = attachRunEventHandler({
       bus,
       state: input.state,
       onUpdate: input.requestRender,
       onError: (error, eventType) => {
-        const message = error instanceof Error ? error.message : String(error);
         appendWarningOnce(
           input.state,
           `event-${eventType}`,
-          `event handler error for ${eventType}: ${message}`,
+          `event handler error for ${eventType}: ${formatError(error)}`,
           "transcript"
         );
         input.requestRender();
@@ -103,11 +100,10 @@ export const createRunController = (input: {
       state: input.state,
       onUpdate: input.requestRender,
       onError: (error) => {
-        const message = error instanceof Error ? error.message : String(error);
         appendWarningOnce(
           input.state,
           "warning-handler",
-          `warning handler error: ${message}`,
+          `warning handler error: ${formatError(error)}`,
           "transcript"
         );
         input.requestRender();
@@ -152,14 +148,13 @@ export const createRunController = (input: {
             appendWarningOnce(
               input.state,
               "receipt-render",
-              `failed to load receipt: ${error instanceof Error ? error.message : String(error)}`,
+              `failed to load receipt: ${formatError(error)}`,
               "receipt"
             );
           }
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        appendTranscript(input.state, "error", `run execution failed: ${message}`);
+        appendTranscript(input.state, "error", `run execution failed: ${formatError(error)}`);
         input.state.phase = "post-run";
       } finally {
         try {
@@ -168,13 +163,12 @@ export const createRunController = (input: {
           appendWarningOnce(
             input.state,
             "event-bus-flush",
-            `event flush error: ${error instanceof Error ? error.message : String(error)}`,
+            `event flush error: ${formatError(error)}`,
             "event-bus"
           );
         }
         detachHandlers?.();
         detachHandlers = null;
-        activeBus = null;
         runPromise = null;
         input.requestRender();
       }

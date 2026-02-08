@@ -7,6 +7,7 @@ import { reportCommand } from "./report.js";
 import { runCommand } from "./run.js";
 import type { CommandContext, TranscriptCommand } from "./types.js";
 import { verifyCommand } from "./verify.js";
+import { formatError } from "../error-format.js";
 
 export type ParsedCommandInput = {
   name: string;
@@ -116,6 +117,8 @@ const buildCommandMap = (): Map<string, TranscriptCommand> => {
   return map;
 };
 
+const COMMAND_MAP = buildCommandMap();
+
 export const executeCommandInput = async (input: {
   value: string;
   context: CommandContext;
@@ -125,8 +128,7 @@ export const executeCommandInput = async (input: {
     return false;
   }
 
-  const commandMap = buildCommandMap();
-  const command = commandMap.get(parsed.name);
+  const command = COMMAND_MAP.get(parsed.name);
   if (!command) {
     input.context.appendError(`unknown command: /${parsed.name}. use /help`);
     return true;
@@ -140,9 +142,7 @@ export const executeCommandInput = async (input: {
       context: input.context
     });
   } catch (error) {
-    input.context.appendError(
-      `command failed: ${error instanceof Error ? error.message : String(error)}`
-    );
+    input.context.appendError(`command failed: ${formatError(error)}`);
   }
 
   return true;

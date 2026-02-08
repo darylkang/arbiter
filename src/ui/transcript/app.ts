@@ -15,6 +15,7 @@ import { createOverlayComponent } from "./components/overlay.js";
 import { executeCommandInput } from "./commands/registry.js";
 import type { CommandContext } from "./commands/types.js";
 import { renderReceiptForRun } from "./components/receipt-view.js";
+import { formatError } from "./error-format.js";
 
 const DEFAULT_CONFIG_PATH = "arbiter.config.json";
 
@@ -304,7 +305,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       try {
         appendTranscript(state, "receipt", renderReceiptForRun(runDir));
       } catch (error) {
-        appendError(state, `failed to render receipt: ${error instanceof Error ? error.message : String(error)}`);
+        appendError(state, `failed to render receipt: ${formatError(error)}`);
       }
     });
   };
@@ -315,7 +316,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         const report = formatReportText(buildReportModel(runDir, 3));
         appendTranscript(state, "report", report);
       } catch (error) {
-        appendError(state, `failed to build report: ${error instanceof Error ? error.message : String(error)}`);
+        appendError(state, `failed to build report: ${formatError(error)}`);
       }
     });
   };
@@ -326,7 +327,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         const verify = formatVerifyReport(verifyRunDir(runDir));
         appendTranscript(state, "verify", verify);
       } catch (error) {
-        appendError(state, `failed to verify run: ${error instanceof Error ? error.message : String(error)}`);
+        appendError(state, `failed to verify run: ${formatError(error)}`);
       }
     });
   };
@@ -383,7 +384,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         void runController.startRun(runMode);
       }
     } catch (error) {
-      appendError(state, `failed to write config: ${error instanceof Error ? error.message : String(error)}`);
+      appendError(state, `failed to write config: ${formatError(error)}`);
       state.newFlow = null;
       state.phase = "idle";
       requestRender();
