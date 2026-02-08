@@ -18,6 +18,10 @@ const contextHints = (state: AppState): string => {
 };
 
 export const renderFooter = (state: AppState, width: number): string => {
+  if (state.overlay) {
+    return [makeDivider(width), " "].join("\n");
+  }
+
   const warnings =
     state.warnings.length > 0
       ? palette.warning(`warnings: ${state.warnings.length}`)

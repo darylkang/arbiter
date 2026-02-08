@@ -73,7 +73,7 @@ export const createTranscriptLayout = (input: {
     header.setText(renderHeader(state, layoutWidth));
 
     if (showProgress) {
-      progress.setText(renderProgressSummary(state.runProgress));
+      progress.setText(renderProgressSummary(state.runProgress, layoutWidth));
     } else {
       progress.setText("");
     }

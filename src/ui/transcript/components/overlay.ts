@@ -4,7 +4,9 @@ import {
   Spacer,
   Text,
   type Component,
-  type SelectItem
+  type SelectItem,
+  visibleWidth,
+  wrapTextWithAnsi
 } from "@mariozechner/pi-tui";
 
 import type { ChecklistOverlay, ConfirmOverlay, OverlayState, SelectOverlay } from "../state.js";
@@ -15,19 +17,111 @@ export type OverlayComponent = {
   focusTarget: Component;
 };
 
-const mapSelectItems = (items: SelectOverlay["items"]): SelectItem[] =>
-  items.map((item) => ({
-    value: item.id,
-    label: `${item.disabled ? "◌" : "◉"} ${item.label}`,
-    description: item.disabled
-      ? item.description
-        ? `${item.description} (unavailable)`
-        : "unavailable"
-      : item.description
-  }));
+type OverlayRenderOptions = {
+  width: number;
+};
 
-const createSelectOverlay = (overlay: SelectOverlay): OverlayComponent => {
-  const list = new SelectList(mapSelectItems(overlay.items), Math.max(7, Math.min(12, overlay.items.length)), selectListTheme);
+type RowBudgets = {
+  labelWidth: number;
+  descriptionWidth: number;
+};
+
+const ellipsize = (text: string, maxWidth: number): string => {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (maxWidth <= 0) {
+    return "";
+  }
+  if (visibleWidth(normalized) <= maxWidth) {
+    return normalized;
+  }
+
+  const targetWidth = Math.max(1, maxWidth - 1);
+  let acc = "";
+  for (const char of [...normalized]) {
+    const next = `${acc}${char}`;
+    if (visibleWidth(next) > targetWidth) {
+      break;
+    }
+    acc = next;
+  }
+  return `${acc.trimEnd()}…`;
+};
+
+const resolveRowBudgets = (width: number): RowBudgets => {
+  const safeWidth = Math.max(32, width);
+
+  if (safeWidth < 84) {
+    return {
+      labelWidth: Math.max(14, safeWidth - 14),
+      descriptionWidth: 0
+    };
+  }
+
+  if (safeWidth < 104) {
+    return {
+      labelWidth: 26,
+      descriptionWidth: 20
+    };
+  }
+
+  return {
+    labelWidth: 34,
+    descriptionWidth: Math.max(24, Math.min(40, safeWidth - 56))
+  };
+};
+
+const formatItemLabel = (input: {
+  text: string;
+  disabled: boolean;
+  budgets: RowBudgets;
+}): string => {
+  const prefix = input.disabled ? "◌" : "◉";
+  const suffix = input.disabled ? " (unavailable)" : "";
+  return `${prefix} ${ellipsize(`${input.text}${suffix}`, input.budgets.labelWidth)}`;
+};
+
+const formatItemDescription = (input: {
+  description?: string;
+  disabled: boolean;
+  budgets: RowBudgets;
+}): string | undefined => {
+  if (input.budgets.descriptionWidth <= 0) {
+    return undefined;
+  }
+
+  if (!input.description) {
+    return input.disabled ? "unavailable" : undefined;
+  }
+
+  return ellipsize(input.description, input.budgets.descriptionWidth);
+};
+
+const mapSelectItems = (items: SelectOverlay["items"], renderOptions: OverlayRenderOptions): SelectItem[] => {
+  const budgets = resolveRowBudgets(renderOptions.width);
+  return items.map((item) => ({
+    value: item.id,
+    label: formatItemLabel({
+      text: item.label,
+      disabled: Boolean(item.disabled),
+      budgets
+    }),
+    description: formatItemDescription({
+      description: item.description,
+      disabled: Boolean(item.disabled),
+      budgets
+    })
+  }));
+};
+
+const createSelectOverlay = (
+  overlay: SelectOverlay,
+  renderOptions: OverlayRenderOptions
+): OverlayComponent => {
+  const list = new SelectList(
+    mapSelectItems(overlay.items, renderOptions),
+    Math.max(7, Math.min(12, overlay.items.length)),
+    selectListTheme
+  );
   list.setSelectedIndex(Math.max(0, Math.min(overlay.selectedIndex, overlay.items.length - 1)));
   list.onSelectionChange = (item): void => {
     const index = overlay.items.findIndex((candidate) => candidate.id === item.value);
@@ -45,15 +139,30 @@ const createSelectOverlay = (overlay: SelectOverlay): OverlayComponent => {
     overlay.onCancel();
   };
   return {
-    component: withTitle(overlay.title, list, overlay.body),
+    component: withTitle(overlay.title, list, renderOptions.width, overlay.body),
     focusTarget: list
   };
 };
 
-const createConfirmOverlay = (overlay: ConfirmOverlay): OverlayComponent => {
+const createConfirmOverlay = (
+  overlay: ConfirmOverlay,
+  renderOptions: OverlayRenderOptions
+): OverlayComponent => {
+  const budgets = resolveRowBudgets(renderOptions.width);
   const choices: SelectItem[] = [
-    { value: "confirm", label: `◉ ${overlay.confirmLabel}`, description: overlay.body },
-    { value: "cancel", label: `◉ ${overlay.cancelLabel}` }
+    {
+      value: "confirm",
+      label: formatItemLabel({ text: overlay.confirmLabel, disabled: false, budgets }),
+      description: formatItemDescription({
+        description: overlay.body,
+        disabled: false,
+        budgets
+      })
+    },
+    {
+      value: "cancel",
+      label: formatItemLabel({ text: overlay.cancelLabel, disabled: false, budgets })
+    }
   ];
   const list = new SelectList(choices, 4, selectListTheme);
   list.setSelectedIndex(Math.max(0, Math.min(overlay.selectedIndex, choices.length - 1)));
@@ -71,21 +180,48 @@ const createConfirmOverlay = (overlay: ConfirmOverlay): OverlayComponent => {
     overlay.onCancel();
   };
   return {
-    component: withTitle(overlay.title, list),
+    component: withTitle(overlay.title, list, renderOptions.width),
     focusTarget: list
   };
 };
 
-const buildChecklistItems = (overlay: ChecklistOverlay): SelectItem[] => {
+const buildChecklistItems = (
+  overlay: ChecklistOverlay,
+  renderOptions: OverlayRenderOptions
+): SelectItem[] => {
+  const budgets = resolveRowBudgets(renderOptions.width);
   const rows: SelectItem[] = overlay.items.map((item) => ({
     value: item.id,
-    label: `${item.selected ? "☑" : "☐"} ${item.label}`,
-    description: item.description
+    label: `${item.selected ? "☑" : "☐"} ${ellipsize(item.label, budgets.labelWidth)}`,
+    description: formatItemDescription({
+      description: item.description,
+      disabled: false,
+      budgets
+    })
   }));
 
   rows.push(
-    { value: "__confirm__", label: "◉ apply selections", description: "enter confirms selected items" },
-    { value: "__cancel__", label: "◉ cancel" }
+    {
+      value: "__confirm__",
+      label: formatItemLabel({
+        text: "Apply selections",
+        disabled: false,
+        budgets
+      }),
+      description: formatItemDescription({
+        description: "Press Enter to continue",
+        disabled: false,
+        budgets
+      })
+    },
+    {
+      value: "__cancel__",
+      label: formatItemLabel({
+        text: "Cancel",
+        disabled: false,
+        budgets
+      })
+    }
   );
 
   return rows;
@@ -93,10 +229,12 @@ const buildChecklistItems = (overlay: ChecklistOverlay): SelectItem[] => {
 
 const createChecklistOverlay = (
   overlay: ChecklistOverlay,
-  requestRefresh: () => void
+  requestRefresh: () => void,
+  renderOptions: OverlayRenderOptions
 ): OverlayComponent => {
+  const renderItems = (): SelectItem[] => buildChecklistItems(overlay, renderOptions);
   const list = new SelectList(
-    buildChecklistItems(overlay),
+    renderItems(),
     Math.max(8, Math.min(14, overlay.items.length + 2)),
     selectListTheme
   );
@@ -105,7 +243,7 @@ const createChecklistOverlay = (
   list.setSelectedIndex(Math.max(0, Math.min(overlay.selectedIndex, maxIndex)));
 
   list.onSelectionChange = (item): void => {
-    const index = buildChecklistItems(overlay).findIndex((candidate) => candidate.value === item.value);
+    const index = renderItems().findIndex((candidate) => candidate.value === item.value);
     if (index >= 0) {
       overlay.selectedIndex = index;
     }
@@ -136,17 +274,25 @@ const createChecklistOverlay = (
   };
 
   return {
-    component: withTitle(overlay.title, list),
+    component: withTitle(overlay.title, list, renderOptions.width),
     focusTarget: list
   };
 };
 
-const withTitle = (title: string, component: Component, body?: string): Component => {
+const wrapBody = (body: string, width: number): string => {
+  const wrappedLines = body
+    .split("\n")
+    .flatMap((line) => wrapTextWithAnsi(line || " ", Math.max(12, width - 6)));
+  return wrappedLines.join("\n");
+};
+
+const withTitle = (title: string, component: Component, width: number, body?: string): Component => {
+  const safeWidth = Math.max(32, width);
   const container = new Container();
-  container.addChild(new Text(title, 1, 0));
+  container.addChild(new Text(ellipsize(title, safeWidth - 6), 1, 0));
   if (body) {
     container.addChild(new Spacer(1));
-    container.addChild(new Text(body, 1, 0));
+    container.addChild(new Text(wrapBody(body, safeWidth), 1, 0));
   }
   container.addChild(new Spacer(1));
   container.addChild(component);
@@ -159,15 +305,16 @@ const assertNever = (value: never): never => {
 
 export const createOverlayComponent = (
   overlay: OverlayState,
-  requestRefresh: () => void
+  requestRefresh: () => void,
+  renderOptions: OverlayRenderOptions
 ): OverlayComponent => {
   switch (overlay.kind) {
     case "select":
-      return createSelectOverlay(overlay);
+      return createSelectOverlay(overlay, renderOptions);
     case "confirm":
-      return createConfirmOverlay(overlay);
+      return createConfirmOverlay(overlay, renderOptions);
     case "checklist":
-      return createChecklistOverlay(overlay, requestRefresh);
+      return createChecklistOverlay(overlay, requestRefresh, renderOptions);
     default:
       return assertNever(overlay);
   }

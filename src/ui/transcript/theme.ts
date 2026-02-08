@@ -90,7 +90,7 @@ export const styleStatusLine = (label: string, ok: boolean, detail: string): str
 
 export const selectListTheme: SelectListTheme = {
   selectedPrefix: (text) => palette.amber(text),
-  selectedText: (text) => `${BOLD}${FG_AMBER}${text}${RESET}`,
+  selectedText: (text) => text,
   description: (text) => palette.steel(text),
   scrollInfo: (text) => palette.steel(text),
   noMatch: (text) => palette.steel(text)

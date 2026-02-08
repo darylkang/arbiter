@@ -10,33 +10,22 @@ const renderBar = (value: number, max: number, width: number): string => {
   return `[${"■".repeat(filled)}${"·".repeat(empty)}] ${value}/${safeMax}`;
 };
 
-const renderWorkerRows = (progress: RunProgress): string[] => {
-  const workerCount = Math.max(0, progress.workerCount);
-  if (workerCount === 0) {
-    return [];
-  }
-
-  const visibleWorkers = Math.min(workerCount, 12);
-  const rows = Array.from({ length: visibleWorkers }, (_, index) => {
-    const workerId = String(index + 1).padStart(2, "0");
-    const status = progress.workerStatus[index + 1] ?? { status: "idle" as const };
-    if (status.status === "busy") {
-      const trial = typeof status.trialId === "number" ? ` t${status.trialId}` : "";
-      return `w${workerId} [■■■···] busy${trial}`;
-    }
-    return `w${workerId} [······] idle`;
-  });
-
-  const hidden = workerCount - visibleWorkers;
-  if (hidden > 0) {
-    rows.push(`+${hidden} additional workers`);
-  }
-
-  return rows;
+const resolveBarWidth = (terminalWidth: number): number => {
+  return clamp(Math.round(terminalWidth * 0.26), 12, 28);
 };
 
-export const renderProgressSummary = (progress: RunProgress): string => {
-  const master = renderBar(progress.attempted, progress.planned, 24);
+const renderWorkerSummary = (progress: RunProgress): string | null => {
+  const workerCount = Math.max(0, progress.workerCount);
+  if (workerCount === 0) {
+    return null;
+  }
+
+  const busy = Object.values(progress.workerStatus).filter((worker) => worker.status === "busy").length;
+  return `workers busy ${busy}/${workerCount}`;
+};
+
+export const renderProgressSummary = (progress: RunProgress, terminalWidth = 80): string => {
+  const master = renderBar(progress.attempted, progress.planned, resolveBarWidth(terminalWidth));
   const currentBatch = progress.currentBatch
     ? `batch ${progress.currentBatch.batchNumber}: ${progress.currentBatch.completed}/${progress.currentBatch.total}`
     : "batch idle";
@@ -57,11 +46,14 @@ export const renderProgressSummary = (progress: RunProgress): string => {
     `eligible ${progress.eligible} | ${currentBatch}`
   ];
 
+  const workerSummary = renderWorkerSummary(progress);
+  if (workerSummary) {
+    lines.push(workerSummary);
+  }
+
   if (statusParts.length > 0) {
     lines.push(statusParts.join(" | "));
   }
-
-  lines.push(...renderWorkerRows(progress));
 
   return lines.join("\n");
 };

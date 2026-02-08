@@ -51,8 +51,8 @@ const createMockConfig = (cwd, options = {}) => {
 const createPtySession = (input) => {
   const proc = pty.spawn("node", [CLI_ENTRY], {
     name: "xterm-256color",
-    cols: 120,
-    rows: 40,
+    cols: input.cols ?? 120,
+    rows: input.rows ?? 40,
     cwd: input.cwd,
     env: {
       ...process.env,
@@ -140,6 +140,8 @@ test("pty: guided launch supports /help and /quit", { concurrency: false }, asyn
   try {
     await session.waitForText("Welcome to Arbiter.", 20000);
     await session.waitForText("Start a study", 20000);
+    await session.waitForText("Run current config (mock)", 20000);
+    await session.waitForText("Guided setup", 20000);
     session.arrowDown(2);
     session.pressEnter();
 
@@ -156,6 +158,26 @@ test("pty: guided launch supports /help and /quit", { concurrency: false }, asyn
   }
 });
 
+test("pty: launch overlay remains legible at 80 columns", { concurrency: false }, async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-launch-"));
+  const session = createPtySession({ cwd, cols: 80, rows: 34 });
+
+  try {
+    await session.waitForText("Welcome to Arbiter.", 20000);
+    await session.waitForText("Start a study", 20000);
+    await session.waitForText("Run current config (mock)", 20000);
+    await session.waitForText("Run current config (live)", 20000);
+    await session.waitForText("Guided setup", 20000);
+    session.arrowDown(3);
+    session.pressEnter();
+    const exit = await session.waitForExit(20000);
+    assert.equal(exit.exitCode, 0);
+  } finally {
+    await session.stop();
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("pty: guided intake flow completes from question to receipt", { concurrency: false }, async () => {
   const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-guided-"));
   const session = createPtySession({ cwd });
@@ -168,25 +190,25 @@ test("pty: guided intake flow completes from question to receipt", { concurrency
     await session.waitForText("What question are you investigating?", 20000);
     session.writeLine("How do model ensembles affect novelty saturation in policy QA?");
 
-    await session.waitForText("Step 2 of 8 · Choose decoding behavior", 20000);
+    await session.waitForText("Step 2/8 · Decode settings", 20000);
     session.pressEnter();
 
-    await session.waitForText("Step 3 of 8 · Select personas", 20000);
+    await session.waitForText("Step 3/8 · Personas", 20000);
     session.pressEnter();
 
-    await session.waitForText("Step 4 of 8 · Select models", 20000);
+    await session.waitForText("Step 4/8 · Models", 20000);
     session.pressEnter();
 
-    await session.waitForText("Step 5 of 8 · Select protocol", 20000);
+    await session.waitForText("Step 5/8 · Protocol", 20000);
     session.pressEnter();
 
-    await session.waitForText("Step 6 of 8 · Configure execution depth", 20000);
+    await session.waitForText("Step 6/8 · Execution depth", 20000);
     session.pressEnter();
 
-    await session.waitForText("Step 7 of 8 · Select run mode", 20000);
+    await session.waitForText("Step 7/8 · Run mode", 20000);
     session.pressEnter();
 
-    await session.waitForText("Step 8 of 8 · Review study setup", 20000);
+    await session.waitForText("Step 8/8 · Review setup", 20000);
     session.pressEnter();
 
     await session.waitForText("Configuration saved to", 20000);

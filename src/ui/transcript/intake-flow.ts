@@ -101,21 +101,21 @@ const formatReviewBody = (input: {
 const flowStageLabel = (flow: GuidedSetupState): string => {
   switch (flow.stage) {
     case "question":
-      return "Step 1 of 8";
+      return "Step 1/8";
     case "decode":
-      return "Step 2 of 8";
+      return "Step 2/8";
     case "personas":
-      return "Step 3 of 8";
+      return "Step 3/8";
     case "models":
-      return "Step 4 of 8";
+      return "Step 4/8";
     case "protocol":
-      return "Step 5 of 8";
+      return "Step 5/8";
     case "advanced":
-      return "Step 6 of 8";
+      return "Step 6/8";
     case "mode":
-      return "Step 7 of 8";
+      return "Step 7/8";
     case "review":
-      return "Step 8 of 8";
+      return "Step 8/8";
     default:
       return "Step";
   }
@@ -171,7 +171,7 @@ export const createIntakeFlowController = (input: {
     flow.stage = "review";
     input.state.overlay = {
       kind: "select",
-      title: `${flowStageLabel(flow)} · Review study setup`,
+      title: `${flowStageLabel(flow)} · Review setup`,
       body: formatReviewBody({ flow, options: wizardOptions }),
       items: [
         {
@@ -272,7 +272,7 @@ export const createIntakeFlowController = (input: {
 
     input.state.overlay = {
       kind: "select",
-      title: `${flowStageLabel(flow)} · Select run mode`,
+      title: `${flowStageLabel(flow)} · Run mode`,
       items,
       selectedIndex,
       onSelect: (item) => {
@@ -327,7 +327,7 @@ export const createIntakeFlowController = (input: {
 
     input.state.overlay = {
       kind: "select",
-      title: `${flowStageLabel(flow)} · Configure execution depth`,
+      title: `${flowStageLabel(flow)} · Execution depth`,
       items,
       selectedIndex,
       onSelect: (item) => {
@@ -383,7 +383,7 @@ export const createIntakeFlowController = (input: {
 
     input.state.overlay = {
       kind: "select",
-      title: `${flowStageLabel(flow)} · Select protocol`,
+      title: `${flowStageLabel(flow)} · Protocol`,
       items,
       selectedIndex,
       onSelect: (item) => {
@@ -428,7 +428,7 @@ export const createIntakeFlowController = (input: {
 
     input.state.overlay = {
       kind: "checklist",
-      title: `${flowStageLabel(flow)} · Select models`,
+      title: `${flowStageLabel(flow)} · Models`,
       items,
       selectedIndex: items.length,
       onConfirm: (selectedIds) => {
@@ -464,7 +464,7 @@ export const createIntakeFlowController = (input: {
 
     input.state.overlay = {
       kind: "checklist",
-      title: `${flowStageLabel(flow)} · Select personas`,
+      title: `${flowStageLabel(flow)} · Personas`,
       items: wizardOptions.personas.map((persona) => {
         const selected = selectedEntries.find((entry) => entry.id === persona.id);
         return {
@@ -521,7 +521,7 @@ export const createIntakeFlowController = (input: {
 
     input.state.overlay = {
       kind: "select",
-      title: `${flowStageLabel(flow)} · Choose decoding behavior`,
+      title: `${flowStageLabel(flow)} · Decode settings`,
       items,
       selectedIndex,
       onSelect: (item) => {
@@ -609,7 +609,7 @@ export const createIntakeFlowController = (input: {
           input.state.phase = "intake";
           input.state.newFlow = createDefaultGuidedSetup(wizardOptions, runMode);
           input.appendSystem("Set up a new study.");
-          input.appendStatus("Step 1 of 8. What question are you investigating?");
+          input.appendStatus("Step 1/8. What question are you investigating?");
           input.setInputText("");
           input.requestRender();
         },
@@ -626,7 +626,7 @@ export const createIntakeFlowController = (input: {
     input.state.phase = "intake";
     input.state.newFlow = createDefaultGuidedSetup(wizardOptions, runMode);
     input.appendSystem("Set up a new study.");
-    input.appendStatus("Step 1 of 8. What question are you investigating?");
+    input.appendStatus("Step 1/8. What question are you investigating?");
     input.setInputText("");
     input.requestRender();
   };

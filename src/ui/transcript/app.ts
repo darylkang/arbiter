@@ -195,7 +195,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
   const resolveOverlayOptions = (): OverlayOptions => {
     const termWidth = Math.max(24, tui.terminal.columns);
     const termHeight = Math.max(12, tui.terminal.rows);
-    const width = Math.max(28, Math.min(92, termWidth - 2, Math.floor(termWidth * 0.74)));
+    const width = Math.max(34, Math.min(96, termWidth - 2, Math.floor(termWidth * 0.88)));
     const maxHeight = Math.max(10, Math.min(28, termHeight - 4, Math.floor(termHeight * 0.7)));
     return {
       width,
@@ -226,11 +226,21 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       tui.hideOverlay();
     }
 
-    const overlayComponent = createOverlayComponent(state.overlay, () => {
-      requestRender();
-    });
+    const overlayOptions = resolveOverlayOptions();
+    const overlayWidth =
+      typeof overlayOptions.width === "number"
+        ? overlayOptions.width
+        : Math.max(32, tui.terminal.columns - 2);
+    const overlayComponent = createOverlayComponent(
+      state.overlay,
+      () => {
+        overlayState = null;
+        requestRender();
+      },
+      { width: overlayWidth }
+    );
     overlayState = state.overlay;
-    tui.showOverlay(overlayComponent.component, resolveOverlayOptions());
+    tui.showOverlay(overlayComponent.component, overlayOptions);
     tui.setFocus(overlayComponent.focusTarget);
   };
 
@@ -295,26 +305,26 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         items: [
           {
             id: "quickstart-mock",
-            label: "Run current configuration (mock)",
+            label: "Run current config (mock)",
             description: state.hasConfig
-              ? "Use existing config without external API calls"
+              ? "Use existing config without external API calls."
               : "Requires a local arbiter.config.json",
             disabled: !state.hasConfig
           },
           {
             id: "quickstart-live",
-            label: "Run current configuration (live)",
+            label: "Run current config (live)",
             description: !state.hasConfig
               ? "Requires a local arbiter.config.json"
               : state.hasApiKey
-                ? "Uses OPENROUTER_API_KEY and real model calls"
+                ? "Use OPENROUTER_API_KEY for real model calls."
                 : "Requires OPENROUTER_API_KEY",
             disabled: !state.hasConfig || !state.hasApiKey
           },
           {
             id: "guided-setup",
             label: "Guided setup",
-            description: "Create a new configuration step by step"
+            description: "Create a new configuration step by step."
           },
           { id: "quit", label: "Quit" }
         ],
