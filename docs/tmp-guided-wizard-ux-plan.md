@@ -42,225 +42,104 @@ The main entrypoint should feel like a guided product workflow, not a shell sess
 
 ---
 
-## 3) Legacy-Free UX Decision
+## 3) Non-Negotiables
 
-The guided main entrypoint must not depend on command literacy.
-
-Hard rules:
-1. No slash-command requirement in the primary path.
-2. No command-first onboarding language.
-3. No command hints as the dominant call to action during setup.
-4. First-run completion must be possible with only arrow keys, enter, escape, and text input.
-
-Advanced command paths may continue to exist elsewhere in the product surface, but they are not the contract for the guided main entrypoint.
+1. The main TTY path is guided-first.
+2. The primary journey is command-free.
+3. Mock is the default execution mode.
+4. Live execution must be explicit and safe.
+5. Copy must be professional, precise, and actionable.
+6. Engine/artifact invariants remain unchanged.
 
 ---
 
-## 4) Experience Outcomes
+## 4) Launch Branching Contract
 
-The design is successful when all are true:
-1. A first-time user can launch, configure, run, and finish a mock study without learning commands.
-2. Every step asks one clear question and provides one primary action.
-3. Live mode is explicit and safe.
-4. Run progress communicates status without noise.
-5. Receipt provides immediate interpretation context and next actions.
-6. Language is precise, neutral, and documentation-grade.
+Launch behavior is state-aware.
 
----
+When `arbiter` starts in TTY:
+1. If no config exists: enter intake question step immediately.
+2. If config exists: show entry selector overlay with:
+   - `Run with current configuration`
+   - `Set up a new study`
+   - `Quit`
 
-## 5) Core Experience Model
-
-The guided experience has three stages.
-
-## 5.1 Stage A: Intake
-
-Goal: build a valid run plan with minimal cognitive overhead.
-
-Step sequence:
-1. Research question input
-2. Profile selection
-3. Run mode selection
-4. Review and confirm
-
-Advanced options are collapsed by default.
-
-## 5.2 Stage B: Run Progress
-
-Goal: provide confidence during execution.
-
-Required signals:
-- planned, attempted, eligible counts
-- active batch progress and elapsed time
-- token usage and cost when available
-- warning stream and stop reasoning
-
-## 5.3 Stage C: Receipt and Next Actions
-
-Goal: prevent post-run dead ends.
-
-Required outputs:
-- run outcome summary
-- receipt excerpt
-- explicit action selector:
-  - view report
-  - verify run
-  - start another study
-  - quit
+This avoids forcing returning users into setup while preserving guided-first behavior.
 
 ---
 
-## 6) Interaction Contract
+## 5) Canonical Interaction Paradigm
 
-## 6.1 Keyboard model
+Use a single paradigm to avoid UI drift:
 
-Required keys:
-- Arrow up/down: move selection focus
-- Enter: confirm current selection
-- Escape: back/cancel current interaction
-- Space: toggle checklist options where multi-select is used
-- Ctrl+C: request graceful interrupt while running
+1. Transcript region for narrative, run events, warnings, receipts.
+2. Editor input for free-text questions.
+3. Overlays for structured choices:
+   - profile selection
+   - mode selection
+   - review confirmation
+   - post-run next actions
 
-No hidden keys are required for the main path.
-
-## 6.2 Selection components
-
-Use rounded, high-clarity row treatments inspired by OpenClaw.
-
-Single-select rows must show:
-- focused state
-- selected state
-- disabled state with inline explanation
-
-Checklist rows must show:
-- explicit checked/unchecked indicator
-- focused row indicator
-
-## 6.3 Cancel behavior
-
-Cancel is first-class at every intake step.
-
-Rules:
-1. Escape returns to the previous step where valid.
-2. Cancel from review returns to idle safely.
-3. Starting a new intake while one is active requires confirmation before discarding partial inputs.
+Do not introduce a second competing wizard surface. Keep overlays as the structured decision mechanism.
 
 ---
 
-## 7) Visual and Motion System
+## 6) Stage Model
 
-## 7.1 Tone and style
+The guided experience has three stages:
+1. Intake
+2. Run progress
+3. Receipt and next actions
 
-Visual tone: premium, restrained, professional.
+## 6.1 Intake substages
 
-Principles:
-- strong hierarchy
-- calm color usage
-- meaningful motion only
-- no decorative effects that reduce clarity
+Intake is a strict sequence:
+1. Question
+2. Profile
+3. Mode
+4. Review
 
-## 7.2 Palette
+## 6.2 Intake back-navigation matrix
 
-Use semantic Gruvbox-dark tokens consistently across the guided surfaces:
-- brand
-- accent
-- success
-- warning
-- error
-- info
-- muted
-- primary text
+Escape behavior:
+- Question: cancel intake and return to launch selector/idle state
+- Profile: go back to Question (preserve typed question)
+- Mode: go back to Profile
+- Review: go back to Mode
 
-Fallback rules:
-- respect `NO_COLOR`
-- support reduced color terminals
-- preserve readability at narrow widths
+Cancel behavior:
+- explicit cancel action from Review exits intake safely
+- starting a new intake while one is active requires discard confirmation
 
-## 7.3 Spinner policy
-
-Use spinners only at real async boundaries:
-- run startup
-- report generation
-- verification
-- any setup operation with noticeable latency
-
-Spinner cleanup is mandatory on success, failure, and cancellation.
+No step should discard user input without confirmation.
 
 ---
 
-## 8) Copy System
+## 7) Intake Specification
 
-All in-product text should read like professional technical documentation.
+## 7.1 Question step
 
-Rules:
-1. Sentence case.
-2. Direct action language.
-3. No slang or internal codenames.
-4. Errors must include what failed and what to do next.
-5. Warnings must be factual and non-alarmist.
-6. Help text must use progressive disclosure.
-
-Preferred examples:
-- "Set up a new study."
-- "Select a run mode."
-- "OpenRouter API key not found. Live runs require OPENROUTER_API_KEY."
-- "Run complete. Choose the next action."
-
-Avoid:
-- playful internal references
-- vague motivational copy
-- ambiguous error phrasing
-
----
-
-## 9) Layout Contract
-
-The guided main entrypoint uses four persistent regions:
-
-1. Header
-- product title
-- environment status (API key/config/runs)
-- current stage indicator
-
-2. Transcript panel
-- concise system narrative
-- run events and warnings
-- receipt/report/verify summaries
-
-3. Guided interaction panel
-- current step prompt
-- selector/checklist/input controls
-- primary and secondary actions
-
-4. Footer
-- context-accurate key hints only
-- warning count
-
-The guided panel is the primary interaction surface during Stage A and Stage C.
-
----
-
-## 10) Intake Specification
-
-## 10.1 Question step
-
-Prompt: "What question are you investigating?"
+Prompt: `What question are you investigating?`
 
 Validation:
 - required
 - min length: 8
 - max length: 500
 
-Primary action: Continue
-Secondary action: Cancel
+Actions:
+- Continue
+- Cancel
 
-## 10.2 Profile step
+## 7.2 Profile step
 
-Single-select list with short profile descriptions.
+Single-select overlay with clear descriptions.
 
-Primary action: Continue
-Secondary actions: Back, Cancel
+Actions:
+- Continue
+- Back
+- Cancel
 
-## 10.3 Run mode step
+## 7.3 Mode step
 
 Options:
 - mock (default)
@@ -268,19 +147,23 @@ Options:
 - save-only
 
 If API key is missing:
-- live appears disabled
-- explanation is visible inline
+- live is disabled (not merely error-after-select)
+- disabled reason is visible inline
 
-Primary action: Continue
-Secondary actions: Back, Cancel
+Actions:
+- Continue
+- Back
+- Cancel
 
-## 10.4 Review step
+## 7.4 Review step
 
-Show:
+Review is mandatory before run start.
+
+Review content:
 - question
 - selected profile
 - selected mode
-- advanced overrides (only when changed)
+- advanced overrides (only if changed)
 
 Actions:
 - Start run (primary)
@@ -291,34 +174,34 @@ Actions:
 
 ---
 
-## 11) Run Progress Specification
+## 8) Run Progress Specification
 
-During Stage B, the progress surface must provide:
+During running stage, always show:
 1. run status headline
-2. counts (planned/attempted/eligible)
-3. active batch indicator and elapsed time
+2. planned/attempted/eligible counts
+3. batch index and elapsed time
 4. token/cost summary when available
-5. warning stream access
+5. warning access
 
-Behavior:
+Behavior rules:
 - avoid transcript spam
-- dedupe repeating warnings
+- dedupe warning repeats
 - preserve critical failures in visible context
 
-Interrupt:
+Interrupt rules:
 - first Ctrl+C requests graceful stop
 - repeated interrupt shows clear escalation messaging
 
 ---
 
-## 12) Receipt Specification
+## 9) Receipt and Next Actions Specification
 
-Immediately after run completion or failure:
+Immediately after completion or failure:
 1. show run outcome summary
 2. show receipt excerpt
-3. show action selector with default focus on most likely next action
+3. show next-action selector overlay
 
-Action selector options:
+Next-action options:
 - View report
 - Verify run
 - Start new study
@@ -328,20 +211,106 @@ No blank post-run state is allowed.
 
 ---
 
-## 13) Implementation Architecture
+## 10) Visual and Motion System
 
-Required modules:
-- `src/ui/transcript/flow/flow-types.ts`
-- `src/ui/transcript/flow/flow-machine.ts`
-- `src/ui/transcript/flow/flow-actions.ts`
-- `src/ui/transcript/flow/flow-render.ts`
+## 10.1 Tone
 
-Design intent:
-1. keep flow transitions explicit and testable
-2. keep `app.ts` as orchestration, not state-machine logic
-3. keep guided behavior centralized to avoid drift
+Visual tone: premium, restrained, professional.
 
-Integration boundaries must remain:
+Principles:
+- strong hierarchy
+- calm color usage
+- meaningful motion only
+- no decorative effects
+
+## 10.2 Color
+
+Use semantic Gruvbox-dark tokens consistently:
+- brand, accent, success, warning, error, info, muted, text
+
+Fallback requirements:
+- respect `NO_COLOR`
+- reduced-color compatibility
+- narrow-width readability
+
+## 10.3 Spinner policy
+
+Spinners are only for discrete async UI actions in setup/post-run flows.
+
+Examples:
+- config write
+- report generation
+- verify run
+
+Run progress itself is handled by the progress panel; no perpetual spinner for run telemetry.
+
+Spinner cleanup is mandatory on success, failure, and cancel.
+
+---
+
+## 11) Copy System
+
+All user-facing text must read like professional technical documentation.
+
+Rules:
+1. Sentence case.
+2. Direct action language.
+3. No slang or internal codenames.
+4. Errors must include what failed and what to do next.
+5. Warnings must be factual and non-alarmist.
+6. Help text must use progressive disclosure.
+
+Preferred examples:
+- `Set up a new study.`
+- `Select a run mode.`
+- `OpenRouter API key not found. Live runs require OPENROUTER_API_KEY.`
+- `Run complete. Choose the next action.`
+
+## 11.1 Copy migration checklist
+
+Before UX implementation is considered complete:
+- replace all legacy onboarding lines with professional equivalents
+- remove command-first onboarding prompts from guided launch path
+- ensure all overlay titles and prompts follow sentence case
+- ensure all errors include a next-step suggestion
+- ensure all warnings are concise and factual
+- ensure receipt-stage prompts are action-oriented and explicit
+
+---
+
+## 12) Layout Contract
+
+The guided entrypoint uses four persistent regions:
+1. Header
+   - product title
+   - environment status (API key/config/runs)
+   - stage indicator (`Setting up`, `Running`, `Complete`)
+2. Transcript panel
+3. Guided interaction surface (editor + overlays)
+4. Footer hints
+
+Footer hints must reflect active context only.
+
+---
+
+## 13) Implementation Architecture (Evolve Existing Code)
+
+Do not create a parallel `flow/` subsystem.
+
+Evolve current modules:
+- `src/ui/transcript/state.ts`
+- `src/ui/transcript/intake-flow.ts`
+- `src/ui/transcript/app.ts`
+- `src/ui/transcript/run-controller.ts`
+- `src/ui/transcript/components/overlay.ts`
+
+Required design intent:
+1. extend existing `NewFlowState` and phase logic
+2. add review + back-navigation transitions to current intake controller
+3. add post-run action selector in existing run lifecycle flow
+4. keep overlay control centralized to current overlay system
+
+Integration boundaries that must remain unchanged:
 - engine emits events
 - UI subscribes via EventBus
 - RunLifecycleHooks remain framework-agnostic
@@ -349,60 +318,81 @@ Integration boundaries must remain:
 
 ---
 
-## 14) Delivery Plan
+## 14) Delivery Plan (5 Phases)
 
 Phase 0: Spec lock
-- approve this spec as execution contract
+- approve this document as execution contract
 
-Phase 1: Flow machine extraction
-- explicit state transitions and guards
-- complete unit transition matrix
+Phase 1: Launch branching + guided startup
+- add config-exists entry selector
+- auto-enter intake when config is missing
+- remove command-first launch messaging from guided path
 
-Phase 2: Guided startup and panel wiring
-- interactive launch enters guided intake immediately
-- one-step-at-a-time rendering
+Gate:
+- TTY launch behavior tests pass
 
-Phase 3: Selection and keyboard polish
-- rounded choices, checklist clarity, cancel/back consistency
+Phase 2: Intake hardening
+- add review step
+- implement explicit back-navigation matrix
+- add question validation and live-disabled behavior
 
-Phase 4: Progress and spinner polish
-- async feedback wrapper
-- strict cleanup guarantees
+Gate:
+- intake transition unit tests pass
 
-Phase 5: Receipt action loop
-- explicit post-run action selector
-- report/verify/new/quit loop
+Phase 3: Post-run loop
+- add post-run next-action selector
+- support report/verify/new/quit loop
 
-Phase 6: Hardening and docs alignment
-- copy pass
-- narrow-width and NO_COLOR verification
-- final consistency pass with help/docs
+Gate:
+- PTY journey through receipt and next actions passes
+
+Phase 4: Copy and polish pass
+- apply copy migration checklist
+- stage indicator in header
+- spinner helper for setup/post-run async tasks
+
+Gate:
+- copy checklist and UX regression tests pass
+
+Phase 5: Final hardening
+- narrow-width checks
+- NO_COLOR checks
+- consistency pass across guided path text and behavior
+
+Gate:
+- all quality gates green
 
 ---
 
 ## 15) Test Plan
 
-## 15.1 Unit
-- flow transitions
-- validation guards
-- cancel and restart safety
-- run mode safety guards
+## 15.1 Unit tests
 
-## 15.2 Integration
-- guided startup auto-enters intake
-- step selections update state coherently
-- review start triggers run controller
-- completion/failure transitions are deterministic
+- intake transition matrix (forward/back/cancel)
+- question validation guards (min/max)
+- live disabled logic when API key missing
+- review action transitions
+- post-run action transitions
+
+## 15.2 Integration tests
+
+- launch with config vs without config branch behavior
+- question text persistence across back-navigation
+- review step starts run correctly
+- completion/failure transitions into next-action selector
 
 ## 15.3 PTY E2E
+
 1. launch -> intake -> mock run -> receipt -> quit
-2. launch -> live without key -> blocked with explanation
-3. launch -> cancel and resume intake -> complete
-4. completion -> action selector -> report/verify/new cycle
+2. launch with config -> run current -> receipt -> new study
+3. launch -> navigate back during intake -> complete
+4. launch -> live unavailable path -> clear guidance -> complete via mock
 
 ## 15.4 Copy checks
-- key prompts and errors match professional tone rules
-- no stale command-first onboarding text in guided path
+
+- guided path contains no command-first onboarding text
+- key prompts and errors match tone rules
+- completion/failure messaging includes explicit next actions
 
 ---
 
@@ -410,27 +400,29 @@ Phase 6: Hardening and docs alignment
 
 1. Guided flow is the default TTY entry experience.
 2. Full first-run journey is command-free.
-3. Keyboard navigation is complete and discoverable.
-4. Live behavior is explicit and safe.
-5. Progress and receipt are clear under normal and narrow widths.
-6. Copy quality is consistent and professional.
-7. All existing quality gates remain green.
+3. Config-exists users get an entry selector instead of forced setup.
+4. Back-navigation preserves user inputs.
+5. Review step exists before run start.
+6. Post-run action selector exists and is looped.
+7. Live mode is disabled with explanation when API key is missing.
+8. Copy quality is consistently professional.
+9. All existing quality gates remain green.
 
 ---
 
 ## 17) Risks and Mitigations
 
-Risk: guided flow regresses power-user speed
-- Mitigation: keep advanced surfaces available outside guided primary path.
+Risk: accidental architecture duplication
+- Mitigation: evolve existing intake/overlay modules; no parallel flow subsystem.
 
-Risk: polish work outruns behavior correctness
-- Mitigation: enforce phase gates and behavioral tests before visual refinements.
+Risk: input loss during navigation
+- Mitigation: explicit back-navigation matrix and persistence tests.
 
-Risk: interaction drift across modules
-- Mitigation: central flow machine and strict integration boundaries.
+Risk: visual polish outruns behavior correctness
+- Mitigation: phase gates require behavior tests before polish tasks.
 
 Risk: over-animation
-- Mitigation: spinner policy and motion budget in review checklist.
+- Mitigation: spinner policy and cleanup tests.
 
 ---
 
@@ -439,7 +431,7 @@ Risk: over-animation
 Done means:
 1. `arbiter` in TTY launches a guided workflow by default.
 2. User can reach receipt and next actions without command knowledge.
-3. The experience feels alive, calm, and professional.
-4. Documentation/help reflect actual behavior.
+3. The guided flow is safe, recoverable, and professional.
+4. Documentation/help reflect actual guided behavior.
 5. All quality gates pass.
 
