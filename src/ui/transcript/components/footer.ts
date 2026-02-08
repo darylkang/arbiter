@@ -1,5 +1,5 @@
 import type { AppState } from "../state.js";
-import { palette } from "../theme.js";
+import { makeDivider, palette } from "../theme.js";
 
 const baseHints = [
   "/new",
@@ -12,11 +12,6 @@ const baseHints = [
   "/help",
   "/quit"
 ];
-
-const makeDivider = (width: number): string => {
-  const lineWidth = Math.max(24, Math.min(width, 78));
-  return palette.steel("─".repeat(lineWidth));
-};
 
 export const renderFooter = (state: AppState, width: number): string => {
   const warnings = state.warnings.length > 0 ? palette.warning(`warnings ${state.warnings.length} (/warnings)`) : palette.steel("warnings 0");

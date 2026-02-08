@@ -1,9 +1,8 @@
 import type { WarningRecord } from "../../utils/warnings.js";
+import type { ProfileId } from "./profiles.js";
 
 export type TranscriptPhase = "idle" | "intake" | "running" | "post-run";
 export type RunMode = "mock" | "live";
-
-export type ProfileId = "quickstart" | "heterogeneity" | "debate" | "free";
 
 export type TranscriptEntryKind =
   | "system"

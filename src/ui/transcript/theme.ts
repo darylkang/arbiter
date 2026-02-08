@@ -4,8 +4,11 @@ const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
 
 const supportsExtendedColor = (): boolean => {
-  if (process.env.NO_COLOR) {
+  if (process.env.NO_COLOR || process.env.CLICOLOR === "0") {
     return false;
+  }
+  if (process.env.CLICOLOR_FORCE && process.env.CLICOLOR_FORCE !== "0") {
+    return true;
   }
   const term = process.env.TERM ?? "";
   const colorTerm = process.env.COLORTERM ?? "";
@@ -20,12 +23,12 @@ const useExtendedColor = supportsExtendedColor();
 
 const FG_AMBER = useExtendedColor ? "\x1b[38;5;214m" : "\x1b[33m";
 const FG_ORANGE = useExtendedColor ? "\x1b[38;5;208m" : "\x1b[33m";
-const FG_PHOSPHOR = useExtendedColor ? "\x1b[38;5;118m" : "\x1b[32m";
-const FG_IVORY = useExtendedColor ? "\x1b[38;5;230m" : "\x1b[37m";
+const FG_PHOSPHOR = useExtendedColor ? "\x1b[38;5;142m" : "\x1b[32m";
+const FG_IVORY = useExtendedColor ? "\x1b[38;5;223m" : "\x1b[37m";
 const FG_STEEL = useExtendedColor ? "\x1b[38;5;245m" : "\x1b[90m";
-const FG_CRIMSON = useExtendedColor ? "\x1b[38;5;203m" : "\x1b[31m";
-const FG_CYAN = useExtendedColor ? "\x1b[38;5;116m" : "\x1b[36m";
-const FG_WARNING = useExtendedColor ? "\x1b[38;5;220m" : "\x1b[33m";
+const FG_CRIMSON = useExtendedColor ? "\x1b[38;5;167m" : "\x1b[31m";
+const FG_CYAN = useExtendedColor ? "\x1b[38;5;109m" : "\x1b[36m";
+const FG_WARNING = useExtendedColor ? "\x1b[38;5;214m" : "\x1b[33m";
 
 const wrap = (code: string, text: string): string => `${code}${text}${RESET}`;
 
@@ -53,6 +56,11 @@ const BANNER_LINES = [
 
 export const getBannerLines = (width: number): string[] =>
   width >= 60 ? BANNER_LINES : [];
+
+export const makeDivider = (width: number): string => {
+  const lineWidth = Math.max(24, Math.min(width, 78));
+  return palette.steel("─".repeat(lineWidth));
+};
 
 export const styleEntryPrefix = (kind: string, timestamp: string): string => {
   const hhmmss = timestamp.slice(11, 19);

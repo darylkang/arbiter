@@ -160,3 +160,26 @@ test("intake flow rejects invalid profile and run-mode selections", () => {
   assert.equal(state.newFlow, null);
   assert.ok(errors.some((error) => error.includes("invalid run mode selection")));
 });
+
+test("intake flow blocks re-entry while already active", () => {
+  const state = makeState();
+  const statuses = [];
+
+  const intake = createIntakeFlowController({
+    state,
+    requestRender: () => {},
+    appendSystem: () => {},
+    appendStatus: (message) => statuses.push(message),
+    appendError: () => {},
+    appendWarning: () => {},
+    writeTemplateConfig: () => {},
+    startRun: async () => {}
+  });
+
+  intake.startNewFlow();
+  intake.startNewFlow();
+
+  assert.equal(state.phase, "intake");
+  assert.equal(state.newFlow?.stage, "await_question");
+  assert.ok(statuses.some((status) => status.includes("intake already active")));
+});

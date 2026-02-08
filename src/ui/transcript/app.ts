@@ -96,11 +96,19 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
   });
 
   let overlayState: OverlayState | null = null;
+  let renderScheduled = false;
 
   const requestRender = (): void => {
-    layout.sync(state);
-    syncOverlay();
-    tui.requestRender();
+    if (renderScheduled) {
+      return;
+    }
+    renderScheduled = true;
+    setImmediate(() => {
+      renderScheduled = false;
+      layout.sync(state);
+      syncOverlay();
+      tui.requestRender();
+    });
   };
 
   const runController = createRunController({

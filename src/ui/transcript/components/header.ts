@@ -1,10 +1,5 @@
 import type { AppState } from "../state.js";
-import { getBannerLines, palette, styleStatusLine } from "../theme.js";
-
-const makeDivider = (width: number): string => {
-  const lineWidth = Math.max(24, Math.min(width, 78));
-  return palette.steel("─".repeat(lineWidth));
-};
+import { getBannerLines, makeDivider, palette, styleStatusLine } from "../theme.js";
 
 export const renderHeader = (state: AppState, width: number): string => {
   const title = palette.headline("ARBITER // Transcript Runtime // 1984 Arcade");

@@ -1,14 +1,12 @@
-import type { OverlayItem, ProfileId } from "./state.js";
-
 export type ProfileDefinition = {
-  id: ProfileId;
+  id: "quickstart" | "heterogeneity" | "debate" | "free";
   template: string;
   label: string;
   description: string;
   warning?: string;
 };
 
-const PROFILES: ProfileDefinition[] = [
+export const PROFILES = [
   {
     id: "quickstart",
     template: "quickstart_independent",
@@ -35,9 +33,17 @@ const PROFILES: ProfileDefinition[] = [
     warning:
       "free-tier models are useful for prototyping; use pinned paid models for research-grade studies"
   }
-];
+] as const satisfies readonly ProfileDefinition[];
 
-export const listProfiles = (): ProfileDefinition[] => PROFILES;
+export type ProfileId = ProfileDefinition["id"];
+
+export type ProfileOverlayItem = {
+  id: string;
+  label: string;
+  description?: string;
+};
+
+export const listProfiles = (): ProfileDefinition[] => [...PROFILES];
 
 export const findProfileById = (profileId: ProfileId): ProfileDefinition | undefined =>
   PROFILES.find((entry) => entry.id === profileId);
@@ -45,7 +51,7 @@ export const findProfileById = (profileId: ProfileId): ProfileDefinition | undef
 export const isProfileId = (value: string): value is ProfileId =>
   PROFILES.some((entry) => entry.id === value);
 
-export const createProfileItems = (): OverlayItem[] =>
+export const createProfileItems = (): ProfileOverlayItem[] =>
   PROFILES.map((profile) => ({
     id: profile.id,
     label: profile.label,

@@ -1,5 +1,6 @@
 import { createProfileItems, findProfileById, isProfileId, type ProfileDefinition } from "./profiles.js";
-import type { AppState, ProfileId, RunMode } from "./state.js";
+import type { ProfileId } from "./profiles.js";
+import type { AppState, RunMode } from "./state.js";
 import { formatError } from "./error-format.js";
 
 type RunModeSelection = RunMode | "none";
@@ -146,6 +147,11 @@ export const createIntakeFlowController = (input: {
   const startNewFlow = (): void => {
     if (input.state.phase === "running") {
       input.appendStatus("run in progress. wait for completion before /new");
+      input.requestRender();
+      return;
+    }
+    if (input.state.newFlow) {
+      input.appendStatus("intake already active. finish or cancel the current intake flow first");
       input.requestRender();
       return;
     }
