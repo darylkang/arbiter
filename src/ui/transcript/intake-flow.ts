@@ -44,6 +44,7 @@ const validateQuestion = (question: string): string | null => {
 export type IntakeFlowController = {
   startNewFlow: () => void;
   handlePlainInput: (value: string) => void;
+  handleEscape: () => boolean;
 };
 
 export const createIntakeFlowController = (input: {
@@ -392,8 +393,23 @@ export const createIntakeFlowController = (input: {
     openProfileOverlay();
   };
 
+  const handleEscape = (): boolean => {
+    const flow = input.state.newFlow;
+    if (!flow) {
+      return false;
+    }
+
+    if (flow.stage === "question") {
+      cancelFlow();
+      return true;
+    }
+
+    return false;
+  };
+
   return {
     startNewFlow,
-    handlePlainInput
+    handlePlainInput,
+    handleEscape
   };
 };

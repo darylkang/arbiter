@@ -71,12 +71,12 @@ events.length = 0;
 context.state.phase = "running";
 assert.equal(await executeCommandInput({ value: "/quit", context }), true);
 assert.equal(events.some((entry) => entry[0] === "exit"), false);
-assert.ok(events.some((entry) => entry[0] === "system" && String(entry[1]).includes("run in progress")));
+assert.ok(events.some((entry) => entry[0] === "system" && String(entry[1]).includes("Run in progress")));
 
 events.length = 0;
 const handledUnknown = await executeCommandInput({ value: "/does-not-exist", context });
 assert.equal(handledUnknown, true);
-assert.ok(events.some((entry) => entry[0] === "error" && String(entry[1]).includes("unknown command")));
+assert.ok(events.some((entry) => entry[0] === "error" && String(entry[1]).includes("Unknown command")));
 
 const handledPlain = await executeCommandInput({ value: "plain text", context });
 assert.equal(handledPlain, false);

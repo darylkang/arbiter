@@ -15,11 +15,11 @@ const parseMode = (arg?: string): RunMode | null => {
 export const runCommand: TranscriptCommand = {
   name: "run",
   usage: "/run mock|live",
-  description: "execute current config",
+  description: "execute current configuration",
   execute: async ({ args, context }) => {
     const mode = parseMode(args[0]);
     if (!mode) {
-      context.appendError("invalid run mode. use /run mock or /run live");
+      context.appendError("Invalid run mode. Use /run mock or /run live.");
       return;
     }
     await context.startRun(mode);

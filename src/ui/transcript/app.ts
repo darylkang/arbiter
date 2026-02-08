@@ -25,6 +25,7 @@ import { formatError } from "./error-format.js";
 import { listRunDirs, resolveRunDirArg, toRunDirLabel } from "./run-dirs.js";
 import { createIntakeFlowController } from "./intake-flow.js";
 import type { ProfileDefinition } from "./profiles.js";
+import { withSpinner } from "./spinner.js";
 
 const DEFAULT_CONFIG_PATH = "arbiter.config.json";
 
@@ -148,6 +149,11 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     onEscape: () => {
       if (state.overlay) {
         state.overlay.onCancel();
+        requestRender();
+        return;
+      }
+
+      if (intakeFlow.handleEscape()) {
         requestRender();
         return;
       }
@@ -288,7 +294,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         selectedIndex: 0,
         onSelect: (item) => {
           if (!isLaunchAction(item.id)) {
-            appendError(state, `invalid launch action: ${item.id}`);
+            appendError(state, `Invalid launch action: ${item.id}.`);
             requestRender();
             return;
           }
@@ -342,7 +348,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         selectedIndex: 0,
         onSelect: (item) => {
           if (!isPostRunAction(item.id)) {
-            appendError(state, `invalid post-run action: ${item.id}`);
+            appendError(state, `Invalid post-run action: ${item.id}.`);
             requestRender();
             return;
           }
@@ -365,7 +371,12 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       return;
     }
     try {
-      appendTranscript(state, "receipt", renderReceiptForRun(runDir));
+      const receipt = await withSpinner({
+        tui,
+        label: "Loading receipt...",
+        work: async () => renderReceiptForRun(runDir)
+      });
+      appendTranscript(state, "receipt", receipt);
     } catch (error) {
       appendError(state, `Failed to render receipt: ${formatError(error)}`);
     }
@@ -378,7 +389,11 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       return;
     }
     try {
-      const report = formatReportText(buildReportModel(runDir, 3));
+      const report = await withSpinner({
+        tui,
+        label: "Generating report...",
+        work: async () => formatReportText(buildReportModel(runDir, 3))
+      });
       appendTranscript(state, "report", report);
     } catch (error) {
       appendError(state, `Failed to build report: ${formatError(error)}`);
@@ -392,7 +407,11 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       return;
     }
     try {
-      const verify = formatVerifyReport(verifyRunDir(runDir));
+      const verify = await withSpinner({
+        tui,
+        label: "Verifying run...",
+        work: async () => formatVerifyReport(verifyRunDir(runDir))
+      });
       appendTranscript(state, "verify", verify);
     } catch (error) {
       appendError(state, `Failed to verify run: ${formatError(error)}`);

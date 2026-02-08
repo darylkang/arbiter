@@ -151,7 +151,7 @@ export const executeCommandInput = async (input: {
 
   const command = COMMAND_MAP.get(parsed.name);
   if (!command) {
-    input.context.appendError(`unknown command: /${parsed.name}. use /help`);
+    input.context.appendError(`Unknown command: /${parsed.name}. Use /help.`);
     return true;
   }
 
@@ -163,7 +163,7 @@ export const executeCommandInput = async (input: {
       context: input.context
     });
   } catch (error) {
-    input.context.appendError(`command failed: ${formatError(error)}`);
+    input.context.appendError(`Command failed: ${formatError(error)}`);
   }
 
   return true;

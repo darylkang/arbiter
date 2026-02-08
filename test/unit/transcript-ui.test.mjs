@@ -251,3 +251,32 @@ test("intake flow asks for confirmation when restarting an active setup", () => 
   state.overlay?.onCancel();
   assert.ok(statuses.some((status) => status.includes("Resuming current setup")));
 });
+
+test("intake flow escape cancels from question step", () => {
+  const state = makeState();
+  let inputValue = "";
+
+  const intake = createIntakeFlowController({
+    state,
+    requestRender: () => {},
+    appendSystem: () => {},
+    appendStatus: () => {},
+    appendError: () => {},
+    appendWarning: () => {},
+    writeTemplateConfig: () => {},
+    startRun: async () => {},
+    setInputText: (value) => {
+      inputValue = value;
+    }
+  });
+
+  intake.startNewFlow();
+  intake.handlePlainInput("How do we test this?");
+  state.overlay?.onCancel();
+  assert.equal(state.newFlow?.stage, "question");
+  assert.equal(inputValue, "How do we test this?");
+
+  assert.equal(intake.handleEscape(), true);
+  assert.equal(state.newFlow, null);
+  assert.equal(state.phase, "idle");
+});

@@ -268,7 +268,7 @@ test("command registry executes all transcript commands and aliases", async () =
   events.length = 0;
   assert.equal(await executeCommandInput({ value: "/quit", context }), true);
   assert.equal(events.some((entry) => entry[0] === "exit"), false);
-  assert.ok(events.some((entry) => entry[0] === "system" && String(entry[1]).includes("run in progress")));
+  assert.ok(events.some((entry) => entry[0] === "system" && String(entry[1]).includes("Run in progress")));
 });
 
 test("slash command list includes command aliases", () => {
