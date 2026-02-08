@@ -16,9 +16,8 @@
     "declaration": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
-    "types": ["node"],
-    "jsx": "react-jsx"
+    "types": ["node"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/**/*.ts"],
   "exclude": ["dist", "node_modules"]
 }

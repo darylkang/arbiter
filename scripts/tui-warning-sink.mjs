@@ -1,11 +1,12 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
+
 import { EventBus } from "../dist/events/event-bus.js";
 import { runMockService } from "../dist/run/run-service.js";
 import { createEventWarningSink } from "../dist/utils/warnings.js";
 
-const tempRoot = resolve(tmpdir(), `arbiter-ui-warn-${Date.now()}`);
+const tempRoot = resolve(tmpdir(), `arbiter-tui-warn-${Date.now()}`);
 mkdirSync(tempRoot, { recursive: true });
 const runsDir = resolve(tempRoot, "runs");
 mkdirSync(runsDir, { recursive: true });
@@ -15,13 +16,13 @@ const promptManifest = JSON.parse(readFileSync(resolve("prompts/manifest.json"),
 const persona = promptManifest.entries.find((entry) => entry.type === "participant_persona");
 const protocol = promptManifest.entries.find((entry) => entry.type === "participant_protocol_template");
 if (!catalog.models?.[0] || !persona || !protocol) {
-  throw new Error("Missing catalog or prompt entries for UI warning sink test");
+  throw new Error("Missing catalog or prompt entries for TUI warning sink test");
 }
 
 const config = {
   schema_version: "1.0.0",
   run: { run_id: "pending", seed: 7 },
-  question: { text: "UI warning sink test", question_id: "ui_warn" },
+  question: { text: "TUI warning sink test", question_id: "tui_warn" },
   sampling: {
     models: [{ model: catalog.models[0].slug, weight: 1 }],
     personas: [{ persona: persona.id, weight: 1 }],
@@ -79,10 +80,10 @@ process.stderr.write = (chunk, encoding, cb) => {
   return originalStderr(chunk, encoding, cb);
 };
 console.warn = () => {
-  throw new Error("console.warn called during UI-style run");
+  throw new Error("console.warn called during transcript-style run");
 };
 console.error = () => {
-  throw new Error("console.error called during UI-style run");
+  throw new Error("console.error called during transcript-style run");
 };
 
 try {
@@ -96,7 +97,6 @@ try {
     quiet: true,
     bus,
     receiptMode: "skip",
-    forceInk: true,
     warningSink,
     forwardWarningEvents: false
   });
@@ -112,4 +112,4 @@ if (stdoutWrites > 0 || stderrWrites > 0) {
 }
 
 rmSync(tempRoot, { recursive: true, force: true });
-console.log("ui warning sink: ok");
+console.log("tui warning sink: ok");

@@ -34,7 +34,7 @@
     "test:contracts": "npm run build && node scripts/contract-fallback.mjs && node scripts/contract-policy.mjs",
     "test:provenance": "npm run build && node scripts/openrouter-provenance.mjs",
     "test:templates": "npm run build && node scripts/template-smoke.mjs",
-    "test:ui": "npm run build && node scripts/ui-routing.mjs && node scripts/ui-headless.mjs && node scripts/event-bus-safety.mjs && node scripts/signal-handlers.mjs && node scripts/ui-warning-sink.mjs",
+    "test:ui": "npm run build && node scripts/tui-intent.mjs && node scripts/tui-headless.mjs && node scripts/event-bus-safety.mjs && node scripts/signal-handlers.mjs && node scripts/tui-warning-sink.mjs && node scripts/tui-command-smoke.mjs",
     "test:verify": "npm run build && node scripts/verify-smoke.mjs && node scripts/resolve-only.mjs",
     "test:live-smoke": "npm run build && node scripts/live-smoke.mjs",
     "test:pack": "npm run build && node scripts/test-pack-install.mjs",
@@ -45,16 +45,14 @@
     "prepublishOnly": "npm run build && npm run test:pack"
   },
   "dependencies": {
+    "@mariozechner/pi-tui": "0.52.6",
     "ajv": "^8.17.0",
     "ajv-formats": "^3.0.1",
     "apache-arrow": "^16.1.0",
-    "dotenv": "^17.2.3",
-    "ink": "^5.2.1",
-    "react": "^18.3.1"
+    "dotenv": "^17.2.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "@types/react": "^18.3.11",
     "json-schema-to-typescript": "^15.0.0",
     "typescript": "^5.9.0"
   }
