@@ -15,6 +15,7 @@ const context = {
   exit: () => events.push(["exit", ""]),
   startRun: async (mode) => events.push(["run", mode]),
   startNewFlow: () => events.push(["new", ""]),
+  showWarnings: async () => events.push(["warnings", ""]),
   showReport: (runDir) => events.push(["report", runDir ?? ""]),
   showVerify: (runDir) => events.push(["verify", runDir ?? ""]),
   showReceipt: (runDir) => events.push(["receipt", runDir ?? ""]),
@@ -25,9 +26,20 @@ const handledRun = await executeCommandInput({ value: "/run mock", context });
 assert.equal(handledRun, true);
 assert.deepEqual(events.find((entry) => entry[0] === "run"), ["run", "mock"]);
 
+events.length = 0;
+context.state.hasApiKey = true;
+const handledDefaultRun = await executeCommandInput({ value: "/run", context });
+assert.equal(handledDefaultRun, true);
+assert.deepEqual(events.find((entry) => entry[0] === "run"), ["run", "mock"]);
+
 const handledUnknown = await executeCommandInput({ value: "/does-not-exist", context });
 assert.equal(handledUnknown, true);
 assert.ok(events.some((entry) => entry[0] === "error" && String(entry[1]).includes("unknown command")));
+
+events.length = 0;
+const handledWarnings = await executeCommandInput({ value: "/warnings", context });
+assert.equal(handledWarnings, true);
+assert.ok(events.some((entry) => entry[0] === "warnings"));
 
 const handledPlain = await executeCommandInput({ value: "plain text", context });
 assert.equal(handledPlain, false);

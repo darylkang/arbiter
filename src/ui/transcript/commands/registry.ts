@@ -8,6 +8,12 @@ import { runCommand } from "./run.js";
 import type { CommandContext, TranscriptCommand } from "./types.js";
 import { verifyCommand } from "./verify.js";
 import { formatError } from "../error-format.js";
+import { warningsCommand } from "./warnings.js";
+
+export type SlashCommandSpec = {
+  name: string;
+  description?: string;
+};
 
 export type ParsedCommandInput = {
   name: string;
@@ -23,6 +29,7 @@ const BUILTIN_COMMANDS: TranscriptCommand[] = [
   reportCommand,
   verifyCommand,
   receiptCommand,
+  warningsCommand,
   quitCommand
 ];
 
@@ -105,6 +112,20 @@ export const parseCommandInput = (value: string): ParsedCommandInput | null => {
 };
 
 export const listCommands = (): TranscriptCommand[] => BUILTIN_COMMANDS.slice();
+
+export const listSlashCommands = (): SlashCommandSpec[] => {
+  const slash: SlashCommandSpec[] = [];
+  BUILTIN_COMMANDS.forEach((command) => {
+    slash.push({ name: command.name, description: command.description });
+    command.aliases?.forEach((alias) => {
+      slash.push({
+        name: alias,
+        description: `alias for /${command.name}`
+      });
+    });
+  });
+  return slash;
+};
 
 const buildCommandMap = (): Map<string, TranscriptCommand> => {
   const map = new Map<string, TranscriptCommand>();

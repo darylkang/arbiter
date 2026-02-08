@@ -22,7 +22,7 @@ const resolveRunDir = (value: unknown): string | null => {
   if (!value || typeof value !== "object" || !("runDir" in value)) {
     return null;
   }
-  const runDir = (value as { runDir: unknown }).runDir;
+  const runDir = Reflect.get(value, "runDir");
   return typeof runDir === "string" && runDir.trim().length > 0 ? runDir : null;
 };
 

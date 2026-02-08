@@ -8,6 +8,8 @@ import { TranscriptComponent } from "./components/transcript.js";
 import type { AppState } from "./state.js";
 import { editorTheme, palette } from "./theme.js";
 
+const RUNNING_PLACEHOLDER = "run in progress... ctrl+c to request graceful stop";
+
 export type TranscriptLayout = {
   root: Container;
   editor: TranscriptEditor;
@@ -44,7 +46,8 @@ export const createTranscriptLayout = (input: {
   root.addChild(footer);
 
   const sync = (state: AppState): void => {
-    header.setText(renderHeader(state));
+    const layoutWidth = Math.max(24, input.tui.terminal.columns);
+    header.setText(renderHeader(state, layoutWidth));
 
     if (state.runProgress.active || state.phase === "post-run") {
       progress.setText(renderProgressSummary(state.runProgress));
@@ -53,15 +56,15 @@ export const createTranscriptLayout = (input: {
     }
 
     transcript.setEntries(state.transcript);
-    footer.setText(renderFooter(state));
+    footer.setText(renderFooter(state, layoutWidth));
 
     if (state.phase === "running") {
       editor.disableSubmit = true;
       if (!editor.getText()) {
-        editor.setText("run in progress... ctrl+c to request graceful stop");
+        editor.setText(RUNNING_PLACEHOLDER);
       }
     } else {
-      if (editor.getText() === "run in progress... ctrl+c to request graceful stop") {
+      if (editor.getText() === RUNNING_PLACEHOLDER) {
         editor.setText("");
       }
       editor.disableSubmit = false;

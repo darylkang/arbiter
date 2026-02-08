@@ -10,10 +10,11 @@ export type CommandContext = {
   exit: () => void;
   startRun: (mode: RunMode) => Promise<void>;
   startNewFlow: () => void;
-  showReport: (runDirArg?: string) => void;
-  showVerify: (runDirArg?: string) => void;
-  showReceipt: (runDirArg?: string) => void;
-  analyzeRun: (runDirArg?: string) => void;
+  showWarnings: () => Promise<void>;
+  showReport: (runDirArg?: string) => Promise<void>;
+  showVerify: (runDirArg?: string) => Promise<void>;
+  showReceipt: (runDirArg?: string) => Promise<void>;
+  analyzeRun: (runDirArg?: string) => Promise<void>;
 };
 
 export type CommandInvocation = {

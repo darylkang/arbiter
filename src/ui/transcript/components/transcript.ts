@@ -3,6 +3,8 @@ import { type Component, visibleWidth, wrapTextWithAnsi } from "@mariozechner/pi
 import type { TranscriptEntry } from "../state.js";
 import { styleEntryPrefix } from "../theme.js";
 
+const MAX_RENDERED_ENTRIES = 300;
+
 const KIND_TAG: Record<TranscriptEntry["kind"], string> = {
   system: "sys",
   user: "you",
@@ -34,7 +36,14 @@ export class TranscriptComponent implements Component {
     }
 
     const lines: string[] = [];
-    for (const entry of this.entries.slice(-300)) {
+    const entries = this.entries.slice(-MAX_RENDERED_ENTRIES);
+    const hiddenEntries = this.entries.length - entries.length;
+    if (hiddenEntries > 0) {
+      lines.push(`[system] ... ${hiddenEntries} earlier transcript entries hidden ...`);
+      lines.push("");
+    }
+
+    for (const entry of entries) {
       const tag = KIND_TAG[entry.kind] ?? "log";
       const prefix = `${styleEntryPrefix(entry.kind, entry.timestamp)} ${tag}> `;
       const prefixWidth = visibleWidth(prefix);

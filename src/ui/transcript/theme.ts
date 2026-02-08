@@ -3,14 +3,29 @@ import type { EditorTheme, SelectListTheme, SettingsListTheme } from "@mariozech
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
 
-const FG_AMBER = "\x1b[38;5;214m";
-const FG_ORANGE = "\x1b[38;5;208m";
-const FG_PHOSPHOR = "\x1b[38;5;118m";
-const FG_IVORY = "\x1b[38;5;230m";
-const FG_STEEL = "\x1b[38;5;245m";
-const FG_CRIMSON = "\x1b[38;5;203m";
-const FG_CYAN = "\x1b[38;5;116m";
-const FG_WARNING = "\x1b[38;5;220m";
+const supportsExtendedColor = (): boolean => {
+  if (process.env.NO_COLOR) {
+    return false;
+  }
+  const term = process.env.TERM ?? "";
+  const colorTerm = process.env.COLORTERM ?? "";
+  return (
+    term.includes("256color") ||
+    colorTerm.includes("truecolor") ||
+    colorTerm.includes("24bit")
+  );
+};
+
+const useExtendedColor = supportsExtendedColor();
+
+const FG_AMBER = useExtendedColor ? "\x1b[38;5;214m" : "\x1b[33m";
+const FG_ORANGE = useExtendedColor ? "\x1b[38;5;208m" : "\x1b[33m";
+const FG_PHOSPHOR = useExtendedColor ? "\x1b[38;5;118m" : "\x1b[32m";
+const FG_IVORY = useExtendedColor ? "\x1b[38;5;230m" : "\x1b[37m";
+const FG_STEEL = useExtendedColor ? "\x1b[38;5;245m" : "\x1b[90m";
+const FG_CRIMSON = useExtendedColor ? "\x1b[38;5;203m" : "\x1b[31m";
+const FG_CYAN = useExtendedColor ? "\x1b[38;5;116m" : "\x1b[36m";
+const FG_WARNING = useExtendedColor ? "\x1b[38;5;220m" : "\x1b[33m";
 
 const wrap = (code: string, text: string): string => `${code}${text}${RESET}`;
 
@@ -27,7 +42,7 @@ export const palette = {
   headline: (text: string): string => `${BOLD}${FG_AMBER}${text}${RESET}`
 };
 
-export const bannerLines = [
+const BANNER_LINES = [
   " █████╗ ██████╗ ██████╗ ██╗████████╗███████╗██████╗ ",
   "██╔══██╗██╔══██╗██╔══██╗██║╚══██╔══╝██╔════╝██╔══██╗",
   "███████║██████╔╝██████╔╝██║   ██║   █████╗  ██████╔╝",
@@ -35,6 +50,9 @@ export const bannerLines = [
   "██║  ██║██║  ██║██████╔╝██║   ██║   ███████╗██║  ██║",
   "╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝"
 ];
+
+export const getBannerLines = (width: number): string[] =>
+  width >= 60 ? BANNER_LINES : [];
 
 export const styleEntryPrefix = (kind: string, timestamp: string): string => {
   const hhmmss = timestamp.slice(11, 19);

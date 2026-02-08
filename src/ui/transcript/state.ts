@@ -118,7 +118,6 @@ export type AppState = {
   hasApiKey: boolean;
   hasConfig: boolean;
   runsCount: number;
-  warningsExpanded: boolean;
 };
 
 const defaultRunProgress = (): RunProgress => ({
@@ -160,8 +159,7 @@ export const createInitialState = (input: {
   profileId: "quickstart",
   hasApiKey: input.hasApiKey,
   hasConfig: input.hasConfig,
-  runsCount: input.runsCount,
-  warningsExpanded: false
+  runsCount: input.runsCount
 });
 
 export const resetRunProgress = (state: AppState): void => {

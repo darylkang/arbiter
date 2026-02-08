@@ -1,7 +1,13 @@
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { ProcessTerminal, TUI } from "@mariozechner/pi-tui";
+import {
+  CombinedAutocompleteProvider,
+  ProcessTerminal,
+  TUI,
+  type OverlayOptions,
+  type SlashCommand
+} from "@mariozechner/pi-tui";
 
 import { buildReportModel, formatReportText } from "../../tools/report-run.js";
 import { formatVerifyReport, verifyRunDir } from "../../tools/verify-run.js";
@@ -12,7 +18,7 @@ import type { AppState, OverlayItem, OverlayState, ProfileId, RunMode } from "./
 import { createInitialState } from "./state.js";
 import { createTranscriptLayout } from "./layout.js";
 import { createOverlayComponent } from "./components/overlay.js";
-import { executeCommandInput } from "./commands/registry.js";
+import { executeCommandInput, listSlashCommands } from "./commands/registry.js";
 import type { CommandContext } from "./commands/types.js";
 import { renderReceiptForRun } from "./components/receipt-view.js";
 import { formatError } from "./error-format.js";
@@ -65,7 +71,11 @@ const listRunDirs = (): string[] => {
       .map((entry) => resolve(runRoot, entry.name))
       .sort()
       .reverse();
-  } catch {
+  } catch (error) {
+    const maybeCode = (error as { code?: unknown }).code;
+    if (maybeCode !== "ENOENT") {
+      console.warn(`[arbiter:tui] failed to list run directories: ${formatError(error)}`);
+    }
     return [];
   }
 };
@@ -182,6 +192,11 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     requestRender
   });
 
+  const slashCommands: SlashCommand[] = listSlashCommands().map((command) => ({
+    name: command.name,
+    description: command.description
+  }));
+
   const shutdown = (): void => {
     runController.dispose();
     while (tui.hasOverlay()) {
@@ -220,6 +235,20 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     }
   });
 
+  layout.editor.setAutocompleteProvider(new CombinedAutocompleteProvider(slashCommands));
+
+  const resolveOverlayOptions = (): OverlayOptions => {
+    const termWidth = Math.max(24, tui.terminal.columns);
+    const termHeight = Math.max(12, tui.terminal.rows);
+    const width = Math.max(24, Math.min(84, termWidth - 2, Math.floor(termWidth * 0.74)));
+    const maxHeight = Math.max(8, Math.min(26, termHeight - 4, Math.floor(termHeight * 0.65)));
+    return {
+      width,
+      maxHeight,
+      anchor: "center"
+    };
+  };
+
   const syncOverlay = (): void => {
     if (!state.overlay && overlayState) {
       overlayState = null;
@@ -245,32 +274,24 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       requestRender();
     });
     overlayState = state.overlay;
-    tui.showOverlay(component, {
-      width: "74%",
-      maxHeight: "65%",
-      anchor: "center"
-    });
+    tui.showOverlay(component, resolveOverlayOptions());
     tui.setFocus(component);
   };
 
-  const withRunDir = (
-    runDirArg: string | undefined,
-    onResolved: (runDir: string) => void
-  ): void => {
+  const selectRunDir = async (runDirArg?: string): Promise<string | null> => {
     const resolvedRunDir = resolveRunDirArg(state, runDirArg);
     if (resolvedRunDir) {
       state.runDir = resolvedRunDir;
       state.lastRunDir = resolvedRunDir;
-      onResolved(resolvedRunDir);
       requestRender();
-      return;
+      return resolvedRunDir;
     }
 
     const runDirs = listRunDirs();
     if (runDirs.length === 0) {
       appendError(state, "no run directories found in ./runs");
       requestRender();
-      return;
+      return null;
     }
 
     const items = runDirs.map((runDir) => ({
@@ -279,65 +300,84 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       description: runDir
     }));
 
-    state.overlay = {
-      kind: "select",
-      title: "select run directory",
-      items,
-      selectedIndex: 0,
-      onSelect: (item) => {
-        state.overlay = null;
-        state.runDir = item.id;
-        state.lastRunDir = item.id;
-        onResolved(item.id);
-        requestRender();
-      },
-      onCancel: () => {
-        state.overlay = null;
-        appendStatus(state, "run selection cancelled");
-        requestRender();
-      }
-    };
+    return new Promise((resolveSelection) => {
+      state.overlay = {
+        kind: "select",
+        title: "select run directory",
+        items,
+        selectedIndex: 0,
+        onSelect: (item) => {
+          state.overlay = null;
+          state.runDir = item.id;
+          state.lastRunDir = item.id;
+          requestRender();
+          resolveSelection(item.id);
+        },
+        onCancel: () => {
+          state.overlay = null;
+          appendStatus(state, "run selection cancelled");
+          requestRender();
+          resolveSelection(null);
+        }
+      };
+      requestRender();
+    });
+  };
+
+  const showReceipt = async (runDirArg?: string): Promise<void> => {
+    const runDir = await selectRunDir(runDirArg);
+    if (!runDir) {
+      return;
+    }
+    try {
+      appendTranscript(state, "receipt", renderReceiptForRun(runDir));
+    } catch (error) {
+      appendError(state, `failed to render receipt: ${formatError(error)}`);
+    }
     requestRender();
   };
 
-  const showReceipt = (runDirArg?: string): void => {
-    withRunDir(runDirArg, (runDir) => {
-      try {
-        appendTranscript(state, "receipt", renderReceiptForRun(runDir));
-      } catch (error) {
-        appendError(state, `failed to render receipt: ${formatError(error)}`);
-      }
-    });
+  const showReport = async (runDirArg?: string): Promise<void> => {
+    const runDir = await selectRunDir(runDirArg);
+    if (!runDir) {
+      return;
+    }
+    try {
+      const report = formatReportText(buildReportModel(runDir, 3));
+      appendTranscript(state, "report", report);
+    } catch (error) {
+      appendError(state, `failed to build report: ${formatError(error)}`);
+    }
+    requestRender();
   };
 
-  const showReport = (runDirArg?: string): void => {
-    withRunDir(runDirArg, (runDir) => {
-      try {
-        const report = formatReportText(buildReportModel(runDir, 3));
-        appendTranscript(state, "report", report);
-      } catch (error) {
-        appendError(state, `failed to build report: ${formatError(error)}`);
-      }
-    });
+  const showVerify = async (runDirArg?: string): Promise<void> => {
+    const runDir = await selectRunDir(runDirArg);
+    if (!runDir) {
+      return;
+    }
+    try {
+      const verify = formatVerifyReport(verifyRunDir(runDir));
+      appendTranscript(state, "verify", verify);
+    } catch (error) {
+      appendError(state, `failed to verify run: ${formatError(error)}`);
+    }
+    requestRender();
   };
 
-  const showVerify = (runDirArg?: string): void => {
-    withRunDir(runDirArg, (runDir) => {
-      try {
-        const verify = formatVerifyReport(verifyRunDir(runDir));
-        appendTranscript(state, "verify", verify);
-      } catch (error) {
-        appendError(state, `failed to verify run: ${formatError(error)}`);
-      }
-    });
+  const analyzeRun = async (runDirArg?: string): Promise<void> => {
+    const runDir = await selectRunDir(runDirArg);
+    if (!runDir) {
+      return;
+    }
+    appendStatus(state, `analyzing ${runDir}`);
+    await showVerify(runDir);
+    await showReport(runDir);
   };
 
-  const analyzeRun = (runDirArg?: string): void => {
-    withRunDir(runDirArg, (runDir) => {
-      appendStatus(state, `analyzing ${runDir}`);
-      showVerify(runDir);
-      showReport(runDir);
-    });
+  const showWarnings = async (): Promise<void> => {
+    renderWarningsBlock(state);
+    requestRender();
   };
 
   const finalizeIntake = (inputProfileId: ProfileId, runMode: RunMode | "none"): void => {
@@ -470,13 +510,6 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       return;
     }
 
-    if (value.trim().toLowerCase() === "w") {
-      state.warningsExpanded = !state.warningsExpanded;
-      renderWarningsBlock(state);
-      requestRender();
-      return;
-    }
-
     appendStatus(state, "input noted. use slash commands (try /help)");
     requestRender();
   };
@@ -501,6 +534,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       await runController.startRun(mode);
     },
     startNewFlow,
+    showWarnings,
     showReport,
     showVerify,
     showReceipt,

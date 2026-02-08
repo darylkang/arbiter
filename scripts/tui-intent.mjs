@@ -29,6 +29,6 @@ assert.deepEqual(parsedQuoted, {
 });
 
 const commandNames = listCommands().map((command) => command.name).sort();
-assert.deepEqual(commandNames, ["analyze", "help", "new", "quit", "receipt", "report", "run", "verify"]);
+assert.deepEqual(commandNames, ["analyze", "help", "new", "quit", "receipt", "report", "run", "verify", "warnings"]);
 
 console.log("tui intent + registry: ok");

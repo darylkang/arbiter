@@ -1,7 +1,12 @@
 import type { AppState } from "../state.js";
-import { bannerLines, palette, styleStatusLine } from "../theme.js";
+import { getBannerLines, palette, styleStatusLine } from "../theme.js";
 
-export const renderHeader = (state: AppState): string => {
+const makeDivider = (width: number): string => {
+  const lineWidth = Math.max(24, Math.min(width, 78));
+  return palette.steel("─".repeat(lineWidth));
+};
+
+export const renderHeader = (state: AppState, width: number): string => {
   const title = palette.headline("ARBITER // Transcript Runtime // 1984 Arcade");
   const api = styleStatusLine("api", state.hasApiKey, state.hasApiKey ? "OPENROUTER key loaded" : "missing OPENROUTER_API_KEY");
   const cfg = styleStatusLine("config", state.hasConfig, state.hasConfig ? "arbiter.config.json detected" : "no local config");
@@ -13,10 +18,10 @@ export const renderHeader = (state: AppState): string => {
   );
 
   return [
-    ...bannerLines.map((line) => palette.amber(line)),
+    ...getBannerLines(width).map((line) => palette.amber(line)),
     title,
     `${api}    ${cfg}`,
     `${runs}    ${phase}`,
-    palette.steel("──────────────────────────────────────────────────────────────────────────────")
+    makeDivider(width)
   ].join("\n");
 };

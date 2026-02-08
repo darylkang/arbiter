@@ -4,7 +4,7 @@ export const reportCommand: TranscriptCommand = {
   name: "report",
   usage: "/report [run_dir]",
   description: "render top-level run report",
-  execute: ({ args, context }) => {
-    context.showReport(args[0]);
+  execute: async ({ args, context }) => {
+    await context.showReport(args[0]);
   }
 };
