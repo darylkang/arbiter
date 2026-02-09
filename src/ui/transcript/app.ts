@@ -5,7 +5,6 @@ import {
   CombinedAutocompleteProvider,
   ProcessTerminal,
   TUI,
-  type OverlayOptions,
   type SlashCommand
 } from "@mariozechner/pi-tui";
 
@@ -14,10 +13,9 @@ import { formatVerifyReport, verifyRunDir } from "../../tools/verify-run.js";
 import { getAssetRoot } from "../../utils/asset-root.js";
 import { appendStageBlock, appendTranscript } from "./reducer.js";
 import { createRunController } from "./run-controller.js";
-import type { AppState, OverlayState, RunMode } from "./state.js";
+import type { AppState, RunMode } from "./state.js";
 import { createInitialState } from "./state.js";
 import { createTranscriptLayout } from "./layout.js";
-import { createOverlayComponent } from "./components/overlay.js";
 import { executeCommandInput, listSlashCommands } from "./commands/registry.js";
 import type { CommandContext } from "./commands/types.js";
 import { renderReceiptForRun } from "./components/receipt-view.js";
@@ -166,7 +164,6 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     resolveExit = resolvePromise;
   });
 
-  let overlayState: OverlayState | null = null;
   let renderScheduled = false;
 
   const requestRender = (): void => {
@@ -177,7 +174,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     setImmediate(() => {
       renderScheduled = false;
       layout.sync(state);
-      syncOverlay();
+      layout.focusInput();
       tui.requestRender();
     });
   };
@@ -195,9 +192,6 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
 
   const shutdown = (): void => {
     runController.dispose();
-    while (tui.hasOverlay()) {
-      tui.hideOverlay();
-    }
     tui.stop();
     resolveExit?.();
   };
@@ -237,58 +231,6 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
   });
 
   layout.editor.setAutocompleteProvider(new CombinedAutocompleteProvider(slashCommands));
-
-  const resolveOverlayOptions = (): OverlayOptions => {
-    const termWidth = Math.max(24, tui.terminal.columns);
-    const termHeight = Math.max(12, tui.terminal.rows);
-    const width = Math.max(34, Math.min(80, termWidth - 2, Math.floor(termWidth * 0.88)));
-    const maxHeight = Math.max(10, Math.min(28, termHeight - 4, Math.floor(termHeight * 0.7)));
-    return {
-      width,
-      maxHeight,
-      anchor: "center"
-    };
-  };
-
-  const syncOverlay = (): void => {
-    if (!state.overlay && overlayState) {
-      overlayState = null;
-      if (tui.hasOverlay()) {
-        tui.hideOverlay();
-      }
-      layout.focusInput();
-      return;
-    }
-
-    if (!state.overlay) {
-      return;
-    }
-
-    if (overlayState === state.overlay && tui.hasOverlay()) {
-      return;
-    }
-
-    if (tui.hasOverlay()) {
-      tui.hideOverlay();
-    }
-
-    const overlayOptions = resolveOverlayOptions();
-    const overlayWidth =
-      typeof overlayOptions.width === "number"
-        ? overlayOptions.width
-        : Math.max(32, tui.terminal.columns - 2);
-    const overlayComponent = createOverlayComponent(
-      state.overlay,
-      () => {
-        overlayState = null;
-        requestRender();
-      },
-      { width: overlayWidth }
-    );
-    overlayState = state.overlay;
-    tui.showOverlay(overlayComponent.component, overlayOptions);
-    tui.setFocus(overlayComponent.focusTarget);
-  };
 
   const reportRunDirError = (message: string): void => {
     appendTranscript(state, "warning", message);

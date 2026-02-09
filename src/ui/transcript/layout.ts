@@ -1,9 +1,10 @@
-import { Container, Spacer, Text, type TUI } from "@mariozechner/pi-tui";
+import { Container, Spacer, Text, type Component, type TUI } from "@mariozechner/pi-tui";
 
 import { renderFooter } from "./components/footer.js";
 import { renderHeader } from "./components/header.js";
 import { TranscriptEditor } from "./components/input.js";
 import { TranscriptComponent } from "./components/transcript.js";
+import { createOverlayComponent } from "./components/overlay.js";
 import type { AppState } from "./state.js";
 import { editorTheme, palette } from "./theme.js";
 
@@ -24,6 +25,7 @@ export const createTranscriptLayout = (input: {
   const root = new Container();
   const header = new Text("", 0, 0);
   const transcript = new TranscriptComponent();
+  const promptHost = new Container();
   const editor = new TranscriptEditor(input.tui, editorTheme);
   const footer = new Text("", 0, 0);
 
@@ -32,6 +34,8 @@ export const createTranscriptLayout = (input: {
   editor.onCtrlC = input.onCtrlC;
 
   let showEditor = true;
+  let showPrompt = false;
+  let promptFocusTarget: Component | null = null;
 
   const shouldShowEditor = (state: AppState): boolean => {
     if (state.phase === "running") {
@@ -49,6 +53,8 @@ export const createTranscriptLayout = (input: {
     );
   };
 
+  const shouldShowPrompt = (state: AppState): boolean => state.overlay !== null;
+
   const rebuildTree = (): void => {
     root.clear();
     root.addChild(header);
@@ -56,6 +62,11 @@ export const createTranscriptLayout = (input: {
 
     root.addChild(transcript);
     root.addChild(new Spacer(1));
+
+    if (showPrompt) {
+      root.addChild(promptHost);
+      root.addChild(new Spacer(1));
+    }
 
     if (showEditor) {
       root.addChild(editor);
@@ -71,9 +82,27 @@ export const createTranscriptLayout = (input: {
     const layoutWidth = Math.max(24, input.tui.terminal.columns);
 
     const nextShowEditor = shouldShowEditor(state);
-    if (nextShowEditor !== showEditor) {
+    const nextShowPrompt = shouldShowPrompt(state);
+    if (nextShowEditor !== showEditor || nextShowPrompt !== showPrompt) {
       showEditor = nextShowEditor;
+      showPrompt = nextShowPrompt;
       rebuildTree();
+    }
+
+    if (showPrompt && state.overlay) {
+      const overlayComponent = createOverlayComponent(
+        state.overlay,
+        () => {
+          input.tui.requestRender();
+        },
+        { width: layoutWidth }
+      );
+      promptHost.clear();
+      promptHost.addChild(overlayComponent.component);
+      promptFocusTarget = overlayComponent.focusTarget;
+    } else {
+      promptHost.clear();
+      promptFocusTarget = null;
     }
 
     header.setText(renderHeader(state, layoutWidth));
@@ -103,6 +132,10 @@ export const createTranscriptLayout = (input: {
     transcript,
     sync,
     focusInput: () => {
+      if (showPrompt && promptFocusTarget) {
+        input.tui.setFocus(promptFocusTarget);
+        return;
+      }
       if (showEditor) {
         input.tui.setFocus(editor);
       }

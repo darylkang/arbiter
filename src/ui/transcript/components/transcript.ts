@@ -411,13 +411,6 @@ export class TranscriptComponent implements Component {
       return [blankLine, "Initializing transcript...", blankLine];
     }
 
-    if (state.overlay) {
-      const clearedLineCount = Math.max(48, this.lastRenderedLineCount);
-      const lines = new Array(clearedLineCount).fill(blankLine);
-      this.lastRenderedLineCount = lines.length;
-      return lines;
-    }
-
     const cards = buildCards(state, safeWidth);
     let lines: string[] = [];
 
