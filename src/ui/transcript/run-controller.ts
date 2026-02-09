@@ -11,6 +11,7 @@ import { attachWarningHandler } from "./handlers/warning-handler.js";
 import { renderReceiptForRun } from "./components/receipt-view.js";
 import { formatError } from "./error-format.js";
 import { listRunDirs, RUNS_DIR_NAME } from "./run-dirs.js";
+import { compactPath } from "./path-display.js";
 
 export type RunController = {
   startRun: (mode: RunMode) => Promise<void>;
@@ -69,7 +70,7 @@ const buildRunSummaryLines = (state: AppState, mode: RunMode): string[] => {
     `Trials attempted: ${attempted}`,
     `Eligible embeddings: ${eligible}`,
     `Parse outcomes: ${parseSummary}`,
-    state.runDir ? `Run directory: ${state.runDir}` : "Run directory: -"
+    state.runDir ? `Run directory: ${compactPath(state.runDir)}` : "Run directory: -"
   ];
 };
 
@@ -121,7 +122,7 @@ export const createRunController = (input: {
       appendTranscript(
         input.state,
         "error",
-        `Configuration not found at ${input.state.configPath}. Set up a new study first.`
+        `Configuration not found at ${compactPath(input.state.configPath)}. Set up a new study first.`
       );
       input.requestRender();
       return;
@@ -205,7 +206,7 @@ export const createRunController = (input: {
           input.state.lastRunDir = runDir;
           input.state.runsCount = resolvedDeps.listRunsCount();
           appendStageBlock(input.state, "run", "Run summary", buildRunSummaryLines(input.state, mode));
-          appendTranscript(input.state, "status", `Artifacts written to ${runDir}.`);
+          appendTranscript(input.state, "status", `Artifacts written to ${compactPath(runDir)}.`);
           try {
             const receipt = resolvedDeps.renderReceipt(runDir);
             appendTranscript(input.state, "receipt", receipt);

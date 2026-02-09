@@ -19,24 +19,18 @@ const phaseLabel = (state: AppState): string => {
 
 export const renderHeader = (state: AppState, width: number): string => {
   const title = palette.headline("ARBITER");
-  const subtitle = palette.steel(
-    state.phase === "idle" || state.phase === "intake"
-      ? "Welcome to Arbiter. Research-grade experiment harness for response distributions."
-      : "Research-grade experiment harness for response distributions."
-  );
+  const subtitle = palette.steel("Research experiment harness for response distributions.");
   const version = palette.steel(`v${state.version}`);
 
   const api = styleStatusLine(
     "api",
     state.hasApiKey,
-    state.hasApiKey ? "OPENROUTER key detected" : "OPENROUTER key missing"
+    state.hasApiKey ? "key detected" : "key missing"
   );
   const cfg = styleStatusLine(
     "config",
     state.hasConfig,
-    state.hasConfig
-      ? `configuration detected${state.configCount > 1 ? ` (${state.configCount})` : ""}`
-      : "configuration not found"
+    state.hasConfig ? `${state.configCount} config${state.configCount === 1 ? "" : "s"}` : "none"
   );
   const phase = styleStatusLine("phase", true, phaseLabel(state));
 
@@ -46,8 +40,8 @@ export const renderHeader = (state: AppState, width: number): string => {
   const lines = [
     ...bannerLines,
     `${title}  ${version}`,
-    compact ? `${phase}` : `${api}    ${cfg}    ${phase}`,
-    compact ? subtitle : subtitle,
+    compact ? phase : `${api}    ${cfg}    ${phase}`,
+    subtitle,
     makeDivider(width)
   ];
 

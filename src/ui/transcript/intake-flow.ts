@@ -1,6 +1,7 @@
 import type { AppState, GuidedSetupState, RunMode, RunModeSelection } from "./state.js";
 import { formatError } from "./error-format.js";
 import { formatInlineConfirmation, makeSectionHeader } from "./theme.js";
+import { compactPath } from "./path-display.js";
 import {
   DEFAULT_WIZARD_OPTIONS,
   createDefaultGuidedSetup,
@@ -745,7 +746,7 @@ export const createIntakeFlowController = (input: {
     input.state.phase = "idle";
     input.setInputText("");
 
-    input.appendStatus(`Configuration saved to ${input.state.configPath}.`);
+    input.appendStatus(`Configuration saved to ${compactPath(input.state.configPath)}.`);
     input.appendStageBlock("Intake summary", buildReviewSummaryLines({ flow, options: wizardOptions }));
 
     input.requestRender();

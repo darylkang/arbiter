@@ -55,7 +55,7 @@ const BANNER_LINES = [
 ];
 
 export const getBannerLines = (width: number): string[] =>
-  width >= 80 ? BANNER_LINES : [];
+  width >= 100 ? BANNER_LINES : [];
 
 export const makeDivider = (width: number): string => {
   const lineWidth = Math.max(24, Math.min(width, 78));

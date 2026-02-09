@@ -26,6 +26,7 @@ import { withSpinner } from "./spinner.js";
 import { loadWizardOptions } from "./wizard-options.js";
 import { writeGuidedConfig } from "./wizard-config.js";
 import { listConfigCandidates, type ConfigCandidate } from "./config-discovery.js";
+import { compactPath } from "./path-display.js";
 
 const DEFAULT_CONFIG_PATH = "arbiter.config.json";
 
@@ -350,7 +351,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         kind: "select",
         title: "Select configuration file",
         items,
-        selectedIndex: 0,
+        selectedIndex: Math.max(0, items.findIndex((item) => !item.disabled)),
         onSelect: (item) => {
           if (item.disabled) {
             return;
@@ -395,7 +396,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
           },
           { id: "quit", label: "Quit" }
         ],
-        selectedIndex: 0,
+        selectedIndex: quickstartDisabled ? 1 : 0,
         onSelect: (item) => {
           if (item.disabled) {
             return;
@@ -477,7 +478,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
           ? "Launch mode overrides configuration mode for this run."
           : undefined;
       const bodyLines = [
-        `Config: ${inputReview.configPath}`,
+        `Config: ${compactPath(inputReview.configPath)}`,
         `Source config mode: ${sourceModeLabel}`,
         `Effective run mode: ${inputReview.mode}`,
         ...(overrideLabel ? [overrideLabel] : [])
@@ -558,7 +559,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         title: "Choose the next action",
         body:
           runId && state.runDir.trim().length > 0
-            ? `Run ID: ${runId}\nRun directory: ${state.runDir}`
+            ? `Run ID: ${runId}\nRun directory: ${compactPath(state.runDir)}`
             : undefined,
         items,
         selectedIndex: 0,
@@ -639,7 +640,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     if (!runDir) {
       return;
     }
-    appendStatus(state, `Analyzing ${runDir}.`);
+    appendStatus(state, `Analyzing ${compactPath(runDir)}.`);
     await showVerify(runDir);
     await showReport(runDir);
   };
@@ -820,7 +821,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
           if (review === "start") {
             appendStageBlock(state, "intake", "Intake summary", [
               "Start path: quick start",
-              `Configuration: ${action.configPath}`,
+              `Configuration: ${compactPath(action.configPath)}`,
               `Source mode: ${action.sourceMode ?? "not specified"}`,
               `Run mode: ${action.mode}`
             ]);

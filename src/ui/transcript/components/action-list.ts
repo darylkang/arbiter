@@ -28,13 +28,24 @@ export class ActionList implements Component {
     this.theme = theme;
   }
 
+  private firstEnabledIndex(): number {
+    const index = this.items.findIndex((item) => !item.disabled);
+    return index >= 0 ? index : 0;
+  }
+
+  private isEnabledIndex(index: number): boolean {
+    const item = this.items[index];
+    return Boolean(item) && !item?.disabled;
+  }
+
   setSelectedIndex(index: number): void {
     if (this.items.length === 0) {
       this.selectedIndex = 0;
       return;
     }
     const max = this.items.length - 1;
-    this.selectedIndex = Math.max(0, Math.min(index, max));
+    const clamped = Math.max(0, Math.min(index, max));
+    this.selectedIndex = this.isEnabledIndex(clamped) ? clamped : this.firstEnabledIndex();
   }
 
   invalidate(): void {
@@ -49,13 +60,19 @@ export class ActionList implements Component {
     if (this.items.length === 0) {
       return;
     }
-    const max = this.items.length - 1;
-    if (delta > 0) {
-      this.selectedIndex = this.selectedIndex >= max ? 0 : this.selectedIndex + 1;
-    } else {
-      this.selectedIndex = this.selectedIndex <= 0 ? max : this.selectedIndex - 1;
+    let next = this.selectedIndex;
+    for (let hop = 0; hop < this.items.length; hop += 1) {
+      if (delta > 0) {
+        next = next >= this.items.length - 1 ? 0 : next + 1;
+      } else {
+        next = next <= 0 ? this.items.length - 1 : next - 1;
+      }
+      if (this.isEnabledIndex(next)) {
+        this.selectedIndex = next;
+        this.notifySelectionChange();
+        return;
+      }
     }
-    this.notifySelectionChange();
   }
 
   private selectedItem(): ActionItem | null {

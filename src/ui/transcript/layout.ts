@@ -39,7 +39,7 @@ export const createTranscriptLayout = (input: {
 
   const shouldShowEditor = (state: AppState): boolean => {
     if (state.phase === "running") {
-      return true;
+      return false;
     }
     if (state.phase !== "intake") {
       return false;
@@ -110,12 +110,7 @@ export const createTranscriptLayout = (input: {
     footer.setText(renderFooter(state, layoutWidth));
 
     if (showEditor) {
-      if (state.phase === "running") {
-        editor.setText("Run in progress. Ctrl+C to request graceful stop.");
-        editor.disableSubmit = true;
-      } else {
-        editor.disableSubmit = false;
-      }
+      editor.disableSubmit = false;
     } else {
       editor.setText("");
       editor.disableSubmit = true;

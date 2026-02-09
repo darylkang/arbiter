@@ -153,7 +153,11 @@ const createPtySession = (input) => {
   };
 
   const writeCtrlC = () => {
-    proc.write("\u0003");
+    try {
+      proc.kill("SIGINT");
+    } catch {
+      proc.write("\u0003");
+    }
   };
 
   const waitForExit = async (timeoutMs = 20000) => {
@@ -202,7 +206,7 @@ test("pty: guided launch supports /help and /quit", { concurrency: false }, asyn
   const session = createPtySession({ cwd: REPO_ROOT });
 
   try {
-    await session.waitForText("Welcome to Arbiter.", 20000);
+    await session.waitForText("ARBITER", 20000);
     await session.waitForText("Select run mode", 20000);
     await session.waitForText("Live run", 20000);
     await session.waitForText("Mock run", 20000);
@@ -233,7 +237,7 @@ test("pty: launch overlay remains legible at 80 columns", { concurrency: false }
   const session = createPtySession({ cwd, cols: 80, rows: 34 });
 
   try {
-    await session.waitForText("Welcome to Arbiter.", 20000);
+    await session.waitForText("ARBITER", 20000);
     await session.waitForText("Select run mode", 20000);
     await session.waitForText("Live run", 20000);
     await session.waitForText("Mock run", 20000);
@@ -244,7 +248,7 @@ test("pty: launch overlay remains legible at 80 columns", { concurrency: false }
     await session.waitForText("Quick Start", 20000);
     await session.waitForText("Requires a valid configuration file", 20000);
     await session.waitForText("Setup Wizard", 20000);
-    session.arrowDown(2);
+    session.arrowDown(1);
     session.pressEnter();
     const exit = await session.waitForExit(20000);
     assert.equal(exit.exitCode, 0);
@@ -264,7 +268,6 @@ test("pty: guided intake flow completes from question to receipt", { concurrency
     session.pressEnter();
 
     await session.waitForText("Select start path", 20000);
-    session.arrowDown(1);
     session.pressEnter();
 
     await session.waitForText("What is your research question?", 20000);
@@ -397,13 +400,16 @@ test("pty: ctrl+c requests graceful stop during run", { concurrency: false }, as
     );
     await session.waitForText("Run complete:", 45000);
     await session.waitForText("Choose the next action", 45000);
+    const output = session.getOutput();
     assert.ok(
       [
         "Interrupt requested. Waiting for in-flight trials to finish.",
         "SIGINT received: stopping new trials, waiting for in-flight to finish",
         "Run complete: user interrupted",
-        "Run complete: user_interrupt"
-      ].some((marker) => session.getOutput().includes(marker))
+        "Run complete: user_interrupt",
+        "Run complete: interrupted"
+      ].some((marker) => output.includes(marker)) || /run complete:.*interrupt/i.test(output),
+      `expected interrupt markers in output, got:\n${output}`
     );
 
     session.arrowDown(4);

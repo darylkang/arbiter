@@ -21,6 +21,15 @@ const contextHints = (state: AppState): string => {
 };
 
 export const renderFooter = (state: AppState, width: number): string => {
+  if (state.overlay) {
+    const warnings =
+      state.warnings.length > 0
+        ? palette.warning(`warnings: ${state.warnings.length}`)
+        : palette.steel("warnings: 0");
+    const runMode = state.runMode ? palette.cyan(`mode ${state.runMode}`) : palette.steel("mode -");
+    return [makeDivider(width), `${runMode}  |  ${warnings}`].join("\n");
+  }
+
   const warnings =
     state.warnings.length > 0
       ? palette.warning(`warnings: ${state.warnings.length}`)

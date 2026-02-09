@@ -2,6 +2,7 @@ import { type Component, visibleWidth, wrapTextWithAnsi } from "@mariozechner/pi
 
 import { renderProgressSummary } from "./progress.js";
 import type { AppState, GuidedSetupState, TranscriptEntry } from "../state.js";
+import { compactPath } from "../path-display.js";
 import { makeBlockTitle } from "../theme.js";
 
 const MAX_RENDERED_CARDS = 32;
@@ -116,11 +117,10 @@ const buildActiveIntakeCard = (state: AppState): StageCard => {
       status: "active",
       title: "Choose how to continue",
       lines: [
-        "1. Select run mode (mock or live).",
+        "Select a run mode (mock or live).",
         hasQuickStart
-          ? `2. Choose quick start or setup wizard (${state.configCount} configuration file${state.configCount === 1 ? "" : "s"} detected).`
-          : "2. Continue with setup wizard (quick start requires a valid configuration file).",
-        "Use arrow keys and Enter to select."
+          ? `Then choose quick start or setup wizard (${state.configCount} configuration file${state.configCount === 1 ? "" : "s"} detected).`
+          : "Then continue with setup wizard (quick start requires a valid configuration file)."
       ]
     };
   }
@@ -141,7 +141,6 @@ const buildActiveIntakeCard = (state: AppState): StageCard => {
       status: "active",
       title: stageTitleForStep(flow),
       lines: [
-        ...base,
         "What is your research question?",
         "Type your question in the input area and press Enter.",
         "Use Esc to cancel setup."
@@ -155,7 +154,6 @@ const buildActiveIntakeCard = (state: AppState): StageCard => {
       status: "active",
       title: stageTitleForStep(flow),
       lines: [
-        ...base,
         flow.labelMode === "custom"
           ? "Enter comma-separated labels in the input area."
           : "Select free-form or custom labels."
@@ -256,7 +254,9 @@ const buildPostRunPlaceholder = (state: AppState): StageCard => ({
   status: "active",
   title: "Receipt pending",
   lines: [
-    state.runDir ? `Run directory: ${state.runDir}` : "Run directory will appear here when available.",
+    state.runDir
+      ? `Run directory: ${compactPath(state.runDir)}`
+      : "Run directory will appear here when available.",
     "Choose the next action to continue."
   ]
 });

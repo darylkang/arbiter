@@ -171,12 +171,12 @@ test("header/footer adapt to width and warnings", () => {
   const state = makeState();
 
   const narrowHeader = stripAnsi(renderHeader(state, 40));
-  const wideHeader = stripAnsi(renderHeader(state, 90));
+  const wideHeader = stripAnsi(renderHeader(state, 120));
   const narrowLines = narrowHeader.split("\n");
   const wideLines = wideHeader.split("\n");
 
-  assert.equal(getBannerLines(79).length, 0);
-  assert.equal(getBannerLines(80).length > 0, true);
+  assert.equal(getBannerLines(99).length, 0);
+  assert.equal(getBannerLines(100).length > 0, true);
   assert.equal(narrowLines[narrowLines.length - 1].length, 40);
   assert.equal(wideLines[wideLines.length - 1].length, 78);
   assert.equal(narrowHeader.includes("████"), false);
