@@ -55,11 +55,24 @@ const BANNER_LINES = [
 ];
 
 export const getBannerLines = (width: number): string[] =>
-  width >= 60 ? BANNER_LINES : [];
+  width >= 80 ? BANNER_LINES : [];
 
 export const makeDivider = (width: number): string => {
   const lineWidth = Math.max(24, Math.min(width, 78));
   return palette.steel("─".repeat(lineWidth));
+};
+
+export const makeBlockTitle = (label: string, active: boolean): string => {
+  const text = `═══ ${label.toUpperCase()} ═══`;
+  return active ? palette.headline(text) : palette.steel(text);
+};
+
+export const makeSectionHeader = (step: number, total: number, label: string): string => {
+  return palette.steel(`── [${step}/${total}] ${label} ──`);
+};
+
+export const formatInlineConfirmation = (label: string, value: string): string => {
+  return `${palette.phosphor("✓")} ${palette.ivory(label)}: ${value}`;
 };
 
 export const styleStatusLine = (label: string, ok: boolean, detail: string): string => {

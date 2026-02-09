@@ -1,5 +1,6 @@
 import type { AppState, GuidedSetupState, RunMode, RunModeSelection } from "./state.js";
 import { formatError } from "./error-format.js";
+import { formatInlineConfirmation, makeSectionHeader } from "./theme.js";
 import {
   DEFAULT_WIZARD_OPTIONS,
   createDefaultGuidedSetup,
@@ -26,6 +27,7 @@ type ReviewAction =
 const MIN_QUESTION_LENGTH = 1;
 const MAX_QUESTION_LENGTH = 500;
 const MIN_LABEL_COUNT = 2;
+const TOTAL_STEPS = 9;
 
 const isRunModeSelection = (value: string): value is RunModeSelection => {
   return value === "mock" || value === "live" || value === "save-only";
@@ -97,6 +99,20 @@ const buildChecklistSelection = (items: string[], selected: string[]): Array<{ i
   }));
 };
 
+const formatBorderedSummary = (title: string, rows: Array<[string, string]>): string => {
+  const keyWidth = rows.reduce((max, [key]) => Math.max(max, key.length), 0);
+  const bodyRows = rows.map(([key, value]) => `${key.padEnd(keyWidth)}: ${value}`);
+  const contentWidth = Math.max(
+    title.length + 4,
+    ...bodyRows.map((line) => line.length),
+    24
+  );
+  const top = `┌─ ${title} ${"─".repeat(Math.max(1, contentWidth - title.length - 2))}┐`;
+  const bottom = `└${"─".repeat(contentWidth + 2)}┘`;
+  const body = bodyRows.map((line) => `│ ${line.padEnd(contentWidth)} │`);
+  return [top, ...body, bottom].join("\n");
+};
+
 const formatReviewBody = (input: {
   flow: GuidedSetupState;
   options: WizardOptions;
@@ -122,41 +138,49 @@ const formatReviewBody = (input: {
       ? input.flow.labels.join(", ")
       : "free-form";
 
-  return [
-    `Question: ${input.flow.question}`,
-    `Labels: ${labels}`,
-    `Decode: temp ${input.flow.temperature.toFixed(2)}, top_p ${input.flow.topP.toFixed(2)}, max_tokens ${input.flow.maxTokens}, seed ${input.flow.seed}`,
-    `Personas: ${personas}`,
-    `Models: ${models}`,
-    `Protocol: ${protocol}`,
-    `Execution: k_max ${input.flow.kMax}, workers ${input.flow.workers}, batch_size ${input.flow.batchSize}`,
-    `Run mode: ${input.flow.runMode}`
-  ].join("\n");
+  return formatBorderedSummary("Review", [
+    ["Mode", input.flow.runMode],
+    ["Question", input.flow.question],
+    ["Labels", labels],
+    [
+      "Decoding",
+      `temp ${input.flow.temperature.toFixed(2)}, top_p ${input.flow.topP.toFixed(2)}, max_tokens ${input.flow.maxTokens}, seed ${input.flow.seed}`
+    ],
+    ["Personas", personas],
+    ["Models", models],
+    ["Protocol", protocol],
+    ["Execution", `k_max ${input.flow.kMax}, workers ${input.flow.workers}, batch_size ${input.flow.batchSize}`]
+  ]);
+};
+
+const stageDetails = (flow: GuidedSetupState): { step: number; label: string } => {
+  switch (flow.stage) {
+    case "question":
+      return { step: 1, label: "Research question" };
+    case "labels":
+      return { step: 2, label: "Decision labels" };
+    case "decode":
+      return { step: 3, label: "Decode settings" };
+    case "personas":
+      return { step: 4, label: "Personas" };
+    case "models":
+      return { step: 5, label: "Models" };
+    case "protocol":
+      return { step: 6, label: "Protocol" };
+    case "advanced":
+      return { step: 7, label: "Advanced settings" };
+    case "mode":
+      return { step: 8, label: "Run mode" };
+    case "review":
+      return { step: 9, label: "Review setup" };
+    default:
+      return { step: 0, label: "Step" };
+  }
 };
 
 const flowStageLabel = (flow: GuidedSetupState): string => {
-  switch (flow.stage) {
-    case "question":
-      return "Step 1/9";
-    case "labels":
-      return "Step 2/9";
-    case "decode":
-      return "Step 3/9";
-    case "personas":
-      return "Step 4/9";
-    case "models":
-      return "Step 5/9";
-    case "protocol":
-      return "Step 6/9";
-    case "advanced":
-      return "Step 7/9";
-    case "mode":
-      return "Step 8/9";
-    case "review":
-      return "Step 9/9";
-    default:
-      return "Step";
-  }
+  const details = stageDetails(flow);
+  return `Step ${details.step}/${TOTAL_STEPS}`;
 };
 
 export type IntakeFlowController = {
@@ -178,6 +202,26 @@ export const createIntakeFlowController = (input: {
   setInputText: (value: string) => void;
 }): IntakeFlowController => {
   const wizardOptions = input.wizardOptions ?? DEFAULT_WIZARD_OPTIONS;
+  const personaLabels = new Map(wizardOptions.personas.map((persona) => [persona.id, persona.label]));
+  const modelLabels = new Map(wizardOptions.models.map((model) => [model.slug, model.label]));
+
+  const summarizeQuestion = (value: string): string => {
+    const trimmed = normalizeLineEndings(value).trim();
+    const max = 60;
+    if (trimmed.length <= max) {
+      return `"${trimmed}" (${trimmed.length} chars)`;
+    }
+    return `"${trimmed.slice(0, max - 1)}…" (${trimmed.length} chars)`;
+  };
+
+  const appendConfirmation = (label: string, value: string): void => {
+    input.appendStatus(formatInlineConfirmation(label, value));
+  };
+
+  const appendSectionHeader = (flow: GuidedSetupState): void => {
+    const details = stageDetails(flow);
+    input.appendStatus(makeSectionHeader(details.step, TOTAL_STEPS, details.label));
+  };
 
   const cancelFlow = (message = "Setup cancelled."): void => {
     input.state.overlay = null;
@@ -194,6 +238,7 @@ export const createIntakeFlowController = (input: {
       return;
     }
     flow.stage = "question";
+    appendSectionHeader(flow);
     input.state.phase = "intake";
     input.state.overlay = null;
     input.setInputText(flow.question);
@@ -207,6 +252,7 @@ export const createIntakeFlowController = (input: {
     }
 
     flow.stage = "review";
+    appendSectionHeader(flow);
     input.state.overlay = {
       kind: "select",
       title: `${flowStageLabel(flow)} · Review setup`,
@@ -214,7 +260,7 @@ export const createIntakeFlowController = (input: {
       items: [
         {
           id: "start",
-          label: "Start",
+          label: "Start run",
           description:
             flow.runMode === "save-only"
               ? "Write configuration and return"
@@ -285,6 +331,7 @@ export const createIntakeFlowController = (input: {
     }
 
     flow.stage = "mode";
+    appendSectionHeader(flow);
 
     const items = [
       {
@@ -329,6 +376,7 @@ export const createIntakeFlowController = (input: {
         }
 
         flow.runMode = item.id;
+        appendConfirmation("Run mode", item.id);
         openReviewOverlay();
       },
       onCancel: () => {
@@ -353,6 +401,7 @@ export const createIntakeFlowController = (input: {
     }
 
     flow.stage = "advanced";
+    appendSectionHeader(flow);
 
     const items = wizardOptions.advancedPresets.map((preset) => ({
       id: preset.id,
@@ -373,6 +422,10 @@ export const createIntakeFlowController = (input: {
       onSelect: (item) => {
         const preset = getAdvancedPreset(item.id as GuidedSetupState["advancedPreset"]);
         applyAdvancedPreset(flow, preset);
+        appendConfirmation(
+          "Advanced",
+          `k_max ${preset.kMax}, workers ${preset.workers}, batch ${preset.batchSize}`
+        );
         openModeOverlay();
       },
       onCancel: () => {
@@ -390,6 +443,7 @@ export const createIntakeFlowController = (input: {
     }
 
     flow.stage = "protocol";
+    appendSectionHeader(flow);
 
     const items = [
       {
@@ -436,9 +490,11 @@ export const createIntakeFlowController = (input: {
         if (item.id === "independent") {
           flow.protocol = "independent";
           flow.debateVariant = "standard";
+          appendConfirmation("Protocol", "independent");
         } else {
           flow.protocol = "debate_v1";
           flow.debateVariant = item.id === "debate-adversarial" ? "adversarial" : "standard";
+          appendConfirmation("Protocol", `debate (${flow.debateVariant})`);
         }
 
         openAdvancedOverlay();
@@ -458,6 +514,7 @@ export const createIntakeFlowController = (input: {
     }
 
     flow.stage = "models";
+    appendSectionHeader(flow);
 
     const items = wizardOptions.models.map((model) => ({
       id: model.slug,
@@ -479,6 +536,8 @@ export const createIntakeFlowController = (input: {
         }
 
         flow.modelSlugs = selectedIds;
+        const labels = selectedIds.map((slug) => modelLabels.get(slug) ?? slug).join(", ");
+        appendConfirmation("Models", `${labels} (${selectedIds.length} selected)`);
         openProtocolOverlay();
       },
       onCancel: () => {
@@ -496,6 +555,7 @@ export const createIntakeFlowController = (input: {
     }
 
     flow.stage = "personas";
+    appendSectionHeader(flow);
 
     const selectedEntries = buildChecklistSelection(
       wizardOptions.personas.map((persona) => persona.id),
@@ -522,6 +582,8 @@ export const createIntakeFlowController = (input: {
           return;
         }
         flow.personaIds = selectedIds;
+        const labels = selectedIds.map((id) => personaLabels.get(id) ?? id).join(", ");
+        appendConfirmation("Personas", `${labels} (${selectedIds.length} selected)`);
         openModelOverlay();
       },
       onCancel: () => {
@@ -547,6 +609,7 @@ export const createIntakeFlowController = (input: {
     }
 
     flow.stage = "labels";
+    appendSectionHeader(flow);
     const customSelected = flow.labelMode === "custom";
 
     input.state.overlay = {
@@ -570,7 +633,7 @@ export const createIntakeFlowController = (input: {
           flow.labelMode = "free-form";
           flow.labels = [];
           input.setInputText("");
-          input.appendStatus("Labels set to free-form responses.");
+          appendConfirmation("Labels", "free-form");
           openDecodeOverlay();
           return;
         }
@@ -579,7 +642,7 @@ export const createIntakeFlowController = (input: {
           flow.labelMode = "custom";
           input.state.overlay = null;
           input.setInputText(flow.labels.join(", "));
-          input.appendStatus("Step 2/9. Enter comma-separated labels, then press Enter.");
+          input.appendStatus("Enter comma-separated labels, then press Enter.");
           input.requestRender();
           return;
         }
@@ -602,6 +665,7 @@ export const createIntakeFlowController = (input: {
     }
 
     flow.stage = "decode";
+    appendSectionHeader(flow);
 
     const items = wizardOptions.decodePresets.map((preset) => ({
       id: preset.id,
@@ -622,6 +686,10 @@ export const createIntakeFlowController = (input: {
       onSelect: (item) => {
         const preset = getDecodePreset(item.id as GuidedSetupState["decodePreset"]);
         applyDecodePreset(flow, preset);
+        appendConfirmation(
+          "Decoding",
+          `temp ${preset.temperature.toFixed(2)}, top_p ${preset.topP.toFixed(2)}, max_tokens ${preset.maxTokens}, seed ${preset.seed}`
+        );
         openPersonaOverlay();
       },
       onCancel: () => {
@@ -704,7 +772,10 @@ export const createIntakeFlowController = (input: {
           input.state.configPath = input.state.defaultConfigPath;
           input.state.newFlow = createDefaultGuidedSetup(wizardOptions, runMode);
           input.appendSystem("Set up a new study.");
-          input.appendStatus("Step 1/9. What question are you investigating?");
+          if (input.state.newFlow) {
+            appendSectionHeader(input.state.newFlow);
+          }
+          input.appendStatus("What is your research question?");
           input.setInputText("");
           input.requestRender();
         },
@@ -722,7 +793,10 @@ export const createIntakeFlowController = (input: {
     input.state.configPath = input.state.defaultConfigPath;
     input.state.newFlow = createDefaultGuidedSetup(wizardOptions, runMode);
     input.appendSystem("Set up a new study.");
-    input.appendStatus("Step 1/9. What question are you investigating?");
+    if (input.state.newFlow) {
+      appendSectionHeader(input.state.newFlow);
+    }
+    input.appendStatus("What is your research question?");
     input.setInputText("");
     input.requestRender();
   };
@@ -746,7 +820,7 @@ export const createIntakeFlowController = (input: {
       }
 
       flow.question = normalized.trim();
-      input.appendStatus("Question recorded.");
+      appendConfirmation("Question", summarizeQuestion(flow.question));
       openLabelsOverlay();
       return;
     }
@@ -762,7 +836,7 @@ export const createIntakeFlowController = (input: {
 
       flow.labels = labels;
       input.setInputText(labels.join(", "));
-      input.appendStatus(`Labels recorded: ${labels.join(", ")}.`);
+      appendConfirmation("Labels", `${labels.join(", ")} (${labels.length})`);
       openDecodeOverlay();
       return;
     }

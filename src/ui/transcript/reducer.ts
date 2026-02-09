@@ -120,6 +120,7 @@ export const applyRunEvent = (state: AppState, event: Event): void => {
   switch (event.type) {
     case "run.started": {
       state.runProgress.active = true;
+      state.runProgress.runStartedAt = Date.now();
       state.runProgress.planned = event.payload.k_planned ?? state.runProgress.planned;
       const workers = event.payload.resolved_config?.execution?.workers;
       if (typeof workers === "number" && workers > 0) {

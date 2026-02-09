@@ -7,7 +7,7 @@ const renderBar = (value: number, max: number, width: number): string => {
   const ratio = clamp(value / safeMax, 0, 1);
   const filled = Math.round(width * ratio);
   const empty = Math.max(0, width - filled);
-  return `[${"■".repeat(filled)}${"·".repeat(empty)}] ${value}/${safeMax}`;
+  return `[${"■".repeat(filled)}${"░".repeat(empty)}] ${value}/${safeMax}`;
 };
 
 const resolveBarWidth = (terminalWidth: number): number => {
@@ -24,8 +24,27 @@ const renderWorkerSummary = (progress: RunProgress): string | null => {
   return `workers busy ${busy}/${workerCount}`;
 };
 
+const formatDuration = (inputMs: number): string => {
+  const totalSeconds = Math.max(0, Math.floor(inputMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) {
+    return `${seconds}s`;
+  }
+  return `${minutes}m ${seconds}s`;
+};
+
 export const renderProgressSummary = (progress: RunProgress, terminalWidth = 80): string => {
   const master = renderBar(progress.attempted, progress.planned, resolveBarWidth(terminalWidth));
+  const elapsedMs = progress.runStartedAt ? Math.max(0, Date.now() - progress.runStartedAt) : 0;
+  const completionRatio = progress.planned > 0 ? progress.attempted / progress.planned : 0;
+  let etaText = "estimating...";
+  if (progress.attempted > 0 && progress.planned > progress.attempted && completionRatio >= 0.1) {
+    const avgMsPerTrial = elapsedMs / progress.attempted;
+    etaText = `~${formatDuration(avgMsPerTrial * (progress.planned - progress.attempted))} rem`;
+  } else if (progress.planned > 0 && progress.attempted >= progress.planned) {
+    etaText = "~0s rem";
+  }
   const currentBatch = progress.currentBatch
     ? `batch ${progress.currentBatch.batchNumber}: ${progress.currentBatch.completed}/${progress.currentBatch.total}`
     : "batch idle";
@@ -42,7 +61,7 @@ export const renderProgressSummary = (progress: RunProgress, terminalWidth = 80)
   }
 
   const lines = [
-    `progress ${master}`,
+    `progress ${master} · ${formatDuration(elapsedMs)} · ${etaText}`,
     `eligible ${progress.eligible} | ${currentBatch}`
   ];
 

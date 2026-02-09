@@ -6,7 +6,10 @@ const contextHints = (state: AppState): string => {
     return "ctrl+c requests a graceful stop";
   }
   if (state.overlay) {
-    return "↑/↓ move • enter select • space toggle • esc back";
+    if (state.overlay.kind === "checklist") {
+      return "↑/↓ move • enter select • space toggle • esc back";
+    }
+    return "↑/↓ move • enter select • esc back";
   }
   if (state.phase === "intake") {
     return "enter submits your question • esc cancels setup";

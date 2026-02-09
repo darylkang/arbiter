@@ -69,6 +69,7 @@ export type OverlayState = SelectOverlay | ChecklistOverlay | ConfirmOverlay;
 
 export type RunProgress = {
   active: boolean;
+  runStartedAt?: number;
   planned: number;
   attempted: number;
   eligible: number;

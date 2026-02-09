@@ -37,7 +37,7 @@ type LaunchAction =
   | { type: "quit" };
 type StartPathAction = "quickstart" | "guided-setup" | "quit";
 type QuickstartAction = "start" | "back" | "quit";
-type PostRunAction = "report" | "verify" | "new-study" | "quit";
+type PostRunAction = "report" | "verify" | "open-folder" | "new-study" | "quit";
 
 const readPackageVersion = (assetRoot: string): string => {
   try {
@@ -91,7 +91,13 @@ const isQuickstartAction = (value: string): value is QuickstartAction => {
 };
 
 const isPostRunAction = (value: string): value is PostRunAction => {
-  return value === "report" || value === "verify" || value === "new-study" || value === "quit";
+  return (
+    value === "report" ||
+    value === "verify" ||
+    value === "open-folder" ||
+    value === "new-study" ||
+    value === "quit"
+  );
 };
 
 const readConfigMode = (configPath: string): RunMode | null => {
@@ -227,7 +233,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
   const resolveOverlayOptions = (): OverlayOptions => {
     const termWidth = Math.max(24, tui.terminal.columns);
     const termHeight = Math.max(12, tui.terminal.rows);
-    const width = Math.max(34, Math.min(96, termWidth - 2, Math.floor(termWidth * 0.88)));
+    const width = Math.max(34, Math.min(80, termWidth - 2, Math.floor(termWidth * 0.88)));
     const maxHeight = Math.max(10, Math.min(28, termHeight - 4, Math.floor(termHeight * 0.7)));
     return {
       width,
@@ -358,7 +364,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
           },
           { id: "quit", label: "Quit" }
         ],
-        selectedIndex: 0,
+        selectedIndex: state.hasApiKey ? 0 : 1,
         onSelect: (item) => {
           if (item.disabled) {
             return;
@@ -576,6 +582,11 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
               description: "Validate run artifacts and invariants"
             },
             {
+              id: "open-folder",
+              label: "Open run folder",
+              description: "Show the run directory path"
+            },
+            {
               id: "new-study",
               label: "Start new study",
               description: "Begin guided setup for another run"
@@ -710,6 +721,12 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         case "new-study":
           intakeFlow.startNewFlow("mock");
           doneActions = true;
+          break;
+        case "open-folder":
+          if (state.runDir.trim()) {
+            appendStatus(state, `Run folder: ${state.runDir}`);
+            requestRender();
+          }
           break;
         case "quit":
           shutdown();

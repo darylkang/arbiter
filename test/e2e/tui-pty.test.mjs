@@ -188,7 +188,7 @@ const moveToApplySelections = async (session, stepTitle) => {
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const output = session.getOutput();
     const stepIndex = output.lastIndexOf(stepTitle);
-    const applyIndex = output.lastIndexOf("→ ◉ Apply selections");
+    const applyIndex = output.lastIndexOf("→ ● Apply selections");
     if (stepIndex >= 0 && applyIndex > stepIndex) {
       return;
     }
@@ -215,7 +215,7 @@ test("pty: guided launch supports /help and /quit", { concurrency: false }, asyn
     session.arrowDown(1);
     session.pressEnter();
 
-    await session.waitForText("What question are you investigating?", 20000);
+    await session.waitForText("What is your research question?", 20000);
     session.writeLine("/help");
     await session.waitForText("commands:", 20000);
     session.writeLine("/quit");
@@ -267,7 +267,7 @@ test("pty: guided intake flow completes from question to receipt", { concurrency
     session.arrowDown(1);
     session.pressEnter();
 
-    await session.waitForText("What question are you investigating?", 20000);
+    await session.waitForText("What is your research question?", 20000);
     session.writeLine("How do model ensembles affect novelty saturation in policy QA?");
 
     await session.waitForText("Step 2/9 · Decision labels", 20000);
@@ -308,7 +308,7 @@ test("pty: guided intake flow completes from question to receipt", { concurrency
     assert.ok(latestRunDir);
     assertRunArtifacts(cwd, latestRunDir);
 
-    session.arrowDown(3);
+    session.arrowDown(4);
     session.pressEnter();
     const exit = await session.waitForExit(20000);
     assert.equal(exit.exitCode, 0);
@@ -347,7 +347,7 @@ test("pty: quickstart mock run completes and writes artifacts", { concurrency: f
     assert.ok(latestRunDir);
     assertRunArtifacts(cwd, latestRunDir);
 
-    session.arrowDown(3);
+    session.arrowDown(4);
     session.pressEnter();
     const exit = await session.waitForExit(20000);
     assert.equal(exit.exitCode, 0);
@@ -406,7 +406,7 @@ test("pty: ctrl+c requests graceful stop during run", { concurrency: false }, as
       ].some((marker) => session.getOutput().includes(marker))
     );
 
-    session.arrowDown(3);
+    session.arrowDown(4);
     session.pressEnter();
     const exit = await session.waitForExit(20000);
     assert.equal(exit.exitCode, 0);

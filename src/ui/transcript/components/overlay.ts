@@ -49,7 +49,7 @@ const withTitle = (input: {
 const buildSelectRows = (items: SelectOverlay["items"]): SelectItem[] => {
   return items.map((item) => ({
     value: item.id,
-    label: `${item.disabled ? "◌" : "◉"} ${item.label}`
+    label: `${item.disabled ? "○" : "●"} ${item.label}`
   }));
 };
 
@@ -114,8 +114,8 @@ const createConfirmOverlay = (
   renderOptions: OverlayRenderOptions
 ): OverlayComponent => {
   const choices: SelectItem[] = [
-    { value: "confirm", label: `◉ ${overlay.confirmLabel}` },
-    { value: "cancel", label: `◉ ${overlay.cancelLabel}` }
+    { value: "confirm", label: `● ${overlay.confirmLabel}` },
+    { value: "cancel", label: `● ${overlay.cancelLabel}` }
   ];
   const list = new SelectList(choices, 4, selectListTheme);
   list.setSelectedIndex(Math.max(0, Math.min(overlay.selectedIndex, choices.length - 1)));

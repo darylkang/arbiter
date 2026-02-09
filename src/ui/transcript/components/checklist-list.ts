@@ -156,8 +156,8 @@ export class ChecklistList implements Component {
       const selected = i === this.selectedIndex;
       const rowLabel =
         row.kind === "item"
-          ? `${row.item.disabled ? "◌" : row.item.selected ? "☑" : "☐"} ${row.item.label}`
-          : `◉ ${row.label}`;
+          ? `${row.item.selected ? "[✓]" : "[ ]"} ${row.item.label}`
+          : `● ${row.label}`;
       const prefix = selected ? "→ " : "  ";
       const text = `${prefix}${truncateToWidth(rowLabel, maxLineWidth - prefix.length, "")}`;
       lines.push(selected ? this.theme.selectedText(text) : text);

@@ -313,7 +313,7 @@ test("intake flow supports custom label entry and deduplicates labels", () => {
   assert.equal(state.newFlow?.stage, "decode");
   assert.equal(state.overlay?.kind, "select");
   assert.deepEqual(state.newFlow?.labels, ["yes", "no"]);
-  assert.ok(statuses.some((status) => status.includes("Labels recorded: yes, no")));
+  assert.ok(statuses.some((status) => status.includes("yes, no (2)")));
 });
 
 test("intake flow asks for confirmation when restarting an active setup", () => {

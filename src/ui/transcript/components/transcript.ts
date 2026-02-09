@@ -2,7 +2,7 @@ import { type Component, visibleWidth, wrapTextWithAnsi } from "@mariozechner/pi
 
 import { renderProgressSummary } from "./progress.js";
 import type { AppState, GuidedSetupState, TranscriptEntry } from "../state.js";
-import { palette } from "../theme.js";
+import { makeBlockTitle } from "../theme.js";
 
 const MAX_RENDERED_CARDS = 24;
 const MAX_ACTIVITY_LINES = 10;
@@ -31,7 +31,7 @@ const cardKindLabel = (kind: StageCardKind): string => {
   if (kind === "receipt") {
     return "receipt";
   }
-  return "activity";
+  return "notes";
 };
 
 const formatMaybe = (value: number | null | undefined): string => {
@@ -63,20 +63,13 @@ const toCardLines = (rawLines: string[], width: number): string[] => {
 };
 
 const renderCard = (card: StageCard, width: number): string[] => {
-  const cardWidth = Math.max(30, Math.min(width, 88));
-  const titleText = `${cardKindLabel(card.kind).toUpperCase()} • ${card.status === "active" ? "active" : "frozen"}`;
-  const title = card.status === "active" ? palette.amber(titleText) : palette.steel(titleText);
-  const contentWidth = Math.max(18, cardWidth - 4);
-
-  const top = `╔${"═".repeat(cardWidth - 2)}╗`;
-  const titleLine = `║ ${padAnsi(title, contentWidth)} ║`;
-  const divider = `╟${"─".repeat(cardWidth - 2)}╢`;
+  const cardWidth = Math.max(30, Math.min(width, 80));
+  const title = makeBlockTitle(cardKindLabel(card.kind), card.status === "active");
   const body = toCardLines([card.title, "", ...card.lines], cardWidth).map(
-    (line) => `║ ${padAnsi(line, contentWidth)} ║`
+    (line) => `  ${padAnsi(line, Math.max(18, cardWidth - 2))}`
   );
-  const bottom = `╚${"═".repeat(cardWidth - 2)}╝`;
 
-  return [top, titleLine, divider, ...body, bottom];
+  return [title, "", ...body];
 };
 
 const isRunTerminalLine = (entry: TranscriptEntry): boolean => {
@@ -145,7 +138,8 @@ const buildActiveIntakeCard = (state: AppState): StageCard => {
       title: stageTitleForStep(flow),
       lines: [
         ...base,
-        "Type your research question in the input area and press Enter.",
+        "What is your research question?",
+        "Type your question in the input area and press Enter.",
         "Use Esc to cancel setup."
       ]
     };
@@ -211,11 +205,15 @@ const buildActiveIntakeCard = (state: AppState): StageCard => {
 
 const buildActiveRunCard = (state: AppState, width: number): StageCard => {
   const progressLines = renderProgressSummary(state.runProgress, width).split("\n");
+  const questionSummary =
+    state.question.trim().length > 0
+      ? state.question.trim().slice(0, 96)
+      : "-";
   const workerRows = Object.entries(state.runProgress.workerStatus)
     .map(([workerId, worker]) =>
       worker.status === "busy"
-        ? `worker ${workerId}: busy (trial ${worker.trialId ?? "-"})`
-        : `worker ${workerId}: idle`
+        ? `W${workerId} [busy] trial #${worker.trialId ?? "-"}`
+        : `W${workerId} [idle]`
     )
     .slice(0, 6);
 
@@ -224,9 +222,16 @@ const buildActiveRunCard = (state: AppState, width: number): StageCard => {
 
   const batchCard = latest
     ? [
-        `Batch ${latest.batchNumber}: novelty ${formatMaybe(latest.noveltyRate)} | mean similarity ${formatMaybe(latest.meanMaxSim)} | groups ${latest.clusterCount ?? "-"}`,
-        "Groups reflect embedding similarity, not semantic categories.",
-        "Stopping indicates diminishing novelty, not correctness."
+        `┌─ Batch ${latest.batchNumber} ─────────────────────────────┐`,
+        `│ Novelty: ${formatMaybe(latest.noveltyRate)}                                   │`,
+        `│ Mean similarity: ${formatMaybe(latest.meanMaxSim)}                           │`,
+        `│ Embedding groups: ${latest.clusterCount ?? "-"}                               │`,
+        `│                                                      │`,
+        `│ Groups reflect embedding similarity, not semantic    │`,
+        `│ categories.                                          │`,
+        `│ Stopping indicates diminishing novelty, not          │`,
+        `│ correctness.                                         │`,
+        `└──────────────────────────────────────────────────────┘`
       ]
     : ["Waiting for first batch boundary metrics."];
 
@@ -235,6 +240,7 @@ const buildActiveRunCard = (state: AppState, width: number): StageCard => {
     status: "active",
     title: `Run in progress (${state.runMode ?? "mock"})`,
     lines: [
+      `Question: ${questionSummary}${state.question.trim().length > 96 ? "…" : ""}`,
       ...progressLines,
       "",
       ...workerRows,
