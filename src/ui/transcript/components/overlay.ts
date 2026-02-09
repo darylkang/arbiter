@@ -1,16 +1,15 @@
 import {
   Container,
-  SelectList,
   Spacer,
   Text,
   type Component,
-  type SelectItem,
   wrapTextWithAnsi
 } from "@mariozechner/pi-tui";
 
 import type { ChecklistOverlay, ConfirmOverlay, OverlayState, SelectOverlay } from "../state.js";
 import { selectListTheme } from "../theme.js";
 import { ChecklistList } from "./checklist-list.js";
+import { ActionList } from "./action-list.js";
 
 export type OverlayComponent = {
   component: Component;
@@ -46,13 +45,6 @@ const withTitle = (input: {
   return container;
 };
 
-const buildSelectRows = (items: SelectOverlay["items"]): SelectItem[] => {
-  return items.map((item) => ({
-    value: item.id,
-    label: `${item.disabled ? "○" : "●"} ${item.label}`
-  }));
-};
-
 const buildSelectBody = (overlay: SelectOverlay): string | undefined => {
   const sections: string[] = [];
 
@@ -81,19 +73,15 @@ const createSelectOverlay = (
   _requestRefresh: () => void,
   renderOptions: OverlayRenderOptions
 ): OverlayComponent => {
-  const list = new SelectList(buildSelectRows(overlay.items), Math.max(7, Math.min(12, overlay.items.length)), selectListTheme);
+  const list = new ActionList(overlay.items, Math.max(7, Math.min(12, overlay.items.length)), selectListTheme);
   list.setSelectedIndex(Math.max(0, Math.min(overlay.selectedIndex, overlay.items.length - 1)));
-  list.onSelectionChange = (item): void => {
-    const index = overlay.items.findIndex((candidate) => candidate.id === item.value);
+  list.onSelectionChange = (index): void => {
     if (index >= 0) {
       overlay.selectedIndex = index;
     }
   };
-  list.onSelect = (item): void => {
-    const selected = overlay.items.find((candidate) => candidate.id === item.value);
-    if (selected) {
-      overlay.onSelect(selected);
-    }
+  list.onSelect = (selected): void => {
+    overlay.onSelect(selected);
   };
   list.onCancel = (): void => {
     overlay.onCancel();
@@ -113,17 +101,17 @@ const createConfirmOverlay = (
   overlay: ConfirmOverlay,
   renderOptions: OverlayRenderOptions
 ): OverlayComponent => {
-  const choices: SelectItem[] = [
-    { value: "confirm", label: `● ${overlay.confirmLabel}` },
-    { value: "cancel", label: `● ${overlay.cancelLabel}` }
+  const choices = [
+    { id: "confirm", label: overlay.confirmLabel },
+    { id: "cancel", label: overlay.cancelLabel }
   ];
-  const list = new SelectList(choices, 4, selectListTheme);
+  const list = new ActionList(choices, 4, selectListTheme);
   list.setSelectedIndex(Math.max(0, Math.min(overlay.selectedIndex, choices.length - 1)));
-  list.onSelectionChange = (item): void => {
-    overlay.selectedIndex = item.value === "cancel" ? 1 : 0;
+  list.onSelectionChange = (index): void => {
+    overlay.selectedIndex = index === 1 ? 1 : 0;
   };
   list.onSelect = (item): void => {
-    if (item.value === "confirm") {
+    if (item.id === "confirm") {
       overlay.onConfirm();
       return;
     }

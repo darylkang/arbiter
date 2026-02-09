@@ -192,7 +192,7 @@ test("header/footer adapt to width and warnings", () => {
   assert.ok(footerWarnings.includes("warnings: 3"));
 });
 
-test("progress summary formats master progress and compact worker status", () => {
+test("progress summary formats compact execution progress", () => {
   const state = makeState();
   state.runProgress = {
     active: true,
@@ -237,8 +237,9 @@ test("progress summary formats master progress and compact worker status", () =>
   assert.ok(summary.includes("4/10"));
   assert.ok(summary.includes("eligible 3"));
   assert.ok(summary.includes("batch 2: 3/5"));
-  assert.ok(summary.includes("stop advisor: continue"));
-  assert.ok(summary.includes("workers busy 2/4"));
+  assert.ok(summary.includes("rem"));
+  assert.equal(summary.includes("workers busy"), false);
+  assert.equal(summary.includes("stop advisor"), false);
 });
 
 test("command registry executes all transcript commands and aliases", async () => {

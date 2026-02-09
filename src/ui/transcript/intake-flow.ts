@@ -24,7 +24,7 @@ type ReviewAction =
   | "change-mode"
   | "cancel-setup";
 
-const MIN_QUESTION_LENGTH = 1;
+const MIN_QUESTION_LENGTH = 8;
 const MAX_QUESTION_LENGTH = 500;
 const MIN_LABEL_COUNT = 2;
 const TOTAL_STEPS = 9;
@@ -113,10 +113,10 @@ const formatBorderedSummary = (title: string, rows: Array<[string, string]>): st
   return [top, ...body, bottom].join("\n");
 };
 
-const formatReviewBody = (input: {
+const buildReviewRows = (input: {
   flow: GuidedSetupState;
   options: WizardOptions;
-}): string => {
+}): Array<[string, string]> => {
   const personaLabels = new Map(input.options.personas.map((persona) => [persona.id, persona.label]));
   const modelLabels = new Map(input.options.models.map((model) => [model.slug, model.label]));
 
@@ -138,7 +138,7 @@ const formatReviewBody = (input: {
       ? input.flow.labels.join(", ")
       : "free-form";
 
-  return formatBorderedSummary("Review", [
+  return [
     ["Mode", input.flow.runMode],
     ["Question", input.flow.question],
     ["Labels", labels],
@@ -150,7 +150,21 @@ const formatReviewBody = (input: {
     ["Models", models],
     ["Protocol", protocol],
     ["Execution", `k_max ${input.flow.kMax}, workers ${input.flow.workers}, batch_size ${input.flow.batchSize}`]
-  ]);
+  ];
+};
+
+const formatReviewBody = (input: {
+  flow: GuidedSetupState;
+  options: WizardOptions;
+}): string => {
+  return formatBorderedSummary("Review", buildReviewRows(input));
+};
+
+const buildReviewSummaryLines = (input: {
+  flow: GuidedSetupState;
+  options: WizardOptions;
+}): string[] => {
+  return buildReviewRows(input).map(([key, value]) => `${key}: ${value}`);
 };
 
 const stageDetails = (flow: GuidedSetupState): { step: number; label: string } => {
@@ -196,7 +210,7 @@ export const createIntakeFlowController = (input: {
   appendSystem: (message: string) => void;
   appendStatus: (message: string) => void;
   appendError: (message: string) => void;
-  appendSummary: (message: string) => void;
+  appendStageBlock: (title: string, lines: string[]) => void;
   writeGuidedConfig: (flow: GuidedSetupState) => void;
   startRun: (mode: RunMode) => Promise<void>;
   setInputText: (value: string) => void;
@@ -732,7 +746,7 @@ export const createIntakeFlowController = (input: {
     input.setInputText("");
 
     input.appendStatus(`Configuration saved to ${input.state.configPath}.`);
-    input.appendSummary(formatReviewBody({ flow, options: wizardOptions }));
+    input.appendStageBlock("Intake summary", buildReviewSummaryLines({ flow, options: wizardOptions }));
 
     input.requestRender();
 

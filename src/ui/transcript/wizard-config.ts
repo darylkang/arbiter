@@ -93,32 +93,3 @@ export const writeGuidedConfig = (input: {
   writeFileSync(input.outputPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
   return config;
 };
-
-export const formatGuidedSummary = (input: {
-  flow: GuidedSetupState;
-  modelLabels: Map<string, string>;
-  personaLabels: Map<string, string>;
-}): string => {
-  const modelNames = input.flow.modelSlugs
-    .map((slug) => input.modelLabels.get(slug) ?? slug)
-    .join(", ");
-  const personaNames = input.flow.personaIds
-    .map((id) => input.personaLabels.get(id) ?? id)
-    .join(", ");
-
-  return [
-    "Intake summary",
-    `Question: ${input.flow.question}`,
-    `Labels: ${
-      input.flow.labelMode === "custom" && input.flow.labels.length > 0
-        ? input.flow.labels.join(", ")
-        : "free-form"
-    }`,
-    `Decode: temp ${input.flow.temperature.toFixed(2)}, top_p ${input.flow.topP.toFixed(2)}, max_tokens ${input.flow.maxTokens}, seed ${input.flow.seed}`,
-    `Personas: ${personaNames}`,
-    `Models: ${modelNames}`,
-    `Protocol: ${input.flow.protocol === "debate_v1" ? "debate" : "independent"}`,
-    `Execution: k_max ${input.flow.kMax}, workers ${input.flow.workers}, batch_size ${input.flow.batchSize}`,
-    `Run mode: ${input.flow.runMode}`
-  ].join("\n");
-};

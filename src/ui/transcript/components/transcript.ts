@@ -4,9 +4,9 @@ import { renderProgressSummary } from "./progress.js";
 import type { AppState, GuidedSetupState, TranscriptEntry } from "../state.js";
 import { makeBlockTitle } from "../theme.js";
 
-const MAX_RENDERED_CARDS = 24;
-const MAX_ACTIVITY_LINES = 10;
-const MAX_RECEIPT_LINES = 22;
+const MAX_RENDERED_CARDS = 32;
+const MAX_ACTIVITY_LINES = 12;
+const MAX_RECEIPT_LINES = 28;
 
 type StageCardKind = "launch" | "intake" | "run" | "receipt" | "activity";
 type StageCardStatus = "active" | "frozen";
@@ -50,33 +50,26 @@ const padAnsi = (text: string, width: number): string => {
   return `${text}${" ".repeat(printable - current)}`;
 };
 
-const toCardLines = (rawLines: string[], width: number): string[] => {
+const toWrappedLines = (rawLines: string[], width: number): string[] => {
   const contentWidth = Math.max(18, width - 4);
   const wrapped: string[] = [];
 
   for (const rawLine of rawLines) {
-    const segments = wrapTextWithAnsi(rawLine || " ", contentWidth);
-    wrapped.push(...segments);
+    const source = rawLine.length === 0 ? " " : rawLine;
+    wrapped.push(...wrapTextWithAnsi(source, contentWidth));
   }
 
   return wrapped;
 };
 
 const renderCard = (card: StageCard, width: number): string[] => {
-  const cardWidth = Math.max(30, Math.min(width, 80));
+  const cardWidth = Math.max(40, Math.min(width, 80));
   const title = makeBlockTitle(cardKindLabel(card.kind), card.status === "active");
-  const body = toCardLines([card.title, "", ...card.lines], cardWidth).map(
+  const body = toWrappedLines([card.title, "", ...card.lines], cardWidth).map(
     (line) => `  ${padAnsi(line, Math.max(18, cardWidth - 2))}`
   );
 
   return [title, "", ...body];
-};
-
-const isRunTerminalLine = (entry: TranscriptEntry): boolean => {
-  if (entry.kind === "status" && entry.content.startsWith("Run complete:")) {
-    return true;
-  }
-  return entry.kind === "error" && entry.content.startsWith("Run failed:");
 };
 
 const stageTitleForStep = (flow: GuidedSetupState): string => {
@@ -104,6 +97,17 @@ const stageTitleForStep = (flow: GuidedSetupState): string => {
   }
 };
 
+const formatQuestionSummary = (question: string): string => {
+  const trimmed = question.trim();
+  if (!trimmed) {
+    return "-";
+  }
+  if (trimmed.length <= 96) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, 95)}…`;
+};
+
 const buildActiveIntakeCard = (state: AppState): StageCard => {
   if (!state.newFlow) {
     const hasQuickStart = state.hasConfig && state.configCount > 0;
@@ -114,8 +118,8 @@ const buildActiveIntakeCard = (state: AppState): StageCard => {
       lines: [
         "1. Select run mode (mock or live).",
         hasQuickStart
-          ? `2. Choose quick start or setup wizard (${state.configCount} config file${state.configCount === 1 ? "" : "s"} detected).`
-          : "2. Continue with setup wizard (quick start requires a valid config file).",
+          ? `2. Choose quick start or setup wizard (${state.configCount} configuration file${state.configCount === 1 ? "" : "s"} detected).`
+          : "2. Continue with setup wizard (quick start requires a valid configuration file).",
         "Use arrow keys and Enter to select."
       ]
     };
@@ -203,50 +207,46 @@ const buildActiveIntakeCard = (state: AppState): StageCard => {
   };
 };
 
+const buildBatchCardLines = (state: AppState): string[] => {
+  const latest = state.runProgress.recentBatches[state.runProgress.recentBatches.length - 1];
+  if (!latest) {
+    return ["No batch boundary metrics yet."];
+  }
+
+  return [
+    `Batch ${latest.batchNumber}`,
+    `Novelty: ${formatMaybe(latest.noveltyRate)}`,
+    `Mean similarity: ${formatMaybe(latest.meanMaxSim)}`,
+    `Embedding groups: ${latest.clusterCount ?? "-"}`,
+    "Groups reflect embedding similarity, not semantic categories.",
+    "Stopping indicates diminishing novelty, not correctness."
+  ];
+};
+
 const buildActiveRunCard = (state: AppState, width: number): StageCard => {
   const progressLines = renderProgressSummary(state.runProgress, width).split("\n");
-  const questionSummary =
-    state.question.trim().length > 0
-      ? state.question.trim().slice(0, 96)
-      : "-";
   const workerRows = Object.entries(state.runProgress.workerStatus)
     .map(([workerId, worker]) =>
       worker.status === "busy"
         ? `W${workerId} [busy] trial #${worker.trialId ?? "-"}`
         : `W${workerId} [idle]`
     )
-    .slice(0, 6);
+    .slice(0, 8);
 
   const hiddenWorkers = Math.max(0, Object.keys(state.runProgress.workerStatus).length - workerRows.length);
-  const latest = state.runProgress.recentBatches[state.runProgress.recentBatches.length - 1];
-
-  const batchCard = latest
-    ? [
-        `┌─ Batch ${latest.batchNumber} ─────────────────────────────┐`,
-        `│ Novelty: ${formatMaybe(latest.noveltyRate)}                                   │`,
-        `│ Mean similarity: ${formatMaybe(latest.meanMaxSim)}                           │`,
-        `│ Embedding groups: ${latest.clusterCount ?? "-"}                               │`,
-        `│                                                      │`,
-        `│ Groups reflect embedding similarity, not semantic    │`,
-        `│ categories.                                          │`,
-        `│ Stopping indicates diminishing novelty, not          │`,
-        `│ correctness.                                         │`,
-        `└──────────────────────────────────────────────────────┘`
-      ]
-    : ["Waiting for first batch boundary metrics."];
 
   return {
     kind: "run",
     status: "active",
     title: `Run in progress (${state.runMode ?? "mock"})`,
     lines: [
-      `Question: ${questionSummary}${state.question.trim().length > 96 ? "…" : ""}`,
+      `Question: ${formatQuestionSummary(state.question)}`,
       ...progressLines,
       "",
       ...workerRows,
       ...(hiddenWorkers > 0 ? [`... ${hiddenWorkers} additional workers hidden`] : []),
       "",
-      ...batchCard
+      ...buildBatchCardLines(state)
     ]
   };
 };
@@ -257,13 +257,23 @@ const buildPostRunPlaceholder = (state: AppState): StageCard => ({
   title: "Receipt pending",
   lines: [
     state.runDir ? `Run directory: ${state.runDir}` : "Run directory will appear here when available.",
-    "Choose the next action from the selector to continue."
+    "Choose the next action to continue."
   ]
 });
 
 const entryToActivityLines = (entry: TranscriptEntry): string[] => {
+  if (entry.kind === "warning") {
+    return [`⚠ ${entry.content}`];
+  }
+  if (entry.kind === "error") {
+    return [`✖ ${entry.content}`];
+  }
   if (entry.kind === "report" || entry.kind === "verify") {
-    return entry.content.split("\n");
+    const contentLines = entry.content.split("\n");
+    if (contentLines.length === 0) {
+      return [entry.content];
+    }
+    return [contentLines[0] || "", ...contentLines.slice(1).map((line) => `  ${line}`)];
   }
   return [entry.content];
 };
@@ -272,85 +282,53 @@ const shouldIncludeInActivity = (entry: TranscriptEntry): boolean => {
   if (entry.kind === "warning" || entry.kind === "error" || entry.kind === "report" || entry.kind === "verify") {
     return true;
   }
-  if (entry.kind === "system" || entry.kind === "user") {
-    return true;
-  }
   if (entry.kind === "status") {
+    if (entry.content.startsWith("Stage 1 · Intake")) {
+      return false;
+    }
     if (entry.content.startsWith("Batch ")) {
       return false;
     }
     if (entry.content.startsWith("Run started:")) {
       return false;
     }
+    if (entry.content.startsWith("What is your research question?")) {
+      return false;
+    }
+    if (entry.content.startsWith("Set up a new study.")) {
+      return false;
+    }
+    if (entry.content.startsWith("Enter comma-separated labels")) {
+      return false;
+    }
+    if (entry.content.startsWith("Use the guided controls")) {
+      return false;
+    }
     return true;
   }
+  if (entry.kind === "system") {
+    return entry.content.startsWith("commands:");
+  }
+
   return false;
 };
 
-const buildFrozenCards = (entries: TranscriptEntry[]): { cards: StageCard[]; consumedIds: Set<string> } => {
-  const cards: StageCard[] = [];
-  const consumedIds = new Set<string>();
-
-  let pendingRunCard: StageCard | null = null;
-
-  for (const entry of entries) {
-    if (entry.content.startsWith("Stage 1 · Intake\n")) {
-      const lines = entry.content.split("\n").slice(1);
-      const intakeCard: StageCard = {
-        kind: "intake",
-        status: "frozen",
-        title: "Intake summary",
-        lines
-      };
-      cards.push(intakeCard);
-      consumedIds.add(entry.id);
-      pendingRunCard = null;
-      continue;
-    }
-
-    if (isRunTerminalLine(entry)) {
-      const runCard: StageCard = {
-        kind: "run",
-        status: "frozen",
-        title: "Run summary",
-        lines: [entry.content]
-      };
-      cards.push(runCard);
-      consumedIds.add(entry.id);
-      pendingRunCard = runCard;
-      continue;
-    }
-
-    if (entry.kind === "status" && entry.content.startsWith("Artifacts written to ") && pendingRunCard) {
-      pendingRunCard.lines.push(entry.content);
-      consumedIds.add(entry.id);
-      continue;
-    }
-
-    if (entry.kind === "receipt") {
-      const rawLines = entry.content.split("\n");
-      const lines =
-        rawLines.length > MAX_RECEIPT_LINES
-          ? [...rawLines.slice(0, MAX_RECEIPT_LINES), `... ${rawLines.length - MAX_RECEIPT_LINES} additional lines`]
-          : rawLines;
-      cards.push({
-        kind: "receipt",
-        status: "frozen",
-        title: "Receipt",
-        lines
-      });
-      consumedIds.add(entry.id);
-      pendingRunCard = null;
-      continue;
-    }
+const buildActivityCard = (entries: TranscriptEntry[], phase: AppState["phase"]): StageCard | null => {
+  const activityEntries = entries.filter((entry) => shouldIncludeInActivity(entry));
+  if (activityEntries.length === 0) {
+    return null;
   }
 
-  return { cards, consumedIds };
-};
+  const shouldShowOutsidePostRun = activityEntries.some(
+    (entry) =>
+      entry.kind === "warning" ||
+      entry.kind === "error" ||
+      entry.kind === "report" ||
+      entry.kind === "verify" ||
+      (entry.kind === "system" && entry.content.startsWith("commands:"))
+  );
 
-const buildActivityCard = (entries: TranscriptEntry[], consumedIds: Set<string>): StageCard | null => {
-  const activityEntries = entries.filter((entry) => !consumedIds.has(entry.id) && shouldIncludeInActivity(entry));
-  if (activityEntries.length === 0) {
+  if (phase !== "post-run" && !shouldShowOutsidePostRun) {
     return null;
   }
 
@@ -366,22 +344,37 @@ const buildActivityCard = (entries: TranscriptEntry[], consumedIds: Set<string>)
   };
 };
 
+const buildFrozenCards = (state: AppState): StageCard[] => {
+  return state.stageBlocks.map((block) => {
+    const lines =
+      block.kind === "receipt" && block.lines.length > MAX_RECEIPT_LINES
+        ? [...block.lines.slice(0, MAX_RECEIPT_LINES), `... ${block.lines.length - MAX_RECEIPT_LINES} additional lines`]
+        : block.lines;
+
+    return {
+      kind: block.kind,
+      status: "frozen",
+      title: block.title,
+      lines
+    };
+  });
+};
+
 const buildCards = (state: AppState, width: number): StageCard[] => {
-  const { cards: frozenCards, consumedIds } = buildFrozenCards(state.transcript);
-  const cards: StageCard[] = [...frozenCards];
+  const cards: StageCard[] = [...buildFrozenCards(state)];
 
   if (state.phase === "intake" || (state.phase === "idle" && !state.newFlow)) {
     cards.push(buildActiveIntakeCard(state));
   } else if (state.phase === "running") {
     cards.push(buildActiveRunCard(state, width));
   } else if (state.phase === "post-run") {
-    const hasReceiptCard = cards.some((card) => card.kind === "receipt");
+    const hasReceiptCard = state.stageBlocks.some((block) => block.kind === "receipt");
     if (!hasReceiptCard) {
       cards.push(buildPostRunPlaceholder(state));
     }
   }
 
-  const activityCard = buildActivityCard(state.transcript, consumedIds);
+  const activityCard = buildActivityCard(state.transcript, state.phase);
   if (activityCard) {
     cards.push(activityCard);
   }
@@ -396,49 +389,6 @@ const buildCards = (state: AppState, width: number): StageCard[] => {
   }
 
   return cards.slice(-MAX_RENDERED_CARDS);
-};
-
-const buildOverlayBackdropCard = (state: AppState, width: number): StageCard => {
-  if (state.phase === "running") {
-    const progress = renderProgressSummary(state.runProgress, width).split("\n").slice(0, 2);
-    return {
-      kind: "run",
-      status: "active",
-      title: "Run in progress",
-      lines: [
-        ...progress,
-        "A selection panel is open. Complete it to continue."
-      ]
-    };
-  }
-
-  if (state.phase === "post-run") {
-    return {
-      kind: "receipt",
-      status: "active",
-      title: "Session complete",
-      lines: [
-        state.runDir ? `Run directory: ${state.runDir}` : "Run directory pending.",
-        "Use the action selector to continue."
-      ]
-    };
-  }
-
-  if (state.newFlow) {
-    return {
-      kind: "intake",
-      status: "active",
-      title: stageTitleForStep(state.newFlow),
-      lines: ["A selection panel is open. Use arrow keys and Enter to continue."]
-    };
-  }
-
-  return {
-    kind: "launch",
-    status: "active",
-    title: "Guided setup",
-    lines: ["Choose a run mode and setup path to begin."]
-  };
 };
 
 export class TranscriptComponent implements Component {
@@ -461,18 +411,22 @@ export class TranscriptComponent implements Component {
       return [blankLine, "Initializing transcript...", blankLine];
     }
 
-    let lines: string[] = [];
     if (state.overlay) {
-      lines = [...renderCard(buildOverlayBackdropCard(state, safeWidth), safeWidth), blankLine];
-    } else {
-      const cards = buildCards(state, safeWidth);
-      for (const card of cards) {
-        lines.push(...renderCard(card, safeWidth), "");
-      }
+      const clearedLineCount = Math.max(48, this.lastRenderedLineCount);
+      const lines = new Array(clearedLineCount).fill(blankLine);
+      this.lastRenderedLineCount = lines.length;
+      return lines;
+    }
 
-      if (lines.length === 0) {
-        lines = [blankLine, "Guided setup will appear here.", blankLine];
-      }
+    const cards = buildCards(state, safeWidth);
+    let lines: string[] = [];
+
+    for (const card of cards) {
+      lines.push(...renderCard(card, safeWidth), "");
+    }
+
+    if (lines.length === 0) {
+      lines = [blankLine, "Guided setup will appear here.", blankLine];
     }
 
     if (lines.length < this.lastRenderedLineCount) {

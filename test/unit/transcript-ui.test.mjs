@@ -153,7 +153,7 @@ test("intake flow follows guided setup and starts mock run", async () => {
     appendStatus: (message) => logs.push(`status:${message}`),
     appendError: (message) => logs.push(`error:${message}`),
     appendWarning: (message) => logs.push(`warning:${message}`),
-    appendSummary: (message) => logs.push(`summary:${message}`),
+    appendStageBlock: (title, lines) => logs.push(`summary:${title}:${lines.length}`),
     writeGuidedConfig: (flow) => writes.push(flow),
     startRun: async (mode) => {
       runs.push(mode);
@@ -219,7 +219,7 @@ test("intake flow back-navigation preserves question text", () => {
     appendStatus: () => {},
     appendError: () => {},
     appendWarning: () => {},
-    appendSummary: () => {},
+    appendStageBlock: () => {},
     writeGuidedConfig: () => {},
     startRun: async () => {},
     setInputText: (value) => {
@@ -257,7 +257,7 @@ test("intake flow enforces question validation", () => {
     appendStatus: () => {},
     appendError: (message) => errors.push(message),
     appendWarning: () => {},
-    appendSummary: () => {},
+    appendStageBlock: () => {},
     writeGuidedConfig: () => {},
     startRun: async () => {},
     setInputText: () => {}
@@ -269,12 +269,17 @@ test("intake flow enforces question validation", () => {
   assert.equal(state.overlay, null);
   assert.ok(errors.some((error) => error.includes("at least one non-space character")));
 
+  intake.handlePlainInput("short");
+  assert.equal(state.newFlow?.stage, "question");
+  assert.equal(state.overlay, null);
+  assert.ok(errors.some((error) => error.includes("at least 8 characters")));
+
   intake.handlePlainInput("A".repeat(501));
   assert.equal(state.newFlow?.stage, "question");
   assert.equal(state.overlay, null);
   assert.ok(errors.some((error) => error.includes("max 500 characters")));
 
-  intake.handlePlainInput("short");
+  intake.handlePlainInput("A sufficient question");
   assert.equal(state.newFlow?.stage, "labels");
 });
 
@@ -291,7 +296,7 @@ test("intake flow supports custom label entry and deduplicates labels", () => {
     appendStatus: (message) => statuses.push(message),
     appendError: () => {},
     appendWarning: () => {},
-    appendSummary: () => {},
+    appendStageBlock: () => {},
     writeGuidedConfig: () => {},
     startRun: async () => {},
     setInputText: (value) => {
@@ -328,7 +333,7 @@ test("intake flow asks for confirmation when restarting an active setup", () => 
     appendStatus: (message) => statuses.push(message),
     appendError: () => {},
     appendWarning: () => {},
-    appendSummary: () => {},
+    appendStageBlock: () => {},
     writeGuidedConfig: () => {},
     startRun: async () => {},
     setInputText: () => {}
@@ -359,7 +364,7 @@ test("intake flow save-only mode writes config without starting a run", async ()
     appendStatus: (message) => statuses.push(message),
     appendError: () => {},
     appendWarning: () => {},
-    appendSummary: () => {},
+    appendStageBlock: () => {},
     writeGuidedConfig: (flow) => writes.push(flow),
     startRun: async (mode) => {
       runs.push(mode);
@@ -399,7 +404,7 @@ test("intake flow cancels setup when writing guided config fails", async () => {
     appendStatus: (message) => statuses.push(message),
     appendError: (message) => errors.push(message),
     appendWarning: () => {},
-    appendSummary: () => {},
+    appendStageBlock: () => {},
     writeGuidedConfig: () => {
       throw new Error("disk full");
     },
@@ -439,7 +444,7 @@ test("intake flow escape cancels from question step", () => {
     appendStatus: () => {},
     appendError: () => {},
     appendWarning: () => {},
-    appendSummary: () => {},
+    appendStageBlock: () => {},
     writeGuidedConfig: () => {},
     startRun: async () => {},
     setInputText: (value) => {

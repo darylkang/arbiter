@@ -1,4 +1,4 @@
-import type { EditorTheme, SelectListTheme, SettingsListTheme } from "@mariozechner/pi-tui";
+import type { EditorTheme, SelectListTheme } from "@mariozechner/pi-tui";
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
@@ -86,14 +86,6 @@ export const selectListTheme: SelectListTheme = {
   description: (text) => palette.steel(text),
   scrollInfo: (text) => palette.steel(text),
   noMatch: (text) => palette.steel(text)
-};
-
-export const settingsListTheme: SettingsListTheme = {
-  label: (text, selected) => (selected ? palette.amber(text) : palette.ivory(text)),
-  value: (text, selected) => (selected ? palette.orange(text) : palette.steel(text)),
-  description: (text) => palette.steel(text),
-  cursor: palette.amber("◉ "),
-  hint: (text) => palette.steel(text)
 };
 
 export const editorTheme: EditorTheme = {

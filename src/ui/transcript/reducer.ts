@@ -1,6 +1,6 @@
 import type { Event } from "../../events/types.js";
 import type { WarningRecord } from "../../utils/warnings.js";
-import type { AppState, RunMode, TranscriptEntryKind } from "./state.js";
+import type { AppState, RunMode, StageBlockKind, TranscriptEntryKind } from "./state.js";
 import { resetRunProgress } from "./state.js";
 
 const MAX_TRANSCRIPT_ENTRIES = 1000;
@@ -9,6 +9,12 @@ const nextEntryId = (state: AppState): string => {
   const current = state.nextTranscriptEntryId;
   state.nextTranscriptEntryId += 1;
   return `entry-${current}`;
+};
+
+const nextStageBlockId = (state: AppState): string => {
+  const current = state.nextStageBlockId;
+  state.nextStageBlockId += 1;
+  return `block-${current}`;
 };
 
 export const appendTranscript = (
@@ -26,6 +32,21 @@ export const appendTranscript = (
   if (state.transcript.length > MAX_TRANSCRIPT_ENTRIES) {
     state.transcript.splice(0, state.transcript.length - MAX_TRANSCRIPT_ENTRIES);
   }
+};
+
+export const appendStageBlock = (
+  state: AppState,
+  kind: StageBlockKind,
+  title: string,
+  lines: string[]
+): void => {
+  const normalizedLines = lines.flatMap((line) => line.split("\n")).map((line) => line.trimEnd());
+  state.stageBlocks.push({
+    id: nextStageBlockId(state),
+    kind,
+    title,
+    lines: normalizedLines
+  });
 };
 
 export const appendWarning = (state: AppState, warning: WarningRecord): void => {

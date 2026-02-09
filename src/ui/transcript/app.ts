@@ -12,7 +12,7 @@ import {
 import { buildReportModel, formatReportText } from "../../tools/report-run.js";
 import { formatVerifyReport, verifyRunDir } from "../../tools/verify-run.js";
 import { getAssetRoot } from "../../utils/asset-root.js";
-import { appendTranscript } from "./reducer.js";
+import { appendStageBlock, appendTranscript } from "./reducer.js";
 import { createRunController } from "./run-controller.js";
 import type { AppState, OverlayState, RunMode } from "./state.js";
 import { createInitialState } from "./state.js";
@@ -60,10 +60,6 @@ const appendStatus = (state: AppState, message: string): void => {
 
 const appendError = (state: AppState, message: string): void => {
   appendTranscript(state, "error", message);
-};
-
-const appendSummary = (state: AppState, message: string): void => {
-  appendTranscript(state, "status", `Stage 1 · Intake\n${message}`);
 };
 
 const renderWarningsBlock = (state: AppState): void => {
@@ -116,6 +112,18 @@ const readConfigMode = (configPath: string): RunMode | null => {
     // Ignore parse errors here; config discovery handles validity.
   }
   return null;
+};
+
+const readConfigQuestion = (configPath: string): string => {
+  try {
+    const parsed = JSON.parse(readFileSync(configPath, "utf8")) as {
+      question?: { text?: unknown };
+    };
+    const text = parsed.question?.text;
+    return typeof text === "string" ? text.trim() : "";
+  } catch {
+    return "";
+  }
 };
 
 const runIdFromRunDir = (runDir: string): string | null => {
@@ -699,6 +707,33 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     requestRender();
   };
 
+  const showRunFolderPath = async (): Promise<void> => {
+    if (!state.runDir.trim()) {
+      return;
+    }
+
+    await new Promise<void>((resolveSelection) => {
+      state.overlay = {
+        kind: "select",
+        title: "Run folder",
+        body: state.runDir,
+        items: [{ id: "back", label: "Back" }],
+        selectedIndex: 0,
+        onSelect: () => {
+          state.overlay = null;
+          requestRender();
+          resolveSelection();
+        },
+        onCancel: () => {
+          state.overlay = null;
+          requestRender();
+          resolveSelection();
+        }
+      };
+      requestRender();
+    });
+  };
+
   const showPostRunActions = async (): Promise<void> => {
     if (state.phase !== "post-run") {
       return;
@@ -723,10 +758,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
           doneActions = true;
           break;
         case "open-folder":
-          if (state.runDir.trim()) {
-            appendStatus(state, `Run folder: ${state.runDir}`);
-            requestRender();
-          }
+          await showRunFolderPath();
           break;
         case "quit":
           shutdown();
@@ -752,7 +784,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
     appendSystem: (message) => appendSystem(state, message),
     appendStatus: (message) => appendStatus(state, message),
     appendError: (message) => appendError(state, message),
-    appendSummary: (message) => appendSummary(state, message),
+    appendStageBlock: (title, lines) => appendStageBlock(state, "intake", title, lines),
     writeGuidedConfig: (flow) => {
       writeGuidedConfig({
         outputPath: state.configPath,
@@ -837,12 +869,19 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
         case "quickstart": {
           state.configPath = action.configPath;
           state.hasConfig = true;
+          state.question = readConfigQuestion(action.configPath);
           const review = await reviewQuickstart({
             mode: action.mode,
             configPath: action.configPath,
             sourceMode: action.sourceMode
           });
           if (review === "start") {
+            appendStageBlock(state, "intake", "Intake summary", [
+              "Start path: quick start",
+              `Configuration: ${action.configPath}`,
+              `Source mode: ${action.sourceMode ?? "not specified"}`,
+              `Run mode: ${action.mode}`
+            ]);
             if (action.sourceMode && action.sourceMode !== action.mode) {
               appendStatus(
                 state,

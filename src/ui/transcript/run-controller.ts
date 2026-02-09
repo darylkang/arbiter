@@ -4,7 +4,7 @@ import { EventBus } from "../../events/event-bus.js";
 import { runLiveService, runMockService } from "../../run/run-service.js";
 import { createEventWarningSink } from "../../utils/warnings.js";
 import { createUiRunLifecycleHooks } from "../run-lifecycle-hooks.js";
-import { appendTranscript, appendWarningOnce, beginRun } from "./reducer.js";
+import { appendStageBlock, appendTranscript, appendWarningOnce, beginRun } from "./reducer.js";
 import type { AppState, RunMode } from "./state.js";
 import { attachRunEventHandler } from "./handlers/event-handler.js";
 import { attachWarningHandler } from "./handlers/warning-handler.js";
@@ -40,6 +40,37 @@ const resolveRunDir = (value: unknown): string | null => {
 
 const listRunsCount = (): number => {
   return listRunDirs().length;
+};
+
+const summarizeQuestion = (question: string): string => {
+  const trimmed = question.trim();
+  if (!trimmed) {
+    return "-";
+  }
+  if (trimmed.length <= 96) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, 95)}…`;
+};
+
+const buildRunSummaryLines = (state: AppState, mode: RunMode): string[] => {
+  const modeLabel = state.runMode ?? mode;
+  const attempted = state.runProgress.attempted;
+  const eligible = state.runProgress.eligible;
+  const parseSummary = [
+    `success ${state.runProgress.parseSuccess}`,
+    `fallback ${state.runProgress.parseFallback}`,
+    `failed ${state.runProgress.parseFailed}`
+  ].join(" • ");
+
+  return [
+    `Mode: ${modeLabel}`,
+    `Question: ${summarizeQuestion(state.question)}`,
+    `Trials attempted: ${attempted}`,
+    `Eligible embeddings: ${eligible}`,
+    `Parse outcomes: ${parseSummary}`,
+    state.runDir ? `Run directory: ${state.runDir}` : "Run directory: -"
+  ];
 };
 
 const defaultRunControllerDeps = (): RunControllerDeps => ({
@@ -173,9 +204,12 @@ export const createRunController = (input: {
           input.state.runDir = runDir;
           input.state.lastRunDir = runDir;
           input.state.runsCount = resolvedDeps.listRunsCount();
+          appendStageBlock(input.state, "run", "Run summary", buildRunSummaryLines(input.state, mode));
           appendTranscript(input.state, "status", `Artifacts written to ${runDir}.`);
           try {
-            appendTranscript(input.state, "receipt", resolvedDeps.renderReceipt(runDir));
+            const receipt = resolvedDeps.renderReceipt(runDir);
+            appendTranscript(input.state, "receipt", receipt);
+            appendStageBlock(input.state, "receipt", "Receipt", receipt.split("\n"));
           } catch (error) {
             appendWarningOnce(
               input.state,

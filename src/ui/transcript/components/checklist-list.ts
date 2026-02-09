@@ -1,6 +1,5 @@
 import {
   getEditorKeybindings,
-  truncateToWidth,
   type Component,
   type SelectListTheme,
   wrapTextWithAnsi
@@ -159,8 +158,12 @@ export class ChecklistList implements Component {
           ? `${row.item.selected ? "[✓]" : "[ ]"} ${row.item.label}`
           : `● ${row.label}`;
       const prefix = selected ? "→ " : "  ";
-      const text = `${prefix}${truncateToWidth(rowLabel, maxLineWidth - prefix.length, "")}`;
-      lines.push(selected ? this.theme.selectedText(text) : text);
+      const wrappedLabel = wrapTextWithAnsi(rowLabel, Math.max(10, maxLineWidth - prefix.length));
+      wrappedLabel.forEach((segment, segmentIndex) => {
+        const segmentPrefix = segmentIndex === 0 ? prefix : "  ";
+        const line = `${segmentPrefix}${segment}`;
+        lines.push(selected ? this.theme.selectedText(line) : line);
+      });
     }
 
     if (startIndex > 0 || endIndex < rows.length) {

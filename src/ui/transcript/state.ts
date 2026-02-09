@@ -28,6 +28,15 @@ export type TranscriptEntry = {
   timestamp: string;
 };
 
+export type StageBlockKind = "intake" | "run" | "receipt";
+
+export type StageBlock = {
+  id: string;
+  kind: StageBlockKind;
+  title: string;
+  lines: string[];
+};
+
 export type OverlayItem = {
   id: string;
   label: string;
@@ -147,6 +156,8 @@ export type AppState = {
   phase: TranscriptPhase;
   transcript: TranscriptEntry[];
   nextTranscriptEntryId: number;
+  stageBlocks: StageBlock[];
+  nextStageBlockId: number;
   overlay: OverlayState | null;
   runProgress: RunProgress;
   warnings: WarningRecord[];
@@ -197,6 +208,8 @@ export const createInitialState = (input: {
   phase: "idle",
   transcript: [],
   nextTranscriptEntryId: 1,
+  stageBlocks: [],
+  nextStageBlockId: 1,
   overlay: null,
   runProgress: defaultRunProgress(),
   warnings: [],

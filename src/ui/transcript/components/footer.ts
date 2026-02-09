@@ -15,7 +15,7 @@ const contextHints = (state: AppState): string => {
     return "enter submits your question • esc cancels setup";
   }
   if (state.phase === "post-run") {
-    return "choose a next action to continue";
+    return "choose the next action to continue";
   }
   return "follow the guided setup to begin";
 };
