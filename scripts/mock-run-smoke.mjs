@@ -71,106 +71,109 @@ const config = {
 const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
-execSync(
-  `node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`,
-  { stdio: "inherit" }
-);
-
-const runDirs = readdirSync(runsDir);
-if (runDirs.length !== 1) {
-  throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
-}
-
-const runDir = resolve(runsDir, runDirs[0]);
-const requiredPaths = [
-  "config.resolved.json",
-  "manifest.json",
-  "trial_plan.jsonl",
-  "trials.jsonl",
-  "parsed.jsonl",
-  "convergence_trace.jsonl",
-  "embeddings.provenance.json",
-  "embeddings.arrow",
-  "aggregates.json",
-  "receipt.txt",
-  "debug/embeddings.jsonl"
-];
-
-for (const relPath of requiredPaths) {
-  const fullPath = resolve(runDir, relPath);
-  try {
-    readFileSync(fullPath);
-  } catch {
-    throw new Error(`Missing required artifact: ${relPath}`);
-  }
-}
-
-const manifestPath = resolve(runDir, "manifest.json");
-const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-if (!validateManifest(manifest)) {
-  throw new Error("Manifest failed schema validation in run smoke test");
-}
-
-const artifactPaths = manifest.artifacts?.entries?.map((entry) => entry.path) ?? [];
-if (!artifactPaths.includes("receipt.txt")) {
-  throw new Error("Manifest did not include receipt.txt artifact entry");
-}
-
-const planLines = readFileSync(resolve(runDir, "trial_plan.jsonl"), "utf8")
-  .trim()
-  .split("\n")
-  .filter(Boolean)
-  .map((line) => JSON.parse(line));
-if (planLines.length !== manifest.k_planned) {
-  throw new Error(
-    `Expected ${manifest.k_planned} trial plan records, got ${planLines.length}`
+try {
+  execSync(
+    `node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`,
+    { stdio: "inherit" }
   );
-}
-planLines.forEach((record, index) => {
-  if (record.trial_id !== index) {
-    throw new Error("Trial plan records are not ordered by trial_id");
+
+  const runDirs = readdirSync(runsDir);
+  if (runDirs.length !== 1) {
+    throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
   }
-});
 
-const convergenceLines = readFileSync(resolve(runDir, "convergence_trace.jsonl"), "utf8")
-  .trim()
-  .split("\n")
-  .filter(Boolean)
-  .map((line) => JSON.parse(line));
-const lastConvergence = convergenceLines[convergenceLines.length - 1];
-const aggregates = JSON.parse(readFileSync(resolve(runDir, "aggregates.json"), "utf8"));
-if (aggregates.novelty_rate !== lastConvergence.novelty_rate) {
-  throw new Error("Aggregates novelty_rate does not match final convergence record");
-}
-if (aggregates.mean_max_sim_to_prior !== lastConvergence.mean_max_sim_to_prior) {
-  throw new Error("Aggregates mean_max_sim_to_prior does not match final convergence record");
-}
-if (aggregates.cluster_count !== null || aggregates.entropy !== null) {
-  throw new Error("Aggregates should not include clustering metrics when clustering is disabled");
-}
+  const runDir = resolve(runsDir, runDirs[0]);
+  const requiredPaths = [
+    "config.resolved.json",
+    "manifest.json",
+    "trial_plan.jsonl",
+    "trials.jsonl",
+    "parsed.jsonl",
+    "convergence_trace.jsonl",
+    "embeddings.provenance.json",
+    "embeddings.arrow",
+    "aggregates.json",
+    "receipt.txt",
+    "debug/embeddings.jsonl"
+  ];
 
-const arrowBuffer = readFileSync(resolve(runDir, "embeddings.arrow"));
-const table = tableFromIPC(arrowBuffer);
-if (table.numRows !== 5) {
-  throw new Error(`Expected 5 embeddings rows, got ${table.numRows}`);
-}
-
-const embeddingLines = readFileSync(resolve(runDir, "debug/embeddings.jsonl"), "utf8")
-  .trim()
-  .split("\n")
-  .filter(Boolean)
-  .map((line) => JSON.parse(line));
-const successRecords = embeddingLines.filter(
-  (record) => record.embedding_status === "success"
-);
-if (successRecords.length === 0) {
-  throw new Error("Expected at least one successful embedding record");
-}
-successRecords.forEach((record) => {
-  if (!record.generation_id || typeof record.generation_id !== "string") {
-    throw new Error("Expected generation_id on successful embedding records");
+  for (const relPath of requiredPaths) {
+    const fullPath = resolve(runDir, relPath);
+    try {
+      readFileSync(fullPath);
+    } catch {
+      throw new Error(`Missing required artifact: ${relPath}`);
+    }
   }
-});
 
-rmSync(tempRoot, { recursive: true, force: true });
+  const manifestPath = resolve(runDir, "manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  if (!validateManifest(manifest)) {
+    throw new Error("Manifest failed schema validation in run smoke test");
+  }
+
+  const artifactPaths = manifest.artifacts?.entries?.map((entry) => entry.path) ?? [];
+  if (!artifactPaths.includes("receipt.txt")) {
+    throw new Error("Manifest did not include receipt.txt artifact entry");
+  }
+
+  const planLines = readFileSync(resolve(runDir, "trial_plan.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  if (planLines.length !== manifest.k_planned) {
+    throw new Error(
+      `Expected ${manifest.k_planned} trial plan records, got ${planLines.length}`
+    );
+  }
+  planLines.forEach((record, index) => {
+    if (record.trial_id !== index) {
+      throw new Error("Trial plan records are not ordered by trial_id");
+    }
+  });
+
+  const convergenceLines = readFileSync(resolve(runDir, "convergence_trace.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  const lastConvergence = convergenceLines[convergenceLines.length - 1];
+  const aggregates = JSON.parse(readFileSync(resolve(runDir, "aggregates.json"), "utf8"));
+  if (aggregates.novelty_rate !== lastConvergence.novelty_rate) {
+    throw new Error("Aggregates novelty_rate does not match final convergence record");
+  }
+  if (aggregates.mean_max_sim_to_prior !== lastConvergence.mean_max_sim_to_prior) {
+    throw new Error("Aggregates mean_max_sim_to_prior does not match final convergence record");
+  }
+  if (aggregates.cluster_count !== null || aggregates.entropy !== null) {
+    throw new Error("Aggregates should not include clustering metrics when clustering is disabled");
+  }
+
+  const arrowBuffer = readFileSync(resolve(runDir, "embeddings.arrow"));
+  const table = tableFromIPC(arrowBuffer);
+  if (table.numRows !== 5) {
+    throw new Error(`Expected 5 embeddings rows, got ${table.numRows}`);
+  }
+
+  const embeddingLines = readFileSync(resolve(runDir, "debug/embeddings.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  const successRecords = embeddingLines.filter(
+    (record) => record.embedding_status === "success"
+  );
+  if (successRecords.length === 0) {
+    throw new Error("Expected at least one successful embedding record");
+  }
+  successRecords.forEach((record) => {
+    if (!record.generation_id || typeof record.generation_id !== "string") {
+      throw new Error("Expected generation_id on successful embedding records");
+    }
+  });
+} finally {
+  rmSync(tempRoot, { recursive: true, force: true });
+}
+
 console.log("Mock-run smoke test OK");

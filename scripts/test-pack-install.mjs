@@ -1,11 +1,13 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
 
 const root = process.cwd();
-const packOutput = execSync("npm pack", { encoding: "utf8" }).trim().split("\n").pop();
-if (!packOutput) {
+const packRaw = execFileSync("npm", ["pack", "--json"], { encoding: "utf8" });
+const packResults = JSON.parse(packRaw);
+const packOutput = packResults.at(-1)?.filename;
+if (typeof packOutput !== "string" || packOutput.trim().length === 0) {
   throw new Error("npm pack did not return a tarball name");
 }
 
@@ -13,22 +15,23 @@ const tgzPath = resolve(root, packOutput);
 const tempRoot = mkdtempSync(resolve(tmpdir(), "arbiter-pack-"));
 
 try {
-  execSync(`npm install ${tgzPath} --prefix ${tempRoot}`, { stdio: "inherit" });
+  execFileSync("npm", ["install", tgzPath, "--prefix", tempRoot], { stdio: "inherit" });
 
   const binPath = resolve(tempRoot, "node_modules", ".bin", "arbiter");
 
-  execSync(`${binPath} --help`, { stdio: "inherit" });
-  execSync(`${binPath} init "Pack smoke question"`, { cwd: tempRoot, stdio: "inherit" });
-  execSync(`${binPath} validate`, { cwd: tempRoot, stdio: "inherit" });
-  execSync(
-    `${binPath} run --config arbiter.config.json --out runs --max-trials 2 --batch-size 1 --workers 1`,
+  execFileSync(binPath, ["--help"], { stdio: "inherit" });
+  execFileSync(binPath, ["init", "Pack smoke question"], { cwd: tempRoot, stdio: "inherit" });
+  execFileSync(binPath, ["validate"], { cwd: tempRoot, stdio: "inherit" });
+  execFileSync(
+    binPath,
+    ["run", "--config", "arbiter.config.json", "--out", "runs", "--max-trials", "2", "--batch-size", "1", "--workers", "1"],
     { cwd: tempRoot, stdio: "pipe" }
   );
 
   const runsDir = resolve(tempRoot, "runs");
   const runDirs = readdirSync(runsDir);
-  if (runDirs.length === 0) {
-    throw new Error("No run directories created in pack test");
+  if (runDirs.length !== 1) {
+    throw new Error(`Expected exactly 1 run directory in pack test, got ${runDirs.length}`);
   }
   const runDir = resolve(runsDir, runDirs[0]);
   if (!existsSync(resolve(runDir, "manifest.json"))) {

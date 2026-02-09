@@ -62,38 +62,41 @@ const runScenario = (stopMode) => {
     throw new Error("Not enough catalog/prompt entries for early stop test");
   }
 
-  const config = buildConfig({
-    k_max: 6,
-    batch_size: 2,
-    stop_mode: stopMode,
-    sampling: {
-      models: [{ model: catalog.models[0].slug, weight: 1 }],
-      personas: [{ persona: personas[0].id, weight: 1 }],
-      protocols: [{ protocol: protocols[0].id, weight: 1 }]
+  try {
+    const config = buildConfig({
+      k_max: 6,
+      batch_size: 2,
+      stop_mode: stopMode,
+      sampling: {
+        models: [{ model: catalog.models[0].slug, weight: 1 }],
+        personas: [{ persona: personas[0].id, weight: 1 }],
+        protocols: [{ protocol: protocols[0].id, weight: 1 }]
+      }
+    });
+
+    const configPath = resolve(tempRoot, "arbiter.config.json");
+    writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+
+    execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir}`, {
+      stdio: "ignore"
+    });
+
+    const runDirs = readdirSync(runsDir);
+    if (runDirs.length !== 1) {
+      throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
     }
-  });
+    const runDir = resolve(runsDir, runDirs[0]);
+    const manifest = JSON.parse(readFileSync(resolve(runDir, "manifest.json"), "utf8"));
+    const convergenceLines = readFileSync(resolve(runDir, "convergence_trace.jsonl"), "utf8")
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
 
-  const configPath = resolve(tempRoot, "arbiter.config.json");
-  writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
-
-  execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir}`, {
-    stdio: "ignore"
-  });
-
-  const runDirs = readdirSync(runsDir);
-  if (runDirs.length !== 1) {
-    throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
+    return { manifest, convergenceLines };
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
   }
-  const runDir = resolve(runsDir, runDirs[0]);
-  const manifest = JSON.parse(readFileSync(resolve(runDir, "manifest.json"), "utf8"));
-  const convergenceLines = readFileSync(resolve(runDir, "convergence_trace.jsonl"), "utf8")
-    .trim()
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => JSON.parse(line));
-
-  rmSync(tempRoot, { recursive: true, force: true });
-  return { manifest, convergenceLines };
 };
 
 const enforced = runScenario("enforcer");

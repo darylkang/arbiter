@@ -82,15 +82,18 @@ const runOnce = async () => {
 const beforeSigint = process.listenerCount("SIGINT");
 const beforeSigterm = process.listenerCount("SIGTERM");
 
-await runOnce();
-await runOnce();
+try {
+  await runOnce();
+  await runOnce();
 
-const afterSigint = process.listenerCount("SIGINT");
-const afterSigterm = process.listenerCount("SIGTERM");
+  const afterSigint = process.listenerCount("SIGINT");
+  const afterSigterm = process.listenerCount("SIGTERM");
 
-if (beforeSigint !== afterSigint || beforeSigterm !== afterSigterm) {
-  throw new Error(`Signal handlers leaked: SIGINT ${beforeSigint}->${afterSigint}, SIGTERM ${beforeSigterm}->${afterSigterm}`);
+  if (beforeSigint !== afterSigint || beforeSigterm !== afterSigterm) {
+    throw new Error(`Signal handlers leaked: SIGINT ${beforeSigint}->${afterSigint}, SIGTERM ${beforeSigterm}->${afterSigterm}`);
+  }
+} finally {
+  rmSync(tempRoot, { recursive: true, force: true });
 }
 
-rmSync(tempRoot, { recursive: true, force: true });
 console.log("signal handlers cleanup: ok");

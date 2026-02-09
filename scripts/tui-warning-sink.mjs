@@ -87,29 +87,32 @@ console.error = () => {
 };
 
 try {
-  const bus = new EventBus();
-  const warningSink = createEventWarningSink(bus);
-  await runMockService({
-    configPath,
-    assetRoot: resolve(process.cwd()),
-    runsDir,
-    debug: false,
-    quiet: true,
-    bus,
-    receiptMode: "skip",
-    warningSink,
-    forwardWarningEvents: false
-  });
+  try {
+    const bus = new EventBus();
+    const warningSink = createEventWarningSink(bus);
+    await runMockService({
+      configPath,
+      assetRoot: resolve(process.cwd()),
+      runsDir,
+      debug: false,
+      quiet: true,
+      bus,
+      receiptMode: "skip",
+      warningSink,
+      forwardWarningEvents: false
+    });
+  } finally {
+    process.stdout.write = originalStdout;
+    process.stderr.write = originalStderr;
+    console.warn = originalWarn;
+    console.error = originalError;
+  }
+
+  if (stdoutWrites > 0 || stderrWrites > 0) {
+    throw new Error(`Unexpected stdout/stderr writes: stdout=${stdoutWrites}, stderr=${stderrWrites}`);
+  }
 } finally {
-  process.stdout.write = originalStdout;
-  process.stderr.write = originalStderr;
-  console.warn = originalWarn;
-  console.error = originalError;
+  rmSync(tempRoot, { recursive: true, force: true });
 }
 
-if (stdoutWrites > 0 || stderrWrites > 0) {
-  throw new Error(`Unexpected stdout/stderr writes: stdout=${stdoutWrites}, stderr=${stderrWrites}`);
-}
-
-rmSync(tempRoot, { recursive: true, force: true });
 console.log("tui warning sink: ok");

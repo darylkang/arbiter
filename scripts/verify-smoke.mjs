@@ -68,17 +68,20 @@ const config = {
 const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
-execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir}`, {
-  stdio: "ignore"
-});
+try {
+  execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir}`, {
+    stdio: "ignore"
+  });
 
-const runDirs = readdirSync(runsDir);
-if (runDirs.length !== 1) {
-  throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
+  const runDirs = readdirSync(runsDir);
+  if (runDirs.length !== 1) {
+    throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
+  }
+  const runDir = resolve(runsDir, runDirs[0]);
+
+  execSync(`node dist/cli/index.js verify ${runDir}`, { stdio: "inherit" });
+} finally {
+  rmSync(tempRoot, { recursive: true, force: true });
 }
-const runDir = resolve(runsDir, runDirs[0]);
 
-execSync(`node dist/cli/index.js verify ${runDir}`, { stdio: "inherit" });
-
-rmSync(tempRoot, { recursive: true, force: true });
 console.log("Verify smoke test OK");

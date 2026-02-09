@@ -67,31 +67,34 @@ const config = {
 const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
-execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`, {
-  stdio: "ignore",
-  env: { ...process.env, ARBITER_RECEIPT_FAIL: "1" }
-});
+try {
+  execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`, {
+    stdio: "ignore",
+    env: { ...process.env, ARBITER_RECEIPT_FAIL: "1" }
+  });
 
-const runDirs = readdirSync(runsDir);
-if (runDirs.length !== 1) {
-  throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
+  const runDirs = readdirSync(runsDir);
+  if (runDirs.length !== 1) {
+    throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
+  }
+
+  const runDir = resolve(runsDir, runDirs[0]);
+  const manifestPath = resolve(runDir, "manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  if (!validateManifest(manifest)) {
+    throw new Error("Manifest failed schema validation in receipt failure test");
+  }
+
+  if (existsSync(resolve(runDir, "receipt.txt"))) {
+    throw new Error("receipt.txt should not exist when write fails");
+  }
+
+  const artifactPaths = manifest.artifacts?.entries?.map((entry) => entry.path) ?? [];
+  if (artifactPaths.includes("receipt.txt")) {
+    throw new Error("Manifest incorrectly includes receipt.txt after failure");
+  }
+} finally {
+  rmSync(tempRoot, { recursive: true, force: true });
 }
 
-const runDir = resolve(runsDir, runDirs[0]);
-const manifestPath = resolve(runDir, "manifest.json");
-const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-if (!validateManifest(manifest)) {
-  throw new Error("Manifest failed schema validation in receipt failure test");
-}
-
-if (existsSync(resolve(runDir, "receipt.txt"))) {
-  throw new Error("receipt.txt should not exist when write fails");
-}
-
-const artifactPaths = manifest.artifacts?.entries?.map((entry) => entry.path) ?? [];
-if (artifactPaths.includes("receipt.txt")) {
-  throw new Error("Manifest incorrectly includes receipt.txt after failure");
-}
-
-rmSync(tempRoot, { recursive: true, force: true });
 console.log("Receipt failure test OK");

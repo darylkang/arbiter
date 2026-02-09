@@ -67,45 +67,48 @@ const config = {
 const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
-execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`, {
-  stdio: "ignore",
-  env: { ...process.env, ARBITER_MOCK_EMPTY_EMBED: "1" }
-});
+try {
+  execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`, {
+    stdio: "ignore",
+    env: { ...process.env, ARBITER_MOCK_EMPTY_EMBED: "1" }
+  });
 
-const runDirs = readdirSync(runsDir);
-if (runDirs.length !== 1) {
-  throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
-}
-
-const runDir = resolve(runsDir, runDirs[0]);
-const convergenceLines = readFileSync(resolve(runDir, "convergence_trace.jsonl"), "utf8")
-  .trim()
-  .split("\n")
-  .filter(Boolean)
-  .map((line) => JSON.parse(line));
-
-for (const record of convergenceLines) {
-  if (record.has_eligible_in_batch !== false) {
-    throw new Error("Expected has_eligible_in_batch=false when embeddings skipped");
+  const runDirs = readdirSync(runsDir);
+  if (runDirs.length !== 1) {
+    throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
   }
-  if (record.novelty_rate !== null || record.mean_max_sim_to_prior !== null) {
-    throw new Error("Expected novelty metrics to be null when no eligible embeddings");
+
+  const runDir = resolve(runsDir, runDirs[0]);
+  const convergenceLines = readFileSync(resolve(runDir, "convergence_trace.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+
+  for (const record of convergenceLines) {
+    if (record.has_eligible_in_batch !== false) {
+      throw new Error("Expected has_eligible_in_batch=false when embeddings skipped");
+    }
+    if (record.novelty_rate !== null || record.mean_max_sim_to_prior !== null) {
+      throw new Error("Expected novelty metrics to be null when no eligible embeddings");
+    }
   }
+
+  const aggregates = JSON.parse(readFileSync(resolve(runDir, "aggregates.json"), "utf8"));
+  if (aggregates.novelty_rate !== null || aggregates.mean_max_sim_to_prior !== null) {
+    throw new Error("Aggregates novelty metrics should be null when no eligible embeddings");
+  }
+
+  const provenancePath = resolve(runDir, "embeddings.provenance.json");
+  const provenance = JSON.parse(readFileSync(provenancePath, "utf8"));
+  if (!validateEmbeddingsProvenance(provenance)) {
+    throw new Error("Embeddings provenance should be schema-valid when no embeddings generated");
+  }
+  if (provenance.status !== "not_generated") {
+    throw new Error("Expected embeddings provenance status to be not_generated for zero embeddings");
+  }
+} finally {
+  rmSync(tempRoot, { recursive: true, force: true });
 }
 
-const aggregates = JSON.parse(readFileSync(resolve(runDir, "aggregates.json"), "utf8"));
-if (aggregates.novelty_rate !== null || aggregates.mean_max_sim_to_prior !== null) {
-  throw new Error("Aggregates novelty metrics should be null when no eligible embeddings");
-}
-
-const provenancePath = resolve(runDir, "embeddings.provenance.json");
-const provenance = JSON.parse(readFileSync(provenancePath, "utf8"));
-if (!validateEmbeddingsProvenance(provenance)) {
-  throw new Error("Embeddings provenance should be schema-valid when no embeddings generated");
-}
-if (provenance.status !== "not_generated") {
-  throw new Error("Expected embeddings provenance status to be not_generated for zero embeddings");
-}
-
-rmSync(tempRoot, { recursive: true, force: true });
 console.log("Zero-eligible metrics test OK");

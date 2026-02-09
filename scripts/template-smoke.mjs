@@ -19,39 +19,41 @@ for (const template of templates) {
   mkdirSync(tempRoot, { recursive: true });
   mkdirSync(runsDir, { recursive: true });
 
-  execSync(`node ${cliPath} init --template ${template}`, {
-    cwd: tempRoot,
-    stdio: "inherit"
-  });
+  try {
+    execSync(`node ${cliPath} init --template ${template}`, {
+      cwd: tempRoot,
+      stdio: "inherit"
+    });
 
-  execSync(
-    `node ${cliPath} run --config arbiter.config.json --out ${runsDir} --max-trials 2 --batch-size 1 --workers 1`,
-    { cwd: tempRoot, stdio: "inherit" }
-  );
+    execSync(
+      `node ${cliPath} run --config arbiter.config.json --out ${runsDir} --max-trials 2 --batch-size 1 --workers 1`,
+      { cwd: tempRoot, stdio: "inherit" }
+    );
 
-  const runDirs = readdirSync(runsDir);
-  if (runDirs.length !== 1) {
-    throw new Error(`Expected 1 run dir for template ${template}, got ${runDirs.length}`);
+    const runDirs = readdirSync(runsDir);
+    if (runDirs.length !== 1) {
+      throw new Error(`Expected 1 run dir for template ${template}, got ${runDirs.length}`);
+    }
+    const runDir = resolve(runsDir, runDirs[0]);
+    const requiredFiles = [
+      "config.resolved.json",
+      "manifest.json",
+      "trial_plan.jsonl",
+      "trials.jsonl",
+      "parsed.jsonl",
+      "convergence_trace.jsonl",
+      "aggregates.json",
+      "embeddings.arrow",
+      "embeddings.provenance.json",
+      "receipt.txt"
+    ];
+    for (const file of requiredFiles) {
+      const path = resolve(runDir, file);
+      readFileSync(path);
+    }
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
   }
-  const runDir = resolve(runsDir, runDirs[0]);
-  const requiredFiles = [
-    "config.resolved.json",
-    "manifest.json",
-    "trial_plan.jsonl",
-    "trials.jsonl",
-    "parsed.jsonl",
-    "convergence_trace.jsonl",
-    "aggregates.json",
-    "embeddings.arrow",
-    "embeddings.provenance.json",
-    "receipt.txt"
-  ];
-  for (const file of requiredFiles) {
-    const path = resolve(runDir, file);
-    readFileSync(path);
-  }
-
-  rmSync(tempRoot, { recursive: true, force: true });
 }
 
 console.log("Template smoke tests OK");

@@ -71,71 +71,74 @@ const config = {
 const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
-execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`, {
-  stdio: "inherit"
-});
+try {
+  execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`, {
+    stdio: "inherit"
+  });
 
-const runDirs = readdirSync(runsDir);
-if (runDirs.length !== 1) {
-  throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
+  const runDirs = readdirSync(runsDir);
+  if (runDirs.length !== 1) {
+    throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
+  }
+
+  const runDir = resolve(runsDir, runDirs[0]);
+  const trialsLines = readFileSync(resolve(runDir, "trials.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean);
+
+  for (const line of trialsLines) {
+    const record = JSON.parse(line);
+    if (!validateTrial(record)) {
+      throw new Error("Trial record failed schema validation");
+    }
+    if (record.protocol !== "debate_v1") {
+      throw new Error("Expected debate_v1 protocol in trial record");
+    }
+    if (record.status === "success") {
+      if (!Array.isArray(record.calls) || record.calls.length !== 3) {
+        throw new Error("Expected 3 calls for successful debate trial");
+      }
+      if (!Array.isArray(record.transcript) || record.transcript.length !== 3) {
+        throw new Error("Expected 3 transcript entries for successful debate trial");
+      }
+    }
+  }
+
+  const parsedLines = readFileSync(resolve(runDir, "parsed.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean);
+  for (const line of parsedLines) {
+    const record = JSON.parse(line);
+    if (!validateParsedOutput(record)) {
+      throw new Error("Parsed output failed schema validation");
+    }
+    if (record.parse_status === "success") {
+      if (record.embed_text_source !== "decision") {
+        throw new Error("Expected embed_text_source decision for structured parse");
+      }
+      if (!["fenced", "unfenced"].includes(record.extraction_method)) {
+        throw new Error("Expected fenced or unfenced extraction method");
+      }
+    }
+    if (record.parse_status === "fallback") {
+      if (record.embed_text_source !== "raw_content") {
+        throw new Error("Expected embed_text_source raw_content for fallback");
+      }
+      if (record.extraction_method !== "raw") {
+        throw new Error("Expected raw extraction method for fallback");
+      }
+    }
+  }
+
+  const arrowBuffer = readFileSync(resolve(runDir, "embeddings.arrow"));
+  const table = tableFromIPC(arrowBuffer);
+  if (table.numRows !== config.execution.k_max) {
+    throw new Error(`Expected ${config.execution.k_max} embeddings rows, got ${table.numRows}`);
+  }
+} finally {
+  rmSync(tempRoot, { recursive: true, force: true });
 }
 
-const runDir = resolve(runsDir, runDirs[0]);
-const trialsLines = readFileSync(resolve(runDir, "trials.jsonl"), "utf8")
-  .trim()
-  .split("\n")
-  .filter(Boolean);
-
-for (const line of trialsLines) {
-  const record = JSON.parse(line);
-  if (!validateTrial(record)) {
-    throw new Error("Trial record failed schema validation");
-  }
-  if (record.protocol !== "debate_v1") {
-    throw new Error("Expected debate_v1 protocol in trial record");
-  }
-  if (record.status === "success") {
-    if (!Array.isArray(record.calls) || record.calls.length !== 3) {
-      throw new Error("Expected 3 calls for successful debate trial");
-    }
-    if (!Array.isArray(record.transcript) || record.transcript.length !== 3) {
-      throw new Error("Expected 3 transcript entries for successful debate trial");
-    }
-  }
-}
-
-const parsedLines = readFileSync(resolve(runDir, "parsed.jsonl"), "utf8")
-  .trim()
-  .split("\n")
-  .filter(Boolean);
-for (const line of parsedLines) {
-  const record = JSON.parse(line);
-  if (!validateParsedOutput(record)) {
-    throw new Error("Parsed output failed schema validation");
-  }
-  if (record.parse_status === "success") {
-    if (record.embed_text_source !== "decision") {
-      throw new Error("Expected embed_text_source decision for structured parse");
-    }
-    if (!["fenced", "unfenced"].includes(record.extraction_method)) {
-      throw new Error("Expected fenced or unfenced extraction method");
-    }
-  }
-  if (record.parse_status === "fallback") {
-    if (record.embed_text_source !== "raw_content") {
-      throw new Error("Expected embed_text_source raw_content for fallback");
-    }
-    if (record.extraction_method !== "raw") {
-      throw new Error("Expected raw extraction method for fallback");
-    }
-  }
-}
-
-const arrowBuffer = readFileSync(resolve(runDir, "embeddings.arrow"));
-const table = tableFromIPC(arrowBuffer);
-if (table.numRows !== config.execution.k_max) {
-  throw new Error(`Expected ${config.execution.k_max} embeddings rows, got ${table.numRows}`);
-}
-
-rmSync(tempRoot, { recursive: true, force: true });
 console.log("Mock-run debate test OK");
