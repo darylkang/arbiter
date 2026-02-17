@@ -256,8 +256,7 @@ arbiter resolve
 
 ## Documentation
 
-- Specification: `docs/spec.md`
-- Results interpretation: `docs/interpreting-results.md`
+- Design reference: `docs/DESIGN.md`
 - Template guide: `resources/templates/README.md`
 - Contributor/agent rules: `AGENTS.md`
 

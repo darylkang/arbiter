@@ -96,10 +96,10 @@ If you touched OpenRouter integration or live behavior, also run:
 
 ## When changing X, do Y first
 
-- **Stopping logic** → update `docs/spec.md` + convergence schema if needed; add tests.
+- **Stopping logic** → update `docs/DESIGN.md` + convergence schema if needed; add tests.
 - **Provenance fields** → update schemas + generated types; verify `verify` still passes.
 - **Contracts** → update `resources/contracts/` + resolver embedding; add contract tests.
-- **Artifacts** → update `docs/spec.md` artifact list + verify logic.
+- **Artifacts** → update `docs/DESIGN.md` artifact list + verify logic.
 - **UI routing** → update `scripts/ui-routing.mjs` and headless smoke tests.
 
 ---
@@ -117,4 +117,4 @@ If you touched OpenRouter integration or live behavior, also run:
 
 ## When uncertain
 
-Consult in this order: `docs/spec.md` → `schemas/` → conservative behavior. Document assumptions in your end‑of‑round summary.
+Consult in this order: `docs/DESIGN.md` → `schemas/` → conservative behavior. Document assumptions in your end‑of‑round summary.
