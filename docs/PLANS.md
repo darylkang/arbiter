@@ -1,121 +1,134 @@
-# Arbiter Execution Plans (ExecPlans)
+# Arbiter ExecPlan Contract (`docs/PLANS.md`)
 
-This file defines the repository-local contract for writing and executing ExecPlans.
+This file defines the repository-local standard for writing and executing ExecPlans.
 
-Precedence:
-1. Use this file (`docs/PLANS.md`) for planning behavior in this repository
-2. Fall back to `~/.codex/PLANS.md` only if this file is unavailable
-3. Store feature-level implementation plans in `docs/exec-plans/`
+## Precedence
+
+1. Use this file (`docs/PLANS.md`) for planning behavior in this repository.
+2. Fall back to `~/.codex/PLANS.md` only if this file is unavailable.
+3. Store feature-level plans in `docs/exec-plans/`.
 
 ## Purpose
-`PLANS.md` is the contract for writing, executing, and maintaining feature-level ExecPlans.
-It is not a per-feature implementation plan.
 
-## ExecPlan Definition
-An ExecPlan is a self-contained living execution spec that lets a capable engineer or agent implement a change end-to-end from the plan alone.
-An ExecPlan must make outcomes observable, testable, and reversible.
+An ExecPlan is a self-contained, living execution spec for non-trivial work. A capable engineer or agent should be able to complete the task from the plan alone, with no hidden chat context.
 
-## When to Require an ExecPlan
+ExecPlans are designed to make outcomes:
+
+- observable,
+- testable,
+- reversible.
+
+## When an ExecPlan Is Required
+
 Use an ExecPlan for:
-- complex features
-- significant refactors
-- migrations
-- cross-cutting changes
-- work with meaningful unknowns or risk
 
-ExecPlans are optional for small, low-risk, single-file edits.
+- complex features,
+- significant refactors,
+- migrations,
+- cross-cutting changes,
+- work with meaningful unknowns or risk.
+
+ExecPlans are optional for:
+
+- low-risk docs-only edits,
+- small single-file fixes,
+- straightforward changes that can be validated in one short pass.
 
 ## Non-Negotiable Requirements
+
 Every ExecPlan must:
-1. Be self-contained and understandable without prior thread history
-2. Define non-obvious terms in plain language
-3. State user-visible outcomes, not only code changes
-4. Include exact file paths, commands, and expected results
-5. Include concrete validation and acceptance criteria
-6. Include idempotence and recovery guidance
-7. Stay current as implementation evolves
-8. Record decisions and discoveries with evidence
-9. Be specific enough for a novice to execute reliably
-10. Include enough context to resume without prior chat history; prefer concise summaries plus links to canonical artifacts over copying large raw content
-11. Surface fundamental design flaws early, then propose a practical migration path
-12. Record orientation evidence: key docs and files reviewed, and why each matters
-13. Use intentional ordering for milestones and steps (dependency order, risk, impact, or alphabetical), and state the principle when not obvious
-14. State any style or structure constraints required for intentional non-arbitrary implementation choices
-15. State how repository invariants in `AGENTS.md` (schema-first workflow, determinism, artifact guarantees, architecture boundaries) are preserved
+
+1. be self-contained and understandable without prior thread history,
+2. define non-obvious terms in plain language,
+3. state user-visible outcomes, not only code deltas,
+4. include exact file paths, commands, and expected evidence,
+5. include concrete validation and acceptance criteria,
+6. include idempotence and recovery guidance,
+7. stay current as implementation evolves,
+8. record decisions and discoveries with evidence,
+9. be specific enough for a novice to execute reliably,
+10. include orientation evidence (what was read and why),
+11. surface fundamental design flaws early and propose practical migration paths,
+12. preserve Arbiter invariants from `AGENTS.md` (schema-first, determinism, artifact guarantees, architecture boundaries).
 
 ## Writing Style
-- Write in plain prose that is precise and actionable
-- Prefer narrative structure over rigid templates; use structure only when it improves clarity
-- Use checklists only in `Progress`
-- If an ExecPlan is a standalone Markdown file, do not wrap the full file in outer triple-backtick fences
-- If a plan builds on a prior checked-in plan, reference it explicitly and restate assumptions that still matter
+
+- Use prose-first writing; add structure only when it improves clarity.
+- Use checkboxes only in `Progress`.
+- Prefer concise evidence over long raw logs.
+- If building on a prior checked-in plan, reference it and restate assumptions that still matter.
 
 ## Execution Behavior
-### Authoring
-- Read relevant code and docs before finalizing the plan
-- Resolve ambiguity in the plan itself
-- Prefer decisive concrete choices over vague options
 
-### Implementing
-- Execute milestone by milestone without waiting for "next step" prompts unless blocked
-- Keep the plan updated at each meaningful stopping point
-- Commit at logical independently verifiable milestones when working in git repositories
-- If the workspace is not a git repository, record round closure with concise status and validation updates in the plan
-- Ensure each milestone is independently verifiable
+Authoring:
 
-### Discussing and Reviewing
-- Treat the plan as source of truth for scope and acceptance
-- Record all material scope or design changes in the plan
+- read relevant docs and code before finalizing the plan,
+- resolve ambiguity in the plan itself,
+- make concrete decisions rather than listing open options unless truly blocked.
+
+Implementing:
+
+- execute milestone by milestone without waiting for repeated confirmation unless blocked,
+- update the plan at each meaningful stopping point,
+- keep milestones independently verifiable,
+- commit at logical boundaries in git repositories.
+
+Reviewing:
+
+- treat the plan as the current source of truth for scope and acceptance,
+- record material scope or design changes in the plan.
 
 ## Canonical Section Order
-Keep this order even when optional sections are omitted.
-Do not include empty optional sections.
 
-1. Purpose / Big Picture (Required)
-2. Progress (Required)
-3. Surprises & Discoveries (Optional)
-4. Decision Log (Optional)
-5. Outcomes & Retrospective (Optional)
-6. Context and Orientation (Required)
-7. Plan of Work (Required)
-8. Concrete Steps (Required)
-9. Validation and Acceptance (Required)
-10. Idempotence and Recovery (Required)
-11. Interfaces and Dependencies (Optional)
-12. Artifacts and Notes (Optional)
-13. Plan Change Notes (Optional)
+Use this order. Omit optional sections when empty.
+
+1. Purpose / Big Picture (required)
+2. Progress (required)
+3. Surprises & Discoveries (optional)
+4. Decision Log (optional)
+5. Outcomes & Retrospective (optional)
+6. Context and Orientation (required)
+7. Plan of Work (required)
+8. Concrete Steps (required)
+9. Validation and Acceptance (required)
+10. Idempotence and Recovery (required)
+11. Interfaces and Dependencies (optional)
+12. Artifacts and Notes (optional)
+13. Plan Change Notes (optional)
 
 ## Formatting Rules
-- Store ExecPlans as Markdown files in `docs/exec-plans/`
-- Use clear headings and prose-first writing
-- Use checkboxes only in `Progress`
-- Include UTC timestamps in `Progress` for multi-day, multi-agent, or asynchronous work; timestamps are optional for short single-session work
-- Use full repository-relative file paths
-- Use exact commands with working directory context
-- Keep examples concise and evidence-focused
+
+- Store plans as Markdown in `docs/exec-plans/`.
+- File naming: `YYYY-MM-DD-<short-kebab-title>.md`.
+- Use repository-relative file paths.
+- Include exact commands and working directory context.
+- Include expected evidence for key steps.
+- Include UTC timestamps in `Progress` for multi-day or multi-agent work; optional for short single-session work.
 
 ## Quality Bar
-A good ExecPlan is:
-- self-contained
-- outcome-focused
-- evidence-backed
-- executable without hidden context
-- resilient to interruption and handoff
-- coherent in structure and ordering, with intentional non-arbitrary design choices
 
-If the current architecture is fundamentally flawed, say so directly and define a safer target state plus migration sequence.
+A good ExecPlan is:
+
+- self-contained,
+- outcome-focused,
+- evidence-backed,
+- interruption-resilient,
+- handoff-ready,
+- explicit about risks and rollback.
+
+If architecture is fundamentally flawed, state it directly and define the safer end state plus migration sequence.
 
 ---
 
 ## ExecPlan Skeleton
 
-# <Short, action-oriented title>
+# <Short action-oriented title>
 
 This ExecPlan is a living document and must be updated as work proceeds.
 This plan follows `docs/PLANS.md`.
 
 ## Purpose / Big Picture
-Explain what changes for users or operators after this work and how to observe it.
+Explain what changes for users/operators and how to observe it.
 
 ## Progress
 - [ ] (YYYY-MM-DD HH:MMZ) initial plan drafted
@@ -124,7 +137,7 @@ Explain what changes for users or operators after this work and how to observe i
 
 ## Surprises & Discoveries (Optional)
 - Observation: <what was discovered>
-  Evidence: <test output, log line, benchmark, etc>
+  Evidence: <test output, log line, benchmark, or file reference>
 
 ## Decision Log (Optional)
 - Decision: <what was decided>
@@ -135,16 +148,16 @@ Explain what changes for users or operators after this work and how to observe i
 Summarize delivered outcomes, remaining gaps, and lessons learned.
 
 ## Context and Orientation
-Describe relevant current state with full file paths and key components.
+Describe current state with exact file paths and key modules.
 Define non-obvious terms used in this plan.
-List key docs and files reviewed first, and why each matters.
+List docs/files reviewed first and why each matters.
 Identify entry points, validation commands, and high-risk components.
 
 ## Plan of Work
-Describe the implementation sequence in prose.
-Name files, modules, and functions to change.
-Break work into milestones where each milestone produces a concrete verifiable outcome.
-State the ordering principle used for milestones when not obvious.
+Describe implementation sequence in prose.
+Name files/modules/functions to change.
+Break work into independently verifiable milestones.
+State the milestone ordering principle when not obvious.
 
 ## Concrete Steps
 List exact commands and working directories.
@@ -152,17 +165,17 @@ Include expected outputs where useful.
 
 ## Validation and Acceptance
 Define behavioral acceptance criteria with observable signals.
-Include test commands and expected pass or fail behavior.
-When applicable, include fail-before and pass-after evidence for new behavior.
+List tests/commands and expected pass/fail behavior.
+Include fail-before/pass-after evidence when adding new behavior.
 
 ## Idempotence and Recovery
-Describe safe re-runs, rollback points, and failure recovery steps.
+Describe safe reruns, rollback points, and failure recovery steps.
 
 ## Interfaces and Dependencies (Optional)
-Name required libraries, modules, APIs, and expected interfaces or signatures.
+Name required libraries, modules, APIs, and interface expectations.
 
 ## Artifacts and Notes (Optional)
-Include concise transcripts, diffs, snippets, or links to generated artifacts.
+Include concise transcripts, snippets, or artifact links.
 
 ## Plan Change Notes (Optional)
-- YYYY-MM-DD HH:MMZ: <what changed in this plan and why>
+- YYYY-MM-DD HH:MMZ: <what changed in the plan and why>

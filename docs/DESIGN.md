@@ -1,100 +1,192 @@
 # Arbiter Design
 
-This document is the canonical technical design reference for Arbiter.
+This is Arbiter's canonical technical design document.
 
-## Authority and Scope
+It has two jobs:
 
-1. JSON Schemas in `schemas/` are the source of truth for config and artifact shapes.
-2. This document defines runtime semantics, architecture boundaries, and interpretation guardrails.
-3. If this document diverges from schemas, schemas win.
+1. define how the current system must behave,
+2. keep implementation aligned with the paper direction: reasoning as a distribution under heterogeneous, budget-matched sampling.
 
-Arbiter is a research-grade CLI for studying LLM behavior as a distribution under repeated controlled sampling. Arbiter prioritizes determinism, auditability, and reproducibility. It does not make correctness claims.
+## 1) Authority and Precedence
 
-## System Map
+1. `schemas/` defines contract shapes (config and artifacts).
+2. this document defines semantics, invariants, and interpretation boundaries.
+3. `AGENTS.md` defines contributor and agent operating rules.
 
-Primary runtime surfaces:
+If this document conflicts with schemas, schemas win and this doc must be updated immediately.
 
-- CLI and command routing: `src/cli/`
-- Configuration loading and resolution: `src/config/`
-- Run orchestration: `src/run/run-service.ts`
-- Core execution engine and monitoring: `src/engine/`
-- Protocol execution logic: `src/protocols/`
-- OpenRouter integration: `src/openrouter/`
-- Artifact writing and finalization: `src/artifacts/`
-- Embeddings and finalization: `src/embeddings/`
-- Online clustering: `src/clustering/`
-- Verification and reporting: `src/tools/verify-run.ts`, `src/tools/report-run.ts`
-- Transcript UI and reducers: `src/ui/`
+## 2) Research Alignment (Paper North Star)
+
+Arbiter supports the research framing that a single LLM answer is one sample from a stochastic process.
+
+For input `x`, sampling configurations `c` from an explicit configuration distribution `Q(c)` induces an output distribution that can be estimated via repeated trials. The harness exists to estimate, audit, and compare these distributions under controlled budgets.
+
+Arbiter is a measurement harness, not an algorithmic claim of model correctness.
+
+## 3) Core Objects and Terms
+
+- `x`: input question or prompt.
+- `c = (m, d, p, pi)`: configuration tuple:
+  - `m`: participant model,
+  - `d`: decode settings,
+  - `p`: prompt/persona framing,
+  - `pi`: protocol.
+- `Q(c)`: explicit distribution over configurations.
+- `K`: number of executed trials.
+- `y`: normalized decision output (contract-derived or canonical parsed output).
+- `hat(P)_Q(y | x)`: empirical distribution estimated from trials.
+- `M`: measurement procedure (embedding model + preprocessing + optional clustering settings).
+
+Design commitment:
+
+- changing `Q(c)` changes the estimand,
+- changing `M` changes measured structure.
+
+Both must be recorded and treated as first-class provenance.
+
+## 4) Two Uncertainties (Do Not Conflate)
+
+- Decision uncertainty: dispersion of estimated outcomes under `Q(c)`.
+- Estimation uncertainty: finite-sample uncertainty in the estimated decision uncertainty or derived reliability signals.
+
+Paper-facing and harness-facing reporting must keep this distinction explicit.
+
+## 5) Heterogeneity Ladder Posture
+
+Arbiter is designed to support ladder-style heterogeneity studies:
+
+- H0: fixed single-shot baseline,
+- H1: decode heterogeneity,
+- H2: prompt/persona heterogeneity,
+- H3: cross-model heterogeneity,
+- H4: interaction heterogeneity.
+
+Implementation posture:
+
+- interaction is one rung, not the centerpiece,
+- negative H4 results are still valid outcomes,
+- budget matching is part of experimental design discipline, and Arbiter logs the data needed for budget-aware comparisons.
+
+## 6) Claims and Non-Claims (Hard Boundaries)
+
+Allowed claims:
+
+- distributional stability/novelty behavior under a specified `Q(c)` and `M`,
+- reliability-signal behavior under matched experimental conditions,
+- reproducibility and provenance properties of the harness.
+
+Disallowed claims:
+
+- convergence implies correctness,
+- embedding clusters are semantic truth,
+- one protocol (including interaction) is universally superior,
+- findings under one `Q(c)` automatically generalize to other `Q(c)` choices.
+
+## 7) System Architecture Map
+
+Primary modules:
+
+- CLI and command flow: `src/cli/`
+- config loading/resolution/policy: `src/config/`
+- run orchestration: `src/run/run-service.ts`
+- execution engine: `src/engine/`
+- protocols: `src/protocols/`
+- OpenRouter client/integration: `src/openrouter/`
+- event contracts/bus: `src/events/`
+- artifact writing/finalization: `src/artifacts/`
+- embeddings finalization: `src/embeddings/`
+- clustering monitor: `src/clustering/`
+- verify/report tooling: `src/tools/`
+- transcript UI: `src/ui/`
 
 Architecture boundary:
 
-- Engine emits events.
-- UI and ArtifactWriter subscribe to events.
-- Engine must not import UI code.
+- engine emits events,
+- UI and ArtifactWriter subscribe,
+- engine must not import UI code.
 
-## Run Lifecycle
+## 8) Run Lifecycle
 
-1. Validate and resolve config.
-2. Build deterministic trial plan using seeded RNG.
-3. Assign deterministic `trial_id` values before async execution.
-4. Execute trials and emit append-only JSONL artifacts.
-5. Apply monitoring and optional clustering updates at batch boundaries in `trial_id` order.
-6. Finalize run artifacts atomically and emit `manifest.json` and `receipt.txt`.
-7. Verify artifacts and invariants with `arbiter verify`.
+1. validate and resolve config,
+2. generate deterministic trial plan from seeded RNG,
+3. assign deterministic `trial_id` before async work,
+4. execute trials and parse outputs,
+5. derive embedding inputs and run embeddings when eligible,
+6. update monitoring/clustering at batch boundaries in `trial_id` order,
+7. finalize artifacts atomically and write manifest/receipt,
+8. verify run integrity with `arbiter verify`.
 
-## Determinism and Ordering Invariants
+## 9) Determinism and Reproducibility Invariants
 
-- Trial planning is seeded and reproducible.
-- `trial_id` is fixed before execution starts.
-- Monitoring and clustering never update in completion order.
-- Batch-boundary updates are applied in `trial_id` ascending order.
+- deterministic seeded trial planning,
+- deterministic `trial_id` assignment pre-execution,
+- no completion-order monitoring updates,
+- batch-boundary updates applied in `trial_id` ascending order,
+- append-only JSONL during execution,
+- atomic finalization for completed artifacts,
+- immutable `config.resolved.json` after execution start.
 
-## Parse and Embedding Semantics
+## 10) Parse and Embedding Semantics
 
-`parse_status` values:
+`parse_status` meanings:
 
-- `success`: contract validated; structured output available.
-- `fallback`: contract parse failed but usable text exists; deterministic raw fallback is used.
-- `failed`: no usable text available; embedding is skipped.
+- `success`: contract-valid structured output,
+- `fallback`: contract parse failed but usable text exists,
+- `failed`: no usable text.
 
-`embed_text` rules:
+Default policy posture:
 
-- Normalize newlines to `\n`.
-- Trim trailing whitespace.
-- Deterministically truncate to `measurement.embedding_max_chars` by prefix.
-- Skip embeddings when text is empty after normalization.
+- contract failures should map to `fallback` when text is usable,
+- embedding eligibility requires non-empty normalized `embed_text`.
 
-## Provenance Semantics
+`embed_text` derivation:
 
-- Record requested model and actual model.
-- Actual model must come from OpenRouter response body field `model` when available.
-- Embedding provenance records requested embedding model and actual embedding model from response body `model` when available.
-- Embeddings record `generation_id` when available in the provider response.
+- normalize line endings to `\n`,
+- trim trailing whitespace,
+- deterministic max-char truncation by prefix using `measurement.embedding_max_chars`,
+- skip embeddings when text is empty after normalization.
 
-## Convergence-Aware Stopping
+## 11) Provenance Semantics
 
-- Stopping is evaluated only at batch boundaries.
-- Metrics are measurement metrics (`novelty_rate`, `mean_max_sim_to_prior`), not correctness metrics.
-- Eligibility starts only after `k_min` successful embeddings.
-- `advisor` mode logs stop suggestions but continues.
-- `enforcer` mode stops when thresholds hold for configured patience.
-- `converged` is a stability signal under the configured measurement procedure, not proof of truth.
+Per trial/provenance expectations:
 
-## Online Clustering Semantics
+- log requested model,
+- log actual model from OpenRouter response body `model` when available,
+- for embeddings, log requested and actual embedding model,
+- record `generation_id` when provider response includes it.
 
-- Online leader clustering semantics are deterministic at batch boundaries.
-- Cluster IDs are assigned sequentially in discovery order and not reused.
-- `cluster_distribution` is a dense array aligned by `cluster_id`.
-- Jensen-Shannon divergence compares current cumulative and prior cumulative distributions.
-- Cluster limit behavior is explicit via `cluster_limit_hit` and forced assignment counters.
+Provenance is required for reproducibility and drift audit.
 
-## Artifact Contract
+## 12) Convergence-Aware Stopping Semantics
 
-Run directory format:
+- evaluate stop conditions only at batch boundaries,
+- rely on measurement metrics (for example `novelty_rate`, `mean_max_sim_to_prior`),
+- require eligible trials before stop logic activates (`k_min` semantics),
+- `advisor` mode logs would-stop state,
+- `enforcer` mode can stop with `stop_reason = converged`.
 
-- `runs/<run_id>/` where `run_id` is UTC timestamp plus random suffix.
+Interpretation boundary:
 
-Always produced for executed runs:
+- convergence indicates estimator stability under configured measurement conditions, not truth or correctness.
+
+## 13) Online Clustering Semantics
+
+When clustering is enabled:
+
+- updates occur at batch boundaries with deterministic ordering,
+- cluster IDs are sequential in discovery order and not reused,
+- `cluster_distribution` is dense and aligned to `cluster_id`,
+- JS divergence compares cumulative distribution shift across batches,
+- cluster-limit behavior is surfaced through limit/forced-assignment counters.
+
+## 14) Artifact Contract
+
+Run directory:
+
+- `runs/<run_id>/`
+- `run_id` format: `YYYYMMDDTHHMMSSZ_<random6>` (UTC timestamp + suffix)
+
+Expected executed-run artifacts:
 
 - `config.resolved.json`
 - `manifest.json`
@@ -106,53 +198,48 @@ Always produced for executed runs:
 - `embeddings.provenance.json`
 - `receipt.txt`
 
-Produced when embeddings are generated:
+Conditionally produced:
 
-- `embeddings.arrow`
+- `embeddings.arrow` (when embeddings are generated),
+- `clusters/online.state.json` and `clusters/online.assignments.jsonl` (when clustering enabled),
+- debug artifacts such as `debug/embeddings.jsonl` and `execution.log` (when debug mode is enabled).
 
-Produced when clustering is enabled:
+Resolve-only (`arbiter resolve`) is planning output, not a full execution artifact set.
 
-- `clusters/online.state.json`
-- `clusters/online.assignments.jsonl`
+## 15) Verification and Quality Expectations
 
-Optional debug artifacts:
+Before trusting results:
 
-- `debug/embeddings.jsonl`
-- `execution.log`
+- run `arbiter verify runs/<run_id>`,
+- inspect `manifest.json` for policy/provenance snapshot,
+- inspect `convergence_trace.jsonl` for stopping context,
+- confirm requested vs actual model identifiers.
 
-Artifact guarantees:
+Before merge for behavior changes, use quality gates from `AGENTS.md`.
 
-- JSONL artifacts are append-only during execution.
-- Finalization is atomic via temporary file then rename.
-- `config.resolved.json` is immutable after execution starts.
+## 16) Scope Boundaries
 
-## Interpretation Guardrails
+In scope:
 
-Safe claims:
+- deterministic experiment execution,
+- artifact and provenance capture,
+- online monitoring and optional online clustering,
+- run verification and textual reporting.
 
-- Stability or novelty behavior under a specific measurement setup.
-- Distributional behavior under the observed sampling and model settings.
+Out of scope:
 
-Unsafe claims:
+- offline heavy statistical inference pipelines,
+- publication-quality plotting and figure generation,
+- claims that require semantic guarantees beyond measurement contracts.
 
-- Correctness of model outputs.
-- Ground-truth semantic categories from embedding clusters.
-- Universal behavior claims across untested models or settings.
+## 17) Change Protocol
 
-When reporting results, include:
+When semantics change:
 
-- Prompt/question.
-- Sampling configuration and protocol.
-- Measurement configuration.
-- Actual model identifiers.
-- Stop policy and mode.
+1. update schemas first if contract shapes changed,
+2. regenerate and commit generated types,
+3. update this design document for semantic changes,
+4. update tests and verification logic,
+5. run required quality gates.
 
-## Change Protocol
-
-When changing behavior in core surfaces:
-
-- Update schemas first when contracts change.
-- Regenerate and commit generated types.
-- Update this document for semantic behavior changes.
-- Add or update tests for new invariants.
-- Re-run quality gates in `AGENTS.md`.
+When uncertain, prefer conservative behavior that preserves determinism, provenance integrity, and auditability.

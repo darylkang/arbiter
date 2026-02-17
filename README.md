@@ -257,6 +257,7 @@ arbiter resolve
 ## Documentation
 
 - Design reference: `docs/DESIGN.md`
+- ExecPlan contract: `docs/PLANS.md`
 - Template guide: `resources/templates/README.md`
 - Contributor/agent rules: `AGENTS.md`
 
