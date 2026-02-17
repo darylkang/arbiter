@@ -4,6 +4,14 @@ Purpose: This file defines mandatory rules for contributors and AI coding agents
 
 ---
 
+## Planning contract
+
+- Active planning contract is `docs/PLANS.md`.
+- The local contract supersedes the global fallback `~/.codex/PLANS.md` for this repository.
+- Store feature-level ExecPlans in `docs/exec-plans/`.
+
+---
+
 ## Non‑negotiable invariants
 
 - **Schema‑first workflow**: define or modify JSON Schemas in `schemas/` before writing code that depends on them.
