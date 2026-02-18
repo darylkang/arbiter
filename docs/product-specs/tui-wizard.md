@@ -91,8 +91,9 @@ Headless run path:
 
 Bootstrap:
 
-1. `arbiter init` writes a default config in CWD.
-2. Wizard detects Arbiter config files in the current working directory and supports a `Run existing config` path.
+1. `arbiter init` writes a default config in CWD using the same deterministic collision-safe naming sequence as the wizard.
+2. `arbiter init` never overwrites an existing config file.
+3. Wizard detects Arbiter config files in the current working directory and supports a `Run existing config` path.
 
 ### Config discovery (CWD)
 
@@ -176,6 +177,8 @@ Rules:
 3. If multiple configs exist, user must select exactly one.
 4. Existing-config path jumps to Step 7 Review.
 5. Live mode is disabled when API key is missing.
+6. Run mode selects the runner implementation at runtime and does not rewrite config study semantics.
+7. Saving a config does not bake in Live vs Mock; config remains a study definition.
 
 ### Step 1: Research Question (`x`)
 
@@ -273,7 +276,7 @@ Customize groups:
    - output directory
    - run name
 
-Optional embedding-group feature toggle may live here if already supported.
+Optional embedding-group feature toggle lives here.
 
 Summary should list changed values only.
 
@@ -281,9 +284,10 @@ Summary should list changed values only.
 
 1. Human-readable summary card, no raw JSON.
 2. Preflight checks:
-   - schema valid
-   - output path writable
-   - live mode checks for API key and connectivity probe
+   - schema valid for both `Run now` and `Save config and exit`
+   - output path writable for both `Run now` and `Save config and exit`
+   - live-mode API key and connectivity probe only when run mode is Live and action is `Run now`
+   - if run mode is Live and action is `Save config and exit`, show warning: `Live mode requires OPENROUTER_API_KEY to run; config saved but not executed.`
    - warnings for risky settings
 3. Actions:
    - Run now
@@ -291,12 +295,22 @@ Summary should list changed values only.
    - Revise
    - Quit without saving
 
+Revise routing semantics:
+
+1. `Revise` always returns to Stage 1 Step 1 (`Research Question`).
+2. All selections are preserved and remain editable through normal forward and back navigation.
+3. No file is written while revising; config remains in-memory until commit actions are chosen.
+4. For `Run existing config` entry path, Step 1 through Step 6 fields are pre-populated from the selected config.
+5. Revising an existing config creates an edited in-memory copy unless and until user commits.
+6. `Revise` never modifies the selected source file in place.
+
 Commit rules:
 
 1. Config file is written only for `Run now` or `Save config and exit`.
 2. Naming follows the deterministic collision-safe sequence defined in Config save naming.
 3. Existing-config path must not rewrite the selected config file on `Run now`.
 4. Existing-config path writes a new file only when user chooses save-copy behavior via `Save config and exit`.
+5. `Save config and exit` is always available even without OpenRouter API connectivity.
 
 ## Stage 2: Run Dashboard
 
@@ -305,7 +319,7 @@ Stage 2 starts only after `Run now`.
 Required regions:
 
 1. Experiment summary line: question excerpt, mode, protocol, trials, workers.
-2. Master progress: progress bar, completed and planned counts, elapsed, ETA.
+2. Master progress: progress bar, completed and planned counts, elapsed time, and best-effort ETA (`—` when unknown).
 3. Worker table when workers > 1:
    - worker id
    - status
@@ -317,8 +331,9 @@ Required regions:
    - patience progress
    - status text for continue or likely stop
    - optional embedding-group counts
-   - required caveat lines:
+   - required always-visible caveat line:
      - stopping indicates diminishing novelty, not correctness
+   - conditional caveat line when embedding groups are displayed:
      - embedding groups reflect similarity, not semantic categories
 
 Worker table status and rendering rules:
@@ -334,6 +349,7 @@ Usage display:
 1. Show token usage accumulation when available.
 2. Show cost only when reliable; otherwise omit or label as estimate.
 3. In mock mode, show `usage not applicable` or omit usage fields.
+4. Unknown or unstable usage and cost values must be labeled as estimates or omitted.
 
 Interrupt behavior:
 
@@ -361,22 +377,22 @@ Receipt must remain visible after exit via normal terminal scrollback. Teardown 
 Receipt content:
 
 1. completion banner line:
-   - low novelty stop
-   - max trials reached
-   - user stopped gracefully
-2. summary card:
+   - `Stopped: novelty saturation`
+   - `Stopped: max trials reached`
+   - `Stopped: user requested graceful stop`
+2. research-honest hint directly below banner:
+   - stopping indicates diminishing novelty, not correctness.
+3. summary card:
    - stop reason
    - planned, completed, and eligible counts
    - duration
    - token usage
    - protocol summary
    - model and persona counts
-3. optional embedding groups summary with caveat.
-4. artifact list showing only files that exist.
-5. reproducibility command:
+4. optional embedding groups summary with caveat shown only when embedding group output is present.
+5. artifact list showing only files that exist.
+6. reproducibility command:
    - `arbiter run --config <path>`
-6. interpretation hint:
-   - stopping indicates diminishing novelty, not correctness.
 
 Receipt artifact-note behavior:
 
@@ -431,6 +447,11 @@ Exit codes:
 17. `Ctrl+C` in Stage 2 triggers graceful stop and still produces Stage 3 receipt.
 18. Stage 3 prints receipt, preserves scrollback visibility, and exits automatically with no next-action menu.
 19. Headless CLI remains functional and canonical.
+20. `Revise` deterministically returns to Step 1 with preserved state for both entry paths.
+21. `Save config and exit` never blocks on OpenRouter connectivity.
+22. Embedding-group caveat appears whenever embedding groups are displayed, and is absent otherwise.
+23. ETA may be unknown and shown as `—`; UI must not fabricate precision.
+24. `arbiter init` never overwrites existing configs.
 
 ## Deliverables
 
