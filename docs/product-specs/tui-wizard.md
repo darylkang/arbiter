@@ -77,23 +77,55 @@ Do not use:
 
 ## Command Surface and Mode Behavior
 
+CLI surface is intentionally minimal and stable.
+
+Primary entry points:
+
+1. `arbiter`
+2. `arbiter init`
+3. `arbiter run`
+
+Global flags:
+
+1. `--help`, `-h`
+2. `--version`, `-V`
+
+Not part of contract:
+
+1. no `--headless`
+2. no `--verbose`
+3. no `--wizard`
+4. no redundant shorthand aliases beyond `-h` and `-V`
+
 Wizard entry:
 
-1. `arbiter` in TTY launches Wizard TUI.
-2. `arbiter --headless` always shows headless mode behavior.
-3. `arbiter` in non-TTY behaves as headless.
+1. `arbiter` with TTY stdout launches Wizard TUI.
+2. `arbiter` without TTY stdout prints help text and exits `0`.
+3. Wizard entry requires no flags.
 
 Headless run path:
 
-1. `arbiter run --config <path>` remains valid and canonical for automation.
-2. Optional `--verbose` or `--dashboard` may reuse Stage 2 and Stage 3 output components in headless mode.
-3. Without verbose and dashboard, headless run remains quiet except errors while artifacts are produced.
+1. `arbiter run --config <path>` is required and canonical for automation.
+2. Supported runtime override flags are:
+   - `--out <dir>`
+   - `--workers <n>`
+   - `--batch-size <n>`
+   - `--max-trials <n>`
+   - `--mode <mock|live>`
+   - `--dashboard`
+3. `--dashboard` is TTY-only monitor rendering (Stage 2 and Stage 3 reuse).
+4. If `--dashboard` is used without TTY stdout, print warning to stderr and continue headless.
+5. No experiment-variable CLI flags are allowed in v1.
+6. Study variables are config-defined only (models, personas, protocol, decode, debate parameters, clustering thresholds).
 
 Bootstrap:
 
 1. `arbiter init` writes a default config in CWD using the same deterministic collision-safe naming sequence as the wizard.
 2. `arbiter init` never overwrites an existing config file.
 3. Wizard detects Arbiter config files in the current working directory and supports a `Run existing config` path.
+4. `arbiter init` prints the created config path and suggested next commands:
+   - `arbiter`
+   - `arbiter run --config <file>`
 
 ### Config discovery (CWD)
 
@@ -452,6 +484,9 @@ Exit codes:
 22. Embedding-group caveat appears whenever embedding groups are displayed, and is absent otherwise.
 23. ETA may be unknown and shown as `—`; UI must not fabricate precision.
 24. `arbiter init` never overwrites existing configs.
+25. `arbiter` launches wizard in TTY and prints help with exit code `0` in non-TTY.
+26. `arbiter run --config <file> --dashboard` renders dashboard in TTY and warns then continues headless in non-TTY.
+27. CLI help exposes no legacy flags (`--headless`, `--verbose`) and no extra primary commands beyond `arbiter`, `arbiter init`, and `arbiter run`.
 
 ## Deliverables
 

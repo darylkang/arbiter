@@ -15,6 +15,37 @@ It has two jobs:
 
 If this document conflicts with schemas, schemas win and this doc must be updated immediately.
 
+## 1.1) CLI Surface Contract (v1)
+
+Arbiter's stabilized v1 CLI surface is intentionally minimal.
+
+Primary entry points:
+
+1. `arbiter`
+2. `arbiter init`
+3. `arbiter run`
+
+Global flags:
+
+1. `--help`, `-h`
+2. `--version`, `-V`
+
+Contract boundaries:
+
+1. no `--headless`,
+2. no `--verbose`,
+3. no wizard-only flags (`--wizard`),
+4. no redundant aliases beyond `-h` and `-V`.
+
+Command semantics:
+
+1. `arbiter` launches Wizard TUI when stdout is TTY; otherwise prints help and exits `0`.
+2. `arbiter init` writes collision-safe config filenames (`arbiter.config.json`, `arbiter.config.1.json`, and so on) without overwrite.
+3. `arbiter run` is headless by default and requires `--config <path>`.
+4. `arbiter run --dashboard` renders Stage 2 and Stage 3 only in TTY; in non-TTY it warns to stderr and continues headless.
+5. `arbiter run` override flags are control-plane only: `--out`, `--workers`, `--batch-size`, `--max-trials`, `--mode`, `--dashboard`.
+6. experiment variables are config-defined and not overridden via CLI flags.
+
 ## 2) Research Alignment (Paper North Star)
 
 Arbiter supports the research framing that a single LLM answer is one sample from a stochastic process.
@@ -97,7 +128,7 @@ Primary modules:
 - embeddings finalization: `src/embeddings/`
 - clustering monitor: `src/clustering/`
 - verify/report tooling: `src/tools/`
-- transcript UI: `src/ui/`
+- wizard and dashboard UI: `src/ui/`
 
 Architecture boundary:
 
@@ -113,8 +144,8 @@ Architecture boundary:
 4. execute trials and parse outputs,
 5. derive embedding inputs and run embeddings when eligible,
 6. update monitoring/clustering at batch boundaries in `trial_id` order,
-7. finalize artifacts atomically and write manifest/receipt,
-8. verify run integrity with `arbiter verify`.
+7. finalize artifacts atomically and write manifest and run outputs,
+8. verify run integrity through artifact/schema validation checks.
 
 ## 9) Determinism and Reproducibility Invariants
 
@@ -188,6 +219,7 @@ Run directory:
 
 Expected executed-run artifacts:
 
+- `config.source.json`
 - `config.resolved.json`
 - `manifest.json`
 - `trial_plan.jsonl`
@@ -196,21 +228,21 @@ Expected executed-run artifacts:
 - `convergence_trace.jsonl`
 - `aggregates.json`
 - `embeddings.provenance.json`
-- `receipt.txt`
 
 Conditionally produced:
 
 - `embeddings.arrow` (when embeddings are generated),
 - `clusters/online.state.json` and `clusters/online.assignments.jsonl` (when clustering enabled),
+- `receipt.txt` (when textual receipt output is written),
 - debug artifacts such as `debug/embeddings.jsonl` and `execution.log` (when debug mode is enabled).
 
-Resolve-only (`arbiter resolve`) is planning output, not a full execution artifact set.
+Planning-only workflows do not produce a full execution artifact set.
 
 ## 15) Verification and Quality Expectations
 
 Before trusting results:
 
-- run `arbiter verify runs/<run_id>`,
+- validate run artifacts and schema conformance,
 - inspect `manifest.json` for policy/provenance snapshot,
 - inspect `convergence_trace.jsonl` for stopping context,
 - confirm requested vs actual model identifiers.

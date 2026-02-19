@@ -73,92 +73,105 @@ arbiter --help
 
 ## Quick start
 
-### Interactive mode (TTY)
+### Wizard entry (TTY)
 
-Launch the interactive transcript UI:
+Launch the wizard:
 
 ```bash
 arbiter
 ```
 
-### Headless mock run (recommended first run)
+### Initialize a config
 
 ```bash
-arbiter init "What tradeoffs appear in event-driven architecture decisions?"
-arbiter validate
-arbiter run
+arbiter init
 ```
 
-Then inspect outputs:
+This writes `arbiter.config.json` in CWD, or the first collision-safe filename:
+
+- `arbiter.config.1.json`
+- `arbiter.config.2.json`
+- and so on
+
+### Headless run (default)
 
 ```bash
-arbiter receipt runs/<run_id>
-arbiter report runs/<run_id>
-arbiter verify runs/<run_id>
+arbiter run --config arbiter.config.json
 ```
 
-### Live run (real model calls)
+### Live run override
 
 ```bash
 export OPENROUTER_API_KEY=<your_key>
-arbiter validate --live
-arbiter run --live
+arbiter run --config arbiter.config.json --mode live
 ```
 
-For non-interactive environments (CI, pipes), add `--yes`:
+### Dashboard monitor (human-only)
 
 ```bash
-arbiter run --live --yes
+arbiter run --config arbiter.config.json --dashboard
 ```
 
----
-
-## Command reference
-
-Use `arbiter <command> --help` for full flags and examples.
-
-| Command | Purpose |
-|---|---|
-| `arbiter` | Launch interactive transcript UI in TTY (or show help in headless mode) |
-| `arbiter init [question]` | Create a config file from a template |
-| `arbiter run [config]` | Execute a study (mock by default) |
-| `arbiter validate [config]` | Validate config and policy; optional live connectivity check |
-| `arbiter report <run_dir>` | Generate a readable summary report |
-| `arbiter verify <run_dir>` | Verify run artifacts against schemas and invariants |
-| `arbiter receipt <run_dir>` | Print a concise run receipt |
-| `arbiter resolve [config]` | Emit resolved config and deterministic trial plan without executing |
+If stdout is not TTY, Arbiter prints a warning to stderr and continues headless.
 
 ---
 
-## Default run behavior
+## CLI Contract (v1)
 
-- `arbiter run` defaults to **mock mode**.
-- `arbiter run --live` enables real API calls.
-- If API key is missing, mock mode still works.
-- Live mode requires `OPENROUTER_API_KEY`.
+Arbiter exposes exactly three primary entry points:
+
+1. `arbiter`
+2. `arbiter init`
+3. `arbiter run`
+
+Global flags:
+
+- `--help`, `-h`
+- `--version`, `-V`
+
+Command behavior:
+
+- `arbiter`: launch wizard when stdout is TTY; otherwise print help and exit `0`.
+- `arbiter init`: write a collision-safe default config in CWD and never overwrite existing files.
+- `arbiter run`: headless execution command, requires `--config <path>`.
+
+Run override flags (`arbiter run`):
+
+- `--out <dir>` (default: `./runs`)
+- `--workers <n>`
+- `--batch-size <n>`
+- `--max-trials <n>`
+- `--mode <mock|live>`
+- `--dashboard` (TTY-only Stage 2/3 monitor)
+
+Not part of v1:
+
+- no `--headless`
+- no `--verbose`
+- no wizard flag (`--wizard`)
+- no experiment-variable CLI flags (models, personas, protocol, decode, debate params, clustering thresholds)
+- no redundant aliases beyond `-h` and `-V`
 
 ---
 
-## Templates and profiles
+## Config Resolution Contract
 
-Arbiter ships curated templates in `resources/templates/`:
+Resolution precedence:
 
-- `default`
-- `quickstart_independent`
-- `heterogeneity_mix`
-- `debate_v1`
-- `free_quickstart`
-- `full`
+1. built-in defaults
+2. config file
+3. CLI override flags
 
-Example:
+Per run directory, Arbiter writes:
 
-```bash
-arbiter init --template debate_v1 "Should cities prioritize housing affordability over job growth?"
-```
+- `config.source.json` (exact input config as read)
+- `config.resolved.json` (final resolved config used to execute)
+
+The source config file is never mutated during run execution.
 
 ---
 
-## Output artifacts
+## Run Directory Contract
 
 Each run writes to:
 
@@ -166,8 +179,9 @@ Each run writes to:
 runs/<run_id>/
 ```
 
-Typical files include:
+Required files:
 
+- `config.source.json`
 - `config.resolved.json`
 - `manifest.json`
 - `trial_plan.jsonl`
@@ -176,10 +190,26 @@ Typical files include:
 - `convergence_trace.jsonl`
 - `aggregates.json`
 - `embeddings.provenance.json`
-- `embeddings.arrow` (when embeddings are generated)
-- `receipt.txt`
-- `clusters/` (when clustering is enabled)
-- `debug/` (when `--debug` is enabled)
+- `embeddings.arrow` (if applicable)
+
+Zero-eligible runs still produce a valid `embeddings.provenance.json`.
+
+---
+
+## Exit Code Contract
+
+Exit `0` for:
+
+- normal completion,
+- novelty saturation stop,
+- max-trials stop,
+- graceful `Ctrl+C` stop.
+
+Use non-zero only for:
+
+- invalid config,
+- inability to start run,
+- fatal execution failure.
 
 ---
 
@@ -196,36 +226,6 @@ Important guidance:
 
 ---
 
-## Guardrails and policy controls
-
-For policy-sensitive runs:
-
-- `--strict` enforces model policy constraints.
-- `--permissive` keeps warn-only behavior.
-- `--allow-free` and `--allow-aliased` allow specific exceptions in strict mode.
-- `--contract-failure warn|exclude|fail` controls parse-failure handling.
-
-Use `arbiter run --help` for full details.
-
----
-
-## Reproducibility and provenance
-
-Arbiter records:
-
-- deterministic trial plan (seeded),
-- requested and actual model identifiers,
-- artifact hashes and counts in manifest,
-- embedding generation metadata when available.
-
-Use verification before trusting downstream analyses:
-
-```bash
-arbiter verify runs/<run_id>
-```
-
----
-
 ## Troubleshooting
 
 ### `error: config not found ...`
@@ -233,7 +233,7 @@ arbiter verify runs/<run_id>
 Initialize a config first:
 
 ```bash
-arbiter init "Your research question"
+arbiter init
 ```
 
 ### Live run fails with missing API key
@@ -244,21 +244,17 @@ Set key in environment:
 export OPENROUTER_API_KEY=<your_key>
 ```
 
-### You need only planning, not execution
+### `--dashboard` used in non-TTY
 
-Use resolve-only:
-
-```bash
-arbiter resolve
-```
+Arbiter warns to stderr and continues headless by contract.
 
 ---
 
 ## Documentation
 
 - Design reference: `docs/DESIGN.md`
+- Wizard UX spec: `docs/product-specs/tui-wizard.md`
 - ExecPlan contract: `docs/PLANS.md`
-- Template guide: `resources/templates/README.md`
 - Contributor/agent rules: `AGENTS.md`
 
 ---
