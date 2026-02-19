@@ -4,107 +4,118 @@ This ExecPlan is a living document and must be updated as work proceeds.
 This plan follows `docs/PLANS.md`.
 
 ## Purpose / Big Picture
-Stabilize Arbiter's run artifact package so it is internally consistent across schemas, writer behavior, verify/report tools, and user-facing docs. The end state is a single truthful contract for what is always emitted, conditionally emitted, and never emitted, including zero-eligible and interrupted runs.
+Stabilize Arbiter's run artifact package so schemas, runtime writes, manifest listings, verifier checks, report tooling, and docs all describe the same truth.
+
+This plan remains blocked until product decisions from the ongoing artifact-package design pass are finalized.
 
 Observable user outcomes:
 
-1. artifact expectations in docs match files actually written by runtime.
-2. verify/report tools enforce the same contract used by writer and schemas.
-3. provenance and reproducibility guarantees are explicit and test-backed.
-4. no ambiguous or stale artifact references remain (for example documented-but-missing files).
+1. artifact expectations in docs match files actually written.
+2. verifier/report outputs are contract-consistent with runtime behavior.
+3. edge cases (zero eligible, graceful interrupt, resolve-only, failures) are explicitly and truthfully represented.
+4. no documented-but-missing or hidden-but-undocumented artifacts remain.
 
 ## Progress
 - [x] (2026-02-19 00:00Z) initial plan drafted (`blocked`, pending artifact package decisions)
-- [ ] (2026-02-19 00:00Z) milestone 1 complete: final artifact policy decisions captured
-- [ ] (2026-02-19 00:00Z) milestone 2 complete: schemas and generated types aligned
-- [ ] (2026-02-19 00:00Z) milestone 3 complete: writer/finalizer behavior aligned
-- [ ] (2026-02-19 00:00Z) milestone 4 complete: verify/report/lifecycle hooks aligned
-- [ ] (2026-02-19 00:00Z) milestone 5 complete: docs/tests acceptance evidence captured (`completed`)
+- [ ] (2026-02-19 00:00Z) milestone 0 complete: decision log populated with final artifact matrix
+- [ ] (2026-02-19 00:00Z) milestone 1 complete: schemas and generated types aligned
+- [ ] (2026-02-19 00:00Z) milestone 2 complete: writer/finalizer behavior aligned
+- [ ] (2026-02-19 00:00Z) milestone 3 complete: manifest/verifier/report alignment complete
+- [ ] (2026-02-19 00:00Z) milestone 4 complete: docs and acceptance evidence captured (`completed`)
 
 ## Surprises & Discoveries
-- Observation: `config.source.json` is documented but currently not written by implementation.
+- Observation: `config.source.json` is currently documented as required but is not emitted by runtime.
   Evidence: `README.md`, `docs/DESIGN.md`, `src/artifacts/artifact-writer.ts`, `src/run/run-service.ts`.
-- Observation: some artifact writes are lifecycle-hook driven (`receipt.txt`, `execution.log`) and may vary by run mode/TTY.
+- Observation: some artifacts are generated through lifecycle hooks (`receipt.txt`, `execution.log`) and vary by TTY/quiet/receipt mode.
   Evidence: `src/ui/run-lifecycle-hooks.ts`.
+- Observation: resolve-only artifact semantics are already enforced in verifier but differ from executed-run contract.
+  Evidence: `src/tools/verify-run.ts`, `src/artifacts/resolve-artifacts.ts`.
 
 ## Decision Log
-- Decision: keep this plan blocked until Breezy-led artifact package decisions are finalized.
-  Rationale: prevents premature code churn and schema changes against unsettled contract boundaries.
+- Decision: keep this plan blocked until artifact package decisions from design review are finalized.
+  Rationale: avoids churn across schema/writer/verifier/docs with unstable requirements.
   Date/Author: 2026-02-19, Codex thread.
+- Pending decisions required before implementation:
+  1. whether `config.source.json` is mandatory and exact semantics.
+  2. mandatory vs conditional status for `receipt.txt` and `execution.log`.
+  3. canonical artifact list by run class (success, interrupt, failure, resolve-only).
+  4. zero-eligible embeddings contract details and explanatory notes.
 
 ## Context and Orientation
-Reviewed before plan draft:
+Reviewed before plan finalization:
 
 1. `AGENTS.md` for artifact invariants and schema-first workflow.
-2. `README.md` and `docs/DESIGN.md` for stated run-directory contract.
-3. `src/artifacts/artifact-writer.ts` and `src/artifacts/manifest-builder.ts` for actual writes/listing.
-4. `src/run/run-service.ts` and `src/engine/run-orchestrator.ts` for lifecycle finalization paths.
-5. `src/tools/verify-run.ts` and `src/tools/report-run.ts` for downstream contract enforcement.
-6. artifact schemas in `schemas/` for shape-level truth.
+2. `README.md` and `docs/DESIGN.md` artifact contracts.
+3. `schemas/manifest.schema.json` and related artifact schemas.
+4. `src/artifacts/artifact-writer.ts`, `src/artifacts/manifest-builder.ts`, `src/embeddings/finalize.ts`.
+5. `src/run/run-service.ts` and `src/engine/run-orchestrator.ts` lifecycle behavior.
+6. `src/tools/verify-run.ts`, `src/tools/report-run.ts`, `src/ui/receipt-model.ts`.
+7. run directories under `runs/` for empirical artifact shape checks.
 
 Non-obvious terms:
 
-1. Always artifact: required for executed runs irrespective of mode/result class.
-2. Conditional artifact: emitted only when specific runtime conditions hold.
-3. Resolve-only run: planning/resolve mode that intentionally omits execution artifacts.
+1. always artifact: required for executed runs regardless of stop reason.
+2. conditional artifact: emitted only under specific runtime conditions.
+3. resolve-only run: run directory created from config resolution without execution artifacts.
 
 High-risk components:
 
-1. schema-writer-verifier mismatch causing false positives/false negatives.
-2. partial-run and interrupt semantics creating inconsistent artifact sets.
-3. debug artifact retention/cleanup affecting provenance expectations.
+1. schema/writer/verifier drift causing false verification failures or silent contract breakage.
+2. partial/interrupt runs producing inconsistent or misleading artifact sets.
+3. cleanup paths (debug embeddings jsonl retention/removal) diverging from manifest listing rules.
 
 ## Plan of Work
-Ordering principle: decision freeze first, then schema and implementation convergence.
+Ordering principle: decision freeze, then schema truth, then runtime behavior, then consumer alignment.
 
-1. Capture final artifact package decisions and edge-case rules.
-2. Align schemas and generated types first.
-3. Align runtime writers/finalizers and manifest entries.
-4. Align verify/report tools and receipt/lifecycle outputs.
+1. Finalize artifact matrix by run class and lifecycle condition.
+2. Apply schema-first updates and regenerate types.
+3. Align writers/finalizers and manifest entries to schema contract.
+4. Align verifier/report/receipt consumers.
 5. Align docs and tests with fail-before/pass-after evidence.
 
 Milestones:
 
-1. Milestone 1: artifact contract freeze.
-2. Milestone 2: schema/type alignment.
-3. Milestone 3: writer and finalization alignment.
-4. Milestone 4: verifier/reporter alignment.
-5. Milestone 5: documentation and acceptance evidence.
+1. Milestone 0: artifact policy matrix frozen.
+2. Milestone 1: schema/type alignment.
+3. Milestone 2: writer/finalizer alignment.
+4. Milestone 3: manifest/verifier/report alignment.
+5. Milestone 4: docs/tests acceptance alignment.
 
 ## Concrete Steps
 Working directory: repository root.
 
-1. Record final artifact policy matrix (always/conditional/prohibited; by mode and stop reason).
-   Command: `rg -n "config\.source|config\.resolved|manifest|trial_plan|trials|parsed|convergence_trace|aggregates|embeddings|receipt|execution\.log" src docs schemas -S`
-   Expected evidence: explicit contract matrix checked into docs.
-2. Update schemas first and regenerate types.
+1. Build and check in an artifact contract matrix document.
+   Command: `rg -n "config\.source|config\.resolved|manifest|trial_plan|trials|parsed|convergence_trace|aggregates|embeddings|receipt|execution\.log|resolve_only" src docs schemas -S`
+   Expected evidence: one authoritative matrix (always/conditional/forbidden by run class).
+2. Update schemas first and regenerate generated types.
    Commands:
    - `npm run gen:types`
    - `npm run check:schemas`
-   Expected evidence: `schemas/*` and `src/generated/*` are consistent.
-3. Update artifact writer/finalization paths and manifest entry construction.
-   Command: `rg -n "buildArtifactEntries|writeJsonAtomic|createJsonlWriter|embeddings\.finalized|artifact\.written" src/artifacts src/run src/ui -S`
-   Expected evidence: emitted files and manifest entries match contract matrix.
-4. Update verification/reporting logic to same contract.
-   Command: `rg -n "verifyRunDir|allowedArtifacts|artifact exists|report" src/tools -S`
-   Expected evidence: verifier checks precisely enforce finalized contract.
-5. Add or update artifact-focused tests for normal, zero-eligible, interrupted, and resolve-only runs.
+   Expected evidence: type generation is clean and schema validation passes.
+3. Align runtime writer/finalizer behavior and manifest entry construction.
+   Command: `rg -n "buildArtifactEntries|writeJsonAtomic|ensureEmbeddingsProvenance|artifact\.written|cleanupDebugArtifacts" src/artifacts src/embeddings src/run src/ui -S`
+   Expected evidence: actual files + manifest entries match matrix in all run classes.
+4. Align verifier and report logic.
+   Command: `rg -n "verifyResolveOnlySemantics|artifact exists|allowedArtifacts|buildReportModel|buildReceiptModel" src/tools src/ui -S`
+   Expected evidence: verifier and report expectations match runtime truth.
+5. Add or update tests for normal, zero-eligible, graceful interrupt, run failure, and resolve-only.
    Commands:
    - `npm run test:verify`
    - `npm run test:mock-run`
    - `npm run test:embeddings`
    - `npm run test:clustering`
-   Expected evidence: deterministic pass across artifact scenarios.
+   - `npm run test:unit`
+   Expected evidence: deterministic passing coverage for all artifact classes.
 
 ## Validation and Acceptance
 Behavioral acceptance criteria:
 
-1. Each run mode/stop class emits exactly the documented artifact set.
-2. Manifest artifact entries match actual files on disk.
-3. Zero-eligible runs still emit valid embeddings provenance and truthful notes.
+1. Each run class emits exactly the documented artifact set.
+2. Manifest artifact entries correspond to files that exist on disk.
+3. Zero-eligible runs still emit valid embeddings provenance and truthful explanatory metadata.
 4. Resolve-only runs emit only resolve-only artifacts.
-5. `config.source.json` behavior is explicitly decided and implemented/documented consistently.
-6. Verify/report tools agree with writer semantics (no contract drift).
+5. `config.source.json` contract is explicitly and consistently implemented or explicitly removed from docs/spec.
+6. verify/report/receipt tooling no longer encodes stale artifact assumptions.
 
 Validation commands:
 
@@ -114,29 +125,31 @@ Validation commands:
 4. `npm run test:verify`
 5. `npm run test:embeddings`
 6. `npm run test:clustering`
+7. `npm run test:unit`
 
 Fail-before/pass-after evidence to capture:
 
-1. mismatch examples (before).
-2. matching manifest/files/verifier status (after).
+1. existing mismatch examples (before).
+2. matrix-compliant run directories and verifier output (after).
 
 ## Idempotence and Recovery
-1. Schema-first edits are repeatable and regenerate deterministically.
-2. Use milestone commits for safe rollback.
-3. If writer changes regress, rollback to previous milestone and re-apply with targeted tests.
-4. If verifier becomes too strict/loose, keep writer semantics stable and patch verifier with explicit fixtures.
+1. Schema and generated-type updates are deterministic and re-runnable.
+2. Milestone commits provide rollback boundaries.
+3. If writer changes regress, rollback runtime milestone and retain schema/doc updates only if still truthful.
+4. If verifier strictness regresses, freeze writer behavior and patch verifier against explicit fixtures.
 
 ## Interfaces and Dependencies
 1. Schemas: `schemas/*.schema.json`.
-2. Generated types: `src/generated/*` (generated-only).
-3. Writers/finalizers: `src/artifacts/*`, `src/embeddings/finalize.ts`, `src/run/run-service.ts`.
+2. Generated types: `src/generated/*`.
+3. Runtime writers: `src/artifacts/*`, `src/embeddings/finalize.ts`, `src/run/run-service.ts`.
 4. Consumers: `src/tools/verify-run.ts`, `src/tools/report-run.ts`, `src/ui/receipt-model.ts`.
 
 ## Artifacts and Notes
 Dependency note:
 
-1. This plan intentionally follows artifact package decisions from ongoing design discussions.
-2. Do not begin implementation until contract decisions are captured in this plan's Decision Log.
+1. Do not start implementation until milestone-0 decisions are entered in Decision Log.
+2. This plan should run after CLI contract and wizard cutover stabilize to avoid concurrent contract churn.
 
 ## Plan Change Notes
-- 2026-02-19 00:00Z: initial draft created in `blocked` state pending final artifact-package decisions.
+- 2026-02-19 00:00Z: initial draft created in blocked state.
+- 2026-02-19 00:00Z: strengthened after self-audit with explicit decision checklist and run-class matrix approach.

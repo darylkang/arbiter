@@ -4,148 +4,158 @@ This ExecPlan is a living document and must be updated as work proceeds.
 This plan follows `docs/PLANS.md`.
 
 ## Purpose / Big Picture
-Stabilize Arbiter's public command surface to the intentional v1 contract: exactly three primary entry points (`arbiter`, `arbiter init`, `arbiter run`) with minimal, explicit flag behavior. This prevents UX drift, keeps automation stable, and ensures the wizard/headless split remains simple and predictable.
+Stabilize Arbiter's public CLI to the intentional v1 contract: exactly three primary entry points (`arbiter`, `arbiter init`, `arbiter run`) with a minimal, explicit flag surface and deterministic mode behavior.
 
 Observable user outcomes:
 
 1. `arbiter` launches wizard in TTY and prints help in non-TTY.
-2. `arbiter init` writes collision-safe config names and never overwrites.
-3. `arbiter run --config <path>` is the canonical headless path.
-4. `arbiter run --dashboard` is TTY-only visualization; non-TTY warns and continues headless.
-5. Legacy/extra flags and commands are removed from help and parser behavior.
+2. `arbiter init` writes deterministic collision-safe config filenames and never overwrites.
+3. `arbiter run --config <path>` remains canonical headless execution path.
+4. `arbiter run --dashboard` renders monitor only in TTY; non-TTY warns to stderr and continues headless.
+5. Legacy flags and commands are absent from help and parser behavior.
 
 ## Progress
 - [x] (2026-02-19 00:00Z) initial plan drafted (`proposed`)
-- [ ] (2026-02-19 00:00Z) milestone 1 complete: command parser + help contract aligned
-- [ ] (2026-02-19 00:00Z) milestone 2 complete: `arbiter` TTY/non-TTY dispatch enforced
-- [ ] (2026-02-19 00:00Z) milestone 3 complete: `arbiter init` naming/overwrite semantics enforced
+- [ ] (2026-02-19 00:00Z) milestone 0 complete: contract freeze on legacy command disposition
+- [ ] (2026-02-19 00:00Z) milestone 1 complete: parser/help grammar aligned
+- [ ] (2026-02-19 00:00Z) milestone 2 complete: root `arbiter` TTY/non-TTY dispatch aligned
+- [ ] (2026-02-19 00:00Z) milestone 3 complete: `arbiter init` naming/overwrite semantics aligned
 - [ ] (2026-02-19 00:00Z) milestone 4 complete: `arbiter run` flag surface constrained and validated
-- [ ] (2026-02-19 00:00Z) milestone 5 complete: integration tests and docs synchronized (`completed`)
+- [ ] (2026-02-19 00:00Z) milestone 5 complete: script and test contract updates complete (`completed`)
 
 ## Surprises & Discoveries
-- Observation: current CLI code still exposes legacy commands and flags (`validate`, `verify`, `report`, `resolve`, transcript-oriented behavior).
+- Observation: current CLI includes legacy commands and flags outside v1 contract.
   Evidence: `src/cli/index.ts`, `src/cli/commands.ts`, `src/cli/help.ts`.
-- Observation: docs already state a simplified CLI contract, but implementation does not fully match.
-  Evidence: `README.md`, `docs/DESIGN.md`, `src/cli/*`.
+- Observation: current mode resolver explicitly supports `--headless`, and tests assert that behavior.
+  Evidence: `src/cli/intent.ts`, `scripts/tui-headless.mjs`, `scripts/tui-intent.mjs`.
+- Observation: CLI output-contract tests currently depend on legacy commands (`report`, `verify`, `receipt`, `validate`, `resolve`).
+  Evidence: `scripts/cli-output-contracts.mjs`.
 
 ## Decision Log
-- Decision: contract hardening is isolated in its own plan from UI rewrite.
-  Rationale: command-surface stability is externally observable and benefits from independent verification and rollback.
+- Decision: CLI hardening is isolated from UI rewrite and artifact package stabilization.
+  Rationale: public command surface is externally observable and benefits from independent acceptance and rollback.
   Date/Author: 2026-02-19, Codex thread.
-- Decision: keep run execution semantics untouched except where required to satisfy command-surface contract.
-  Rationale: reduces risk of accidental engine/artifact regressions while stabilizing interface behavior.
+- Decision: execute this plan after UI rewrite reaches default-path cutover milestone.
+  Rationale: avoid double churn in root dispatch while stage architecture is still moving.
   Date/Author: 2026-02-19, Codex thread.
+- Decision needed at milestone 0: disposition of existing inspection commands (`verify`, `report`, `receipt`, `validate`, `resolve`) in unreleased clean-cutover path.
+  Rationale: tests/scripts currently rely on them; removal requires explicit replacement strategy.
+  Date/Author: pending.
 
 ## Context and Orientation
 Reviewed before plan finalization:
 
-1. `AGENTS.md` for invariants and validation gates.
-2. `README.md` CLI contract section.
-3. `docs/DESIGN.md` CLI surface contract section.
-4. `docs/PLANS.md` for required plan structure.
-5. `docs/product-specs/tui-wizard.md` command-surface and mode behavior section.
-6. `src/cli/index.ts`, `src/cli/commands.ts`, `src/cli/help.ts` for current parser/dispatch/help implementation.
+1. `AGENTS.md` for invariants and required validation gates.
+2. `README.md` and `docs/DESIGN.md` CLI contract sections.
+3. `docs/PLANS.md` for plan requirements.
+4. `docs/product-specs/tui-wizard.md` command-surface section.
+5. `src/cli/index.ts`, `src/cli/commands.ts`, `src/cli/help.ts`, `src/cli/intent.ts` for current behavior.
+6. `scripts/tui-headless.mjs`, `scripts/tui-intent.mjs`, `scripts/cli-output-contracts.mjs` for regression scope.
 
 Non-obvious terms:
 
-1. Headless: non-interactive run path without Stage 1 wizard setup.
-2. Dashboard: Stage 2 + Stage 3 monitor/receipt rendering for humans.
-3. Control-plane flags: execution controls (`--out`, `--workers`, `--batch-size`, `--max-trials`, `--mode`, `--dashboard`) only.
+1. Headless: non-interactive execution path.
+2. Dashboard: Stage 2 + Stage 3 monitor rendering for humans.
+3. Control-plane flags: `--out`, `--workers`, `--batch-size`, `--max-trials`, `--mode`, `--dashboard`.
 
 High-risk components:
 
-1. parser normalization and short flag handling in `src/cli/commands.ts`.
-2. root command dispatch and TTY detection in `src/cli/index.ts`.
-3. help text drift in `src/cli/help.ts`.
+1. root dispatch behavior for non-TTY could silently regress user expectations.
+2. removing legacy flags/commands can break scripts and tests if migration is not explicit.
+3. help text drift can leave contract ambiguous even when behavior is correct.
 
 ## Plan of Work
-Ordering principle: external API stability first, implementation cleanup second.
+Ordering principle: freeze command contract decisions first, then parser/runtime behavior, then test/doc synchronization.
 
-1. Define and enforce exact command/flag grammar in parser and help.
-2. Enforce root command dispatch behavior for TTY and non-TTY.
-3. Rework `init` for collision-safe deterministic naming with no overwrite.
-4. Constrain `run` to minimal flag set and validate runtime behavior for dashboard/TTY.
-5. Remove legacy entrypoints from parser/help routing.
-6. Add regression tests and update docs in lockstep.
+1. Resolve milestone-0 decision on legacy command disposition and migration path.
+2. Enforce exact command and flag grammar in parser and help output.
+3. Enforce root invocation TTY/non-TTY contract (`arbiter` only).
+4. Implement deterministic non-overwriting init naming behavior.
+5. Constrain run flag surface and dashboard fallback behavior.
+6. Update scripts/tests/docs to encode new contract as executable evidence.
 
 Milestones:
 
-1. Milestone 1: command grammar and help contract.
-2. Milestone 2: root `arbiter` mode-dispatch semantics.
-3. Milestone 3: `init` naming and write safety.
-4. Milestone 4: `run` flag constraints and dashboard fallback behavior.
-5. Milestone 5: cleanup, tests, and docs synchronization.
+1. Milestone 0: legacy command disposition freeze.
+2. Milestone 1: parser/help contract alignment.
+3. Milestone 2: root dispatch alignment.
+4. Milestone 3: init semantics alignment.
+5. Milestone 4: run flags and dashboard behavior alignment.
+6. Milestone 5: script/test/doc synchronization and acceptance.
 
 ## Concrete Steps
 Working directory: repository root.
 
-1. Refactor CLI parser and command table to admit only v1 commands.
-   Command: `rg -n "validate|verify|report|resolve|--headless|--verbose|--wizard" src/cli -S`
-   Expected evidence: no command dispatch paths for removed contract surface.
-2. Update root dispatch (`arbiter`) TTY handling.
-   Command: `rg -n "isTTY|launch.*wizard|help" src/cli/index.ts -S`
-   Expected evidence: non-TTY root path prints help and exits `0`; TTY path launches wizard.
-3. Implement deterministic non-overwrite naming for `arbiter init`.
-   Command: `rg -n "init|arbiter\.config" src/cli src/config src/run -S`
-   Expected evidence: filename sequence `arbiter.config.json`, `.1`, `.2`, ... used consistently.
-4. Restrict `run` flags and enforce `--dashboard` non-TTY fallback warning behavior.
-   Command: `rg -n "dashboard|mode|max-trials|workers|batch-size|out" src/cli -S`
-   Expected evidence: unknown/legacy flags rejected or absent; dashboard warning on non-TTY.
-5. Align help text and README examples to implementation.
-   Command: `rg -n "--headless|--verbose|validate|verify|report|resolve" README.md docs src/cli/help.ts -S`
-   Expected evidence: no stale flag/command references in user-facing CLI docs.
-6. Add contract tests for parser, help, and dispatch behavior.
+1. Remove legacy grammar from parser/help according to milestone-0 decision.
+   Command: `rg -n "validate|verify|report|receipt|resolve|--headless|--verbose|--wizard|--live|--yes|--strict|--permissive|--allow-free|--allow-aliased|--contract-failure" src/cli -S`
+   Expected evidence: parser and help expose only approved v1 contract.
+2. Align root command dispatch behavior.
+   Command: `rg -n "resolveCliMode|isTTY|noCommand|--help|--version" src/cli/index.ts src/cli/intent.ts -S`
+   Expected evidence: `arbiter` TTY launches wizard; non-TTY prints help and exits `0`.
+3. Implement init naming contract.
+   Command: `rg -n "init|arbiter\.config|overwrite|force" src/cli src/config -S`
+   Expected evidence: naming sequence `arbiter.config.json`, `.1`, `.2`, ... with no overwrite path.
+4. Restrict run command flags.
+   Command: `rg -n "--config|--out|--workers|--batch-size|--max-trials|--mode|--dashboard" src/cli -S`
+   Expected evidence: run accepts only contracted flags and rejects removed ones.
+5. Implement dashboard non-TTY fallback warning semantics.
+   Command: `rg -n "dashboard|stderr|TTY|warn" src/cli src/ui -S`
+   Expected evidence: warning to stderr only; execution continues headless.
+6. Update and/or replace contract scripts and tests.
    Commands:
-   - `npm run check:types`
+   - `rg -n "--headless|/run|/quit|resolveCliMode|verify|report|receipt|validate|resolve" scripts test -S`
    - `npm run test:ui`
-   - `npm run test:mock-run`
-   - `npm run test:pack`
-   Expected evidence: new tests assert only v1 surface appears and behaves as contracted.
+   - `npm run test:cli-contracts`
+   Expected evidence: tests assert v1 contract and no legacy behavior assumptions.
+7. Sync docs with executable behavior.
+   Command: `rg -n "headless|verbose|validate|verify|report|receipt|resolve" README.md docs -S`
+   Expected evidence: user-facing docs match CLI implementation.
 
 ## Validation and Acceptance
 Behavioral acceptance criteria:
 
-1. `arbiter` in TTY launches wizard.
-2. `arbiter` in non-TTY prints help and exits `0`.
-3. `arbiter init` never overwrites existing configs and follows deterministic collision-safe naming.
-4. `arbiter run --config <file>` executes headless.
-5. `arbiter run --config <file> --dashboard` renders monitor only in TTY; non-TTY warns and runs headless.
-6. Only v1 commands appear in help output.
-7. `-h` and `--help` both work.
-8. `-V` and `--version` both work.
+1. `arbiter` launches wizard in TTY.
+2. `arbiter` prints help and exits `0` in non-TTY.
+3. `arbiter init` never overwrites and uses deterministic collision-safe naming.
+4. `arbiter run --config <file>` executes headlessly.
+5. `arbiter run --dashboard` renders in TTY only; non-TTY warns and proceeds headless.
+6. Help output contains only contracted command surface.
+7. `-h`/`--help` and `-V`/`--version` are supported.
+8. Removed flags/commands are rejected or absent by design.
 
 Validation commands:
 
 1. `npm run check:types`
 2. `npm run check:schemas`
 3. `npm run test:ui`
-4. `npm run test:mock-run`
-5. `npm run test:pack`
+4. `npm run test:cli-contracts`
+5. `npm run test:mock-run`
+6. `npm run test:pack`
 
 Fail-before/pass-after evidence to capture:
 
-1. legacy commands present in old help output (before).
-2. v1-only help output snapshot (after).
-3. non-TTY root invocation help behavior (after).
-4. `init` naming sequence behavior when files already exist (after).
+1. old help output with legacy commands/flags (before).
+2. v1-only help output (after).
+3. non-TTY root invocation behavior (after).
+4. init collision-safe naming behavior under pre-existing files (after).
 
 ## Idempotence and Recovery
-1. CLI hardening changes are deterministic and safe to re-run; parser/help updates are text-idempotent.
-2. Rollback boundary after each milestone commit.
-3. If CLI parsing regresses, restore previous milestone and replay one constrained change at a time.
-4. If `run` behavior regresses, keep parser hardening and temporarily restore prior run dispatch while tests are fixed.
+1. Parser/help updates are deterministic and re-runnable.
+2. Use milestone commits for rollback boundaries.
+3. If root dispatch regresses, rollback milestone 2 while preserving parser cleanup.
+4. If test migrations break unexpectedly, keep v1 parser and patch tests/scripts in a dedicated fix commit.
 
 ## Interfaces and Dependencies
-1. `src/cli/index.ts` root dispatch and command execution.
-2. `src/cli/commands.ts` argument parsing and run/init execution helpers.
-3. `src/cli/help.ts` generated help text contract.
-4. `src/run/run-service.ts` integration boundary for execution.
+1. CLI parser/dispatch: `src/cli/index.ts`, `src/cli/commands.ts`, `src/cli/intent.ts`, `src/cli/help.ts`.
+2. UI entrypoint dependency: wizard launcher in `src/ui/`.
+3. Contract scripts and tests: `scripts/tui-*.mjs`, `scripts/cli-output-contracts.mjs`, `test/e2e/*`.
 
 ## Artifacts and Notes
-Cross-plan dependency:
+Cross-plan dependencies:
 
-1. This plan should execute after foundational wizard architecture decisions in `docs/exec-plans/2026-02-19-strict-linear-wizard-ui-rewrite.md`.
-2. Artifact contract details (`config.source.json`, run output set) are handled in the artifact-specific plan.
+1. depends on wizard rewrite cutover in `docs/exec-plans/2026-02-19-strict-linear-wizard-ui-rewrite.md`.
+2. artifact-shape decisions remain governed by `docs/exec-plans/2026-02-19-artifact-package-contract-alignment.md`.
 
 ## Plan Change Notes
-- 2026-02-19 00:00Z: initial draft created; scoped to command-surface hardening only, independent from artifact contract finalization.
+- 2026-02-19 00:00Z: initial draft created.
+- 2026-02-19 00:00Z: strengthened after self-audit with explicit legacy-command decision gate and script/test migration scope.
