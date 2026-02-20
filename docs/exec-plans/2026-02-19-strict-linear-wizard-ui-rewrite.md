@@ -17,6 +17,12 @@ Observable user outcomes:
 5. Stage 3 prints receipt and exits automatically with no next-action menu.
 6. Debate setup supports `P` participants and `R` rounds with trial-output semantics defined by final slot `A` turn.
 
+Scope guardrails:
+
+1. in scope: wizard architecture cutover, stage routing, and only the backend contract changes required for accepted wizard semantics.
+2. out of scope: broad artifact-package redesign and independent CLI surface pruning beyond what is necessary for wizard default routing.
+3. sequencing: this plan lands first; follow-on plans then harden CLI surface and artifact package contracts.
+
 ## Progress
 - [x] (2026-02-19 00:00Z) initial plan drafted (`proposed`)
 - [ ] (2026-02-19 00:00Z) milestone 0 complete: protocol/config contract deltas finalized
@@ -35,8 +41,8 @@ Observable user outcomes:
   Evidence: `src/ui/transcript/app.ts`, `src/ui/transcript/commands/*`, `scripts/tui-command-smoke.mjs`.
 - Observation: current UI test scripts and e2e tests assert transcript semantics and overlay workflow.
   Evidence: `scripts/tui-intent.mjs`, `scripts/tui-headless.mjs`, `test/e2e/tui-pty.test.mjs`.
-- Observation: AGENTS change mapping references `scripts/ui-routing.mjs`, but repository currently uses different UI test scripts.
-  Evidence: `AGENTS.md`, `scripts/tui-*.mjs` (no `scripts/ui-routing.mjs` present).
+- Observation: UI routing and smoke coverage references were fragmented and required alignment to active script/test entrypoints.
+  Evidence: `scripts/tui-*.mjs`, `test/e2e/tui-pty.test.mjs`.
 
 ## Decision Log
 - Decision: this rewrite is a clean cutover, not dual-UX coexistence.
@@ -100,6 +106,15 @@ Milestones:
 7. Milestone 6: default-flow cutover and legacy transcript decoupling.
 8. Milestone 7: validation and acceptance evidence.
 
+Milestone entry and exit gates:
+
+1. Milestone 0 exit gate: schema/protocol deltas for Debate `P`/`R` and final-output semantics are documented, reviewed, and test targets are defined.
+2. Milestone 2 exit gate: Stage 1 flow enforces single active step, strict validation, and review-only commit behavior.
+3. Milestone 3 exit gate: Debate trial output/parse/embed semantics match product spec and intermediate turns are auditable.
+4. Milestone 4 exit gate: dashboard updates from runtime events only; `Ctrl+C` gracefully stops and transitions to receipt.
+5. Milestone 6 exit gate: transcript/slash-command default path removed from root wizard flow.
+6. Milestone 7 exit gate: acceptance criteria evidence captured and required test suite passes.
+
 ## Concrete Steps
 Working directory: repository root.
 
@@ -159,6 +174,7 @@ Behavioral acceptance criteria:
 8. Stage 2 hides worker table when `workers == 1` and supports graceful `Ctrl+C` stop with partial artifacts.
 9. Stage 3 prints receipt, has no interactive post-run menu, and exits automatically.
 10. Run mode (`Live`/`Mock`) remains runtime runner selection and does not mutate study-definition semantics.
+11. Stage 1 setup exposes no transcript overlays or slash-command interaction surface.
 
 Validation commands:
 
@@ -202,3 +218,4 @@ Primary contract authority:
 ## Plan Change Notes
 - 2026-02-19 00:00Z: initial draft created.
 - 2026-02-19 00:00Z: strengthened after self-audit to explicitly include Debate `P`/`R` contract migration, test-script migration surface, and cutover risk controls.
+- 2026-02-20 00:00Z: hardened with scope guardrails, milestone exit gates, and explicit no-overlay/no-slash acceptance criterion.

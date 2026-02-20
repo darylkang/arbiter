@@ -16,7 +16,7 @@ Observable user outcomes:
 
 ## Progress
 - [x] (2026-02-19 00:00Z) initial plan drafted (`proposed`)
-- [ ] (2026-02-19 00:00Z) milestone 0 complete: contract freeze on legacy command disposition
+- [x] (2026-02-20 00:00Z) milestone 0 complete: contract freeze on legacy command disposition
 - [ ] (2026-02-19 00:00Z) milestone 1 complete: parser/help grammar aligned
 - [ ] (2026-02-19 00:00Z) milestone 2 complete: root `arbiter` TTY/non-TTY dispatch aligned
 - [ ] (2026-02-19 00:00Z) milestone 3 complete: `arbiter init` naming/overwrite semantics aligned
@@ -38,9 +38,15 @@ Observable user outcomes:
 - Decision: execute this plan after UI rewrite reaches default-path cutover milestone.
   Rationale: avoid double churn in root dispatch while stage architecture is still moving.
   Date/Author: 2026-02-19, Codex thread.
-- Decision needed at milestone 0: disposition of existing inspection commands (`verify`, `report`, `receipt`, `validate`, `resolve`) in unreleased clean-cutover path.
+- Historical decision checkpoint (closed): disposition of existing inspection commands (`verify`, `report`, `receipt`, `validate`, `resolve`) in unreleased clean-cutover path.
   Rationale: tests/scripts currently rely on them; removal requires explicit replacement strategy.
-  Date/Author: pending.
+  Date/Author: superseded by 2026-02-20 decision below.
+- Decision: remove legacy inspection commands (`verify`, `report`, `receipt`, `validate`, `resolve`) from the public `arbiter` CLI surface in v1.
+  Rationale: v1 contract fixes exactly three primary entry points; keeping extra commands would violate surface minimalism.
+  Date/Author: 2026-02-20, Daryl direction + Codex consolidation.
+- Decision: keep inspection capabilities available through internal modules and dedicated npm scripts during migration, not as public primary CLI commands.
+  Rationale: preserves internal verification/report workflows while holding public contract line.
+  Date/Author: 2026-02-20, Codex thread.
 
 ## Context and Orientation
 Reviewed before plan finalization:
@@ -83,6 +89,14 @@ Milestones:
 5. Milestone 4: run flags and dashboard behavior alignment.
 6. Milestone 5: script/test/doc synchronization and acceptance.
 
+Milestone entry and exit gates:
+
+1. Milestone 1 exit gate: help output and parser grammar expose only v1 commands/flags.
+2. Milestone 2 exit gate: non-TTY root invocation prints help and exits `0`; TTY root launches wizard.
+3. Milestone 3 exit gate: `arbiter init` deterministic naming is collision-safe and overwrite-free.
+4. Milestone 4 exit gate: `arbiter run` accepts only contracted control-plane flags; dashboard fallback behavior is verified.
+5. Milestone 5 exit gate: scripts/tests/docs all assert the same contract and no legacy surface remains referenced as public behavior.
+
 ## Concrete Steps
 Working directory: repository root.
 
@@ -122,6 +136,7 @@ Behavioral acceptance criteria:
 6. Help output contains only contracted command surface.
 7. `-h`/`--help` and `-V`/`--version` are supported.
 8. Removed flags/commands are rejected or absent by design.
+9. Public CLI help documents exactly three primary entry points and no others.
 
 Validation commands:
 
@@ -159,3 +174,4 @@ Cross-plan dependencies:
 ## Plan Change Notes
 - 2026-02-19 00:00Z: initial draft created.
 - 2026-02-19 00:00Z: strengthened after self-audit with explicit legacy-command decision gate and script/test migration scope.
+- 2026-02-20 00:00Z: milestone-0 legacy-command disposition finalized and explicit milestone exit gates added.

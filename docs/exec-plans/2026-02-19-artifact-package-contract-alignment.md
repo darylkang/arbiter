@@ -13,6 +13,11 @@ Observable user outcomes:
 3. edge cases (zero eligible, graceful interrupt, resolve-only, failures) are explicitly and truthfully represented.
 4. no documented-but-missing or hidden-but-undocumented artifacts remain.
 
+Scope guardrails:
+
+1. in scope: artifact contracts, writer/finalizer behavior, verifier/report alignment, and documentation truthfulness.
+2. out of scope: unrelated UI redesign and non-artifact CLI surface changes.
+
 ## Progress
 - [x] (2026-02-19 00:00Z) initial plan drafted (`proposed`)
 - [x] (2026-02-20 00:00Z) milestone 0 complete: decision log populated with final artifact matrix
@@ -55,6 +60,9 @@ Observable user outcomes:
 - Decision: `execution.log` is debug-only and not part of the core scientific record.
   Rationale: preserve clean research-grade core pack; keep diagnostics optional.
   Date/Author: 2026-02-20, Daryl + Breezy synthesis captured by Codex.
+- Decision: verifier and reporting logic must distinguish executed runs, resolve-only runs, and pre-start failures as separate run classes.
+  Rationale: avoids false negatives from applying executed-run completeness checks to non-executed directories.
+  Date/Author: 2026-02-20, Codex consolidation.
 
 ## Context and Orientation
 Reviewed before plan finalization:
@@ -96,6 +104,13 @@ Milestones:
 4. Milestone 3: manifest/verifier/report alignment.
 5. Milestone 4: docs/tests acceptance alignment.
 
+Milestone entry and exit gates:
+
+1. Milestone 1 exit gate: schemas encode canonical artifact names and generated types are refreshed without drift.
+2. Milestone 2 exit gate: runtime writes and manifest entries match contract for normal completion, graceful interrupt, and zero-eligible cases.
+3. Milestone 3 exit gate: verifier/report semantics align with run classes and do not enforce executed-run completeness on resolve-only runs.
+4. Milestone 4 exit gate: docs and regression tests assert the same artifact matrix and legacy required names are fully retired.
+
 ## Concrete Steps
 Working directory: repository root.
 
@@ -133,6 +148,7 @@ Behavioral acceptance criteria:
 6. verify/report/receipt tooling no longer encodes stale artifact assumptions.
 7. `trials.jsonl` includes parse and embedding summaries so `parsed.jsonl` is not required.
 8. legacy artifact names are removed from required-file expectations (`convergence_trace.jsonl`, `aggregates.json`, `embeddings.provenance.json`, `clusters/*`).
+9. run-class-specific verification rules do not produce false failures for resolve-only or pre-start-failure directories.
 
 Validation commands:
 
@@ -171,3 +187,4 @@ Dependency note:
 - 2026-02-19 00:00Z: initial draft created in blocked state.
 - 2026-02-19 00:00Z: strengthened after self-audit with explicit decision checklist and run-class matrix approach.
 - 2026-02-20 00:00Z: milestone-0 decisions recorded from Daryl/Breezy artifact consolidation direction; plan status moved from blocked to proposed.
+- 2026-02-20 00:00Z: added explicit scope guardrails, run-class decision, and milestone exit gates.

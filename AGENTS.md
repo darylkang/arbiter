@@ -39,7 +39,7 @@ Before major work:
 - **Determinism**:
   - `trial_id` assigned deterministically before async execution.
   - trial plan sampled with seeded RNG and recorded.
-  - monitoring and clustering updates applied in `trial_id` order at batch boundaries.
+  - monitoring and grouping updates (implemented in clustering module) applied in `trial_id` order at batch boundaries.
 - **Artifacts**:
   - JSONL outputs append-only during execution.
   - finalization atomic (tmp then rename).
@@ -95,7 +95,7 @@ If OpenRouter integration or live behavior changed, also run:
 ## Common Footguns
 
 - `Math.random` in core execution paths (use seeded RNG utilities).
-- completion-order monitoring or clustering updates.
+- completion-order monitoring or grouping updates (clustering module).
 - UI logic influencing scheduling or stop decisions.
 - provenance sourced from headers instead of response body `model`.
 - contract parse failures treated as silent success (expected default is `parse_status=fallback` when usable text exists).
@@ -113,7 +113,7 @@ If OpenRouter integration or live behavior changed, also run:
 - **Provenance fields**: update schemas and generated types; verify `arbiter verify` invariants.
 - **Contracts**: update `resources/contracts/` and resolver embedding behavior; add contract tests.
 - **Artifacts**: update `docs/DESIGN.md` artifact contract and verify/report logic.
-- **UI routing**: update `scripts/ui-routing.mjs` and headless smoke coverage.
+- **UI routing**: update `scripts/tui-intent.mjs`, `scripts/tui-headless.mjs`, and `test/e2e/tui-pty.test.mjs`.
 
 ## Release and Publish Checklist
 

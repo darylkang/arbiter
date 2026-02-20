@@ -13,6 +13,18 @@ Arbiter focuses on **measurement quality** and **traceability**. It does not cla
 
 ---
 
+## Contract Status
+
+This README defines Arbiter's stabilized v1 product and artifact contracts.
+
+Implementation rollout is tracked in `docs/exec-plans/`.
+If runtime behavior diverges from this document, treat that as either:
+
+- an implementation defect to fix, or
+- an explicit migration step that must be recorded in an ExecPlan.
+
+---
+
 ## What Arbiter does
 
 Arbiter runs many trials against a fixed question and configuration, then records:
@@ -171,6 +183,11 @@ The source config file is never mutated during run execution.
 ---
 
 ## Run Directory Contract
+
+Scope note:
+
+- The artifact lists below apply to executed runs (`arbiter run ...`), including graceful user stop.
+- Resolve-only directories are tooling-internal and intentionally slimmer than executed-run artifact packs.
 
 Each run writes to:
 

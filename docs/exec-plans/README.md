@@ -28,3 +28,11 @@ When status changes materially, update the plan's `Progress` section and add a s
 - Create a new plan for complex, cross-cutting, or high-risk work.
 - Reuse/update an existing plan only when scope is clearly continuous.
 - Keep one plan focused on one primary outcome to preserve traceability.
+
+## Hardening Checklist
+Before starting implementation from a plan, verify the plan explicitly includes:
+
+- sequencing dependencies across related plans (when applicable),
+- milestone entry and exit criteria, not just milestone names,
+- acceptance criteria with observable evidence,
+- rollback boundaries for each major milestone.

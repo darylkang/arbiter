@@ -46,6 +46,16 @@ Command semantics:
 5. `arbiter run` override flags are control-plane only: `--out`, `--workers`, `--batch-size`, `--max-trials`, `--mode`, `--dashboard`.
 6. experiment variables are config-defined and not overridden via CLI flags.
 
+## 1.2) Contract Maturity and Drift Handling
+
+This document is normative for Arbiter's stabilized behavior.
+
+During implementation migrations, `docs/exec-plans/` is the rollout ledger for interim states and sequencing.
+If implementation diverges from this document and schemas, that divergence must be treated as either:
+
+1. a bug to fix, or
+2. an explicit migration step tracked in an active ExecPlan.
+
 ## 2) Research Alignment (Paper North Star)
 
 Arbiter supports the research framing that a single LLM answer is one sample from a stochastic process.
@@ -126,7 +136,7 @@ Primary modules:
 - event contracts/bus: `src/events/`
 - artifact writing/finalization: `src/artifacts/`
 - embeddings finalization: `src/embeddings/`
-- clustering monitor: `src/clustering/`
+- grouping monitor (implemented in clustering module): `src/clustering/`
 - verify/report tooling: `src/tools/`
 - wizard and dashboard UI: `src/ui/`
 
@@ -242,6 +252,12 @@ Consolidation rules:
 - `trials.jsonl` is the canonical per-trial record and includes parse and embedding summaries.
 - final run-level summary metrics and embedding provenance summary live in `manifest.json` under run-level fields.
 - this contract supersedes legacy file names (`parsed.jsonl`, `convergence_trace.jsonl`, `aggregates.json`, `embeddings.provenance.json`, `clusters/*`).
+
+Run-class interpretation rules:
+
+- Executed runs follow the always/conditional artifact contract above.
+- Resolve-only runs are a separate run class and do not claim executed-run artifact completeness.
+- Pre-start failures may emit partial diagnostics; they must not be represented as completed executed runs.
 
 Planning-only workflows do not produce a full execution artifact set.
 
