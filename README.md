@@ -17,10 +17,9 @@ Arbiter focuses on **measurement quality** and **traceability**. It does not cla
 
 Arbiter runs many trials against a fixed question and configuration, then records:
 
-- trial-level outputs,
-- parsed outcomes,
-- embedding-based novelty signals,
-- optional clustering state,
+- trial-level execution outputs with parse and embedding summaries,
+- batch-level novelty monitoring signals,
+- optional embedding-group outputs,
 - and a complete run manifest for verification.
 
 This supports analysis of how response behavior changes across model/persona/protocol sampling choices.
@@ -179,20 +178,28 @@ Each run writes to:
 runs/<run_id>/
 ```
 
-Required files:
+Always-produced files:
 
 - `config.source.json`
 - `config.resolved.json`
 - `manifest.json`
 - `trial_plan.jsonl`
 - `trials.jsonl`
-- `parsed.jsonl`
-- `convergence_trace.jsonl`
-- `aggregates.json`
-- `embeddings.provenance.json`
-- `embeddings.arrow` (if applicable)
+- `monitoring.jsonl`
+- `receipt.txt`
 
-Zero-eligible runs still produce a valid `embeddings.provenance.json`.
+Conditionally produced files:
+
+- `embeddings.arrow` when at least one eligible embedding is finalized to Arrow
+- `embeddings.jsonl` as fallback when Arrow is not written, or when debug mode explicitly keeps JSONL embeddings
+- `groups/assignments.jsonl` and `groups/state.json` when grouping artifacts are emitted
+- `debug/events.jsonl` and `debug/execution.log` only when debug mode is enabled
+
+Consolidation notes:
+
+- `trials.jsonl` is the canonical per-trial record and includes parse plus embedding summaries.
+- final run-level metrics and embedding provenance summaries live in `manifest.json`.
+- this contract supersedes legacy artifact names such as `parsed.jsonl`, `convergence_trace.jsonl`, `aggregates.json`, `embeddings.provenance.json`, and `clusters/*`.
 
 ---
 
@@ -219,8 +226,8 @@ Arbiter measures **distributional behavior**, not correctness.
 
 Important guidance:
 
-- Convergence indicates novelty saturation under the configured measurement setup.
-- Embedding clusters are measurement artifacts, not ground-truth semantic classes.
+- Stopping indicates novelty saturation under the configured measurement setup.
+- Embedding groups are measurement artifacts, not ground-truth semantic classes.
 - Free-tier models are useful for exploration but not ideal for publication-grade claims.
 - Always report measurement settings and model provenance when sharing results.
 

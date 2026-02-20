@@ -66,7 +66,7 @@ Arbiter is a measurement harness, not an algorithmic claim of model correctness.
 - `K`: number of executed trials.
 - `y`: normalized decision output (contract-derived or canonical parsed output).
 - `hat(P)_Q(y | x)`: empirical distribution estimated from trials.
-- `M`: measurement procedure (embedding model + preprocessing + optional clustering settings).
+- `M`: measurement procedure (embedding model + preprocessing + optional grouping settings).
 
 Design commitment:
 
@@ -109,7 +109,7 @@ Allowed claims:
 Disallowed claims:
 
 - convergence implies correctness,
-- embedding clusters are semantic truth,
+- embedding groups are semantic truth,
 - one protocol (including interaction) is universally superior,
 - findings under one `Q(c)` automatically generalize to other `Q(c)` choices.
 
@@ -143,7 +143,7 @@ Architecture boundary:
 3. assign deterministic `trial_id` before async work,
 4. execute trials and parse outputs,
 5. derive embedding inputs and run embeddings when eligible,
-6. update monitoring/clustering at batch boundaries in `trial_id` order,
+6. update monitoring/grouping at batch boundaries in `trial_id` order,
 7. finalize artifacts atomically and write manifest and run outputs,
 8. verify run integrity through artifact/schema validation checks.
 
@@ -188,27 +188,28 @@ Per trial/provenance expectations:
 
 Provenance is required for reproducibility and drift audit.
 
-## 12) Convergence-Aware Stopping Semantics
+## 12) Novelty-Saturation Stopping Semantics
 
 - evaluate stop conditions only at batch boundaries,
 - rely on measurement metrics (for example `novelty_rate`, `mean_max_sim_to_prior`),
 - require eligible trials before stop logic activates (`k_min` semantics),
 - `advisor` mode logs would-stop state,
-- `enforcer` mode can stop with `stop_reason = converged`.
+- `enforcer` mode can stop when novelty-saturation thresholds are met.
+- batch-level monitoring snapshots are recorded in `monitoring.jsonl`.
 
 Interpretation boundary:
 
-- convergence indicates estimator stability under configured measurement conditions, not truth or correctness.
+- stopping indicates diminishing novelty under configured measurement conditions, not truth or correctness.
 
-## 13) Online Clustering Semantics
+## 13) Online Grouping Semantics
 
-When clustering is enabled:
+When embedding grouping is enabled:
 
 - updates occur at batch boundaries with deterministic ordering,
-- cluster IDs are sequential in discovery order and not reused,
-- `cluster_distribution` is dense and aligned to `cluster_id`,
+- group IDs are sequential in discovery order and not reused,
+- `group_distribution` is dense and aligned to `group_id`,
 - JS divergence compares cumulative distribution shift across batches,
-- cluster-limit behavior is surfaced through limit/forced-assignment counters.
+- group-limit behavior is surfaced through limit/forced-assignment counters.
 
 ## 14) Artifact Contract
 
@@ -217,24 +218,30 @@ Run directory:
 - `runs/<run_id>/`
 - `run_id` format: `YYYYMMDDTHHMMSSZ_<random6>` (UTC timestamp + suffix)
 
-Expected executed-run artifacts:
+This section defines the v1 target artifact contract.
+
+Always-produced executed-run artifacts:
 
 - `config.source.json`
 - `config.resolved.json`
 - `manifest.json`
 - `trial_plan.jsonl`
 - `trials.jsonl`
-- `parsed.jsonl`
-- `convergence_trace.jsonl`
-- `aggregates.json`
-- `embeddings.provenance.json`
+- `monitoring.jsonl`
+- `receipt.txt`
 
 Conditionally produced:
 
-- `embeddings.arrow` (when embeddings are generated),
-- `clusters/online.state.json` and `clusters/online.assignments.jsonl` (when clustering enabled),
-- `receipt.txt` (when textual receipt output is written),
-- debug artifacts such as `debug/embeddings.jsonl` and `execution.log` (when debug mode is enabled).
+- `embeddings.arrow` when at least one eligible embedding is successfully finalized,
+- `embeddings.jsonl` as fallback when Arrow is not generated, or when debug mode explicitly retains JSONL embeddings,
+- `groups/state.json` and `groups/assignments.jsonl` when grouping artifacts are emitted,
+- debug artifacts such as `debug/events.jsonl` and `debug/execution.log` only when debug mode is enabled.
+
+Consolidation rules:
+
+- `trials.jsonl` is the canonical per-trial record and includes parse and embedding summaries.
+- final run-level summary metrics and embedding provenance summary live in `manifest.json` under run-level fields.
+- this contract supersedes legacy file names (`parsed.jsonl`, `convergence_trace.jsonl`, `aggregates.json`, `embeddings.provenance.json`, `clusters/*`).
 
 Planning-only workflows do not produce a full execution artifact set.
 
@@ -244,7 +251,7 @@ Before trusting results:
 
 - validate run artifacts and schema conformance,
 - inspect `manifest.json` for policy/provenance snapshot,
-- inspect `convergence_trace.jsonl` for stopping context,
+- inspect `monitoring.jsonl` for stopping context,
 - confirm requested vs actual model identifiers.
 
 Before merge for behavior changes, use quality gates from `AGENTS.md`.
@@ -255,7 +262,7 @@ In scope:
 
 - deterministic experiment execution,
 - artifact and provenance capture,
-- online monitoring and optional online clustering,
+- online monitoring and optional online grouping,
 - run verification and textual reporting.
 
 Out of scope:

@@ -6,8 +6,6 @@ This plan follows `docs/PLANS.md`.
 ## Purpose / Big Picture
 Stabilize Arbiter's run artifact package so schemas, runtime writes, manifest listings, verifier checks, report tooling, and docs all describe the same truth.
 
-This plan remains blocked until product decisions from the ongoing artifact-package design pass are finalized.
-
 Observable user outcomes:
 
 1. artifact expectations in docs match files actually written.
@@ -16,8 +14,8 @@ Observable user outcomes:
 4. no documented-but-missing or hidden-but-undocumented artifacts remain.
 
 ## Progress
-- [x] (2026-02-19 00:00Z) initial plan drafted (`blocked`, pending artifact package decisions)
-- [ ] (2026-02-19 00:00Z) milestone 0 complete: decision log populated with final artifact matrix
+- [x] (2026-02-19 00:00Z) initial plan drafted (`proposed`)
+- [x] (2026-02-20 00:00Z) milestone 0 complete: decision log populated with final artifact matrix
 - [ ] (2026-02-19 00:00Z) milestone 1 complete: schemas and generated types aligned
 - [ ] (2026-02-19 00:00Z) milestone 2 complete: writer/finalizer behavior aligned
 - [ ] (2026-02-19 00:00Z) milestone 3 complete: manifest/verifier/report alignment complete
@@ -32,14 +30,31 @@ Observable user outcomes:
   Evidence: `src/tools/verify-run.ts`, `src/artifacts/resolve-artifacts.ts`.
 
 ## Decision Log
-- Decision: keep this plan blocked until artifact package decisions from design review are finalized.
-  Rationale: avoids churn across schema/writer/verifier/docs with unstable requirements.
-  Date/Author: 2026-02-19, Codex thread.
-- Pending decisions required before implementation:
-  1. whether `config.source.json` is mandatory and exact semantics.
-  2. mandatory vs conditional status for `receipt.txt` and `execution.log`.
-  3. canonical artifact list by run class (success, interrupt, failure, resolve-only).
-  4. zero-eligible embeddings contract details and explanatory notes.
+- Decision: adopt a consolidated v1 artifact pack with seven always-produced executed-run artifacts:
+  - `config.source.json`
+  - `config.resolved.json`
+  - `manifest.json`
+  - `trial_plan.jsonl`
+  - `trials.jsonl`
+  - `monitoring.jsonl` (rename from `convergence_trace.jsonl`)
+  - `receipt.txt`
+  Rationale: preserves reproducibility/auditability while reducing contract sprawl.
+  Date/Author: 2026-02-20, Daryl + Breezy synthesis captured by Codex.
+- Decision: fold `parsed.jsonl` into canonical per-trial rows in `trials.jsonl`.
+  Rationale: remove mandatory joins and keep one canonical per-trial record.
+  Date/Author: 2026-02-20, Daryl + Breezy synthesis captured by Codex.
+- Decision: fold run-level summary metrics and embedding provenance summary into `manifest.json`.
+  Rationale: `aggregates.json` and `embeddings.provenance.json` are redundant as separate required artifacts.
+  Date/Author: 2026-02-20, Daryl + Breezy synthesis captured by Codex.
+- Decision: standardize embeddings fallback behavior at run root as `embeddings.jsonl`.
+  Rationale: clearer fallback contract than conditional `debug/embeddings.jsonl` retention.
+  Date/Author: 2026-02-20, Daryl + Breezy synthesis captured by Codex.
+- Decision: prefer `groups/` and group terminology over `clusters/` in user-facing and artifact naming.
+  Rationale: align language with interpretation boundaries and product copy rules.
+  Date/Author: 2026-02-20, Daryl + Breezy synthesis captured by Codex.
+- Decision: `execution.log` is debug-only and not part of the core scientific record.
+  Rationale: preserve clean research-grade core pack; keep diagnostics optional.
+  Date/Author: 2026-02-20, Daryl + Breezy synthesis captured by Codex.
 
 ## Context and Orientation
 Reviewed before plan finalization:
@@ -85,7 +100,7 @@ Milestones:
 Working directory: repository root.
 
 1. Build and check in an artifact contract matrix document.
-   Command: `rg -n "config\.source|config\.resolved|manifest|trial_plan|trials|parsed|convergence_trace|aggregates|embeddings|receipt|execution\.log|resolve_only" src docs schemas -S`
+   Command: `rg -n "config\.source|config\.resolved|manifest|trial_plan|trials|monitoring|embeddings\.arrow|embeddings\.jsonl|groups/|receipt|debug/|resolve_only" src docs schemas -S`
    Expected evidence: one authoritative matrix (always/conditional/forbidden by run class).
 2. Update schemas first and regenerate generated types.
    Commands:
@@ -93,7 +108,7 @@ Working directory: repository root.
    - `npm run check:schemas`
    Expected evidence: type generation is clean and schema validation passes.
 3. Align runtime writer/finalizer behavior and manifest entry construction.
-   Command: `rg -n "buildArtifactEntries|writeJsonAtomic|ensureEmbeddingsProvenance|artifact\.written|cleanupDebugArtifacts" src/artifacts src/embeddings src/run src/ui -S`
+   Command: `rg -n "buildArtifactEntries|writeJsonAtomic|artifact\.written|cleanupDebugArtifacts|convergence_trace|monitoring|clusters/|groups/" src/artifacts src/embeddings src/run src/ui -S`
    Expected evidence: actual files + manifest entries match matrix in all run classes.
 4. Align verifier and report logic.
    Command: `rg -n "verifyResolveOnlySemantics|artifact exists|allowedArtifacts|buildReportModel|buildReceiptModel" src/tools src/ui -S`
@@ -112,10 +127,12 @@ Behavioral acceptance criteria:
 
 1. Each run class emits exactly the documented artifact set.
 2. Manifest artifact entries correspond to files that exist on disk.
-3. Zero-eligible runs still emit valid embeddings provenance and truthful explanatory metadata.
+3. Zero-eligible runs still emit truthful embedding measurement notes in `manifest.json`.
 4. Resolve-only runs emit only resolve-only artifacts.
-5. `config.source.json` contract is explicitly and consistently implemented or explicitly removed from docs/spec.
+5. `config.source.json` contract is explicitly and consistently implemented.
 6. verify/report/receipt tooling no longer encodes stale artifact assumptions.
+7. `trials.jsonl` includes parse and embedding summaries so `parsed.jsonl` is not required.
+8. legacy artifact names are removed from required-file expectations (`convergence_trace.jsonl`, `aggregates.json`, `embeddings.provenance.json`, `clusters/*`).
 
 Validation commands:
 
@@ -147,9 +164,10 @@ Fail-before/pass-after evidence to capture:
 ## Artifacts and Notes
 Dependency note:
 
-1. Do not start implementation until milestone-0 decisions are entered in Decision Log.
-2. This plan should run after CLI contract and wizard cutover stabilize to avoid concurrent contract churn.
+1. this plan should run after CLI contract and wizard cutover stabilize to avoid concurrent contract churn.
+2. implementation remains paused until explicit execution instruction.
 
 ## Plan Change Notes
 - 2026-02-19 00:00Z: initial draft created in blocked state.
 - 2026-02-19 00:00Z: strengthened after self-audit with explicit decision checklist and run-class matrix approach.
+- 2026-02-20 00:00Z: milestone-0 decisions recorded from Daryl/Breezy artifact consolidation direction; plan status moved from blocked to proposed.
