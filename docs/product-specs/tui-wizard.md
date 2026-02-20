@@ -246,7 +246,7 @@ Locked debate mechanics:
 2. Contract parsing and `parse_status` apply to that final output only.
 3. `embed_text` is derived from that final output, or from contract `embed_text_source` derived from that final output.
 4. Intermediate debate turns must be persisted for auditability.
-5. Intermediate turn persistence may be implemented as per-trial `messages[]`, `debate_trace.jsonl`, or equivalent artifact structure.
+5. Intermediate debate turns are persisted in `trials.jsonl` as per-trial `transcript` records.
 
 ### Step 3: Models (`m`)
 
@@ -469,7 +469,7 @@ Exit codes:
 7. Baseline model and persona sampling semantics are uniform unless weights UI is explicitly introduced.
 8. Debate trial output equals final slot `A` turn.
 9. Parse and embed semantics for Debate apply to final slot `A` output only.
-10. Intermediate debate turns are persisted for auditability.
+10. Intermediate debate turns are persisted for auditability in `trials.jsonl` `transcript` records.
 11. Decode supports numeric single-value or range temperature modes.
 12. Review writes config only on Run or Save.
 13. Save never overwrites existing config filenames.

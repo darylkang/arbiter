@@ -104,6 +104,11 @@ This writes `arbiter.config.json` in CWD, or the first collision-safe filename:
 - `arbiter.config.2.json`
 - and so on
 
+After writing, Arbiter prints:
+
+- the created config file path
+- suggested next commands: `arbiter`, `arbiter run --config <file>`
+
 ### Headless run (default)
 
 ```bash
@@ -195,6 +200,10 @@ Each run writes to:
 runs/<run_id>/
 ```
 
+Run ID format:
+
+- `YYYYMMDDTHHMMSSZ_<random6>` (UTC timestamp + random suffix)
+
 Always-produced files:
 
 - `config.source.json`
@@ -212,9 +221,15 @@ Conditionally produced files:
 - `groups/assignments.jsonl` and `groups/state.json` when grouping artifacts are emitted
 - `debug/events.jsonl` and `debug/execution.log` only when debug mode is enabled
 
+Resolve-only run artifacts:
+
+- `config.resolved.json`
+- `manifest.json`
+
 Consolidation notes:
 
 - `trials.jsonl` is the canonical per-trial record and includes parse plus embedding summaries.
+- for Debate runs, intermediate turns are persisted in per-trial `transcript` records in `trials.jsonl`.
 - final run-level metrics and embedding provenance summaries live in `manifest.json`.
 - this contract supersedes legacy artifact names such as `parsed.jsonl`, `convergence_trace.jsonl`, `aggregates.json`, `embeddings.provenance.json`, and `clusters/*`.
 

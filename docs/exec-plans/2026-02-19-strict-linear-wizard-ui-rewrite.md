@@ -25,14 +25,14 @@ Scope guardrails:
 
 ## Progress
 - [x] (2026-02-19 00:00Z) initial plan drafted (`proposed`)
-- [ ] (2026-02-19 00:00Z) milestone 0 complete: protocol/config contract deltas finalized
-- [ ] (2026-02-19 00:00Z) milestone 1 complete: wizard shell + stage router scaffolded
-- [ ] (2026-02-19 00:00Z) milestone 2 complete: Stage 1 strict linear flow implemented
-- [ ] (2026-02-19 00:00Z) milestone 3 complete: debate execution semantics generalized for `P` and `R`
-- [ ] (2026-02-19 00:00Z) milestone 4 complete: Stage 2 dashboard implemented with graceful interrupt
-- [ ] (2026-02-19 00:00Z) milestone 5 complete: Stage 3 receipt auto-exit implemented
-- [ ] (2026-02-19 00:00Z) milestone 6 complete: transcript-era default UX removed
-- [ ] (2026-02-19 00:00Z) milestone 7 complete: tests and acceptance evidence captured (`completed`)
+- [ ] (pending) milestone 0 complete: protocol/config contract deltas finalized
+- [ ] (pending) milestone 1 complete: wizard shell + stage router scaffolded
+- [ ] (pending) milestone 2 complete: Stage 1 strict linear flow implemented
+- [ ] (pending) milestone 3 complete: debate execution semantics generalized for `P` and `R`
+- [ ] (pending) milestone 4 complete: Stage 2 dashboard implemented with graceful interrupt
+- [ ] (pending) milestone 5 complete: Stage 3 receipt auto-exit implemented
+- [ ] (pending) milestone 6 complete: transcript-era default UX removed
+- [ ] (pending) milestone 7 complete: tests and acceptance evidence captured (`completed`)
 
 ## Surprises & Discoveries
 - Observation: current protocol implementation is `debate_v1` with fixed 3-turn proposer/critic/proposer flow; no generalized participants/rounds.
@@ -108,12 +108,14 @@ Milestones:
 
 Milestone entry and exit gates:
 
-1. Milestone 0 exit gate: schema/protocol deltas for Debate `P`/`R` and final-output semantics are documented, reviewed, and test targets are defined.
-2. Milestone 2 exit gate: Stage 1 flow enforces single active step, strict validation, and review-only commit behavior.
-3. Milestone 3 exit gate: Debate trial output/parse/embed semantics match product spec and intermediate turns are auditable.
-4. Milestone 4 exit gate: dashboard updates from runtime events only; `Ctrl+C` gracefully stops and transitions to receipt.
-5. Milestone 6 exit gate: transcript/slash-command default path removed from root wizard flow.
-6. Milestone 7 exit gate: acceptance criteria evidence captured and required test suite passes.
+1. Milestone 0 exit gate: schema/protocol deltas for Debate `P`/`R`, final-output semantics, and intermediate-turn persistence (`trials.jsonl.transcript`) are documented, reviewed, and test targets are defined.
+2. Milestone 1 exit gate: dedicated wizard step-state machine and stage router are in place, with no active transcript/slash-command interaction surface in the setup flow and no run-service execution before Review commit actions.
+3. Milestone 2 exit gate: Stage 1 flow enforces single active step, strict validation, and review-only commit behavior.
+4. Milestone 3 exit gate: Debate trial output/parse/embed semantics match product spec and intermediate turns are auditable in canonical artifacts.
+5. Milestone 4 exit gate: dashboard updates from runtime events only; `Ctrl+C` gracefully stops and transitions to receipt.
+6. Milestone 5 exit gate: Stage 3 renders receipt text without scrollback-destructive teardown, exits automatically on success paths, and never renders an interactive post-run menu.
+7. Milestone 6 exit gate: transcript/slash-command default path removed from root wizard flow.
+8. Milestone 7 exit gate: acceptance criteria evidence captured and required test suite passes.
 
 ## Concrete Steps
 Working directory: repository root.
@@ -126,7 +128,7 @@ Working directory: repository root.
    - `rg -n "debate_v1|protocol\.type|role_assignments|turns" schemas src/planning src/protocols -S`
    - `npm run gen:types`
    - `npm run check:schemas`
-   Expected evidence: contracts can represent `P`/`R` semantics and final-output rules.
+   Expected evidence: contracts can represent `P`/`R` semantics, final-output rules, and canonical intermediate-turn persistence in `trials.jsonl.transcript`.
 3. Build wizard-first UI module and stage reducer.
    Commands:
    - `rg -n "transcript|overlay|slash|phase" src/ui -S`
@@ -170,7 +172,7 @@ Behavioral acceptance criteria:
 4. Config discovery pattern and sort behavior match spec.
 5. Review commit semantics are exact: config write only on `Run now` or `Save config and exit`.
 6. `Revise` always returns to Step 1 with preserved state for both entry paths; never mutates selected source config in place.
-7. Debate semantics: turns per trial are `P * R + 1`, slot assignment sampled per trial/slot with replacement, parse/embed apply to final slot `A` output, intermediate turns persisted for audit.
+7. Debate semantics: turns per trial are `P * R + 1`, slot assignment sampled per trial/slot with replacement, parse/embed apply to final slot `A` output, intermediate turns persisted for audit in `trials.jsonl.transcript`.
 8. Stage 2 hides worker table when `workers == 1` and supports graceful `Ctrl+C` stop with partial artifacts.
 9. Stage 3 prints receipt, has no interactive post-run menu, and exits automatically.
 10. Run mode (`Live`/`Mock`) remains runtime runner selection and does not mutate study-definition semantics.
@@ -215,7 +217,20 @@ Primary contract authority:
 2. `docs/DESIGN.md` for architecture and claims boundaries.
 3. `AGENTS.md` invariants for determinism/provenance/artifacts.
 
+Debate persistence contract note:
+
+1. intermediate debate turns are stored in `trials.jsonl` under per-trial `transcript` records.
+2. no separate `debate_trace.jsonl` artifact is introduced in the baseline contract.
+
+Draft Debate `P`/`R` schema delta:
+
+1. protocol contract supports `participants` (integer >= 2) and `rounds` (integer >= 1).
+2. planning/runtime contract preserves per-slot sampled assignments across rounds within a trial.
+3. trial artifact contract keeps canonical final-output fields plus per-turn `transcript` records for audit.
+4. Milestone 0 must finalize exact schema field names before implementation starts.
+
 ## Plan Change Notes
 - 2026-02-19 00:00Z: initial draft created.
 - 2026-02-19 00:00Z: strengthened after self-audit to explicitly include Debate `P`/`R` contract migration, test-script migration surface, and cutover risk controls.
 - 2026-02-20 00:00Z: hardened with scope guardrails, milestone exit gates, and explicit no-overlay/no-slash acceptance criterion.
+- 2026-02-20 00:00Z: added explicit Milestone 1 and Milestone 5 exit gates and fixed Debate intermediate-turn contract to `trials.jsonl.transcript`.

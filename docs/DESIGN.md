@@ -45,6 +45,8 @@ Command semantics:
 4. `arbiter run --dashboard` renders Stage 2 and Stage 3 only in TTY; in non-TTY it warns to stderr and continues headless.
 5. `arbiter run` override flags are control-plane only: `--out`, `--workers`, `--batch-size`, `--max-trials`, `--mode`, `--dashboard`.
 6. experiment variables are config-defined and not overridden via CLI flags.
+7. wizard config discovery in CWD matches `^arbiter\.config(?:\.[1-9][0-9]*)?\.json$` and is ordered lexicographically by filename.
+8. `arbiter init` prints the created config path plus suggested next commands (`arbiter`, `arbiter run --config <file>`).
 
 ## 1.2) Contract Maturity and Drift Handling
 
@@ -244,12 +246,13 @@ Conditionally produced:
 
 - `embeddings.arrow` when at least one eligible embedding is successfully finalized,
 - `embeddings.jsonl` as fallback when Arrow is not generated, or when debug mode explicitly retains JSONL embeddings,
-- `groups/state.json` and `groups/assignments.jsonl` when grouping artifacts are emitted,
+- `groups/assignments.jsonl` and `groups/state.json` when grouping artifacts are emitted,
 - debug artifacts such as `debug/events.jsonl` and `debug/execution.log` only when debug mode is enabled.
 
 Consolidation rules:
 
 - `trials.jsonl` is the canonical per-trial record and includes parse and embedding summaries.
+- for Debate protocol runs, intermediate turns are persisted inside per-trial `transcript` records in `trials.jsonl`.
 - final run-level summary metrics and embedding provenance summary live in `manifest.json` under run-level fields.
 - this contract supersedes legacy file names (`parsed.jsonl`, `convergence_trace.jsonl`, `aggregates.json`, `embeddings.provenance.json`, `clusters/*`).
 
@@ -257,6 +260,7 @@ Run-class interpretation rules:
 
 - Executed runs follow the always/conditional artifact contract above.
 - Resolve-only runs are a separate run class and do not claim executed-run artifact completeness.
+- Resolve-only runs produce only `config.resolved.json` and `manifest.json`.
 - Pre-start failures may emit partial diagnostics; they must not be represented as completed executed runs.
 
 Planning-only workflows do not produce a full execution artifact set.

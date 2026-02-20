@@ -17,11 +17,12 @@ Observable user outcomes:
 ## Progress
 - [x] (2026-02-19 00:00Z) initial plan drafted (`proposed`)
 - [x] (2026-02-20 00:00Z) milestone 0 complete: contract freeze on legacy command disposition
-- [ ] (2026-02-19 00:00Z) milestone 1 complete: parser/help grammar aligned
-- [ ] (2026-02-19 00:00Z) milestone 2 complete: root `arbiter` TTY/non-TTY dispatch aligned
-- [ ] (2026-02-19 00:00Z) milestone 3 complete: `arbiter init` naming/overwrite semantics aligned
-- [ ] (2026-02-19 00:00Z) milestone 4 complete: `arbiter run` flag surface constrained and validated
-- [ ] (2026-02-19 00:00Z) milestone 5 complete: script and test contract updates complete (`completed`)
+- [ ] (pending) BLOCKED: do not start Milestone 1 until wizard rewrite Milestone 6 (default-path cutover) is complete
+- [ ] (pending) milestone 1 complete: parser/help grammar aligned
+- [ ] (pending) milestone 2 complete: root `arbiter` TTY/non-TTY dispatch aligned
+- [ ] (pending) milestone 3 complete: `arbiter init` naming/overwrite semantics aligned
+- [ ] (pending) milestone 4 complete: `arbiter run` flag surface constrained and validated
+- [ ] (pending) milestone 5 complete: script and test contract updates complete (`completed`)
 
 ## Surprises & Discoveries
 - Observation: current CLI includes legacy commands and flags outside v1 contract.
@@ -91,11 +92,12 @@ Milestones:
 
 Milestone entry and exit gates:
 
-1. Milestone 1 exit gate: help output and parser grammar expose only v1 commands/flags.
-2. Milestone 2 exit gate: non-TTY root invocation prints help and exits `0`; TTY root launches wizard.
-3. Milestone 3 exit gate: `arbiter init` deterministic naming is collision-safe and overwrite-free.
-4. Milestone 4 exit gate: `arbiter run` accepts only contracted control-plane flags; dashboard fallback behavior is verified.
-5. Milestone 5 exit gate: scripts/tests/docs all assert the same contract and no legacy surface remains referenced as public behavior.
+1. Milestone 1 entry gate: wizard rewrite Milestone 6 (default-flow cutover) is complete.
+2. Milestone 1 exit gate: help output and parser grammar expose only v1 commands/flags.
+3. Milestone 2 exit gate: non-TTY root invocation prints help and exits `0`; TTY root launches wizard.
+4. Milestone 3 exit gate: `arbiter init` deterministic naming is collision-safe and overwrite-free.
+5. Milestone 4 exit gate: `arbiter run` accepts only contracted control-plane flags; dashboard fallback behavior is verified.
+6. Milestone 5 exit gate: scripts/tests/docs all assert the same contract and no legacy surface remains referenced as public behavior.
 
 ## Concrete Steps
 Working directory: repository root.
@@ -131,12 +133,14 @@ Behavioral acceptance criteria:
 1. `arbiter` launches wizard in TTY.
 2. `arbiter` prints help and exits `0` in non-TTY.
 3. `arbiter init` never overwrites and uses deterministic collision-safe naming.
-4. `arbiter run --config <file>` executes headlessly.
-5. `arbiter run --dashboard` renders in TTY only; non-TTY warns and proceeds headless.
-6. Help output contains only contracted command surface.
-7. `-h`/`--help` and `-V`/`--version` are supported.
-8. Removed flags/commands are rejected or absent by design.
-9. Public CLI help documents exactly three primary entry points and no others.
+4. Config discovery uses pattern equivalent to `^arbiter\.config(?:\.[1-9][0-9]*)?\.json$` and CWD scope only.
+5. `arbiter init` prints created config path and suggested next commands (`arbiter`, `arbiter run --config <file>`).
+6. `arbiter run --config <file>` executes headlessly.
+7. `arbiter run --dashboard` renders in TTY only; non-TTY warns and proceeds headless.
+8. Help output contains only contracted command surface.
+9. `-h`/`--help` and `-V`/`--version` are supported.
+10. Removed flags/commands are rejected or absent by design.
+11. Public CLI help documents exactly three primary entry points and no others.
 
 Validation commands:
 
@@ -175,3 +179,4 @@ Cross-plan dependencies:
 - 2026-02-19 00:00Z: initial draft created.
 - 2026-02-19 00:00Z: strengthened after self-audit with explicit legacy-command decision gate and script/test migration scope.
 - 2026-02-20 00:00Z: milestone-0 legacy-command disposition finalized and explicit milestone exit gates added.
+- 2026-02-20 00:00Z: added hard dependency gate on wizard Milestone 6 and expanded acceptance criteria for config discovery and `arbiter init` output contract.

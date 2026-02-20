@@ -21,10 +21,10 @@ Scope guardrails:
 ## Progress
 - [x] (2026-02-19 00:00Z) initial plan drafted (`proposed`)
 - [x] (2026-02-20 00:00Z) milestone 0 complete: decision log populated with final artifact matrix
-- [ ] (2026-02-19 00:00Z) milestone 1 complete: schemas and generated types aligned
-- [ ] (2026-02-19 00:00Z) milestone 2 complete: writer/finalizer behavior aligned
-- [ ] (2026-02-19 00:00Z) milestone 3 complete: manifest/verifier/report alignment complete
-- [ ] (2026-02-19 00:00Z) milestone 4 complete: docs and acceptance evidence captured (`completed`)
+- [ ] (pending) milestone 1 complete: schemas and generated types aligned
+- [ ] (pending) milestone 2 complete: writer/finalizer behavior aligned
+- [ ] (pending) milestone 3 complete: manifest/verifier/report alignment complete
+- [ ] (pending) milestone 4 complete: docs and acceptance evidence captured (`completed`)
 
 ## Surprises & Discoveries
 - Observation: `config.source.json` is currently documented as required but is not emitted by runtime.
@@ -62,6 +62,12 @@ Scope guardrails:
   Date/Author: 2026-02-20, Daryl + Breezy synthesis captured by Codex.
 - Decision: verifier and reporting logic must distinguish executed runs, resolve-only runs, and pre-start failures as separate run classes.
   Rationale: avoids false negatives from applying executed-run completeness checks to non-executed directories.
+  Date/Author: 2026-02-20, Codex consolidation.
+- Decision: resolve-only runs have a separate minimal artifact set: `config.resolved.json` and `manifest.json`.
+  Rationale: resolve-only runs do not execute trials and should not claim executed-run artifact completeness.
+  Date/Author: 2026-02-20, Codex consolidation.
+- Decision: Debate intermediate turns are persisted inside `trials.jsonl` as per-trial `transcript` data.
+  Rationale: keeps one canonical per-trial record and avoids adding a parallel debate sidecar artifact.
   Date/Author: 2026-02-20, Codex consolidation.
 
 ## Context and Orientation
@@ -107,7 +113,7 @@ Milestones:
 Milestone entry and exit gates:
 
 1. Milestone 1 exit gate: schemas encode canonical artifact names and generated types are refreshed without drift.
-2. Milestone 2 exit gate: runtime writes and manifest entries match contract for normal completion, graceful interrupt, and zero-eligible cases.
+2. Milestone 2 exit gate: runtime writes and manifest entries match contract for normal completion, graceful interrupt, and zero-eligible cases, including unconditional `receipt.txt` and emitted `config.source.json`.
 3. Milestone 3 exit gate: verifier/report semantics align with run classes and do not enforce executed-run completeness on resolve-only runs.
 4. Milestone 4 exit gate: docs and regression tests assert the same artifact matrix and legacy required names are fully retired.
 
@@ -122,13 +128,22 @@ Working directory: repository root.
    - `npm run gen:types`
    - `npm run check:schemas`
    Expected evidence: type generation is clean and schema validation passes.
-3. Align runtime writer/finalizer behavior and manifest entry construction.
-   Command: `rg -n "buildArtifactEntries|writeJsonAtomic|artifact\.written|cleanupDebugArtifacts|convergence_trace|monitoring|clusters/|groups/" src/artifacts src/embeddings src/run src/ui -S`
+3. Emit `config.source.json` during run initialization for executed runs.
+   Command: `rg -n "config\\.source|resolved_config|writeJsonAtomic|run-service|artifact\\.written" src/run src/artifacts -S`
+   Expected evidence: `config.source.json` is written atomically after config resolution and before trial execution starts.
+4. Make `receipt.txt` emission unconditional for executed runs and decouple it from TTY-only behavior.
+   Command: `rg -n "receipt|receiptMode|writeReceiptText|onRunFinally|run-lifecycle-hooks" src/ui src/run src/artifacts -S`
+   Expected evidence: normal, novelty-stop, max-trials, and graceful-interrupt executed runs always produce `receipt.txt`.
+5. Rename legacy artifact naming references to canonical names across code, schemas, tests, and docs.
+   Command: `rg -n "convergence_trace|aggregates\\.json|embeddings\\.provenance\\.json|clusters/" src schemas scripts test docs -S`
+   Expected evidence: legacy names are removed from active artifact contracts and verification expectations.
+6. Align runtime writer/finalizer behavior and manifest entry construction.
+   Command: `rg -n "buildArtifactEntries|writeJsonAtomic|artifact\\.written|cleanupDebugArtifacts|monitoring|groups/" src/artifacts src/embeddings src/run src/ui -S`
    Expected evidence: actual files + manifest entries match matrix in all run classes.
-4. Align verifier and report logic.
+7. Align verifier and report logic.
    Command: `rg -n "verifyResolveOnlySemantics|artifact exists|allowedArtifacts|buildReportModel|buildReceiptModel" src/tools src/ui -S`
    Expected evidence: verifier and report expectations match runtime truth.
-5. Add or update tests for normal, zero-eligible, graceful interrupt, run failure, and resolve-only.
+8. Add or update tests for normal, zero-eligible, graceful interrupt, run failure, and resolve-only.
    Commands:
    - `npm run test:verify`
    - `npm run test:mock-run`
@@ -145,10 +160,13 @@ Behavioral acceptance criteria:
 3. Zero-eligible runs still emit truthful embedding measurement notes in `manifest.json`.
 4. Resolve-only runs emit only resolve-only artifacts.
 5. `config.source.json` contract is explicitly and consistently implemented.
-6. verify/report/receipt tooling no longer encodes stale artifact assumptions.
-7. `trials.jsonl` includes parse and embedding summaries so `parsed.jsonl` is not required.
-8. legacy artifact names are removed from required-file expectations (`convergence_trace.jsonl`, `aggregates.json`, `embeddings.provenance.json`, `clusters/*`).
-9. run-class-specific verification rules do not produce false failures for resolve-only or pre-start-failure directories.
+6. `receipt.txt` is always produced for executed runs regardless of TTY/quiet mode.
+7. verify/report/receipt tooling no longer encodes stale artifact assumptions.
+8. For Debate protocol runs, intermediate turns are persisted in `trials.jsonl` as per-trial `transcript` records.
+9. resolve-only runs contain only `config.resolved.json` and `manifest.json`.
+10. `trials.jsonl` includes parse and embedding summaries so `parsed.jsonl` is not required.
+11. legacy artifact names are removed from required-file expectations (`convergence_trace.jsonl`, `aggregates.json`, `embeddings.provenance.json`, `clusters/*`).
+12. run-class-specific verification rules do not produce false failures for resolve-only or pre-start-failure directories.
 
 Validation commands:
 
@@ -188,3 +206,4 @@ Dependency note:
 - 2026-02-19 00:00Z: strengthened after self-audit with explicit decision checklist and run-class matrix approach.
 - 2026-02-20 00:00Z: milestone-0 decisions recorded from Daryl/Breezy artifact consolidation direction; plan status moved from blocked to proposed.
 - 2026-02-20 00:00Z: added explicit scope guardrails, run-class decision, and milestone exit gates.
+- 2026-02-20 00:00Z: added explicit implementation steps for `config.source.json`, unconditional `receipt.txt`, and legacy-artifact rename sweep; resolved debate-turn persistence contract.

@@ -86,6 +86,8 @@ Run these locally before merging implementation changes:
 - `npm run test:embeddings`
 - `npm run test:pack`
 - `npm run test:ui`
+- `npm run test:cli-contracts`
+- `npm run test:unit`
 
 If OpenRouter integration or live behavior changed, also run:
 
