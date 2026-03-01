@@ -21,10 +21,10 @@ Scope guardrails:
 ## Progress
 - [x] (2026-02-19 00:00Z) initial plan drafted (`proposed`)
 - [x] (2026-02-20 00:00Z) milestone 0 complete: decision log populated with final artifact matrix
-- [ ] (pending) milestone 1 complete: schemas and generated types aligned
-- [ ] (pending) milestone 2 complete: writer/finalizer behavior aligned
-- [ ] (pending) milestone 3 complete: manifest/verifier/report alignment complete
-- [ ] (pending) milestone 4 complete: docs and acceptance evidence captured (`completed`)
+- [x] (2026-03-01 22:14Z) milestone 1 complete: schemas and generated types aligned
+- [x] (2026-03-01 22:14Z) milestone 2 complete: writer/finalizer behavior aligned
+- [x] (2026-03-01 22:14Z) milestone 3 complete: manifest/verifier/report alignment complete
+- [x] (2026-03-01 22:14Z) milestone 4 complete: docs and acceptance evidence captured (`completed`)
 
 ## Surprises & Discoveries
 - Observation: `config.source.json` is currently documented as required but is not emitted by runtime.
@@ -207,3 +207,4 @@ Dependency note:
 - 2026-02-20 00:00Z: milestone-0 decisions recorded from Daryl/Breezy artifact consolidation direction; plan status moved from blocked to proposed.
 - 2026-02-20 00:00Z: added explicit scope guardrails, run-class decision, and milestone exit gates.
 - 2026-02-20 00:00Z: added explicit implementation steps for `config.source.json`, unconditional `receipt.txt`, and legacy-artifact rename sweep; resolved debate-turn persistence contract.
+- 2026-03-01 22:14Z: marked milestones 1-4 complete after artifact writer/manifest verification, resolve-only behavior checks, and full regression gate pass.

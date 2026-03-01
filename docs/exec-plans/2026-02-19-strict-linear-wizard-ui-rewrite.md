@@ -235,3 +235,4 @@ Draft Debate `P`/`R` schema delta:
 - 2026-02-20 00:00Z: hardened with scope guardrails, milestone exit gates, and explicit no-overlay/no-slash acceptance criterion.
 - 2026-02-20 00:00Z: added explicit Milestone 1 and Milestone 5 exit gates and fixed Debate intermediate-turn contract to `trials.jsonl.transcript`.
 - 2026-03-01 14:36Z: marked milestones complete after stage1 step-state hardening, stage2/3 lifecycle integration, and full quality-gate pass.
+- 2026-03-01 22:14Z: added post-cutover hardening for Step 7 preflight config resolution and restored PTY e2e coverage at `test/e2e/tui-pty.test.mjs`.

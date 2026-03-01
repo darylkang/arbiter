@@ -17,12 +17,11 @@ Observable user outcomes:
 ## Progress
 - [x] (2026-02-19 00:00Z) initial plan drafted (`proposed`)
 - [x] (2026-02-20 00:00Z) milestone 0 complete: contract freeze on legacy command disposition
-- [ ] (pending) BLOCKED: do not start Milestone 1 until wizard rewrite Milestone 6 (default-path cutover) is complete
-- [ ] (pending) milestone 1 complete: parser/help grammar aligned
-- [ ] (pending) milestone 2 complete: root `arbiter` TTY/non-TTY dispatch aligned
-- [ ] (pending) milestone 3 complete: `arbiter init` naming/overwrite semantics aligned
-- [ ] (pending) milestone 4 complete: `arbiter run` flag surface constrained and validated
-- [ ] (pending) milestone 5 complete: script and test contract updates complete (`completed`)
+- [x] (2026-03-01 22:14Z) milestone 1 complete: parser/help grammar aligned
+- [x] (2026-03-01 22:14Z) milestone 2 complete: root `arbiter` TTY/non-TTY dispatch aligned
+- [x] (2026-03-01 22:14Z) milestone 3 complete: `arbiter init` naming/overwrite semantics aligned
+- [x] (2026-03-01 22:14Z) milestone 4 complete: `arbiter run` flag surface constrained and validated
+- [x] (2026-03-01 22:14Z) milestone 5 complete: script and test contract updates complete (`completed`)
 
 ## Surprises & Discoveries
 - Observation: current CLI includes legacy commands and flags outside v1 contract.
@@ -180,3 +179,4 @@ Cross-plan dependencies:
 - 2026-02-19 00:00Z: strengthened after self-audit with explicit legacy-command decision gate and script/test migration scope.
 - 2026-02-20 00:00Z: milestone-0 legacy-command disposition finalized and explicit milestone exit gates added.
 - 2026-02-20 00:00Z: added hard dependency gate on wizard Milestone 6 and expanded acceptance criteria for config discovery and `arbiter init` output contract.
+- 2026-03-01 22:14Z: marked milestones 1-5 complete after parser/help enforcement, TTY routing verification, and full CLI/UI/unit gate pass.
