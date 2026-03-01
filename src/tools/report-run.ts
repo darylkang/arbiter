@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import type { ArbiterRunManifest } from "../generated/manifest.types.js";
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
-import type { ArbiterConvergenceTraceRecord } from "../generated/convergence-trace.types.js";
+import type { ArbiterMonitoringRecord } from "../generated/monitoring.types.js";
 import type { ArbiterTrialRecord } from "../generated/trial.types.js";
 
 const readJsonIfExists = <T>(path: string): T | undefined => {
@@ -61,7 +61,7 @@ export const buildReportModel = (runDir: string): ReportModel => {
 
   const config = readJsonIfExists<ArbiterResolvedConfig>(resolve(runDir, "config.resolved.json"));
   const trials = readJsonl<ArbiterTrialRecord>(resolve(runDir, "trials.jsonl"));
-  const monitoring = readJsonl<ArbiterConvergenceTraceRecord>(resolve(runDir, "monitoring.jsonl"));
+  const monitoring = readJsonl<ArbiterMonitoringRecord>(resolve(runDir, "monitoring.jsonl"));
 
   const statusCounts: Record<string, number> = {};
   for (const trial of trials) {
@@ -93,7 +93,7 @@ export const buildReportModel = (runDir: string): ReportModel => {
       : undefined,
     grouping: {
       enabled: Boolean(config?.measurement.clustering.enabled),
-      group_count: typeof lastMonitoring?.cluster_count === "number" ? lastMonitoring.cluster_count : undefined
+      group_count: typeof lastMonitoring?.group_count === "number" ? lastMonitoring.group_count : undefined
     },
     artifacts: manifest.artifacts?.entries?.map((entry) => entry.path)
   };

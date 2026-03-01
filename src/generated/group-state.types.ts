@@ -1,16 +1,16 @@
 /* This file is generated. Do not edit. */
 
-export interface ArbiterOnlineClusteringState {
+export interface ArbiterOnlineGroupingState {
   schema_version: "1.0.0";
   algorithm: "online_leader";
   params: {
     tau: number;
     centroid_update_rule: "fixed_leader" | "incremental_mean";
     ordering_rule: "trial_id_asc";
-    cluster_limit: number;
+    group_limit: number;
   };
-  clusters: {
-    cluster_id: number;
+  groups: {
+    group_id: number;
     exemplar_trial_id: number;
     member_count: number;
     discovered_at_batch: number;

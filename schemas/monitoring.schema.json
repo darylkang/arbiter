@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://arbiter.dev/schemas/v1/convergence-trace.schema.json",
-  "title": "Arbiter Convergence Trace Record",
+  "$id": "https://arbiter.dev/schemas/v1/monitoring.schema.json",
+  "title": "Arbiter Monitoring Record",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -20,12 +20,12 @@
     "has_eligible_in_batch": { "type": "boolean" },
     "novelty_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
     "mean_max_sim_to_prior": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
-    "cluster_count": { "type": "integer", "minimum": 0 },
-    "new_clusters_this_batch": { "type": "integer", "minimum": 0 },
-    "largest_cluster_share": { "type": "number", "minimum": 0, "maximum": 1 },
-    "cluster_distribution": {
+    "group_count": { "type": "integer", "minimum": 0 },
+    "new_groups_this_batch": { "type": "integer", "minimum": 0 },
+    "largest_group_share": { "type": "number", "minimum": 0, "maximum": 1 },
+    "group_distribution": {
       "type": "array",
-      "description": "Dense cumulative counts aligned to cluster_id; cluster_distribution[i] is count for cluster_id i.",
+      "description": "Dense cumulative counts aligned to group_id; group_distribution[i] is count for group_id i.",
       "items": { "type": "integer", "minimum": 0 }
     },
     "js_divergence": {
@@ -34,12 +34,12 @@
       "maximum": 1,
       "description": "Jensen-Shannon divergence (log2) between current cumulative distribution and previous cumulative distribution; null when prior undefined."
     },
-    "cluster_limit_hit": { "type": "boolean" },
+    "group_limit_hit": { "type": "boolean" },
     "forced_assignments_this_batch": { "type": "integer", "minimum": 0 },
     "forced_assignments_cumulative": { "type": "integer", "minimum": 0 },
     "entropy": { "type": "number", "minimum": 0 },
-    "effective_cluster_count": { "type": "number", "minimum": 0 },
-    "singleton_count": { "type": "integer", "minimum": 0 },
+    "effective_group_count": { "type": "number", "minimum": 0 },
+    "singleton_group_count": { "type": "integer", "minimum": 0 },
     "recorded_at": { "type": "string", "format": "date-time" },
     "stop": {
       "type": "object",

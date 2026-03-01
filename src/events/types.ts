@@ -2,10 +2,10 @@ import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterTrialRecord } from "../generated/trial.types.js";
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
 import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.types.js";
-import type { ArbiterConvergenceTraceRecord } from "../generated/convergence-trace.types.js";
+import type { ArbiterMonitoringRecord } from "../generated/monitoring.types.js";
 import type { ArbiterAggregates } from "../generated/aggregates.types.js";
-import type { ArbiterOnlineClusterAssignmentRecord } from "../generated/cluster-assignment.types.js";
-import type { ArbiterOnlineClusteringState } from "../generated/cluster-state.types.js";
+import type { ArbiterOnlineGroupAssignmentRecord } from "../generated/group-assignment.types.js";
+import type { ArbiterOnlineGroupingState } from "../generated/group-state.types.js";
 import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js";
 
 export type RunStartedPayload = {
@@ -77,16 +77,16 @@ export type EmbeddingsFinalizedPayload = {
   provenance: EmbeddingsProvenance;
 };
 
-export type ClusterAssignedPayload = {
-  assignment: ArbiterOnlineClusterAssignmentRecord;
+export type GroupAssignedPayload = {
+  assignment: ArbiterOnlineGroupAssignmentRecord;
 };
 
-export type ClusterStatePayload = {
-  state: ArbiterOnlineClusteringState;
+export type GroupStatePayload = {
+  state: ArbiterOnlineGroupingState;
 };
 
-export type ConvergenceRecordPayload = {
-  convergence_record: ArbiterConvergenceTraceRecord;
+export type MonitoringRecordPayload = {
+  monitoring_record: ArbiterMonitoringRecord;
 };
 
 export type AggregatesComputedPayload = {
@@ -116,9 +116,9 @@ export type Event =
   | { type: "parsed.output"; payload: ParsedOutputProducedPayload }
   | { type: "embedding.recorded"; payload: EmbeddingRecordedPayload }
   | { type: "embeddings.finalized"; payload: EmbeddingsFinalizedPayload }
-  | { type: "cluster.assigned"; payload: ClusterAssignedPayload }
-  | { type: "clusters.state"; payload: ClusterStatePayload }
-  | { type: "convergence.record"; payload: ConvergenceRecordPayload }
+  | { type: "group.assigned"; payload: GroupAssignedPayload }
+  | { type: "groups.state"; payload: GroupStatePayload }
+  | { type: "monitoring.record"; payload: MonitoringRecordPayload }
   | { type: "aggregates.computed"; payload: AggregatesComputedPayload }
   | { type: "artifact.written"; payload: ArtifactWrittenPayload }
   | { type: "warning.raised"; payload: WarningRaisedPayload };

@@ -3,8 +3,8 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "nod
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
 import {
-  validateClusterAssignment,
-  validateClusterState,
+  validateGroupAssignment,
+  validateGroupState,
   validateManifest
 } from "../dist/config/schema-validation.js";
 
@@ -114,8 +114,8 @@ try {
 
   const statePath = resolve(runDir, "groups/state.json");
   const state = JSON.parse(readFileSync(statePath, "utf8"));
-  if (!validateClusterState(state)) {
-    throw new Error("Cluster state failed schema validation after interrupt");
+  if (!validateGroupState(state)) {
+    throw new Error("Group state failed schema validation after interrupt");
   }
 
   const assignmentsPath = resolve(runDir, "groups/assignments.jsonl");
@@ -125,8 +125,8 @@ try {
     .filter(Boolean);
   for (const line of assignmentLines) {
     const record = JSON.parse(line);
-    if (!validateClusterAssignment(record)) {
-      throw new Error("Cluster assignment failed schema validation after interrupt");
+    if (!validateGroupAssignment(record)) {
+      throw new Error("Group assignment failed schema validation after interrupt");
     }
   }
 
@@ -138,16 +138,16 @@ try {
   let sawDistribution = false;
   for (const line of convergenceLines) {
     const record = JSON.parse(line);
-    if (record.cluster_distribution !== undefined) {
-      if (!Array.isArray(record.cluster_distribution)) {
-        throw new Error("cluster_distribution is not an array");
+    if (record.group_distribution !== undefined) {
+      if (!Array.isArray(record.group_distribution)) {
+        throw new Error("group_distribution is not an array");
       }
-      if (record.cluster_count !== record.cluster_distribution.length) {
-        throw new Error("cluster_distribution length does not match cluster_count");
+      if (record.group_count !== record.group_distribution.length) {
+        throw new Error("group_distribution length does not match group_count");
       }
-      const sum = record.cluster_distribution.reduce((acc, value) => acc + value, 0);
+      const sum = record.group_distribution.reduce((acc, value) => acc + value, 0);
       if (sum !== record.k_eligible) {
-        throw new Error("cluster_distribution sum does not match k_eligible");
+        throw new Error("group_distribution sum does not match k_eligible");
       }
       if (!sawDistribution) {
         if (record.js_divergence !== null) {

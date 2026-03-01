@@ -5,9 +5,9 @@ import type { EventBus } from "../events/event-bus.js";
 import type {
   AggregatesComputedPayload,
   ArtifactWrittenPayload,
-  ClusterAssignedPayload,
-  ClusterStatePayload,
-  ConvergenceRecordPayload,
+  GroupAssignedPayload,
+  GroupStatePayload,
+  MonitoringRecordPayload,
   EmbeddingRecordedPayload,
   EmbeddingsFinalizedPayload,
   ParsedOutputProducedPayload,
@@ -19,14 +19,14 @@ import type {
 } from "../events/types.js";
 import {
   formatAjvErrors,
-  validateConvergenceTrace,
+  validateMonitoring,
   validateEmbedding,
   validateManifest,
   validateParsedOutput,
   validateTrialPlan,
   validateTrial,
-  validateClusterAssignment,
-  validateClusterState
+  validateGroupAssignment,
+  validateGroupState
 } from "../config/schema-validation.js";
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterRunManifest } from "../generated/manifest.types.js";
@@ -102,7 +102,7 @@ export class ArtifactWriter {
   private readonly policy?: RunPolicySnapshot;
   private manifest: ArbiterRunManifest | null = null;
   private embeddingsProvenance: EmbeddingsProvenance | null = null;
-  private latestMonitoring: ConvergenceRecordPayload["convergence_record"] | null = null;
+  private latestMonitoring: MonitoringRecordPayload["monitoring_record"] | null = null;
   private latestAggregates: Record<string, unknown> | null = null;
 
   private readonly trialPlanWriter: JsonlWriter;
@@ -189,19 +189,19 @@ export class ArtifactWriter {
         (error) => this.onSubscriberError(bus, "embedding.recorded", error)
       ),
       bus.subscribeSafe(
-        "convergence.record",
-        (payload) => this.onConvergenceRecord(payload),
-        (error) => this.onSubscriberError(bus, "convergence.record", error)
+        "monitoring.record",
+        (payload) => this.onMonitoringRecord(payload),
+        (error) => this.onSubscriberError(bus, "monitoring.record", error)
       ),
       bus.subscribeSafe(
-        "cluster.assigned",
-        (payload) => this.onClusterAssigned(payload),
-        (error) => this.onSubscriberError(bus, "cluster.assigned", error)
+        "group.assigned",
+        (payload) => this.onGroupAssigned(payload),
+        (error) => this.onSubscriberError(bus, "group.assigned", error)
       ),
       bus.subscribeSafe(
-        "clusters.state",
-        (payload) => this.onClusterState(payload),
-        (error) => this.onSubscriberError(bus, "clusters.state", error)
+        "groups.state",
+        (payload) => this.onGroupState(payload),
+        (error) => this.onSubscriberError(bus, "groups.state", error)
       ),
       bus.subscribeSafe(
         "aggregates.computed",
@@ -366,21 +366,21 @@ export class ArtifactWriter {
     }
   }
 
-  private onConvergenceRecord(payload: ConvergenceRecordPayload): void {
+  private onMonitoringRecord(payload: MonitoringRecordPayload): void {
     if (this.validateArtifacts) {
       assertValid(
         "monitoring",
-        validateConvergenceTrace(payload.convergence_record),
-        validateConvergenceTrace.errors
+        validateMonitoring(payload.monitoring_record),
+        validateMonitoring.errors
       );
     }
 
-    this.latestMonitoring = payload.convergence_record;
-    this.monitoringWriter.append(payload.convergence_record);
+    this.latestMonitoring = payload.monitoring_record;
+    this.monitoringWriter.append(payload.monitoring_record);
     this.counts.monitoring += 1;
   }
 
-  private onClusterAssigned(payload: ClusterAssignedPayload): void {
+  private onGroupAssigned(payload: GroupAssignedPayload): void {
     if (!this.groupAssignmentsWriter) {
       return;
     }
@@ -388,8 +388,8 @@ export class ArtifactWriter {
     if (this.validateArtifacts) {
       assertValid(
         "group assignment",
-        validateClusterAssignment(payload.assignment),
-        validateClusterAssignment.errors
+        validateGroupAssignment(payload.assignment),
+        validateGroupAssignment.errors
       );
     }
 
@@ -397,13 +397,13 @@ export class ArtifactWriter {
     this.counts.groupAssignments += 1;
   }
 
-  private onClusterState(payload: ClusterStatePayload): void {
+  private onGroupState(payload: GroupStatePayload): void {
     if (!this.groupingEnabled) {
       return;
     }
 
     if (this.validateArtifacts) {
-      assertValid("group state", validateClusterState(payload.state), validateClusterState.errors);
+      assertValid("group state", validateGroupState(payload.state), validateGroupState.errors);
     }
 
     writeJsonAtomic(resolve(this.runDir, "groups/state.json"), payload.state);
@@ -505,7 +505,7 @@ export class ArtifactWriter {
     lines.push(`- ${usageLine}`);
 
     if (this.resolvedConfig.measurement.clustering.enabled) {
-      const groupCount = typeof this.latestMonitoring?.cluster_count === "number" ? this.latestMonitoring.cluster_count : "-";
+      const groupCount = typeof this.latestMonitoring?.group_count === "number" ? this.latestMonitoring.group_count : "-";
       lines.push(`- embedding groups: ${groupCount}`);
       lines.push("- groups reflect embedding similarity, not semantic categories.");
     }

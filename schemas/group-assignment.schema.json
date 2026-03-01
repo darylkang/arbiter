@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://arbiter.dev/schemas/v1/cluster-assignment.schema.json",
-  "title": "Arbiter Online Cluster Assignment Record",
+  "$id": "https://arbiter.dev/schemas/v1/group-assignment.schema.json",
+  "title": "Arbiter Online Group Assignment Record",
   "type": "object",
   "additionalProperties": false,
-  "required": ["trial_id", "cluster_id", "similarity", "is_exemplar", "forced"],
+  "required": ["trial_id", "group_id", "similarity", "is_exemplar", "forced"],
   "properties": {
     "trial_id": { "type": "integer", "minimum": 0 },
-    "cluster_id": { "type": "integer", "minimum": 0 },
+    "group_id": { "type": "integer", "minimum": 0 },
     "similarity": { "type": "number", "minimum": -1, "maximum": 1 },
     "is_exemplar": { "type": "boolean" },
     "forced": { "type": "boolean" },

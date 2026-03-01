@@ -8,10 +8,10 @@ import {
   validateManifest,
   validateTrial,
   validateTrialPlan,
-  validateConvergenceTrace,
+  validateMonitoring,
   validateEmbedding,
-  validateClusterAssignment,
-  validateClusterState
+  validateGroupAssignment,
+  validateGroupState
 } from "../config/schema-validation.js";
 
 export type VerifyStatus = "OK" | "WARN" | "FAIL";
@@ -188,7 +188,7 @@ export const verifyRunDir = (runDir: string): VerifyReport => {
     results,
     "monitoring.jsonl",
     resolve(runDir, "monitoring.jsonl"),
-    validateConvergenceTrace
+    validateMonitoring
   );
 
   const receiptPath = resolve(runDir, "receipt.txt");
@@ -259,12 +259,12 @@ export const verifyRunDir = (runDir: string): VerifyReport => {
 
   const groupsStatePath = resolve(runDir, "groups", "state.json");
   if (existsSync(groupsStatePath)) {
-    verifyJson(results, "groups/state.json", groupsStatePath, validateClusterState);
+    verifyJson(results, "groups/state.json", groupsStatePath, validateGroupState);
   }
 
   const groupsAssignmentsPath = resolve(runDir, "groups", "assignments.jsonl");
   if (existsSync(groupsAssignmentsPath)) {
-    verifyJsonl(results, "groups/assignments.jsonl", groupsAssignmentsPath, validateClusterAssignment);
+    verifyJsonl(results, "groups/assignments.jsonl", groupsAssignmentsPath, validateGroupAssignment);
   }
 
   if (manifest.artifacts?.entries) {

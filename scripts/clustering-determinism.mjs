@@ -12,7 +12,7 @@ const runOnce = () => {
   const clustering = new OnlineLeaderClustering({
     tau: 0.8,
     centroidUpdateRule: "fixed_leader",
-    clusterLimit: 500
+    groupLimit: 500
   });
   return vectors.map((vector, index) =>
     clustering.assignEmbedding({
@@ -31,9 +31,9 @@ if (serialize(first) !== serialize(second)) {
   throw new Error("Clustering assignments are not deterministic");
 }
 
-const clusterIds = first.map((assignment) => assignment.cluster_id);
-if (!clusterIds.every((id) => Number.isInteger(id) && id >= 0)) {
-  throw new Error("Cluster IDs are not valid integers");
+const groupIds = first.map((assignment) => assignment.group_id);
+if (!groupIds.every((id) => Number.isInteger(id) && id >= 0)) {
+  throw new Error("Group IDs are not valid integers");
 }
 
 console.log("Clustering determinism test OK");

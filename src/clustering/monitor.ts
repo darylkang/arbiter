@@ -1,9 +1,9 @@
 import type { EventBus } from "../events/event-bus.js";
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.types.js";
-import type { ArbiterConvergenceTraceRecord } from "../generated/convergence-trace.types.js";
-import type { ArbiterOnlineClusterAssignmentRecord } from "../generated/cluster-assignment.types.js";
-import type { ArbiterOnlineClusteringState } from "../generated/cluster-state.types.js";
+import type { ArbiterMonitoringRecord } from "../generated/monitoring.types.js";
+import type { ArbiterOnlineGroupAssignmentRecord } from "../generated/group-assignment.types.js";
+import type { ArbiterOnlineGroupingState } from "../generated/group-state.types.js";
 import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import type {
   BatchCompletedPayload,
@@ -18,16 +18,16 @@ import { OnlineLeaderClustering } from "./online-leader.js";
 import { decodeFloat32Base64 } from "../utils/float32-base64.js";
 import { DEFAULT_STOP_POLICY } from "../config/defaults.js";
 
-type ClusterMetrics = {
-  cluster_count: number;
-  new_clusters_this_batch: number;
-  largest_cluster_share: number;
-  cluster_distribution: number[];
+type GroupMetrics = {
+  group_count: number;
+  new_groups_this_batch: number;
+  largest_group_share: number;
+  group_distribution: number[];
   js_divergence: number | null;
   entropy: number;
-  effective_cluster_count: number;
-  singleton_count: number;
-  cluster_limit_hit: boolean;
+  effective_group_count: number;
+  singleton_group_count: number;
+  group_limit_hit: boolean;
   forced_assignments_this_batch: number;
   forced_assignments_cumulative: number;
 };
@@ -51,11 +51,11 @@ export class ClusteringMonitor {
   private readonly priorEmbeddings: PriorEmbedding[] = [];
   private totalAttempted = 0;
   private totalEligible = 0;
-  private readonly clusterDistribution = new Map<number, number>();
+  private readonly groupDistribution = new Map<number, number>();
   private previousDistribution: number[] | null = null;
-  private readonly clusterLimit: number | null;
+  private readonly groupLimit: number | null;
   private readonly unsubs: Array<() => void> = [];
-  private lastConvergence: ArbiterConvergenceTraceRecord | null = null;
+  private lastMonitoring: ArbiterMonitoringRecord | null = null;
   private consecutiveConvergedBatches = 0;
   private shouldStopFlag = false;
 
@@ -73,9 +73,9 @@ export class ClusteringMonitor {
       this.clustering = new OnlineLeaderClustering({
         tau: clusteringConfig.tau,
         centroidUpdateRule: clusteringConfig.centroid_update_rule,
-        clusterLimit: clusteringConfig.cluster_limit
+        groupLimit: clusteringConfig.cluster_limit
       });
-      this.clusterLimit = clusteringConfig.cluster_limit;
+      this.groupLimit = clusteringConfig.cluster_limit;
       if (clusteringConfig.stop_mode === "enforced") {
         warningSink?.warn(
           "Clustering stop_mode=enforced is treated as advisory in Phase C.",
@@ -84,7 +84,7 @@ export class ClusteringMonitor {
       }
     } else {
       this.clustering = null;
-      this.clusterLimit = null;
+      this.groupLimit = null;
     }
   }
 
@@ -198,13 +198,13 @@ export class ClusteringMonitor {
     const shouldStop = wouldStop && this.stopMode === "enforcer";
     this.shouldStopFlag = shouldStop;
 
-    let clusterMetrics: ClusterMetrics | undefined;
+    let groupMetrics: GroupMetrics | undefined;
     if (this.clustering) {
       if (excludedCount > 0) {
         this.clustering.recordExcluded(excludedCount);
       }
 
-      const clusterCountBefore = this.clustering.getClusterCount();
+      const groupCountBefore = this.clustering.getGroupCount();
       let forcedThisBatch = 0;
 
       for (const embedding of batchEmbeddings) {
@@ -213,47 +213,47 @@ export class ClusteringMonitor {
           vector: embedding.vector,
           batch_number: payload.batch_number
         });
-        this.emitClusterAssignment(assignment);
+        this.emitGroupAssignment(assignment);
         if (assignment.forced) {
           forcedThisBatch += 1;
         }
-        const current = this.clusterDistribution.get(assignment.cluster_id) ?? 0;
-        this.clusterDistribution.set(assignment.cluster_id, current + 1);
+        const current = this.groupDistribution.get(assignment.group_id) ?? 0;
+        this.groupDistribution.set(assignment.group_id, current + 1);
       }
 
-      const clusterCount = this.clustering.getClusterCount();
-      const clusterLimitHit =
-        this.clusterLimit !== null ? clusterCount === this.clusterLimit : false;
-      const newClusters = clusterCount - clusterCountBefore;
-      const distributionArray = toDenseArray(this.clusterDistribution, clusterCount);
-      const totalAssigned = totalCount(this.clusterDistribution);
+      const groupCount = this.clustering.getGroupCount();
+      const groupLimitHit =
+        this.groupLimit !== null ? groupCount === this.groupLimit : false;
+      const newGroups = groupCount - groupCountBefore;
+      const distributionArray = toDenseArray(this.groupDistribution, groupCount);
+      const totalAssigned = totalCount(this.groupDistribution);
       const largestShare =
-        totalAssigned > 0 ? maxCount(this.clusterDistribution) / totalAssigned : 0;
-      const singletonCount = countSingletons(this.clusterDistribution);
-      const entropy = totalAssigned > 0 ? computeEntropy(this.clusterDistribution) : 0;
-      const effectiveClusterCount = totalAssigned > 0 ? Math.exp(entropy) : 0;
+        totalAssigned > 0 ? maxCount(this.groupDistribution) / totalAssigned : 0;
+      const singletonCount = countSingletons(this.groupDistribution);
+      const entropy = totalAssigned > 0 ? computeEntropy(this.groupDistribution) : 0;
+      const effectiveGroupCount = totalAssigned > 0 ? Math.exp(entropy) : 0;
       const jsDivergence = this.previousDistribution
         ? computeJSDivergence(this.previousDistribution, distributionArray)
         : null;
       this.previousDistribution = distributionArray;
       const totals = this.clustering.getTotals();
 
-      clusterMetrics = {
-        cluster_count: clusterCount,
-        new_clusters_this_batch: Math.max(0, newClusters),
-        largest_cluster_share: largestShare,
-        cluster_distribution: distributionArray,
+      groupMetrics = {
+        group_count: groupCount,
+        new_groups_this_batch: Math.max(0, newGroups),
+        largest_group_share: largestShare,
+        group_distribution: distributionArray,
         js_divergence: jsDivergence,
         entropy,
-        effective_cluster_count: effectiveClusterCount,
-        singleton_count: singletonCount,
-        cluster_limit_hit: clusterLimitHit,
+        effective_group_count: effectiveGroupCount,
+        singleton_group_count: singletonCount,
+        group_limit_hit: groupLimitHit,
         forced_assignments_this_batch: forcedThisBatch,
         forced_assignments_cumulative: totals.forcedAssignments
       };
     }
 
-    const convergenceRecord: ArbiterConvergenceTraceRecord = {
+    const monitoringRecord: ArbiterMonitoringRecord = {
       batch_number: payload.batch_number,
       k_attempted: this.totalAttempted,
       k_eligible: this.totalEligible,
@@ -267,50 +267,50 @@ export class ClusteringMonitor {
         should_stop: shouldStop,
         stop_reason: wouldStop ? "converged" : undefined
       },
-      ...(clusterMetrics ?? {})
+      ...(groupMetrics ?? {})
     };
 
-    this.lastConvergence = convergenceRecord;
-    this.bus.emit({ type: "convergence.record", payload: { convergence_record: convergenceRecord } });
+    this.lastMonitoring = monitoringRecord;
+    this.bus.emit({ type: "monitoring.record", payload: { monitoring_record: monitoringRecord } });
   }
 
   private onRunCompleted(payload: RunCompletedPayload): void {
     this.emitAggregates(payload.incomplete);
-    this.emitClusterState();
+    this.emitGroupState();
   }
 
   private onRunFailed(_payload: RunFailedPayload): void {
     this.emitAggregates(true);
-    this.emitClusterState();
+    this.emitGroupState();
   }
 
-  private emitClusterAssignment(assignment: ArbiterOnlineClusterAssignmentRecord): void {
+  private emitGroupAssignment(assignment: ArbiterOnlineGroupAssignmentRecord): void {
     this.bus.emit({
-      type: "cluster.assigned",
+      type: "group.assigned",
       payload: { assignment }
     });
   }
 
-  private emitClusterState(): void {
+  private emitGroupState(): void {
     if (!this.clustering) {
       return;
     }
-    const state: ArbiterOnlineClusteringState = this.clustering.snapshot();
+    const state: ArbiterOnlineGroupingState = this.clustering.snapshot();
     this.bus.emit({
-      type: "clusters.state",
+      type: "groups.state",
       payload: { state }
     });
   }
 
   private emitAggregates(incomplete: boolean): void {
-    const last = this.lastConvergence;
+    const last = this.lastMonitoring;
     const aggregates: ArbiterAggregates = {
       schema_version: "1.0.0",
       k_attempted: this.totalAttempted,
       k_eligible: this.totalEligible,
       novelty_rate: last?.novelty_rate ?? null,
       mean_max_sim_to_prior: last?.mean_max_sim_to_prior ?? null,
-      cluster_count: this.clustering ? (last?.cluster_count ?? null) : null,
+      group_count: this.clustering ? (last?.group_count ?? null) : null,
       entropy: this.clustering ? (last?.entropy ?? null) : null,
       incomplete
     };
@@ -364,11 +364,11 @@ const computeEntropy = (distribution: Map<number, number>): number => {
 
 const toDenseArray = (
   distribution: Map<number, number>,
-  clusterCount: number
+  groupCount: number
 ): number[] => {
-  const array = Array.from({ length: clusterCount }, () => 0);
+  const array = Array.from({ length: groupCount }, () => 0);
   for (const [key, value] of distribution.entries()) {
-    if (key >= 0 && key < clusterCount) {
+    if (key >= 0 && key < groupCount) {
       array[key] = value;
     }
   }

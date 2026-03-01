@@ -1,17 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://arbiter.dev/schemas/v1/cluster-state.schema.json",
-  "title": "Arbiter Online Clustering State",
+  "$id": "https://arbiter.dev/schemas/v1/group-state.schema.json",
+  "title": "Arbiter Online Grouping State",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "algorithm", "params", "clusters", "totals"],
+  "required": ["schema_version", "algorithm", "params", "groups", "totals"],
   "properties": {
     "schema_version": { "const": "1.0.0" },
     "algorithm": { "const": "online_leader" },
     "params": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["tau", "centroid_update_rule", "ordering_rule", "cluster_limit"],
+      "required": ["tau", "centroid_update_rule", "ordering_rule", "group_limit"],
       "properties": {
         "tau": { "type": "number", "minimum": 0, "maximum": 1 },
         "centroid_update_rule": {
@@ -19,22 +19,22 @@
           "enum": ["fixed_leader", "incremental_mean"]
         },
         "ordering_rule": { "const": "trial_id_asc" },
-        "cluster_limit": { "type": "integer", "minimum": 1 }
+        "group_limit": { "type": "integer", "minimum": 1 }
       }
     },
-    "clusters": {
+    "groups": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "cluster_id",
+          "group_id",
           "exemplar_trial_id",
           "member_count",
           "discovered_at_batch"
         ],
         "properties": {
-          "cluster_id": { "type": "integer", "minimum": 0 },
+          "group_id": { "type": "integer", "minimum": 0 },
           "exemplar_trial_id": { "type": "integer", "minimum": 0 },
           "member_count": { "type": "integer", "minimum": 1 },
           "discovered_at_batch": { "type": "integer", "minimum": 0 },

@@ -13,14 +13,14 @@ import type { ArbiterTrialPlanRecord } from "../generated/trial-plan.types.js";
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
 import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.types.js";
 import type { ArbiterEmbeddingsProvenance } from "../generated/embeddings-provenance.types.js";
-import type { ArbiterConvergenceTraceRecord } from "../generated/convergence-trace.types.js";
+import type { ArbiterMonitoringRecord } from "../generated/monitoring.types.js";
 import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
 import type { ArbiterPromptManifest } from "../generated/prompt-manifest.types.js";
 import type { ArbiterDecisionContractManifest } from "../generated/contract-manifest.types.js";
 import type { ArbiterDecisionContractPreset } from "../generated/decision-contract.types.js";
-import type { ArbiterOnlineClusteringState } from "../generated/cluster-state.types.js";
-import type { ArbiterOnlineClusterAssignmentRecord } from "../generated/cluster-assignment.types.js";
+import type { ArbiterOnlineGroupingState } from "../generated/group-state.types.js";
+import type { ArbiterOnlineGroupAssignmentRecord } from "../generated/group-assignment.types.js";
 import type { ArbiterProtocolSpec } from "../generated/protocol.types.js";
 import type { ArbiterDebateDecisionContract } from "../generated/debate-decision-contract.types.js";
 
@@ -66,8 +66,8 @@ export const validateEmbedding: ValidateFunction<ArbiterDebugEmbeddingJSONLRecor
 );
 export const validateEmbeddingsProvenance: ValidateFunction<ArbiterEmbeddingsProvenance> =
   ajv.compile(loadSchema("embeddings-provenance.schema.json"));
-export const validateConvergenceTrace: ValidateFunction<ArbiterConvergenceTraceRecord> =
-  ajv.compile(loadSchema("convergence-trace.schema.json"));
+export const validateMonitoring: ValidateFunction<ArbiterMonitoringRecord> =
+  ajv.compile(loadSchema("monitoring.schema.json"));
 export const validateAggregates: ValidateFunction<ArbiterAggregates> = ajv.compile(
   loadSchema("aggregates.schema.json")
 );
@@ -83,11 +83,11 @@ export const validateContractManifest: ValidateFunction<ArbiterDecisionContractM
 export const validateDecisionContract: ValidateFunction<ArbiterDecisionContractPreset> = ajv.compile(
   loadSchema("decision-contract.schema.json")
 );
-export const validateClusterState: ValidateFunction<ArbiterOnlineClusteringState> = ajv.compile(
-  loadSchema("cluster-state.schema.json")
+export const validateGroupState: ValidateFunction<ArbiterOnlineGroupingState> = ajv.compile(
+  loadSchema("group-state.schema.json")
 );
-export const validateClusterAssignment: ValidateFunction<ArbiterOnlineClusterAssignmentRecord> =
-  ajv.compile(loadSchema("cluster-assignment.schema.json"));
+export const validateGroupAssignment: ValidateFunction<ArbiterOnlineGroupAssignmentRecord> =
+  ajv.compile(loadSchema("group-assignment.schema.json"));
 export const validateProtocolSpec: ValidateFunction<ArbiterProtocolSpec> = ajv.compile(
   loadSchema("protocol.schema.json")
 );

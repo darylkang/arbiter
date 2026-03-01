@@ -97,8 +97,8 @@ const formatProgressBar = (completed: number, planned: number, width = 28): stri
   return `[${left}${right}]`;
 };
 
-const mapStopStateFromConvergence = (
-  record: EventPayloadMap["convergence.record"]["convergence_record"]
+const mapStopStateFromMonitoring = (
+  record: EventPayloadMap["monitoring.record"]["monitoring_record"]
 ): string => {
   if (record.stop.should_stop) {
     return "threshold met";
@@ -250,7 +250,7 @@ class RunDashboardMonitor {
       this.bus.subscribeSafe("trial.completed", (payload) => this.onTrialCompleted(payload)),
       this.bus.subscribeSafe("embedding.recorded", (payload) => this.onEmbeddingRecorded(payload)),
       this.bus.subscribeSafe("worker.status", (payload) => this.onWorkerStatus(payload)),
-      this.bus.subscribeSafe("convergence.record", (payload) => this.onConvergence(payload)),
+      this.bus.subscribeSafe("monitoring.record", (payload) => this.onMonitoring(payload)),
       this.bus.subscribeSafe("batch.completed", () => this.render()),
       this.bus.subscribeSafe("run.completed", (payload) => this.onRunCompleted(payload)),
       this.bus.subscribeSafe("run.failed", () => this.onRunFailed())
@@ -316,15 +316,15 @@ class RunDashboardMonitor {
     });
   }
 
-  private onConvergence(payload: EventPayloadMap["convergence.record"]): void {
-    const record = payload.convergence_record;
+  private onMonitoring(payload: EventPayloadMap["monitoring.record"]): void {
+    const record = payload.monitoring_record;
     this.snapshot.noveltyRate = record.novelty_rate ?? null;
     this.snapshot.meanMaxSimilarity = record.mean_max_sim_to_prior ?? null;
-    this.snapshot.stopState = mapStopStateFromConvergence(record);
+    this.snapshot.stopState = mapStopStateFromMonitoring(record);
 
     if (this.snapshot.groupingEnabled) {
       this.snapshot.groupCount =
-        typeof record.cluster_count === "number" ? record.cluster_count : this.snapshot.groupCount;
+        typeof record.group_count === "number" ? record.group_count : this.snapshot.groupCount;
     }
 
     const meetsLowNoveltyThresholds =

@@ -50,9 +50,9 @@ test("ClusteringMonitor processes batch embeddings in trial_id order", () => {
   const assignedTrialIds = [];
   let convergenceRecord = null;
   const unsubs = [
-    bus.subscribe("cluster.assigned", (payload) => assignedTrialIds.push(payload.assignment.trial_id)),
-    bus.subscribe("convergence.record", (payload) => {
-      convergenceRecord = payload.convergence_record;
+    bus.subscribe("group.assigned", (payload) => assignedTrialIds.push(payload.assignment.trial_id)),
+    bus.subscribe("monitoring.record", (payload) => {
+      convergenceRecord = payload.monitoring_record;
     })
   ];
 
@@ -81,7 +81,7 @@ test("ClusteringMonitor stops only in enforcer mode after convergence and k_min"
   monitor.attach();
 
   const records = [];
-  const unsub = bus.subscribe("convergence.record", (payload) => records.push(payload.convergence_record));
+  const unsub = bus.subscribe("monitoring.record", (payload) => records.push(payload.monitoring_record));
 
   bus.emit({ type: "trial.completed", payload: { trial_record: {} } });
   emitSuccessfulEmbedding(bus, 1, [1, 0]);
@@ -107,7 +107,7 @@ test("ClusteringMonitor keeps advisory stop mode non-blocking even when converge
   monitor.attach();
 
   const records = [];
-  const unsub = bus.subscribe("convergence.record", (payload) => records.push(payload.convergence_record));
+  const unsub = bus.subscribe("monitoring.record", (payload) => records.push(payload.monitoring_record));
 
   bus.emit({ type: "trial.completed", payload: { trial_record: {} } });
   emitSuccessfulEmbedding(bus, 1, [1, 0]);

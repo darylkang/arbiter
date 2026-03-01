@@ -3,8 +3,8 @@ import { resolve } from "node:path";
 
 import type { ArbiterRunManifest } from "../generated/manifest.types.js";
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
-import type { ArbiterConvergenceTraceRecord } from "../generated/convergence-trace.types.js";
-import type { ArbiterOnlineClusteringState } from "../generated/cluster-state.types.js";
+import type { ArbiterMonitoringRecord } from "../generated/monitoring.types.js";
+import type { ArbiterOnlineGroupingState } from "../generated/group-state.types.js";
 
 const readJsonIfExists = <T>(path: string): T | undefined => {
   if (!existsSync(path)) {
@@ -64,8 +64,8 @@ export const buildReceiptModel = (runDir: string): ReceiptModel => {
   }
 
   const config = readJsonIfExists<ArbiterResolvedConfig>(resolve(runDir, "config.resolved.json"));
-  const monitoring = readLastJsonlRecord<ArbiterConvergenceTraceRecord>(resolve(runDir, "monitoring.jsonl"));
-  const groupState = readJsonIfExists<ArbiterOnlineClusteringState>(resolve(runDir, "groups", "state.json"));
+  const monitoring = readLastJsonlRecord<ArbiterMonitoringRecord>(resolve(runDir, "monitoring.jsonl"));
+  const groupState = readJsonIfExists<ArbiterOnlineGroupingState>(resolve(runDir, "groups", "state.json"));
 
   return {
     run_id: manifest.run_id,
@@ -91,12 +91,12 @@ export const buildReceiptModel = (runDir: string): ReceiptModel => {
       ? {
           novelty_rate: monitoring.novelty_rate,
           mean_max_sim_to_prior: monitoring.mean_max_sim_to_prior,
-          group_count: monitoring.cluster_count
+          group_count: monitoring.group_count
         }
       : undefined,
     grouping: {
       enabled: Boolean(config?.measurement.clustering.enabled),
-      group_count: groupState?.clusters?.length
+      group_count: groupState?.groups?.length
     },
     artifacts: manifest.artifacts?.entries?.map((entry) => ({
       path: entry.path,

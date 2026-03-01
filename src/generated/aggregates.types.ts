@@ -6,7 +6,7 @@ export interface ArbiterAggregates {
   k_eligible: number;
   novelty_rate: number | null;
   mean_max_sim_to_prior: number | null;
-  cluster_count?: number | null;
+  group_count?: number | null;
   entropy?: number | null;
   incomplete?: boolean;
 }

@@ -3,26 +3,26 @@ import { encodeFloat32Base64 } from "../utils/float32-base64.js";
 
 export type CentroidUpdateRule = "fixed_leader" | "incremental_mean";
 
-export type ClusterAssignment = {
+export type GroupAssignment = {
   trial_id: number;
-  cluster_id: number;
+  group_id: number;
   similarity: number;
   is_exemplar: boolean;
   forced: boolean;
   batch_number?: number;
 };
 
-export type ClusterStateSnapshot = {
+export type GroupStateSnapshot = {
   schema_version: "1.0.0";
   algorithm: "online_leader";
   params: {
     tau: number;
     centroid_update_rule: CentroidUpdateRule;
     ordering_rule: "trial_id_asc";
-    cluster_limit: number;
+    group_limit: number;
   };
-  clusters: Array<{
-    cluster_id: number;
+  groups: Array<{
+    group_id: number;
     exemplar_trial_id: number;
     member_count: number;
     discovered_at_batch: number;
@@ -35,8 +35,8 @@ export type ClusterStateSnapshot = {
   };
 };
 
-type Cluster = {
-  cluster_id: number;
+type Group = {
+  group_id: number;
   exemplar_trial_id: number;
   member_count: number;
   discovered_at_batch: number;
@@ -47,8 +47,8 @@ type Cluster = {
 export class OnlineLeaderClustering {
   private readonly tau: number;
   private readonly centroidUpdateRule: CentroidUpdateRule;
-  private readonly clusterLimit: number;
-  private clusters: Cluster[] = [];
+  private readonly groupLimit: number;
+  private groups: Group[] = [];
   private totalAssigned = 0;
   private totalExcluded = 0;
   private forcedAssignments = 0;
@@ -56,11 +56,11 @@ export class OnlineLeaderClustering {
   constructor(options: {
     tau: number;
     centroidUpdateRule: CentroidUpdateRule;
-    clusterLimit: number;
+    groupLimit: number;
   }) {
     this.tau = options.tau;
     this.centroidUpdateRule = options.centroidUpdateRule;
-    this.clusterLimit = options.clusterLimit;
+    this.groupLimit = options.groupLimit;
   }
 
   recordExcluded(count: number): void {
@@ -71,18 +71,18 @@ export class OnlineLeaderClustering {
     trial_id: number;
     vector: number[];
     batch_number: number;
-  }): ClusterAssignment {
+  }): GroupAssignment {
     const norm = vectorNorm(input.vector);
 
-    if (this.clusters.length === 0) {
-      if (this.clusterLimit < 1) {
-        throw new Error("Cluster limit must be >= 1 to assign embeddings");
+    if (this.groups.length === 0) {
+      if (this.groupLimit < 1) {
+        throw new Error("Group limit must be >= 1 to assign embeddings");
       }
-      const cluster = this.createCluster(input.trial_id, input.vector, input.batch_number, norm);
+      const group = this.createGroup(input.trial_id, input.vector, input.batch_number, norm);
       this.totalAssigned += 1;
       return {
         trial_id: input.trial_id,
-        cluster_id: cluster.cluster_id,
+        group_id: group.group_id,
         similarity: 1,
         is_exemplar: true,
         forced: false,
@@ -90,33 +90,33 @@ export class OnlineLeaderClustering {
       };
     }
 
-    let bestCluster = this.clusters[0];
-    let bestSimilarity = cosineSimilarity(input.vector, bestCluster.centroid, {
+    let bestGroup = this.groups[0];
+    let bestSimilarity = cosineSimilarity(input.vector, bestGroup.centroid, {
       normA: norm,
-      normB: bestCluster.norm
+      normB: bestGroup.norm
     });
 
-    for (let i = 1; i < this.clusters.length; i += 1) {
-      const candidate = this.clusters[i];
+    for (let i = 1; i < this.groups.length; i += 1) {
+      const candidate = this.groups[i];
       const similarity = cosineSimilarity(input.vector, candidate.centroid, {
         normA: norm,
         normB: candidate.norm
       });
       if (similarity > bestSimilarity) {
         bestSimilarity = similarity;
-        bestCluster = candidate;
-      } else if (similarity === bestSimilarity && candidate.cluster_id < bestCluster.cluster_id) {
-        bestCluster = candidate;
+        bestGroup = candidate;
+      } else if (similarity === bestSimilarity && candidate.group_id < bestGroup.group_id) {
+        bestGroup = candidate;
       }
     }
 
     if (bestSimilarity < this.tau) {
-      if (this.clusters.length < this.clusterLimit) {
-        const cluster = this.createCluster(input.trial_id, input.vector, input.batch_number, norm);
+      if (this.groups.length < this.groupLimit) {
+        const group = this.createGroup(input.trial_id, input.vector, input.batch_number, norm);
         this.totalAssigned += 1;
         return {
           trial_id: input.trial_id,
-          cluster_id: cluster.cluster_id,
+          group_id: group.group_id,
           similarity: 1,
           is_exemplar: true,
           forced: false,
@@ -125,10 +125,10 @@ export class OnlineLeaderClustering {
       }
       this.forcedAssignments += 1;
       this.totalAssigned += 1;
-      this.updateCluster(bestCluster, input.vector, norm);
+      this.updateGroup(bestGroup, input.vector, norm);
       return {
         trial_id: input.trial_id,
-        cluster_id: bestCluster.cluster_id,
+        group_id: bestGroup.group_id,
         similarity: bestSimilarity,
         is_exemplar: false,
         forced: true,
@@ -137,10 +137,10 @@ export class OnlineLeaderClustering {
     }
 
     this.totalAssigned += 1;
-    this.updateCluster(bestCluster, input.vector, norm);
+    this.updateGroup(bestGroup, input.vector, norm);
     return {
       trial_id: input.trial_id,
-      cluster_id: bestCluster.cluster_id,
+      group_id: bestGroup.group_id,
       similarity: bestSimilarity,
       is_exemplar: false,
       forced: false,
@@ -148,8 +148,8 @@ export class OnlineLeaderClustering {
     };
   }
 
-  getClusterCount(): number {
-    return this.clusters.length;
+  getGroupCount(): number {
+    return this.groups.length;
   }
 
   getTotals(): { totalAssigned: number; totalExcluded: number; forcedAssignments: number } {
@@ -160,7 +160,7 @@ export class OnlineLeaderClustering {
     };
   }
 
-  snapshot(): ClusterStateSnapshot {
+  snapshot(): GroupStateSnapshot {
     return {
       schema_version: "1.0.0",
       algorithm: "online_leader",
@@ -168,14 +168,14 @@ export class OnlineLeaderClustering {
         tau: this.tau,
         centroid_update_rule: this.centroidUpdateRule,
         ordering_rule: "trial_id_asc",
-        cluster_limit: this.clusterLimit
+        group_limit: this.groupLimit
       },
-      clusters: this.clusters.map((cluster) => ({
-        cluster_id: cluster.cluster_id,
-        exemplar_trial_id: cluster.exemplar_trial_id,
-        member_count: cluster.member_count,
-        discovered_at_batch: cluster.discovered_at_batch,
-        centroid_vector_b64: encodeFloat32Base64(cluster.centroid)
+      groups: this.groups.map((group) => ({
+        group_id: group.group_id,
+        exemplar_trial_id: group.exemplar_trial_id,
+        member_count: group.member_count,
+        discovered_at_batch: group.discovered_at_batch,
+        centroid_vector_b64: encodeFloat32Base64(group.centroid)
       })),
       totals: {
         total_assigned: this.totalAssigned,
@@ -185,34 +185,34 @@ export class OnlineLeaderClustering {
     };
   }
 
-  private createCluster(
+  private createGroup(
     trialId: number,
     vector: number[],
     batchNumber: number,
     norm: number
-  ): Cluster {
-    const cluster: Cluster = {
-      cluster_id: this.clusters.length,
+  ): Group {
+    const group: Group = {
+      group_id: this.groups.length,
       exemplar_trial_id: trialId,
       member_count: 1,
       discovered_at_batch: batchNumber,
       centroid: vector.slice(),
       norm
     };
-    this.clusters.push(cluster);
-    return cluster;
+    this.groups.push(group);
+    return group;
   }
 
-  private updateCluster(cluster: Cluster, vector: number[], norm: number): void {
-    cluster.member_count += 1;
+  private updateGroup(group: Group, vector: number[], norm: number): void {
+    group.member_count += 1;
     if (this.centroidUpdateRule === "incremental_mean") {
-      const count = cluster.member_count;
+      const count = group.member_count;
       for (let i = 0; i < vector.length; i += 1) {
-        cluster.centroid[i] = (cluster.centroid[i] * (count - 1) + vector[i]) / count;
+        group.centroid[i] = (group.centroid[i] * (count - 1) + vector[i]) / count;
       }
-      cluster.norm = vectorNorm(cluster.centroid);
+      group.norm = vectorNorm(group.centroid);
     } else {
-      cluster.norm = cluster.norm || norm;
+      group.norm = group.norm || norm;
     }
   }
 }

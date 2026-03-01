@@ -10,7 +10,7 @@ const vectors = [
 const clustering = new OnlineLeaderClustering({
   tau: 0.99,
   centroidUpdateRule: "fixed_leader",
-  clusterLimit: 2
+  groupLimit: 2
 });
 
 const assignments = vectors.map((vector, index) =>
@@ -21,9 +21,9 @@ const assignments = vectors.map((vector, index) =>
   })
 );
 
-const clusterCount = clustering.getClusterCount();
-if (clusterCount !== 2) {
-  throw new Error(`Expected 2 clusters, got ${clusterCount}`);
+const groupCount = clustering.getGroupCount();
+if (groupCount !== 2) {
+  throw new Error(`Expected 2 groups, got ${groupCount}`);
 }
 
 const forcedCount = assignments.filter((assignment) => assignment.forced).length;
@@ -38,4 +38,4 @@ if (totals.forcedAssignments !== forcedCount) {
   );
 }
 
-console.log("Clustering cluster-limit test OK");
+console.log("Clustering group-limit test OK");
