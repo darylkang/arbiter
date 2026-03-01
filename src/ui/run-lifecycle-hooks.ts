@@ -5,31 +5,63 @@ import type { EventBus } from "../events/event-bus.js";
 import type { EventPayloadMap } from "../events/types.js";
 import type { RunLifecycleContext, RunLifecycleHooks } from "../run/lifecycle-hooks.js";
 
+type WorkerViewStatus = "idle" | "running" | "finishing" | "error";
+
 type DashboardSnapshot = {
   runId: string;
-  question: string;
+  questionExcerpt: string;
   mode: "mock" | "live";
-  protocol: string;
+  protocolLabel: string;
+  groupingEnabled: boolean;
+  groupCount: number | null;
   planned: number;
   attempted: number;
   eligible: number;
   workers: number;
+  kMinEligible: number;
+  stopMode: "advisor" | "enforcer";
+  noveltyThreshold: number | null;
+  similarityThreshold: number | null;
+  patience: number;
+  lowNoveltyStreak: number;
+  noveltyRate: number | null;
+  meanMaxSimilarity: number | null;
+  stopState: string;
   startedAtMs: number;
+  renderTick: number;
   usage: {
     prompt: number;
     completion: number;
     total: number;
     cost?: number;
   };
-  workerStatus: Map<number, { status: "idle" | "running"; trialId?: number }>;
-  noveltyRate: number | null;
-  noveltyThreshold: number | null;
-  patienceHint: string;
-  stopState: string;
+  workerStatus: Map<number, { status: WorkerViewStatus; trialId?: number }>;
 };
+
+const MAX_DASHBOARD_QUESTION_CHARS = 88;
+const MAX_VISIBLE_WORKERS = 8;
+const SPINNER_FRAMES = ["-", "\\", "|", "/"];
 
 const shouldRenderDashboard = (enabled: boolean): boolean =>
   enabled && Boolean(process.stdout.isTTY);
+
+const toQuestionExcerpt = (text: string, maxChars: number): string => {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxChars) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxChars - 1).trimEnd()}…`;
+};
+
+const formatProtocolLabel = (payload: EventPayloadMap["run.started"]): string => {
+  const protocol = payload.resolved_config.protocol;
+  if (protocol.type === "debate_v1") {
+    const participants = protocol.participants ?? 2;
+    const rounds = protocol.rounds ?? 1;
+    return `Debate (${participants}p x ${rounds}r + A)`;
+  }
+  return "Independent";
+};
 
 const formatDuration = (inputMs: number): string => {
   const totalSeconds = Math.max(0, Math.floor(inputMs / 1000));
@@ -56,50 +88,114 @@ const formatEta = (snapshot: DashboardSnapshot): string => {
   return formatDuration(avgMsPerTrial * (snapshot.planned - snapshot.attempted));
 };
 
-const formatRunSummary = (snapshot: DashboardSnapshot): string => {
-  const elapsed = formatDuration(Math.max(0, Date.now() - snapshot.startedAtMs));
-  const eta = formatEta(snapshot);
-  const usageLine =
-    snapshot.mode === "mock"
-      ? "Usage so far: not applicable (mock mode)"
-      : `Usage so far: ${snapshot.usage.total} tokens (in ${snapshot.usage.prompt}, out ${snapshot.usage.completion})`;
+const formatProgressBar = (completed: number, planned: number, width = 28): string => {
+  const safePlanned = Math.max(1, planned);
+  const ratio = Math.max(0, Math.min(1, completed / safePlanned));
+  const filled = Math.round(ratio * width);
+  const left = "#".repeat(filled);
+  const right = "-".repeat(Math.max(0, width - filled));
+  return `[${left}${right}]`;
+};
 
-  const workerLines: string[] = [];
-  if (snapshot.workers > 1) {
-    const sorted = Array.from(snapshot.workerStatus.entries()).sort((a, b) => a[0] - b[0]);
-    const visible = sorted.slice(0, 8);
-    for (const [workerId, state] of visible) {
-      if (state.status === "running") {
-        workerLines.push(`  W${workerId}: running trial #${state.trialId ?? "-"}`);
-      } else {
-        workerLines.push(`  W${workerId}: idle`);
-      }
-    }
-    const hidden = sorted.length - visible.length;
-    if (hidden > 0) {
-      workerLines.push(`  (+${hidden} more workers)`);
-    }
+const mapStopStateFromConvergence = (
+  record: EventPayloadMap["convergence.record"]["convergence_record"]
+): string => {
+  if (record.stop.should_stop) {
+    return "threshold met";
   }
+  if (record.stop.would_stop) {
+    return "likely to stop";
+  }
+  return "sampling continues";
+};
 
-  const novelty = snapshot.noveltyRate === null ? "—" : snapshot.noveltyRate.toFixed(3);
-  const threshold = snapshot.noveltyThreshold === null ? "—" : snapshot.noveltyThreshold.toFixed(3);
+const mapStopStateFromCompletion = (
+  stopReason: EventPayloadMap["run.completed"]["stop_reason"]
+): string => {
+  if (stopReason === "converged") {
+    return "threshold met";
+  }
+  if (stopReason === "user_interrupt") {
+    return "stopped by user (graceful)";
+  }
+  if (stopReason === "k_max_reached" || stopReason === "completed") {
+    return "sampling complete";
+  }
+  return "run failed";
+};
+
+const spinnerFrame = (tick: number): string =>
+  SPINNER_FRAMES[Math.max(0, tick) % SPINNER_FRAMES.length];
+
+export const buildRunDashboardText = (
+  snapshot: DashboardSnapshot,
+  nowMs = Date.now()
+): string => {
+  const elapsed = formatDuration(Math.max(0, nowMs - snapshot.startedAtMs));
+  const eta = formatEta(snapshot);
+  const progressBar = formatProgressBar(snapshot.attempted, snapshot.planned);
 
   const lines: string[] = [];
   lines.push("═══ RUN ═══");
   lines.push(
-    `Question: ${snapshot.question} | mode ${snapshot.mode} | protocol ${snapshot.protocol} | trials ${snapshot.attempted}/${snapshot.planned} | workers ${snapshot.workers}`
+    `Question: ${snapshot.questionExcerpt} | mode ${snapshot.mode} | protocol ${snapshot.protocolLabel} | trials ${snapshot.attempted}/${snapshot.planned} | workers ${snapshot.workers}`
   );
-  lines.push(`Progress: ${snapshot.attempted}/${snapshot.planned} | elapsed ${elapsed} | ETA ${eta}`);
-  if (workerLines.length > 0) {
+  lines.push(`Progress: ${progressBar} ${snapshot.attempted}/${snapshot.planned}`);
+  lines.push(`Timing: elapsed ${elapsed} | ETA ${eta}`);
+
+  if (snapshot.workers > 1) {
     lines.push("Workers:");
-    lines.push(...workerLines);
+    const sorted = Array.from(snapshot.workerStatus.entries()).sort((a, b) => a[0] - b[0]);
+    const visible = sorted.slice(0, MAX_VISIBLE_WORKERS);
+    for (const [workerId, state] of visible) {
+      if (state.status === "running") {
+        lines.push(
+          `  W${workerId}: ${spinnerFrame(snapshot.renderTick)} calling model (trial ${state.trialId ?? "-"})`
+        );
+      } else if (state.status === "finishing") {
+        lines.push(`  W${workerId}: ${spinnerFrame(snapshot.renderTick)} finishing`);
+      } else if (state.status === "error") {
+        lines.push(`  W${workerId}: ! error`);
+      } else {
+        lines.push(`  W${workerId}: idle`);
+      }
+    }
+    const hidden = sorted.length - visible.length;
+    if (hidden > 0) {
+      lines.push(`  (+${hidden} more workers)`);
+    }
   }
-  lines.push(
-    `Monitoring: novelty ${novelty} (threshold ${threshold}) | ${snapshot.patienceHint} | ${snapshot.stopState}`
-  );
-  lines.push(usageLine);
+
+  const novelty = snapshot.noveltyRate === null ? "—" : snapshot.noveltyRate.toFixed(3);
+  const noveltyThreshold =
+    snapshot.noveltyThreshold === null ? "—" : snapshot.noveltyThreshold.toFixed(3);
+  const meanMaxSimilarity =
+    snapshot.meanMaxSimilarity === null ? "—" : snapshot.meanMaxSimilarity.toFixed(3);
+  const similarityThreshold =
+    snapshot.similarityThreshold === null ? "—" : snapshot.similarityThreshold.toFixed(3);
+
+  lines.push("Monitoring:");
+  lines.push(`  novelty rate: ${novelty} (threshold ${noveltyThreshold})`);
+  lines.push(`  mean max similarity: ${meanMaxSimilarity} (threshold ${similarityThreshold})`);
+  lines.push(`  patience: ${snapshot.lowNoveltyStreak}/${snapshot.patience} low-novelty batches`);
+  lines.push(`  status: ${snapshot.stopState}`);
+  if (snapshot.groupingEnabled) {
+    lines.push(`  embedding groups: ${snapshot.groupCount === null ? "—" : snapshot.groupCount}`);
+  }
+
+  if (snapshot.mode === "mock") {
+    lines.push("Usage so far: usage not applicable (mock mode)");
+  } else {
+    lines.push(
+      `Usage so far: ${snapshot.usage.total} tokens (in ${snapshot.usage.prompt}, out ${snapshot.usage.completion})`
+    );
+    if (snapshot.usage.cost !== undefined) {
+      lines.push(`Cost estimate so far: $${snapshot.usage.cost.toFixed(6)}`);
+    }
+  }
+
   lines.push("Stopping indicates diminishing novelty, not correctness.");
-  if (snapshot.noveltyRate !== null) {
+  if (snapshot.groupingEnabled) {
     lines.push("Embedding groups reflect similarity, not semantic categories.");
   }
 
@@ -110,29 +206,41 @@ class RunDashboardMonitor {
   private readonly bus: EventBus;
   private readonly snapshot: DashboardSnapshot;
   private readonly unsubs: Array<() => void> = [];
+  private lastRenderedLineCount = 0;
 
   constructor(context: RunLifecycleContext) {
     this.bus = context.bus;
+    const stopPolicy = context.resolvedConfig.execution.stop_policy;
     this.snapshot = {
       runId: context.runId,
-      question: "",
+      questionExcerpt: "",
       mode: context.mode,
-      protocol: "independent",
+      protocolLabel: "Independent",
+      groupingEnabled:
+        context.resolvedConfig.measurement.clustering.enabled &&
+        context.resolvedConfig.measurement.clustering.stop_mode !== "disabled",
+      groupCount: null,
       planned: 0,
       attempted: 0,
       eligible: 0,
       workers: 1,
+      kMinEligible: context.resolvedConfig.execution.k_min,
+      stopMode: context.resolvedConfig.execution.stop_mode,
+      noveltyThreshold: stopPolicy?.novelty_epsilon ?? null,
+      similarityThreshold: stopPolicy?.similarity_threshold ?? null,
+      patience: stopPolicy?.patience ?? 2,
+      lowNoveltyStreak: 0,
+      noveltyRate: null,
+      meanMaxSimilarity: null,
+      stopState: "sampling continues",
       startedAtMs: Date.now(),
+      renderTick: 0,
       usage: {
         prompt: 0,
         completion: 0,
         total: 0
       },
-      workerStatus: new Map(),
-      noveltyRate: null,
-      noveltyThreshold: context.resolvedConfig.execution.stop_policy?.novelty_epsilon ?? null,
-      patienceHint: "Sampling continues",
-      stopState: "Sampling continues"
+      workerStatus: new Map()
     };
   }
 
@@ -144,8 +252,8 @@ class RunDashboardMonitor {
       this.bus.subscribeSafe("worker.status", (payload) => this.onWorkerStatus(payload)),
       this.bus.subscribeSafe("convergence.record", (payload) => this.onConvergence(payload)),
       this.bus.subscribeSafe("batch.completed", () => this.render()),
-      this.bus.subscribeSafe("run.completed", () => this.render()),
-      this.bus.subscribeSafe("run.failed", () => this.render())
+      this.bus.subscribeSafe("run.completed", (payload) => this.onRunCompleted(payload)),
+      this.bus.subscribeSafe("run.failed", () => this.onRunFailed())
     );
   }
 
@@ -154,11 +262,28 @@ class RunDashboardMonitor {
   }
 
   private onRunStarted(payload: EventPayloadMap["run.started"]): void {
-    this.snapshot.question = payload.resolved_config.question.text;
-    this.snapshot.protocol = payload.resolved_config.protocol.type;
-    this.snapshot.workers = Math.max(1, payload.resolved_config.execution.workers);
-    this.snapshot.planned = payload.k_planned ?? payload.resolved_config.execution.k_max;
+    const config = payload.resolved_config;
+    this.snapshot.questionExcerpt = toQuestionExcerpt(
+      config.question.text,
+      MAX_DASHBOARD_QUESTION_CHARS
+    );
+    this.snapshot.protocolLabel = formatProtocolLabel(payload);
+    this.snapshot.workers = Math.max(1, config.execution.workers);
+    this.snapshot.planned = payload.k_planned ?? config.execution.k_max;
+    this.snapshot.kMinEligible = config.execution.k_min;
+    this.snapshot.stopMode = config.execution.stop_mode;
+    this.snapshot.noveltyThreshold =
+      config.execution.stop_policy?.novelty_epsilon ?? this.snapshot.noveltyThreshold;
+    this.snapshot.similarityThreshold =
+      config.execution.stop_policy?.similarity_threshold ?? this.snapshot.similarityThreshold;
+    this.snapshot.patience = config.execution.stop_policy?.patience ?? this.snapshot.patience;
     this.snapshot.startedAtMs = Date.now();
+    this.snapshot.lowNoveltyStreak = 0;
+    this.snapshot.noveltyRate = null;
+    this.snapshot.meanMaxSimilarity = null;
+    this.snapshot.groupCount = null;
+    this.snapshot.stopState = "sampling continues";
+    this.snapshot.workerStatus.clear();
     for (let workerId = 1; workerId <= this.snapshot.workers; workerId += 1) {
       this.snapshot.workerStatus.set(workerId, { status: "idle" });
     }
@@ -194,16 +319,60 @@ class RunDashboardMonitor {
   private onConvergence(payload: EventPayloadMap["convergence.record"]): void {
     const record = payload.convergence_record;
     this.snapshot.noveltyRate = record.novelty_rate ?? null;
-    this.snapshot.stopState = record.stop.should_stop
-      ? "Threshold met"
-      : record.stop.would_stop
-        ? "Likely to stop"
-        : "Sampling continues";
-    this.snapshot.patienceHint = `stop mode ${record.stop.mode}`;
+    this.snapshot.meanMaxSimilarity = record.mean_max_sim_to_prior ?? null;
+    this.snapshot.stopState = mapStopStateFromConvergence(record);
+
+    if (this.snapshot.groupingEnabled) {
+      this.snapshot.groupCount =
+        typeof record.cluster_count === "number" ? record.cluster_count : this.snapshot.groupCount;
+    }
+
+    const meetsLowNoveltyThresholds =
+      record.has_eligible_in_batch &&
+      record.k_eligible >= this.snapshot.kMinEligible &&
+      record.novelty_rate !== null &&
+      record.mean_max_sim_to_prior !== null &&
+      this.snapshot.noveltyThreshold !== null &&
+      this.snapshot.similarityThreshold !== null &&
+      record.novelty_rate <= this.snapshot.noveltyThreshold &&
+      record.mean_max_sim_to_prior >= this.snapshot.similarityThreshold;
+
+    this.snapshot.lowNoveltyStreak = meetsLowNoveltyThresholds
+      ? this.snapshot.lowNoveltyStreak + 1
+      : 0;
+  }
+
+  private onRunCompleted(payload: EventPayloadMap["run.completed"]): void {
+    for (const [workerId, state] of this.snapshot.workerStatus.entries()) {
+      if (state.status === "running") {
+        this.snapshot.workerStatus.set(workerId, {
+          status: "finishing",
+          trialId: state.trialId
+        });
+      }
+    }
+    this.snapshot.stopState = mapStopStateFromCompletion(payload.stop_reason);
+    this.render();
+  }
+
+  private onRunFailed(): void {
+    for (const [workerId] of this.snapshot.workerStatus.entries()) {
+      this.snapshot.workerStatus.set(workerId, { status: "error" });
+    }
+    this.snapshot.stopState = "run failed";
+    this.render();
   }
 
   private render(): void {
-    process.stdout.write(`${formatRunSummary(this.snapshot)}\n`);
+    this.snapshot.renderTick += 1;
+    const frameText = buildRunDashboardText(this.snapshot);
+    const frameLineCount = frameText.trimEnd().split("\n").length;
+
+    if (this.lastRenderedLineCount > 0) {
+      process.stdout.write(`\x1b[${this.lastRenderedLineCount}A\x1b[J`);
+    }
+    process.stdout.write(frameText);
+    this.lastRenderedLineCount = frameLineCount;
   }
 }
 
