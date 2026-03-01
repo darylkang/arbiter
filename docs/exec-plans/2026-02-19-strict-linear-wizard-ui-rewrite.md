@@ -25,14 +25,14 @@ Scope guardrails:
 
 ## Progress
 - [x] (2026-02-19 00:00Z) initial plan drafted (`proposed`)
-- [ ] (pending) milestone 0 complete: protocol/config contract deltas finalized
-- [ ] (pending) milestone 1 complete: wizard shell + stage router scaffolded
-- [ ] (pending) milestone 2 complete: Stage 1 strict linear flow implemented
-- [ ] (pending) milestone 3 complete: debate execution semantics generalized for `P` and `R`
-- [ ] (pending) milestone 4 complete: Stage 2 dashboard implemented with graceful interrupt
-- [ ] (pending) milestone 5 complete: Stage 3 receipt auto-exit implemented
-- [ ] (pending) milestone 6 complete: transcript-era default UX removed
-- [ ] (pending) milestone 7 complete: tests and acceptance evidence captured (`completed`)
+- [x] (2026-03-01 14:36Z) milestone 0 complete: protocol/config contract deltas finalized
+- [x] (2026-03-01 14:36Z) milestone 1 complete: wizard shell + stage router scaffolded
+- [x] (2026-03-01 14:36Z) milestone 2 complete: Stage 1 strict linear flow implemented
+- [x] (2026-03-01 14:36Z) milestone 3 complete: debate execution semantics generalized for `P` and `R`
+- [x] (2026-03-01 14:36Z) milestone 4 complete: Stage 2 dashboard implemented with graceful interrupt
+- [x] (2026-03-01 14:36Z) milestone 5 complete: Stage 3 receipt auto-exit implemented
+- [x] (2026-03-01 14:36Z) milestone 6 complete: transcript-era default UX removed
+- [x] (2026-03-01 14:36Z) milestone 7 complete: tests and acceptance evidence captured (`completed`)
 
 ## Surprises & Discoveries
 - Observation: current protocol implementation is `debate_v1` with fixed 3-turn proposer/critic/proposer flow; no generalized participants/rounds.
@@ -234,3 +234,4 @@ Draft Debate `P`/`R` schema delta:
 - 2026-02-19 00:00Z: strengthened after self-audit to explicitly include Debate `P`/`R` contract migration, test-script migration surface, and cutover risk controls.
 - 2026-02-20 00:00Z: hardened with scope guardrails, milestone exit gates, and explicit no-overlay/no-slash acceptance criterion.
 - 2026-02-20 00:00Z: added explicit Milestone 1 and Milestone 5 exit gates and fixed Debate intermediate-turn contract to `trials.jsonl.transcript`.
+- 2026-03-01 14:36Z: marked milestones complete after stage1 step-state hardening, stage2/3 lifecycle integration, and full quality-gate pass.

@@ -1,5 +1,6 @@
 import { accessSync, constants, mkdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { emitKeypressEvents } from "node:readline";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 
@@ -71,6 +72,19 @@ type PersonaOption = {
   description: string;
 };
 
+const SELECT_BACK = "__BACK__";
+const SELECT_EXIT = "__EXIT__";
+
+type NavigationSignal = typeof SELECT_BACK | typeof SELECT_EXIT;
+type SelectOneResult = string | NavigationSignal;
+type SelectManyResult = string[] | NavigationSignal;
+
+type RawKey = {
+  name?: string;
+  ctrl?: boolean;
+  sequence?: string;
+};
+
 const WIZARD_STEP_LABELS = [
   "0 Welcome",
   "1 Question",
@@ -120,6 +134,75 @@ const renderStepFrame = (input: {
     output.write(`${input.hint}\n`);
   }
   output.write("\n");
+};
+
+const firstEnabledIndex = (choices: Choice[], fallbackIndex: number): number => {
+  if (choices.length === 0) {
+    return 0;
+  }
+  const clamped = Math.max(0, Math.min(fallbackIndex, choices.length - 1));
+  if (!choices[clamped]?.disabled) {
+    return clamped;
+  }
+  const found = choices.findIndex((choice) => !choice.disabled);
+  return found >= 0 ? found : 0;
+};
+
+const nextSelectableIndex = (choices: Choice[], currentIndex: number, delta: number): number => {
+  if (choices.length === 0) {
+    return 0;
+  }
+  for (let hops = 0; hops < choices.length; hops += 1) {
+    const next = (currentIndex + delta * (hops + 1) + choices.length) % choices.length;
+    if (!choices[next]?.disabled) {
+      return next;
+    }
+  }
+  return currentIndex;
+};
+
+const withRawKeyCapture = async <T>(inputControl: {
+  beforeRender: () => void;
+  renderBody: (errorLine?: string) => void;
+  onKey: (str: string, key: RawKey) => { done: true; value: T } | { done: false; error?: string };
+}): Promise<T> => {
+  const stdin = process.stdin;
+  if (!stdin.isTTY) {
+    throw new Error("Wizard key-driven input requires a TTY.");
+  }
+
+  return new Promise<T>((resolvePromise) => {
+    emitKeypressEvents(stdin);
+    const wasRaw = Boolean(stdin.isRaw);
+    stdin.setRawMode(true);
+    stdin.resume();
+
+    let currentError = "";
+
+    const render = (): void => {
+      inputControl.beforeRender();
+      inputControl.renderBody(currentError || undefined);
+    };
+
+    const cleanup = (): void => {
+      stdin.removeListener("keypress", onKeyPress);
+      stdin.setRawMode(wasRaw);
+    };
+
+    const onKeyPress = (str: string, key: RawKey): void => {
+      const result = inputControl.onKey(str, key);
+      if (result.done) {
+        cleanup();
+        resolvePromise(result.value);
+        return;
+      }
+      currentError = result.error ?? "";
+      render();
+    };
+
+    stdin.on("keypress", onKeyPress);
+    render();
+  });
 };
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -290,95 +373,222 @@ const selectOne = async (
   rl: ReturnType<typeof createInterface>,
   prompt: string,
   choices: Choice[],
-  defaultIndex = 0
-): Promise<string> => {
-  output.write(`${prompt}\n`);
-  choices.forEach((choice, index) => {
-    const disabled = choice.disabled ? " (disabled)" : "";
-    output.write(`  ${index + 1}) ${choice.label}${disabled}\n`);
-  });
-
-  while (true) {
-    const answer = (await rl.question(`Choose [${defaultIndex + 1}]: `)).trim();
-    const choiceIndex = answer.length === 0 ? defaultIndex : Number(answer) - 1;
-    if (!Number.isInteger(choiceIndex) || choiceIndex < 0 || choiceIndex >= choices.length) {
-      output.write("Invalid selection.\n");
-      continue;
-    }
-    const selected = choices[choiceIndex];
-    if (selected.disabled) {
-      output.write("That option is disabled.\n");
-      continue;
-    }
-    return selected.id;
+  defaultIndex = 0,
+  frame?: {
+    currentStepIndex: number;
+    completedUntilIndex: number;
+    runMode: RunMode | null;
+    apiKeyPresent: boolean;
+    configCount: number;
+    title: string;
+    hint?: string;
   }
+): Promise<SelectOneResult> => {
+  rl.pause();
+  let selectedIndex = firstEnabledIndex(choices, defaultIndex);
+  const selected = await withRawKeyCapture<SelectOneResult>({
+    beforeRender: () => {
+      if (frame) {
+        renderStepFrame(frame);
+      } else {
+        clearScreen();
+      }
+    },
+    renderBody: (errorLine) => {
+      output.write(`${prompt}\n\n`);
+      choices.forEach((choice, index) => {
+        const marker = index === selectedIndex ? "▶" : " ";
+        const disabled = choice.disabled ? " (disabled)" : "";
+        output.write(` ${marker} ${choice.label}${disabled}\n`);
+      });
+      output.write("\nControls: ↑/↓ move · Enter confirm · Esc back\n");
+      if (errorLine) {
+        output.write(`\n${errorLine}\n`);
+      }
+    },
+    onKey: (_str, key) => {
+      if (key.ctrl && key.name === "c") {
+        return { done: true, value: SELECT_EXIT };
+      }
+      if (key.name === "up") {
+        selectedIndex = nextSelectableIndex(choices, selectedIndex, -1);
+        return { done: false };
+      }
+      if (key.name === "down") {
+        selectedIndex = nextSelectableIndex(choices, selectedIndex, 1);
+        return { done: false };
+      }
+      if (key.name === "escape") {
+        return { done: true, value: SELECT_BACK };
+      }
+      if (key.name === "return" || key.sequence === "\r") {
+        const choice = choices[selectedIndex];
+        if (!choice || choice.disabled) {
+          return { done: false, error: "That option is disabled." };
+        }
+        return { done: true, value: choice.id };
+      }
+      return { done: false };
+    }
+  });
+  rl.resume();
+  return selected;
 };
 
 const selectMany = async (
   rl: ReturnType<typeof createInterface>,
   prompt: string,
   choices: Choice[],
-  defaults: string[]
-): Promise<string[]> => {
-  output.write(`${prompt}\n`);
-  choices.forEach((choice, index) => {
-    const marker = defaults.includes(choice.id) ? "*" : " ";
-    output.write(`  ${index + 1}) [${marker}] ${choice.label}\n`);
-  });
-  output.write("Enter comma-separated numbers (blank keeps defaults).\n");
-
-  while (true) {
-    const answer = (await rl.question("Selection: ")).trim();
-    if (!answer) {
-      if (defaults.length > 0) {
-        return defaults;
-      }
-      output.write("Select at least one option.\n");
-      continue;
-    }
-
-    const parts = answer
-      .split(",")
-      .map((part) => part.trim())
-      .filter((part) => part.length > 0);
-    const indexes = parts.map((part) => Number(part) - 1);
-    if (indexes.some((index) => !Number.isInteger(index) || index < 0 || index >= choices.length)) {
-      output.write("Invalid selection.\n");
-      continue;
-    }
-
-    const selectedIds = Array.from(new Set(indexes.map((index) => choices[index].id)));
-    if (selectedIds.length === 0) {
-      output.write("Select at least one option.\n");
-      continue;
-    }
-
-    return selectedIds;
+  defaults: string[],
+  frame?: {
+    currentStepIndex: number;
+    completedUntilIndex: number;
+    runMode: RunMode | null;
+    apiKeyPresent: boolean;
+    configCount: number;
+    title: string;
+    hint?: string;
   }
+): Promise<SelectManyResult> => {
+  rl.pause();
+  const selectedIds = new Set(defaults);
+  let selectedIndex = firstEnabledIndex(choices, 0);
+  const resolved = await withRawKeyCapture<SelectManyResult>({
+    beforeRender: () => {
+      if (frame) {
+        renderStepFrame(frame);
+      } else {
+        clearScreen();
+      }
+    },
+    renderBody: (errorLine) => {
+      output.write(`${prompt}\n\n`);
+      choices.forEach((choice, index) => {
+        const cursor = index === selectedIndex ? "▶" : " ";
+        const checked = selectedIds.has(choice.id) ? "x" : " ";
+        const disabled = choice.disabled ? " (disabled)" : "";
+        output.write(` ${cursor} [${checked}] ${choice.label}${disabled}\n`);
+      });
+      output.write("\nControls: ↑/↓ move · Space toggle · Enter confirm · Esc back\n");
+      if (errorLine) {
+        output.write(`\n${errorLine}\n`);
+      }
+    },
+    onKey: (_str, key) => {
+      if (key.ctrl && key.name === "c") {
+        return { done: true, value: SELECT_EXIT };
+      }
+      if (key.name === "up") {
+        selectedIndex = nextSelectableIndex(choices, selectedIndex, -1);
+        return { done: false };
+      }
+      if (key.name === "down") {
+        selectedIndex = nextSelectableIndex(choices, selectedIndex, 1);
+        return { done: false };
+      }
+      if (key.name === "escape") {
+        return { done: true, value: SELECT_BACK };
+      }
+      if (key.name === "space") {
+        const choice = choices[selectedIndex];
+        if (choice && !choice.disabled) {
+          if (selectedIds.has(choice.id)) {
+            selectedIds.delete(choice.id);
+          } else {
+            selectedIds.add(choice.id);
+          }
+        }
+        return { done: false };
+      }
+      if (key.name === "return" || key.sequence === "\r") {
+        if (selectedIds.size === 0) {
+          return { done: false, error: "Select at least one option." };
+        }
+        return { done: true, value: Array.from(selectedIds) };
+      }
+      return { done: false };
+    }
+  });
+  rl.resume();
+  return resolved;
 };
 
 const askMultilineQuestion = async (
   rl: ReturnType<typeof createInterface>,
-  initial: string
-): Promise<string> => {
-  output.write("Enter your question/context. Submit an empty line to finish.\n");
-  if (initial.trim().length > 0) {
-    output.write(`Current value (${initial.length} chars): ${initial}\n`);
+  initial: string,
+  frame: {
+    currentStepIndex: number;
+    completedUntilIndex: number;
+    runMode: RunMode | null;
+    apiKeyPresent: boolean;
+    configCount: number;
+    title: string;
+    hint?: string;
   }
-
-  const lines: string[] = [];
-  while (true) {
-    const line = await rl.question("");
-    if (line.length === 0) {
-      const joined = lines.join("\n").trim();
-      if (joined.length === 0) {
-        output.write("Question cannot be empty.\n");
-        continue;
+): Promise<string | NavigationSignal> => {
+  rl.pause();
+  let buffer = initial;
+  const resolved = await withRawKeyCapture<string | NavigationSignal>({
+    beforeRender: () => {
+      renderStepFrame(frame);
+    },
+    renderBody: (errorLine) => {
+      output.write("Step 1 — Research Question\n\n");
+      output.write("Include all relevant context. Arbiter samples responses to characterize distributional behavior.\n");
+      output.write("Controls: Enter newline · Ctrl+Enter submit · Esc back · Ctrl+C exit\n\n");
+      if (buffer.length === 0) {
+        output.write("(start typing)\n");
+      } else {
+        output.write(`${buffer}\n`);
       }
-      return joined;
+      output.write(`\nCharacters: ${buffer.length}\n`);
+      if (errorLine) {
+        output.write(`\n${errorLine}\n`);
+      }
+    },
+    onKey: (str, key) => {
+      if (key.ctrl && key.name === "c") {
+        return { done: true, value: SELECT_EXIT };
+      }
+      if (key.name === "escape") {
+        return { done: true, value: SELECT_BACK };
+      }
+
+      const submitRequested =
+        (key.ctrl && (key.name === "return" || key.name === "enter" || key.name === "m" || key.name === "j")) ||
+        (key.ctrl && key.sequence === "\n") ||
+        (key.ctrl && key.name === "d"); // fallback for terminals that cannot send Ctrl+Enter distinctly
+
+      if (submitRequested) {
+        const question = buffer.trim();
+        if (question.length === 0) {
+          return { done: false, error: "Question cannot be empty." };
+        }
+        return { done: true, value: question };
+      }
+
+      if (key.name === "return" || key.sequence === "\r") {
+        buffer += "\n";
+        return { done: false };
+      }
+
+      if (key.name === "backspace" || key.sequence === "\x7f") {
+        if (buffer.length > 0) {
+          buffer = buffer.slice(0, -1);
+        }
+        return { done: false };
+      }
+
+      if (str && !key.ctrl && str >= " " && str !== "\x7f") {
+        buffer += str;
+        return { done: false };
+      }
+
+      return { done: false };
     }
-    lines.push(line);
-  }
+  });
+  rl.resume();
+  return resolved;
 };
 
 const ensureOutputDirWritable = (runsDir: string): void => {
@@ -473,8 +683,17 @@ const runStudy = async (input: {
 
 const chooseConfigFile = async (
   rl: ReturnType<typeof createInterface>,
-  configs: string[]
-): Promise<string> => {
+  configs: string[],
+  frame: {
+    currentStepIndex: number;
+    completedUntilIndex: number;
+    runMode: RunMode | null;
+    apiKeyPresent: boolean;
+    configCount: number;
+    title: string;
+    hint?: string;
+  }
+): Promise<string | null> => {
   if (configs.length === 1) {
     return resolve(process.cwd(), configs[0]);
   }
@@ -482,8 +701,13 @@ const chooseConfigFile = async (
   const selected = await selectOne(
     rl,
     "Select existing config:",
-    configs.map((name) => ({ id: name, label: name }))
+    configs.map((name) => ({ id: name, label: name })),
+    0,
+    frame
   );
+  if (selected === SELECT_EXIT || selected === SELECT_BACK) {
+    return null;
+  }
   return resolve(process.cwd(), selected);
 };
 
@@ -507,32 +731,64 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       hint: "Choose entry path and run mode."
     });
 
-    const entryPath = (await selectOne(
-      rl,
-      "Step 0 — Entry path",
-      [
-        {
-          id: "existing",
-          label: "Run existing config",
-          disabled: configFiles.length === 0
-        },
-        {
-          id: "new",
-          label: "Create new study (guided wizard)"
-        }
-      ],
-      configFiles.length === 0 ? 1 : 0
-    )) as EntryPath;
+    let entryPath: EntryPath | null = null;
+    let runMode: RunMode | null = null;
+    while (!entryPath || !runMode) {
+      const step0Frame = {
+        currentStepIndex: 0,
+        completedUntilIndex: -1,
+        runMode: null,
+        apiKeyPresent,
+        configCount: configFiles.length,
+        title: "Step 0 — Welcome",
+        hint: "Choose entry path and run mode."
+      };
+      const entryChoice = await selectOne(
+        rl,
+        "Step 0 — Entry path",
+        [
+          {
+            id: "existing",
+            label: "Run existing config",
+            disabled: configFiles.length === 0
+          },
+          {
+            id: "new",
+            label: "Create new study (guided wizard)"
+          }
+        ],
+        configFiles.length === 0 ? 1 : 0,
+        step0Frame
+      );
+      if (entryChoice === SELECT_EXIT || entryChoice === SELECT_BACK) {
+        output.write("Wizard exited.\n");
+        return;
+      }
+      entryPath = entryChoice as EntryPath;
 
-    const runMode = (await selectOne(
-      rl,
-      "Step 0 — Run mode",
-      [
-        { id: "live", label: "Live (OpenRouter)", disabled: !apiKeyPresent },
-        { id: "mock", label: "Mock (no API calls)" }
-      ],
-      apiKeyPresent ? 0 : 1
-    )) as RunMode;
+      const runChoice = await selectOne(
+        rl,
+        "Step 0 — Run mode",
+        [
+          { id: "live", label: "Live (OpenRouter)", disabled: !apiKeyPresent },
+          { id: "mock", label: "Mock (no API calls)" }
+        ],
+        apiKeyPresent ? 0 : 1,
+        {
+          ...step0Frame,
+          runMode: null
+        }
+      );
+      if (runChoice === SELECT_EXIT) {
+        output.write("Wizard exited.\n");
+        return;
+      }
+      if (runChoice === SELECT_BACK) {
+        entryPath = null;
+        continue;
+      }
+      runMode = runChoice as RunMode;
+    }
 
     const baseTemplate = loadTemplateConfig(assetRoot, "default") as ArbiterResolvedConfig;
     let selectedConfigPath: string | null = null;
@@ -543,21 +799,33 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
     });
 
     let revised = entryPath === "new";
-    let shouldRunStepFlow = entryPath === "new";
+    let currentStep: 1 | 2 | 3 | 4 | 5 | 6 | 7 = entryPath === "new" ? 1 : 7;
 
     if (entryPath === "existing") {
-      selectedConfigPath = await chooseConfigFile(rl, configFiles);
+      selectedConfigPath = await chooseConfigFile(rl, configFiles, {
+        currentStepIndex: 0,
+        completedUntilIndex: 0,
+        runMode,
+        apiKeyPresent,
+        configCount: configFiles.length,
+        title: "Step 0 — Welcome",
+        hint: "Select existing config."
+      });
+      if (!selectedConfigPath) {
+        output.write("Wizard exited.\n");
+        return;
+      }
       sourceConfig = readJsonFile<ArbiterResolvedConfig>(selectedConfigPath);
       draft = buildDraftFromConfig(sourceConfig, {
         modelSlugs: modelOptions.length > 0 ? [modelOptions[0].slug] : [],
         personaIds: personaOptions.length > 0 ? [personaOptions[0].id] : []
       });
-      shouldRunStepFlow = false;
+      currentStep = 7;
     }
 
     while (true) {
-      if (shouldRunStepFlow) {
-        renderStepFrame({
+      if (currentStep === 1) {
+        const questionInput = await askMultilineQuestion(rl, draft.question, {
           currentStepIndex: 1,
           completedUntilIndex: 0,
           runMode,
@@ -566,127 +834,248 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           title: "Step 1 — Research Question",
           hint: "Include relevant context. Arbiter samples responses to characterize distributional behavior."
         });
-        draft.question = await askMultilineQuestion(rl, draft.question);
+        if (questionInput === SELECT_EXIT) {
+          output.write("Wizard exited.\n");
+          return;
+        }
+        if (questionInput === SELECT_BACK) {
+          output.write("Already at first editable step.\n");
+          continue;
+        }
+        draft.question = questionInput;
+        currentStep = 2;
+        continue;
+      }
 
-        renderStepFrame({
-          currentStepIndex: 2,
-          completedUntilIndex: 1,
-          runMode,
-          apiKeyPresent,
-          configCount: configFiles.length,
-          title: "Step 2 — Protocol",
-          hint: "Choose Independent or Debate."
-        });
-        const protocol = await selectOne(
+      if (currentStep === 2) {
+        const protocolSelection = await selectOne(
           rl,
           "Step 2 — Protocol",
           [
             { id: "independent", label: "Independent" },
             { id: "debate_v1", label: "Debate" }
           ],
-          draft.protocolType === "debate_v1" ? 1 : 0
+          draft.protocolType === "debate_v1" ? 1 : 0,
+          {
+            currentStepIndex: 2,
+            completedUntilIndex: 1,
+            runMode,
+            apiKeyPresent,
+            configCount: configFiles.length,
+            title: "Step 2 — Protocol",
+            hint: "Choose Independent or Debate."
+          }
         );
-        draft.protocolType = protocol as ProtocolType;
+        if (protocolSelection === SELECT_EXIT) {
+          output.write("Wizard exited.\n");
+          return;
+        }
+        if (protocolSelection === SELECT_BACK) {
+          currentStep = 1;
+          continue;
+        }
+        draft.protocolType = protocolSelection as ProtocolType;
         if (draft.protocolType === "debate_v1") {
+          renderStepFrame({
+            currentStepIndex: 2,
+            completedUntilIndex: 1,
+            runMode,
+            apiKeyPresent,
+            configCount: configFiles.length,
+            title: "Step 2 — Protocol",
+            hint: "Set Debate participants and rounds."
+          });
           draft.participants = await askInteger(rl, "Participants", draft.participants, 2);
           draft.rounds = await askInteger(rl, "Rounds", draft.rounds, 1);
         }
+        currentStep = 3;
+        continue;
+      }
 
-        renderStepFrame({
-          currentStepIndex: 3,
-          completedUntilIndex: 2,
-          runMode,
-          apiKeyPresent,
-          configCount: configFiles.length,
-          title: "Step 3 — Models",
-          hint: "Select one or more models."
-        });
-        draft.modelSlugs = await selectMany(
+      if (currentStep === 3) {
+        const selectedModels = await selectMany(
           rl,
           "Step 3 — Models",
           modelOptions.map((model) => ({
             id: model.slug,
             label: `${model.display} (${model.provider}) [${model.tier}]${model.slug.endsWith(":free") ? " FREE" : ""}`
           })),
-          draft.modelSlugs
+          draft.modelSlugs,
+          {
+            currentStepIndex: 3,
+            completedUntilIndex: 2,
+            runMode,
+            apiKeyPresent,
+            configCount: configFiles.length,
+            title: "Step 3 — Models",
+            hint: "Select one or more models."
+          }
         );
+        if (selectedModels === SELECT_EXIT) {
+          output.write("Wizard exited.\n");
+          return;
+        }
+        if (selectedModels === SELECT_BACK) {
+          currentStep = 2;
+          continue;
+        }
+        draft.modelSlugs = selectedModels;
+        if (draft.modelSlugs.some((model) => model.endsWith(":free"))) {
+          output.write(
+            "warning: Free-tier models may be rate-limited or unavailable; not recommended for publishable research.\n"
+          );
+        }
+        currentStep = 4;
+        continue;
+      }
 
-        renderStepFrame({
-          currentStepIndex: 4,
-          completedUntilIndex: 3,
-          runMode,
-          apiKeyPresent,
-          configCount: configFiles.length,
-          title: "Step 4 — Personas",
-          hint: "Select one or more personas."
-        });
-        draft.personaIds = await selectMany(
+      if (currentStep === 4) {
+        const selectedPersonas = await selectMany(
           rl,
           "Step 4 — Personas",
           personaOptions.map((persona) => ({ id: persona.id, label: `${persona.id} - ${persona.description}` })),
-          draft.personaIds
+          draft.personaIds,
+          {
+            currentStepIndex: 4,
+            completedUntilIndex: 3,
+            runMode,
+            apiKeyPresent,
+            configCount: configFiles.length,
+            title: "Step 4 — Personas",
+            hint: "Select one or more personas."
+          }
         );
-
-        renderStepFrame({
-          currentStepIndex: 5,
-          completedUntilIndex: 4,
-          runMode,
-          apiKeyPresent,
-          configCount: configFiles.length,
-          title: "Step 5 — Decode Params",
-          hint: "Configure temperature and seed modes."
-        });
-        draft.temperatureMode = (await selectOne(
-          rl,
-          "Step 5 — Temperature mode",
-          [
-            { id: "single", label: "Single value" },
-            { id: "range", label: "Range (uniform)" }
-          ],
-          draft.temperatureMode === "range" ? 1 : 0
-        )) as TemperatureMode;
-
-        if (draft.temperatureMode === "single") {
-          draft.temperatureSingle = await askFloat(rl, "Temperature", draft.temperatureSingle, 0, 2);
-        } else {
-          draft.temperatureMin = await askFloat(rl, "Temperature min", draft.temperatureMin, 0, 2);
-          draft.temperatureMax = await askFloat(rl, "Temperature max", draft.temperatureMax, draft.temperatureMin, 2);
+        if (selectedPersonas === SELECT_EXIT) {
+          output.write("Wizard exited.\n");
+          return;
         }
-
-        draft.seedMode = (await selectOne(
-          rl,
-          "Step 5 — Seed mode",
-          [
-            { id: "random", label: "Random" },
-            { id: "fixed", label: "Fixed seed" }
-          ],
-          draft.seedMode === "fixed" ? 1 : 0
-        )) as SeedMode;
-
-        if (draft.seedMode === "fixed") {
-          draft.fixedSeed = await askInteger(rl, "Fixed seed", draft.fixedSeed, 0);
+        if (selectedPersonas === SELECT_BACK) {
+          currentStep = 3;
+          continue;
         }
+        draft.personaIds = selectedPersonas;
+        currentStep = 5;
+        continue;
+      }
 
-        renderStepFrame({
-          currentStepIndex: 6,
-          completedUntilIndex: 5,
-          runMode,
-          apiKeyPresent,
-          configCount: configFiles.length,
-          title: "Step 6 — Advanced Settings",
-          hint: "Use defaults or customize execution and stopping settings."
-        });
-        draft.useAdvancedDefaults =
-          (await selectOne(
+      if (currentStep === 5) {
+        while (true) {
+          const temperatureModeSelection = await selectOne(
             rl,
-            "Step 6 — Advanced",
+            "Step 5 — Temperature mode",
             [
-              { id: "defaults", label: "Use defaults (recommended)" },
-              { id: "custom", label: "Customize" }
+              { id: "single", label: "Single value" },
+              { id: "range", label: "Range (uniform)" }
             ],
-            draft.useAdvancedDefaults ? 0 : 1
-          )) === "defaults";
+            draft.temperatureMode === "range" ? 1 : 0,
+            {
+              currentStepIndex: 5,
+              completedUntilIndex: 4,
+              runMode,
+              apiKeyPresent,
+              configCount: configFiles.length,
+              title: "Step 5 — Decode Params",
+              hint: "Configure temperature and seed modes."
+            }
+          );
+          if (temperatureModeSelection === SELECT_EXIT) {
+            output.write("Wizard exited.\n");
+            return;
+          }
+          if (temperatureModeSelection === SELECT_BACK) {
+            currentStep = 4;
+            break;
+          }
 
+          draft.temperatureMode = temperatureModeSelection as TemperatureMode;
+          renderStepFrame({
+            currentStepIndex: 5,
+            completedUntilIndex: 4,
+            runMode,
+            apiKeyPresent,
+            configCount: configFiles.length,
+            title: "Step 5 — Decode Params",
+            hint: "Enter numeric decode values."
+          });
+          if (draft.temperatureMode === "single") {
+            draft.temperatureSingle = await askFloat(rl, "Temperature", draft.temperatureSingle, 0, 2);
+          } else {
+            draft.temperatureMin = await askFloat(rl, "Temperature min", draft.temperatureMin, 0, 2);
+            draft.temperatureMax = await askFloat(rl, "Temperature max", draft.temperatureMax, draft.temperatureMin, 2);
+          }
+
+          const seedModeSelection = await selectOne(
+            rl,
+            "Step 5 — Seed mode",
+            [
+              { id: "random", label: "Random" },
+              { id: "fixed", label: "Fixed seed" }
+            ],
+            draft.seedMode === "fixed" ? 1 : 0,
+            {
+              currentStepIndex: 5,
+              completedUntilIndex: 4,
+              runMode,
+              apiKeyPresent,
+              configCount: configFiles.length,
+              title: "Step 5 — Decode Params",
+              hint: "Configure temperature and seed modes."
+            }
+          );
+          if (seedModeSelection === SELECT_EXIT) {
+            output.write("Wizard exited.\n");
+            return;
+          }
+          if (seedModeSelection === SELECT_BACK) {
+            continue;
+          }
+          draft.seedMode = seedModeSelection as SeedMode;
+          if (draft.seedMode === "fixed") {
+            renderStepFrame({
+              currentStepIndex: 5,
+              completedUntilIndex: 4,
+              runMode,
+              apiKeyPresent,
+              configCount: configFiles.length,
+              title: "Step 5 — Decode Params",
+              hint: "Set fixed seed."
+            });
+            draft.fixedSeed = await askInteger(rl, "Fixed seed", draft.fixedSeed, 0);
+          }
+          currentStep = 6;
+          break;
+        }
+        continue;
+      }
+
+      if (currentStep === 6) {
+        const advancedSelection = await selectOne(
+          rl,
+          "Step 6 — Advanced",
+          [
+            { id: "defaults", label: "Use defaults (recommended)" },
+            { id: "custom", label: "Customize" }
+          ],
+          draft.useAdvancedDefaults ? 0 : 1,
+          {
+            currentStepIndex: 6,
+            completedUntilIndex: 5,
+            runMode,
+            apiKeyPresent,
+            configCount: configFiles.length,
+            title: "Step 6 — Advanced Settings",
+            hint: "Use defaults or customize execution and stopping settings."
+          }
+        );
+        if (advancedSelection === SELECT_EXIT) {
+          output.write("Wizard exited.\n");
+          return;
+        }
+        if (advancedSelection === SELECT_BACK) {
+          currentStep = 5;
+          continue;
+        }
+        draft.useAdvancedDefaults = advancedSelection === "defaults";
         if (draft.useAdvancedDefaults) {
           const defaults = buildDraftFromConfig(baseTemplate, {
             modelSlugs: draft.modelSlugs,
@@ -721,6 +1110,8 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
             draft.outputDir = outputDirAnswer;
           }
         }
+        currentStep = 7;
+        continue;
       }
 
       const baseConfig = sourceConfig ?? baseTemplate;
@@ -741,7 +1132,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         isExistingPath: entryPath === "existing"
       });
 
-      const action = (await selectOne(
+      const actionSelection = await selectOne(
         rl,
         "Review action",
         [
@@ -749,9 +1140,30 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           { id: "save", label: "Save config and exit" },
           { id: "revise", label: "Revise" },
           { id: "quit", label: "Quit without saving" }
-        ]
-      )) as ReviewAction;
+        ],
+        0,
+        {
+          currentStepIndex: 7,
+          completedUntilIndex: 6,
+          runMode,
+          apiKeyPresent,
+          configCount: configFiles.length,
+          title: "Step 7 — Review & Confirm",
+          hint: "Config is written only on Run now or Save config and exit."
+        }
+      );
 
+      if (actionSelection === SELECT_EXIT) {
+        output.write("Wizard exited.\n");
+        return;
+      }
+      if (actionSelection === SELECT_BACK) {
+        revised = true;
+        currentStep = 6;
+        continue;
+      }
+
+      const action = actionSelection as ReviewAction;
       if (action === "quit") {
         output.write("Wizard exited without saving.\n");
         return;
@@ -759,7 +1171,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
       if (action === "revise") {
         revised = true;
-        shouldRunStepFlow = true;
+        currentStep = 1;
         continue;
       }
 
