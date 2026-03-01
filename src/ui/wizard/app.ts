@@ -1,4 +1,5 @@
-import { accessSync, constants, mkdirSync, readFileSync } from "node:fs";
+import { accessSync, constants, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { emitKeypressEvents } from "node:readline";
 import { createInterface } from "node:readline/promises";
@@ -7,7 +8,7 @@ import { stdin as input, stdout as output } from "node:process";
 import type { ArbiterModelCatalog } from "../../generated/catalog.types.js";
 import type { ArbiterPromptManifest } from "../../generated/prompt-manifest.types.js";
 import type { ArbiterResolvedConfig } from "../../generated/config.types.js";
-import { validateConfig } from "../../config/schema-validation.js";
+import { resolveConfig } from "../../config/resolve-config.js";
 import { runLiveService, runMockService } from "../../run/run-service.js";
 import { listModels } from "../../openrouter/client.js";
 import { createConsoleWarningSink } from "../../utils/warnings.js";
@@ -597,16 +598,36 @@ const ensureOutputDirWritable = (runsDir: string): void => {
   accessSync(absolute, constants.W_OK);
 };
 
+const validateConfigResolvable = (input: {
+  config: ArbiterResolvedConfig;
+  assetRoot: string;
+}): void => {
+  const tempRoot = mkdtempSync(resolve(tmpdir(), "arbiter-wizard-preflight-"));
+  const tempConfigPath = resolve(tempRoot, "arbiter.config.json");
+  try {
+    writeJsonFile(tempConfigPath, input.config);
+    resolveConfig({
+      configPath: tempConfigPath,
+      configRoot: tempRoot,
+      assetRoot: input.assetRoot
+    });
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
+};
+
 const runPreflight = async (input: {
   config: ArbiterResolvedConfig;
+  assetRoot: string;
   runMode: RunMode;
   action: ReviewAction;
 }): Promise<string[]> => {
   const warnings: string[] = [];
-  if (!validateConfig(input.config)) {
-    const detail = validateConfig.errors?.map((error) => `${error.instancePath} ${error.message}`).join("; ");
-    throw new Error(`schema validation failed${detail ? `: ${detail}` : ""}`);
-  }
+
+  validateConfigResolvable({
+    config: input.config,
+    assetRoot: input.assetRoot
+  });
 
   ensureOutputDirWritable(input.config.output.runs_dir);
 
@@ -1175,7 +1196,12 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         continue;
       }
 
-      const warnings = await runPreflight({ config: configForReview, runMode, action });
+      const warnings = await runPreflight({
+        config: configForReview,
+        assetRoot,
+        runMode,
+        action
+      });
       warnings.forEach((warning) => output.write(`warning: ${warning}\n`));
 
       if (action === "save") {

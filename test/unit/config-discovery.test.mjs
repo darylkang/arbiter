@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
-import { DEFAULT_CONFIG_FILENAME, listConfigCandidates, listValidConfigCandidates } from "../../dist/ui/transcript/config-discovery.js";
+import {
+  DEFAULT_CONFIG_FILENAME,
+  listConfigFiles,
+  nextCollisionSafeConfigPath
+} from "../../dist/cli/commands.js";
 
 const withTempDir = (fn) => {
   const cwd = mkdtempSync(join(tmpdir(), "arbiter-config-discovery-"));
@@ -15,56 +19,53 @@ const withTempDir = (fn) => {
   }
 };
 
-test("listConfigCandidates discovers default and extension configs in sorted order", () => {
+test("listConfigFiles discovers only contract-matching config names in sorted order", () => {
   withTempDir((cwd) => {
-    writeFileSync(join(cwd, "zeta.arbiter.json"), "{\n  \"ok\": true\n}\n", "utf8");
+    writeFileSync(join(cwd, "arbiter.config.2.json"), "{\n  \"ok\": true\n}\n", "utf8");
     writeFileSync(join(cwd, DEFAULT_CONFIG_FILENAME), "{\n  \"ok\": true\n}\n", "utf8");
-    writeFileSync(join(cwd, "alpha.arbiter.json"), "{\n  \"ok\": true\n}\n", "utf8");
+    writeFileSync(join(cwd, "arbiter.config.1.json"), "{\n  \"ok\": true\n}\n", "utf8");
+    writeFileSync(join(cwd, "arbiter.config.01.json"), "{\n  \"ok\": true\n}\n", "utf8");
     writeFileSync(join(cwd, "ignore.json"), "{\n  \"ok\": true\n}\n", "utf8");
+    writeFileSync(join(cwd, "foo.arbiter.json"), "{\n  \"ok\": true\n}\n", "utf8");
 
-    const candidates = listConfigCandidates({ cwd });
-    assert.equal(candidates.length, 3);
-    assert.deepEqual(
-      candidates.map((candidate) => candidate.name),
-      [DEFAULT_CONFIG_FILENAME, "alpha.arbiter.json", "zeta.arbiter.json"]
-    );
-    assert.ok(candidates.every((candidate) => candidate.valid));
-    assert.equal(candidates[0].isDefault, true);
+    const candidates = listConfigFiles(cwd);
+    assert.deepEqual(candidates, [
+      "arbiter.config.1.json",
+      "arbiter.config.2.json",
+      "arbiter.config.json"
+    ]);
   });
 });
 
-test("listConfigCandidates marks invalid JSON as disabled and sorts it after valid files", () => {
+test("listConfigFiles is filename-based and includes invalid JSON when name matches", () => {
   withTempDir((cwd) => {
-    writeFileSync(join(cwd, "a.arbiter.json"), "{\n  \"ok\": true\n}\n", "utf8");
-    writeFileSync(join(cwd, "b.arbiter.json"), "{ invalid json", "utf8");
+    writeFileSync(join(cwd, "arbiter.config.json"), "{ invalid json", "utf8");
+    writeFileSync(join(cwd, "arbiter.config.1.json"), "{\n  \"ok\": true\n}\n", "utf8");
 
-    const candidates = listConfigCandidates({ cwd });
+    const candidates = listConfigFiles(cwd);
     assert.equal(candidates.length, 2);
-    assert.equal(candidates[0].name, "a.arbiter.json");
-    assert.equal(candidates[0].valid, true);
-    assert.equal(candidates[1].name, "b.arbiter.json");
-    assert.equal(candidates[1].valid, false);
-    assert.match(candidates[1].disabledReason ?? "", /Invalid JSON/);
-
-    const validCandidates = listValidConfigCandidates({ cwd });
-    assert.equal(validCandidates.length, 1);
-    assert.equal(validCandidates[0].name, "a.arbiter.json");
+    assert.deepEqual(candidates, ["arbiter.config.1.json", "arbiter.config.json"]);
   });
 });
 
-test("listConfigCandidates reports non-ENOENT discovery errors through callback", () => {
+test("nextCollisionSafeConfigPath finds the first free deterministic filename", () => {
   withTempDir((cwd) => {
-    const notDirectoryPath = join(cwd, "not-a-directory.txt");
-    writeFileSync(notDirectoryPath, "data", "utf8");
+    assert.equal(
+      nextCollisionSafeConfigPath(cwd),
+      resolve(cwd, "arbiter.config.json")
+    );
 
-    const messages = [];
-    const candidates = listConfigCandidates({
-      cwd: notDirectoryPath,
-      onError: (message) => messages.push(message)
-    });
+    writeFileSync(join(cwd, "arbiter.config.json"), "{\n  \"ok\": true\n}\n", "utf8");
+    assert.equal(
+      nextCollisionSafeConfigPath(cwd),
+      resolve(cwd, "arbiter.config.1.json")
+    );
 
-    assert.deepEqual(candidates, []);
-    assert.equal(messages.length, 1);
-    assert.match(messages[0], /failed to discover config files/i);
+    writeFileSync(join(cwd, "arbiter.config.1.json"), "{\n  \"ok\": true\n}\n", "utf8");
+    writeFileSync(join(cwd, "arbiter.config.2.json"), "{\n  \"ok\": true\n}\n", "utf8");
+    assert.equal(
+      nextCollisionSafeConfigPath(cwd),
+      resolve(cwd, "arbiter.config.3.json")
+    );
   });
 });

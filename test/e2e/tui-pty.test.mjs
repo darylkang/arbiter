@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -9,8 +10,6 @@ import pty from "@homebridge/node-pty-prebuilt-multiarch";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const CLI_ENTRY = resolve(REPO_ROOT, "dist/cli/index.js");
-const TEMPLATE_PATH = resolve(REPO_ROOT, "resources/templates/quickstart_independent.config.json");
-
 const ANSI_CSI_REGEX = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 const ANSI_OSC_REGEX = /\u001b\][^\u0007]*\u0007/g;
 
@@ -19,11 +18,6 @@ const stripAnsi = (value) =>
     .replace(ANSI_OSC_REGEX, "")
     .replace(ANSI_CSI_REGEX, "")
     .replace(/\r/g, "");
-
-const sleep = (ms) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
 
 const withTimeout = async (promise, timeoutMs, label) => {
   let timeoutId = null;
@@ -42,42 +36,55 @@ const withTimeout = async (promise, timeoutMs, label) => {
   }
 };
 
-const createMockConfig = (cwd, options = {}) => {
-  const config = JSON.parse(readFileSync(TEMPLATE_PATH, "utf8"));
-  config.execution.k_max = options.kMax ?? 2;
-  config.execution.k_min = options.kMin ?? 0;
-  config.execution.batch_size = options.batchSize ?? 1;
-  config.execution.workers = options.workers ?? 1;
-  config.question.text = options.question ?? "TUI E2E test question";
-  config.question.question_id = options.questionId ?? "tui_e2e_q1";
-  writeFileSync(join(cwd, "arbiter.config.json"), `${JSON.stringify(config, null, 2)}\n`, "utf8");
+const createMockConfig = (cwd) => {
+  const initResult = spawnSync("node", [CLI_ENTRY, "init"], {
+    cwd,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env }
+  });
+  assert.equal(initResult.status, 0, `arbiter init failed: ${initResult.stderr?.toString("utf8") ?? ""}`);
+
+  const configPath = join(cwd, "arbiter.config.json");
+  const config = JSON.parse(readFileSync(configPath, "utf8"));
+  config.execution.k_max = 2;
+  config.execution.k_min = 0;
+  config.execution.batch_size = 1;
+  config.execution.workers = 1;
+  config.question.text = "Wizard e2e question";
+  config.question.question_id = "wizard_e2e_q1";
+  config.measurement.clustering.enabled = false;
+  writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 };
 
-const REQUIRED_RUN_ARTIFACTS = [
-  "aggregates.json",
+const REQUIRED_EXECUTED_RUN_ARTIFACTS = [
+  "config.source.json",
   "config.resolved.json",
-  "convergence_trace.jsonl",
-  "embeddings.arrow",
-  "embeddings.provenance.json",
   "manifest.json",
-  "parsed.jsonl",
-  "receipt.txt",
   "trial_plan.jsonl",
-  "trials.jsonl"
+  "trials.jsonl",
+  "monitoring.jsonl",
+  "receipt.txt"
 ];
 
 const assertRunArtifacts = (cwd, runDirName) => {
   const runDir = join(cwd, "runs", runDirName);
-  for (const artifact of REQUIRED_RUN_ARTIFACTS) {
+  for (const artifact of REQUIRED_EXECUTED_RUN_ARTIFACTS) {
     assert.equal(
       existsSync(join(runDir, artifact)),
       true,
       `expected artifact ${artifact} in ${runDir}`
     );
   }
-  const manifest = JSON.parse(readFileSync(join(runDir, "manifest.json"), "utf8"));
-  assert.equal(manifest.run_id, runDirName);
-  assert.equal(Array.isArray(manifest.artifacts?.entries), true);
+  assert.equal(
+    existsSync(join(runDir, "parsed.jsonl")),
+    false,
+    "legacy parsed.jsonl should not be produced"
+  );
+  assert.equal(
+    existsSync(join(runDir, "convergence_trace.jsonl")),
+    false,
+    "legacy convergence_trace.jsonl should not be produced"
+  );
 };
 
 const createPtySession = (input) => {
@@ -101,46 +108,27 @@ const createPtySession = (input) => {
     output += data;
   });
 
-  const waitForText = (text, timeoutMs = 20000) =>
-    new Promise((resolveText, rejectText) => {
-      const deadline = Date.now() + timeoutMs;
-      const poll = setInterval(() => {
-        if (stripAnsi(output).includes(text)) {
-          clearInterval(poll);
-          resolveText(true);
-          return;
-        }
-        if (Date.now() >= deadline) {
-          clearInterval(poll);
-          rejectText(new Error(`waitForText(${text}) timed out after ${timeoutMs}ms`));
-        }
-      }, 25);
-    });
-
-  const waitForAnyText = (texts, timeoutMs = 20000) =>
+  const waitForText = (text, timeoutMs = 25000) =>
     new Promise((resolveText, rejectText) => {
       const deadline = Date.now() + timeoutMs;
       const poll = setInterval(() => {
         const current = stripAnsi(output);
-        if (texts.some((text) => current.includes(text))) {
+        if (current.includes(text)) {
           clearInterval(poll);
           resolveText(true);
           return;
         }
         if (Date.now() >= deadline) {
           clearInterval(poll);
-          rejectText(new Error(`waitForAnyText(${texts.join(" | ")}) timed out after ${timeoutMs}ms`));
+          const tail = current.slice(-1200);
+          rejectText(
+            new Error(
+              `waitForText(${text}) timed out after ${timeoutMs}ms\n--- output tail ---\n${tail}\n--- end tail ---`
+            )
+          );
         }
       }, 25);
     });
-
-  const writeLine = (line) => {
-    proc.write(`${line}\r`);
-  };
-
-  const writeRaw = (chars) => {
-    proc.write(chars);
-  };
 
   const pressEnter = () => {
     proc.write("\r");
@@ -152,270 +140,89 @@ const createPtySession = (input) => {
     }
   };
 
-  const writeCtrlC = () => {
-    try {
-      proc.kill("SIGINT");
-    } catch {
-      proc.write("\u0003");
-    }
+  const escape = () => {
+    proc.write("\u001b");
   };
 
-  const waitForExit = async (timeoutMs = 20000) => {
-    const result = await withTimeout(exitPromise, timeoutMs, "waitForExit");
-    return result;
-  };
+  const waitForExit = async (timeoutMs = 30000) => withTimeout(exitPromise, timeoutMs, "waitForExit");
 
   const stop = async () => {
     try {
       proc.kill();
     } catch {
-      // No-op: process may already be gone.
+      // Process may already be terminated.
     }
     await withTimeout(exitPromise, 2000, "stopExit").catch(() => {});
   };
 
   return {
-    writeLine,
-    writeRaw,
+    waitForText,
     pressEnter,
     arrowDown,
-    writeCtrlC,
-    waitForText,
-    waitForAnyText,
+    escape,
     waitForExit,
     stop,
     getOutput: () => stripAnsi(output)
   };
 };
 
-const moveToApplySelections = async (session, stepTitle) => {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    const output = session.getOutput();
-    const stepIndex = output.lastIndexOf(stepTitle);
-    const applyIndex = output.lastIndexOf("→ ● Apply selections");
-    if (stepIndex >= 0 && applyIndex > stepIndex) {
-      return;
-    }
-    session.arrowDown(1);
-    await sleep(40);
-  }
-  throw new Error("failed to focus Apply selections row");
-};
-
-test("pty: guided launch supports /help and /quit", { concurrency: false }, async () => {
-  const session = createPtySession({ cwd: REPO_ROOT });
-
-  try {
-    await session.waitForText("ARBITER", 20000);
-    await session.waitForText("Select run mode", 20000);
-    await session.waitForText("Live run", 20000);
-    await session.waitForText("Mock run", 20000);
-    session.arrowDown(1);
-    session.pressEnter();
-
-    await session.waitForText("Select start path", 20000);
-    await session.waitForText("Quick Start", 20000);
-    await session.waitForText("Setup Wizard", 20000);
-    session.arrowDown(1);
-    session.pressEnter();
-
-    await session.waitForText("What is your research question?", 20000);
-    session.writeLine("/help");
-    await session.waitForText("commands:", 20000);
-    session.writeLine("/quit");
-
-    const exit = await session.waitForExit(20000);
-    assert.equal(exit.exitCode, 0);
-    assert.ok(session.getOutput().includes("/run [mock|live]"));
-  } finally {
-    await session.stop();
-  }
-});
-
-test("pty: launch overlay remains legible at 80 columns", { concurrency: false }, async () => {
-  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-launch-"));
-  const session = createPtySession({ cwd, cols: 80, rows: 34 });
-
-  try {
-    await session.waitForText("ARBITER", 20000);
-    await session.waitForText("Select run mode", 20000);
-    await session.waitForText("Live run", 20000);
-    await session.waitForText("Mock run", 20000);
-    session.arrowDown(1);
-    session.pressEnter();
-
-    await session.waitForText("Select start path", 20000);
-    await session.waitForText("Quick Start", 20000);
-    await session.waitForText("Requires a valid configuration file", 20000);
-    await session.waitForText("Setup Wizard", 20000);
-    session.arrowDown(1);
-    session.pressEnter();
-    const exit = await session.waitForExit(20000);
-    assert.equal(exit.exitCode, 0);
-  } finally {
-    await session.stop();
-    rmSync(cwd, { recursive: true, force: true });
-  }
-});
-
-test("pty: guided intake flow completes from question to receipt", { concurrency: false }, async () => {
-  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-guided-"));
+test("pty: wizard launches in TTY and exits cleanly from Step 0", { concurrency: false }, async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-exit-"));
   const session = createPtySession({ cwd });
 
   try {
-    await session.waitForText("Select run mode", 20000);
-    session.arrowDown(1);
-    session.pressEnter();
-
-    await session.waitForText("Select start path", 20000);
-    session.pressEnter();
-
-    await session.waitForText("What is your research question?", 20000);
-    session.writeLine("How do model ensembles affect novelty saturation in policy QA?");
-
-    await session.waitForText("Step 2/9 · Decision labels", 20000);
-    session.pressEnter();
-
-    await session.waitForText("Step 3/9 · Decode settings", 20000);
-    session.pressEnter();
-
-    await session.waitForText("Step 4/9 · Personas", 20000);
-    await moveToApplySelections(session, "Step 4/9 · Personas");
-    session.pressEnter();
-
-    await session.waitForText("Step 5/9 · Models", 20000);
-    await moveToApplySelections(session, "Step 5/9 · Models");
-    session.pressEnter();
-
-    await session.waitForText("Step 6/9 · Protocol", 20000);
-    session.pressEnter();
-
-    await session.waitForText("Step 7/9 · Execution depth", 20000);
-    session.pressEnter();
-
-    await session.waitForText("Step 8/9 · Run mode", 20000);
-    session.pressEnter();
-
-    await session.waitForText("Step 9/9 · Review setup", 20000);
-    session.pressEnter();
-
-    await session.waitForText("Configuration saved to", 20000);
-    await session.waitForText("Run complete:", 45000);
-    await session.waitForText("Choose the next action", 45000);
-
-    const runDirs = readdirSync(join(cwd, "runs"), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name);
-    assert.ok(runDirs.length >= 1);
-    const latestRunDir = runDirs.slice().sort().at(-1);
-    assert.ok(latestRunDir);
-    assertRunArtifacts(cwd, latestRunDir);
-
-    session.arrowDown(4);
-    session.pressEnter();
-    const exit = await session.waitForExit(20000);
+    await session.waitForText("ARBITER", 25000);
+    await session.waitForText("Step 0 — Entry path", 25000);
+    await session.waitForText("Run existing config", 25000);
+    await session.waitForText("Create new study (guided wizard)", 25000);
+    session.escape();
+    const exit = await session.waitForExit(25000);
     assert.equal(exit.exitCode, 0);
+    assert.ok(session.getOutput().includes("Wizard exited."));
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });
   }
 });
 
-test("pty: quickstart mock run completes and writes artifacts", { concurrency: false }, async () => {
-  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-"));
-  createMockConfig(cwd, { kMax: 2, kMin: 0, workers: 1, batchSize: 1, questionId: "e2e_mock" });
-
+test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { concurrency: false }, async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-existing-"));
+  createMockConfig(cwd);
   const session = createPtySession({ cwd });
 
   try {
-    await session.waitForText("Select run mode", 20000);
+    await session.waitForText("Step 0 — Entry path", 25000);
+    session.pressEnter();
+
+    await session.waitForText("Step 0 — Run mode", 25000);
     session.arrowDown(1);
     session.pressEnter();
 
-    await session.waitForText("Select start path", 20000);
-    session.pressEnter();
-    await session.waitForText("Review run setup", 20000);
+    await session.waitForText("Step 7 — Review & Confirm", 25000);
     session.pressEnter();
 
-    await session.waitForText("Starting mock run.", 20000);
-    await session.waitForText("Run complete:", 30000);
-    await session.waitForText("Run ID:", 30000);
-    await session.waitForText("Choose the next action", 30000);
+    await session.waitForText("═══ RUN ═══", 45000);
+    await session.waitForText("Usage so far: usage not applicable (mock mode)", 45000);
+    await session.waitForText("═══ RECEIPT ═══", 45000);
+
+    const exit = await session.waitForExit(45000);
+    assert.equal(exit.exitCode, 0);
 
     const runDirs = readdirSync(join(cwd, "runs"), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name);
-    assert.ok(runDirs.length >= 1);
-    const latestRunDir = runDirs.slice().sort().at(-1);
+      .map((entry) => entry.name)
+      .sort();
+    assert.ok(runDirs.length >= 1, "expected at least one run directory");
+    const latestRunDir = runDirs.at(-1);
     assert.ok(latestRunDir);
     assertRunArtifacts(cwd, latestRunDir);
 
-    session.arrowDown(4);
-    session.pressEnter();
-    const exit = await session.waitForExit(20000);
-    assert.equal(exit.exitCode, 0);
-  } finally {
-    await session.stop();
-    rmSync(cwd, { recursive: true, force: true });
-  }
-});
-
-test("pty: ctrl+c requests graceful stop during run", { concurrency: false }, async () => {
-  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-int-"));
-  createMockConfig(cwd, {
-    kMax: 12,
-    kMin: 0,
-    workers: 1,
-    batchSize: 1,
-    questionId: "e2e_interrupt"
-  });
-
-  const session = createPtySession({
-    cwd,
-    env: {
-      ARBITER_MOCK_DELAY_MS: "120"
-    }
-  });
-
-  try {
-    await session.waitForText("Select run mode", 20000);
-    session.arrowDown(1);
-    session.pressEnter();
-
-    await session.waitForText("Select start path", 20000);
-    session.pressEnter();
-    await session.waitForText("Review run setup", 20000);
-    session.pressEnter();
-
-    await session.waitForText("Starting mock run.", 20000);
-
-    session.writeCtrlC();
-    await session.waitForAnyText(
-      [
-        "Interrupt requested. Waiting for in-flight trials to finish.",
-        "SIGINT received: stopping new trials, waiting for in-flight to finish",
-        "Run complete:"
-      ],
-      20000
-    );
-    await session.waitForText("Run complete:", 45000);
-    await session.waitForText("Choose the next action", 45000);
     const output = session.getOutput();
-    assert.ok(
-      [
-        "Interrupt requested. Waiting for in-flight trials to finish.",
-        "SIGINT received: stopping new trials, waiting for in-flight to finish",
-        "Run complete: user interrupted",
-        "Run complete: user_interrupt",
-        "Run complete: interrupted"
-      ].some((marker) => output.includes(marker)) || /run complete:.*interrupt/i.test(output),
-      `expected interrupt markers in output, got:\n${output}`
+    assert.equal(
+      output.includes("Choose the next action"),
+      false,
+      "stage 3 should auto-exit with no next-action menu"
     );
-
-    session.arrowDown(4);
-    session.pressEnter();
-    const exit = await session.waitForExit(20000);
-    assert.equal(exit.exitCode, 0);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });
