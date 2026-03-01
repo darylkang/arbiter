@@ -31,13 +31,12 @@ test("buildArtifactEntries respects provenance, debug mode, clustering, and extr
   const baseCounts = {
     trialPlan: 3,
     trials: 3,
-    parsed: 3,
-    convergence: 2,
+    monitoring: 2,
     embeddings: 2,
     embeddingSuccess: 2,
     embeddingFailed: 0,
     embeddingSkipped: 1,
-    clusterAssignments: 2
+    groupAssignments: 2
   };
 
   const jsonlFallbackEntries = buildArtifactEntries({
@@ -45,14 +44,15 @@ test("buildArtifactEntries respects provenance, debug mode, clustering, and extr
     clusteringEnabled: true,
     counts: baseCounts,
     embeddingsProvenance: { status: "jsonl_fallback" },
-    extraArtifacts: [{ path: "receipt.txt" }]
+    extraArtifacts: [{ path: "custom.txt" }]
   });
   const jsonlFallbackPaths = jsonlFallbackEntries.map((entry) => entry.path);
-  assert.equal(jsonlFallbackPaths.includes("debug/embeddings.jsonl"), true);
+  assert.equal(jsonlFallbackPaths.includes("embeddings.jsonl"), true);
   assert.equal(jsonlFallbackPaths.includes("embeddings.arrow"), false);
-  assert.equal(jsonlFallbackPaths.includes("clusters/online.assignments.jsonl"), true);
-  assert.equal(jsonlFallbackPaths.includes("clusters/online.state.json"), true);
+  assert.equal(jsonlFallbackPaths.includes("groups/assignments.jsonl"), true);
+  assert.equal(jsonlFallbackPaths.includes("groups/state.json"), true);
   assert.equal(jsonlFallbackPaths.includes("receipt.txt"), true);
+  assert.equal(jsonlFallbackPaths.includes("custom.txt"), true);
 
   const arrowEntries = buildArtifactEntries({
     debugEnabled: false,
@@ -63,7 +63,7 @@ test("buildArtifactEntries respects provenance, debug mode, clustering, and extr
   });
   const arrowPaths = arrowEntries.map((entry) => entry.path);
   assert.equal(arrowPaths.includes("embeddings.arrow"), true);
-  assert.equal(arrowPaths.includes("debug/embeddings.jsonl"), false);
+  assert.equal(arrowPaths.includes("embeddings.jsonl"), false);
 });
 
 test("applyContractFailurePolicy marks manifest incomplete when fail policy sees parse failures", () => {

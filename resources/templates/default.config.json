@@ -1,7 +1,7 @@
 {
-  "_readme": "Arbiter default template (quickstart independent). Edit then run: arbiter run.",
+  "_readme": "Arbiter default template (independent study). Edit then run: arbiter run.",
   "template_id": "default",
-  "display_name": "Default (quickstart independent)",
+  "display_name": "Default (independent)",
   "description": "Safe baseline for a first run; advisor-only convergence-aware stopping.",
   "schema_version": "1.0.0",
   "run": {

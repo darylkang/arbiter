@@ -12,13 +12,12 @@ import type { EmbeddingsProvenance } from "./embeddings-provenance.js";
 export type ArtifactCounts = {
   trialPlan: number;
   trials: number;
-  parsed: number;
-  convergence: number;
+  monitoring: number;
   embeddings: number;
   embeddingSuccess: number;
   embeddingFailed: number;
   embeddingSkipped: number;
-  clusterAssignments: number;
+  groupAssignments: number;
 };
 
 export const readPackageVersion = (packageJsonPath: string): string => {
@@ -98,14 +97,13 @@ export const buildArtifactEntries = (input: {
   extraArtifacts: Iterable<{ path: string; record_count?: number }>;
 }): Array<{ path: string; record_count?: number; note?: string }> => {
   const entries: Array<{ path: string; record_count?: number; note?: string }> = [
+    { path: "config.source.json" },
     { path: "config.resolved.json" },
     { path: "manifest.json" },
     { path: "trial_plan.jsonl", record_count: input.counts.trialPlan },
     { path: "trials.jsonl", record_count: input.counts.trials },
-    { path: "parsed.jsonl", record_count: input.counts.parsed },
-    { path: "convergence_trace.jsonl", record_count: input.counts.convergence },
-    { path: "embeddings.provenance.json" },
-    { path: "aggregates.json" }
+    { path: "monitoring.jsonl", record_count: input.counts.monitoring },
+    { path: "receipt.txt" }
   ];
 
   if (input.embeddingsProvenance?.status === "arrow_generated") {
@@ -114,17 +112,17 @@ export const buildArtifactEntries = (input: {
 
   if (input.debugEnabled || input.embeddingsProvenance?.status === "jsonl_fallback") {
     entries.push({
-      path: "debug/embeddings.jsonl",
+      path: "embeddings.jsonl",
       record_count: input.counts.embeddings
     });
   }
 
   if (input.clusteringEnabled) {
     entries.push({
-      path: "clusters/online.assignments.jsonl",
-      record_count: input.counts.clusterAssignments
+      path: "groups/assignments.jsonl",
+      record_count: input.counts.groupAssignments
     });
-    entries.push({ path: "clusters/online.state.json" });
+    entries.push({ path: "groups/state.json" });
   }
 
   for (const entry of input.extraArtifacts) {

@@ -1,4 +1,3 @@
-import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import { resolveConfig } from "../config/resolve-config.js";
@@ -248,9 +247,7 @@ const prepareRunContext = (input: {
     policy
   });
 
-  const debugDir = resolve(runDir, "debug");
-  mkdirSync(debugDir, { recursive: true });
-  const embeddingsJsonlPath = resolve(debugDir, "embeddings.jsonl");
+  const embeddingsJsonlPath = resolve(runDir, "embeddings.jsonl");
 
   const bus = input.options.bus ?? new EventBus();
   const forwardWarnings = input.options.forwardWarningEvents ?? true;
@@ -259,6 +256,7 @@ const prepareRunContext = (input: {
   const writer = new ArtifactWriter({
     runDir,
     runId,
+    sourceConfig: result.sourceConfig,
     resolvedConfig: compiled.resolvedConfig,
     debugEnabled: runInputs.debug,
     embeddingsJsonlPath,

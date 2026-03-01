@@ -13,7 +13,7 @@ try {
   const debugJsonl = resolve(debugDir, "embeddings.jsonl");
   copyFileSync(sourceFixture, debugJsonl);
 
-  const { arrowPath } = await finalizeEmbeddingsToArrow({
+  const { arrowPath, provenance } = await finalizeEmbeddingsToArrow({
     runDir: runRoot,
     dimensions: 4,
     debugJsonlPath: debugJsonl,
@@ -66,9 +66,9 @@ try {
     }
   }
 
-  const provenance = JSON.parse(
-    readFileSync(resolve(runRoot, "embeddings.provenance.json"), "utf8")
-  );
+  if (provenance.status !== "arrow_generated") {
+    throw new Error(`Expected arrow_generated provenance status, got ${provenance.status}`);
+  }
   if (!Array.isArray(provenance.generation_ids) || provenance.generation_ids.length !== 2) {
     throw new Error("Expected generation_ids in embeddings provenance");
   }

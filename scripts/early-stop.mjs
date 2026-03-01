@@ -87,13 +87,13 @@ const runScenario = (stopMode) => {
     }
     const runDir = resolve(runsDir, runDirs[0]);
     const manifest = JSON.parse(readFileSync(resolve(runDir, "manifest.json"), "utf8"));
-    const convergenceLines = readFileSync(resolve(runDir, "convergence_trace.jsonl"), "utf8")
+    const monitoringLines = readFileSync(resolve(runDir, "monitoring.jsonl"), "utf8")
       .trim()
       .split("\n")
       .filter(Boolean)
       .map((line) => JSON.parse(line));
 
-    return { manifest, convergenceLines };
+    return { manifest, monitoringLines };
   } finally {
     rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -106,21 +106,21 @@ if (enforced.manifest.stop_reason !== "converged") {
 if (enforced.manifest.k_attempted >= 6) {
   throw new Error("Expected enforced run to stop before k_max");
 }
-const enforcedWouldStop = enforced.convergenceLines.some(
+const enforcedWouldStop = enforced.monitoringLines.some(
   (record) => record.stop?.would_stop === true
 );
 if (!enforcedWouldStop) {
-  throw new Error("Expected convergence_trace to log would_stop=true for enforced run");
+  throw new Error("Expected monitoring trace to log would_stop=true for enforced run");
 }
 
 const advisory = runScenario("advisor");
 if (advisory.manifest.stop_reason !== "k_max_reached") {
   throw new Error("Expected advisor run to complete to k_max");
 }
-const advisorWouldStop = advisory.convergenceLines.some(
+const advisorWouldStop = advisory.monitoringLines.some(
   (record) => record.stop?.would_stop === true
 );
-const advisorShouldStop = advisory.convergenceLines.some(
+const advisorShouldStop = advisory.monitoringLines.some(
   (record) => record.stop?.should_stop === true
 );
 if (!advisorWouldStop) {

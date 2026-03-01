@@ -1,81 +1,72 @@
 import type { ReceiptModel } from "./receipt-model.js";
 
-const formatCount = (value: number | undefined): string =>
-  value === undefined ? "-" : String(value);
+const formatCount = (value: number | undefined): string => (value === undefined ? "-" : String(value));
 
-const formatNumber = (value: number | null | undefined, digits = 3): string =>
-  value === undefined || value === null ? "-" : value.toFixed(digits);
+const formatStopBanner = (reason?: string): string => {
+  switch (reason) {
+    case "converged":
+      return "Stopped: novelty saturation";
+    case "k_max_reached":
+      return "Stopped: max trials reached";
+    case "user_interrupt":
+      return "Stopped: user requested graceful stop";
+    case "completed":
+      return "Stopped: sampling complete";
+    default:
+      return "Stopped: run failed";
+  }
+};
 
 export const formatReceiptText = (model: ReceiptModel): string => {
   const lines: string[] = [];
 
-  lines.push("Arbiter Receipt");
-  lines.push(`Run ID: ${model.run_id}`);
-  if (model.stop_reason) {
-    lines.push(`Status: ${model.stop_reason}${model.incomplete ? " (incomplete)" : ""}`);
-  }
-  if (model.started_at || model.completed_at) {
-    lines.push(
-      `Time: ${model.started_at ?? "-"} → ${model.completed_at ?? "-"}`
-    );
-  }
+  lines.push(formatStopBanner(model.stop_reason));
+  lines.push("Stopping indicates diminishing novelty, not correctness.");
+  lines.push("");
 
-  if (model.question) {
-    lines.push(`Question: ${model.question}`);
-  }
-  if (model.protocol) {
-    lines.push(`Protocol: ${model.protocol}`);
-  }
-  if (model.model_summary) {
-    lines.push(`Models: ${model.model_summary}`);
-  }
-
+  lines.push("Summary:");
+  lines.push(`- run id: ${model.run_id}`);
+  lines.push(`- stop reason: ${model.stop_reason ?? "unknown"}${model.incomplete ? " (incomplete)" : ""}`);
   lines.push(
-    `Trials: planned ${formatCount(model.counts.k_planned)}, attempted ${formatCount(
-      model.counts.k_attempted
-    )}, eligible ${formatCount(model.counts.k_eligible)}`
+    `- trials planned/completed/eligible: ${formatCount(model.counts.k_planned)}/${formatCount(model.counts.k_attempted)}/${formatCount(model.counts.k_eligible)}`
   );
-
-  if (model.embeddings) {
-    const dims = model.embeddings.dimensions ?? "-";
-    lines.push(
-      `Embeddings: ${model.embeddings.status ?? "unknown"} (dims ${dims})`
-    );
+  lines.push(`- protocol: ${model.protocol ?? "-"}`);
+  lines.push(`- models/personas: ${model.model_count}/${model.persona_count}`);
+  if (model.started_at || model.completed_at) {
+    lines.push(`- time: ${model.started_at ?? "-"} -> ${model.completed_at ?? "-"}`);
   }
 
   if (model.usage) {
     const totals = model.usage.totals;
-    const cost = totals.cost !== undefined ? ` | cost ${totals.cost.toFixed(6)}` : "";
     lines.push(
-      `Tokens: in ${totals.prompt_tokens}, out ${totals.completion_tokens}, total ${totals.total_tokens}${cost}`
+      `- usage tokens: in ${totals.prompt_tokens}, out ${totals.completion_tokens}, total ${totals.total_tokens}`
     );
+  } else {
+    lines.push("- usage tokens: not available");
   }
 
-  if (model.convergence) {
-    const clusterCount = model.convergence.cluster_count;
-    const clusterLine = clusterCount !== undefined ? `, clusters ${clusterCount}` : "";
-    lines.push(
-      `Last batch: novelty_rate ${formatNumber(model.convergence.novelty_rate)}, mean_max_sim ${formatNumber(model.convergence.mean_max_sim_to_prior)}${clusterLine}`
-    );
-    if (model.convergence.js_divergence !== undefined) {
-      const jsd = model.convergence.js_divergence;
-      lines.push(`JSD (log2): ${jsd === null ? "null" : jsd.toFixed(4)}`);
+  if (model.grouping?.enabled) {
+    lines.push(`- embedding groups: ${model.grouping.group_count ?? model.monitoring?.group_count ?? "-"}`);
+    lines.push("- groups reflect embedding similarity, not semantic categories.");
+  }
+
+  if ((model.counts.k_eligible ?? 0) === 0) {
+    lines.push("- embeddings: none written because zero eligible trials were produced");
+  }
+
+  lines.push("");
+  lines.push("Artifacts:");
+  const artifacts = model.artifacts ?? [];
+  if (artifacts.length === 0) {
+    lines.push("- (no artifacts listed)");
+  } else {
+    for (const artifact of artifacts) {
+      lines.push(`- ${artifact.path}`);
     }
   }
 
-  if (model.clustering?.enabled) {
-    lines.push(
-      `Clustering: enabled${
-        model.clustering.cluster_count !== undefined
-          ? ` (clusters ${model.clustering.cluster_count})`
-          : ""
-      }`
-    );
-  } else {
-    lines.push("Clustering: disabled");
-  }
-
-  lines.push(`Output: ${model.run_dir}`);
+  lines.push("");
+  lines.push(`Reproduce: arbiter run --config ${model.run_dir}/config.resolved.json`);
 
   return `${lines.join("\n")}\n`;
 };

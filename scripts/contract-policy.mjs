@@ -1,7 +1,9 @@
-import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
+
+import { runMockService } from "../dist/run/run-service.js";
+import { formatVerifyReport, verifyRunDir } from "../dist/tools/verify-run.js";
 
 const tempRoot = resolve(tmpdir(), `arbiter-contract-policy-${Date.now()}`);
 const runsWarnDir = resolve(tempRoot, "runs_warn");
@@ -20,28 +22,6 @@ config.execution.stop_mode = "advisor";
 const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
-const runMock = (policy, outDir) =>
-  spawnSync(
-    "node",
-    [
-      "dist/cli/index.js",
-      "run",
-      "--config",
-      configPath,
-      "--out",
-      outDir,
-      "--quiet",
-      "--contract-failure",
-      policy
-    ],
-    { encoding: "utf8" }
-  );
-
-const runVerify = (runDir) =>
-  spawnSync("node", ["dist/cli/index.js", "verify", runDir], {
-    encoding: "utf8"
-  });
-
 const getSingleRunDir = (runsDir) => {
   const entries = readdirSync(runsDir);
   if (entries.length !== 1) {
@@ -53,8 +33,8 @@ const getSingleRunDir = (runsDir) => {
 const readManifest = (runDir) =>
   JSON.parse(readFileSync(resolve(runDir, "manifest.json"), "utf8"));
 
-const readParsedRecords = (runDir) => {
-  const raw = readFileSync(resolve(runDir, "parsed.jsonl"), "utf8").trim();
+const readTrialRecords = (runDir) => {
+  const raw = readFileSync(resolve(runDir, "trials.jsonl"), "utf8").trim();
   if (!raw) {
     return [];
   }
@@ -65,17 +45,27 @@ const readParsedRecords = (runDir) => {
 };
 
 const countParseStatus = (records, status) =>
-  records.filter((record) => record.parse_status === status).length;
+  records.filter((record) => record?.parsed?.parse_status === status).length;
+
+const runMock = async (policy, outDir) =>
+  runMockService({
+    configPath,
+    assetRoot: resolve("."),
+    runsDir: outDir,
+    quiet: true,
+    debug: false,
+    warningSink: { warn: () => {} },
+    policy: {
+      contractFailurePolicy: policy
+    }
+  });
 
 try {
-  const warnResult = runMock("warn", runsWarnDir);
-  if (warnResult.status !== 0) {
-    throw new Error(`Expected warn policy to succeed, got exit ${warnResult.status}`);
-  }
-  const warnRunDir = getSingleRunDir(runsWarnDir);
+  const warnResult = await runMock("warn", runsWarnDir);
+  const warnRunDir = warnResult.runDir;
   const warnManifest = readManifest(warnRunDir);
-  const warnParsed = readParsedRecords(warnRunDir);
-  const warnFallbackCount = countParseStatus(warnParsed, "fallback");
+  const warnTrials = readTrialRecords(warnRunDir);
+  const warnFallbackCount = countParseStatus(warnTrials, "fallback");
   if (warnManifest.policy?.contract_failure_policy !== "warn") {
     throw new Error("Warn manifest policy snapshot mismatch");
   }
@@ -85,19 +75,16 @@ try {
   if (warnManifest.k_eligible <= 0) {
     throw new Error("Warn policy should keep fallback records eligible");
   }
-  const warnVerify = runVerify(warnRunDir);
-  if (warnVerify.status !== 0) {
-    throw new Error(`verify should pass for warn policy run. Output:\n${warnVerify.stdout}\n${warnVerify.stderr}`);
+  const warnVerify = verifyRunDir(warnRunDir);
+  if (!warnVerify.ok) {
+    throw new Error(`verify should pass for warn policy run:\n${formatVerifyReport(warnVerify)}`);
   }
 
-  const excludeResult = runMock("exclude", runsExcludeDir);
-  if (excludeResult.status !== 0) {
-    throw new Error(`Expected exclude policy to succeed, got exit ${excludeResult.status}`);
-  }
-  const excludeRunDir = getSingleRunDir(runsExcludeDir);
+  const excludeResult = await runMock("exclude", runsExcludeDir);
+  const excludeRunDir = excludeResult.runDir;
   const excludeManifest = readManifest(excludeRunDir);
-  const excludeParsed = readParsedRecords(excludeRunDir);
-  const excludeFallbackCount = countParseStatus(excludeParsed, "fallback");
+  const excludeTrials = readTrialRecords(excludeRunDir);
+  const excludeFallbackCount = countParseStatus(excludeTrials, "fallback");
   if (excludeManifest.policy?.contract_failure_policy !== "exclude") {
     throw new Error("Exclude manifest policy snapshot mismatch");
   }
@@ -107,15 +94,24 @@ try {
   if (excludeManifest.k_eligible !== 0) {
     throw new Error(`Exclude policy should remove fallback records from eligibility, got ${excludeManifest.k_eligible}`);
   }
-  const excludeVerify = runVerify(excludeRunDir);
-  if (excludeVerify.status !== 0) {
-    throw new Error(`verify should pass for exclude policy run. Output:\n${excludeVerify.stdout}\n${excludeVerify.stderr}`);
+  const excludeVerify = verifyRunDir(excludeRunDir);
+  if (!excludeVerify.ok) {
+    throw new Error(`verify should pass for exclude policy run:\n${formatVerifyReport(excludeVerify)}`);
   }
 
-  const failResult = runMock("fail", runsFailDir);
-  if (failResult.status === 0) {
-    throw new Error("Expected fail policy to exit non-zero");
+  let failError = null;
+  try {
+    await runMock("fail", runsFailDir);
+  } catch (error) {
+    failError = error;
   }
+  if (!(failError instanceof Error)) {
+    throw new Error("Expected fail policy run to throw an error");
+  }
+  if (!/Contract parse failures/i.test(failError.message)) {
+    throw new Error(`Unexpected fail policy error: ${failError.message}`);
+  }
+
   const failRunDir = getSingleRunDir(runsFailDir);
   const failManifest = readManifest(failRunDir);
   if (failManifest.policy?.contract_failure_policy !== "fail") {
@@ -130,9 +126,9 @@ try {
   if (typeof failManifest.notes !== "string" || !failManifest.notes.includes("Contract parse failures")) {
     throw new Error("Fail policy should record contract parse failure details in manifest notes");
   }
-  const failVerify = runVerify(failRunDir);
-  if (failVerify.status !== 0) {
-    throw new Error(`verify should pass for fail policy run. Output:\n${failVerify.stdout}\n${failVerify.stderr}`);
+  const failVerify = verifyRunDir(failRunDir);
+  if (!failVerify.ok) {
+    throw new Error(`verify should pass for fail policy run:\n${formatVerifyReport(failVerify)}`);
   }
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });

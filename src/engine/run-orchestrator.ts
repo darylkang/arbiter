@@ -1,5 +1,4 @@
-import { existsSync, readdirSync, rmSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, rmSync } from "node:fs";
 
 import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js";
 import { DEFAULT_EMBEDDING_MAX_CHARS } from "../config/defaults.js";
@@ -121,7 +120,6 @@ const cleanupDebugArtifacts = (input: {
   debugEnabled: boolean;
   provenance: EmbeddingsProvenance;
   embeddingsJsonlPath: string;
-  runDir: string;
 }): EmbeddingsProvenance => {
   let provenance = input.provenance;
   if (input.debugEnabled || provenance.status === "jsonl_fallback") {
@@ -130,10 +128,6 @@ const cleanupDebugArtifacts = (input: {
 
   if (existsSync(input.embeddingsJsonlPath)) {
     rmSync(input.embeddingsJsonlPath, { force: true });
-  }
-  const debugDir = resolve(input.runDir, "debug");
-  if (existsSync(debugDir) && readdirSync(debugDir).length === 0) {
-    rmSync(debugDir, { recursive: true, force: true });
   }
 
   if (provenance.status === "arrow_generated") {
@@ -215,7 +209,8 @@ export const runOrchestration = async <State extends ContractFailureState>(
           trial_id: entry.trial_id,
           protocol: entry.protocol,
           assigned_config: entry.assigned_config,
-          role_assignments: entry.role_assignments
+          role_assignments: entry.role_assignments,
+          debate: entry.debate
         }
       });
     }
@@ -293,8 +288,7 @@ export const runOrchestration = async <State extends ContractFailureState>(
     provenance = cleanupDebugArtifacts({
       debugEnabled: options.debugEnabled,
       provenance,
-      embeddingsJsonlPath: options.embeddingsJsonlPath,
-      runDir: options.runDir
+      embeddingsJsonlPath: options.embeddingsJsonlPath
     });
 
     bus.emit({ type: "embeddings.finalized", payload: { provenance } });

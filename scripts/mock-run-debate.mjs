@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "nod
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { tableFromIPC } from "apache-arrow";
-import { validateParsedOutput, validateTrial } from "../dist/config/schema-validation.js";
+import { validateTrial } from "../dist/config/schema-validation.js";
 
 const tempRoot = resolve(tmpdir(), `arbiter-mock-debate-${Date.now()}`);
 const runsDir = resolve(tempRoot, "runs");
@@ -37,6 +37,8 @@ const config = {
   },
   protocol: {
     type: "debate_v1",
+    participants: 2,
+    rounds: 1,
     timeouts: {
       per_call_timeout_ms: 90000,
       per_call_max_retries: 2,
@@ -72,7 +74,7 @@ const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
 try {
-  execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`, {
+  execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir}`, {
     stdio: "inherit"
   });
 
@@ -102,31 +104,26 @@ try {
       if (!Array.isArray(record.transcript) || record.transcript.length !== 3) {
         throw new Error("Expected 3 transcript entries for successful debate trial");
       }
+      if (!record.parsed || typeof record.parsed.parse_status !== "string") {
+        throw new Error("Expected parsed summary in trial record");
+      }
     }
-  }
-
-  const parsedLines = readFileSync(resolve(runDir, "parsed.jsonl"), "utf8")
-    .trim()
-    .split("\n")
-    .filter(Boolean);
-  for (const line of parsedLines) {
-    const record = JSON.parse(line);
-    if (!validateParsedOutput(record)) {
-      throw new Error("Parsed output failed schema validation");
+    if (!record.parsed) {
+      continue;
     }
-    if (record.parse_status === "success") {
-      if (record.embed_text_source !== "decision") {
+    if (record.parsed.parse_status === "success") {
+      if (record.parsed.embed_text_source !== "decision") {
         throw new Error("Expected embed_text_source decision for structured parse");
       }
-      if (!["fenced", "unfenced"].includes(record.extraction_method)) {
+      if (!["fenced", "unfenced"].includes(record.parsed.extraction_method)) {
         throw new Error("Expected fenced or unfenced extraction method");
       }
     }
-    if (record.parse_status === "fallback") {
-      if (record.embed_text_source !== "raw_content") {
+    if (record.parsed.parse_status === "fallback") {
+      if (record.parsed.embed_text_source !== "raw_content") {
         throw new Error("Expected embed_text_source raw_content for fallback");
       }
-      if (record.extraction_method !== "raw") {
+      if (record.parsed.extraction_method !== "raw") {
         throw new Error("Expected raw extraction method for fallback");
       }
     }

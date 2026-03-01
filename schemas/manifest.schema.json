@@ -284,6 +284,12 @@
           }
         }
       }
+    },
+    "measurement": {
+      "type": "object"
+    },
+    "metrics": {
+      "type": "object"
     }
   }
 }

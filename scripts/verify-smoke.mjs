@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import { mkdirSync, readdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { formatVerifyReport, verifyRunDir } from "../dist/tools/verify-run.js";
 
 const tempRoot = resolve(tmpdir(), `arbiter-verify-${Date.now()}`);
 const runsDir = resolve(tempRoot, "runs");
@@ -78,8 +79,10 @@ try {
     throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
   }
   const runDir = resolve(runsDir, runDirs[0]);
-
-  execSync(`node dist/cli/index.js verify ${runDir}`, { stdio: "inherit" });
+  const report = verifyRunDir(runDir);
+  if (!report.ok) {
+    throw new Error(`verify report failed:\n${formatVerifyReport(report)}`);
+  }
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }

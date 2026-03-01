@@ -608,7 +608,7 @@ export const launchTranscriptTUI = async (options?: { assetRoot?: string }): Pro
       const report = await withSpinner({
         tui,
         label: "Generating report...",
-        work: async () => formatReportText(buildReportModel(runDir, 3))
+        work: async () => formatReportText(buildReportModel(runDir))
       });
       appendTranscript(state, "report", report);
     } catch (error) {

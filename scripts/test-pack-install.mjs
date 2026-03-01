@@ -20,8 +20,7 @@ try {
   const binPath = resolve(tempRoot, "node_modules", ".bin", "arbiter");
 
   execFileSync(binPath, ["--help"], { stdio: "inherit" });
-  execFileSync(binPath, ["init", "Pack smoke question"], { cwd: tempRoot, stdio: "inherit" });
-  execFileSync(binPath, ["validate"], { cwd: tempRoot, stdio: "inherit" });
+  execFileSync(binPath, ["init"], { cwd: tempRoot, stdio: "inherit" });
   execFileSync(
     binPath,
     ["run", "--config", "arbiter.config.json", "--out", "runs", "--max-trials", "2", "--batch-size", "1", "--workers", "1"],

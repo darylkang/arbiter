@@ -44,7 +44,9 @@ const buildDebateConfig = (seed = "debate-seed") => ({
     }
   },
   protocol: {
-    type: "debate_v1"
+    type: "debate_v1",
+    participants: 2,
+    rounds: 1
   }
 });
 
@@ -91,9 +93,14 @@ test("generateTrialPlan emits debate role assignments", () => {
   for (const entry of plan) {
     assert.equal(entry.protocol, "debate_v1");
     assert.ok(entry.role_assignments);
-    assert.equal(entry.role_assignments.proposer.model_slug, entry.assigned_config.model);
-    assert.equal(entry.role_assignments.critic.model_slug, entry.assigned_config.model);
-    assert.ok(entry.role_assignments.proposer.persona_id);
-    assert.ok(entry.role_assignments.critic.persona_id);
+    assert.ok(entry.role_assignments.A);
+    assert.ok(entry.role_assignments.B);
+    assert.equal(entry.role_assignments.A.model_slug, entry.assigned_config.model);
+    assert.equal(entry.role_assignments.A.persona_id, entry.assigned_config.persona);
+    assert.equal(entry.debate?.participants, 2);
+    assert.equal(entry.debate?.rounds, 1);
+    assert.equal(Number.isInteger(entry.role_assignments.A.decode?.max_tokens), true);
+    assert.equal(entry.role_assignments.A.decode.max_tokens >= 10, true);
+    assert.equal(entry.role_assignments.A.decode.max_tokens <= 20, true);
   }
 });

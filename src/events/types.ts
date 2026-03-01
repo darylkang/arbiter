@@ -55,6 +55,10 @@ export type TrialPlannedPayload = {
   protocol: ArbiterTrialRecord["protocol"];
   assigned_config: ArbiterTrialRecord["assigned_config"];
   role_assignments?: ArbiterTrialRecord["role_assignments"];
+  debate?: {
+    participants: number;
+    rounds: number;
+  };
 };
 
 export type TrialCompletedPayload = {

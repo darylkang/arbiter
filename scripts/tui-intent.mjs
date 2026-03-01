@@ -1,34 +1,21 @@
 import assert from "node:assert/strict";
 
 import { resolveCliMode } from "../dist/cli/intent.js";
-import { listCommands, parseCommandInput } from "../dist/ui/transcript/commands/registry.js";
 
 const modeInteractive = resolveCliMode([], true);
-assert.equal(modeInteractive.shouldLaunchTUI, true);
+assert.equal(modeInteractive.shouldLaunchWizard, true);
 assert.equal(modeInteractive.noCommand, true);
 
-const modeHeadless = resolveCliMode(["--headless"], true);
-assert.equal(modeHeadless.shouldLaunchTUI, false);
-assert.equal(modeHeadless.noCommand, true);
-
-const modeHelp = resolveCliMode(["--headless", "--help"], true);
-assert.equal(modeHelp.shouldLaunchTUI, false);
-assert.equal(modeHelp.filteredArgs.includes("--help"), true);
+const modeHelp = resolveCliMode(["--help"], true);
+assert.equal(modeHelp.shouldLaunchWizard, false);
+assert.equal(modeHelp.noCommand, false);
 
 const modeNonTty = resolveCliMode([], false);
-assert.equal(modeNonTty.shouldLaunchTUI, false);
+assert.equal(modeNonTty.shouldLaunchWizard, false);
+assert.equal(modeNonTty.noCommand, true);
 
-const parsedRun = parseCommandInput("/run mock");
-assert.deepEqual(parsedRun, { name: "run", args: ["mock"], raw: "/run mock" });
+const modeRun = resolveCliMode(["run", "--config", "arbiter.config.json"], true);
+assert.equal(modeRun.shouldLaunchWizard, false);
+assert.equal(modeRun.noCommand, false);
 
-const parsedQuoted = parseCommandInput('/analyze "runs/sample id"');
-assert.deepEqual(parsedQuoted, {
-  name: "analyze",
-  args: ["runs/sample id"],
-  raw: '/analyze "runs/sample id"'
-});
-
-const commandNames = listCommands().map((command) => command.name).sort();
-assert.deepEqual(commandNames, ["analyze", "help", "new", "quit", "receipt", "report", "run", "verify", "warnings"]);
-
-console.log("tui intent + registry: ok");
+console.log("tui intent: ok");

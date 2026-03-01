@@ -45,10 +45,18 @@
     "role_assignments": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["proposer", "critic"],
+      "minProperties": 1,
+      "patternProperties": {
+        "^[A-Z][A-Z0-9_]*$": { "$ref": "#/$defs/role_assignment" }
+      }
+    },
+    "debate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["participants", "rounds"],
       "properties": {
-        "proposer": { "$ref": "#/$defs/role_assignment" },
-        "critic": { "$ref": "#/$defs/role_assignment" }
+        "participants": { "type": "integer", "minimum": 2 },
+        "rounds": { "type": "integer", "minimum": 1 }
       }
     }
   }

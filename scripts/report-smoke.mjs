@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { buildReportModel, formatReportText } from "../dist/tools/report-run.js";
 
 const tempRoot = mkdtempSync(resolve(tmpdir(), "arbiter-report-"));
 const runsDir = resolve(tempRoot, "runs");
@@ -75,7 +76,7 @@ try {
   }
   const runDir = resolve(runsDir, runDirs[0]);
 
-  const output = execFileSync("node", [cliPath, "report", runDir], { encoding: "utf8" });
+  const output = formatReportText(buildReportModel(runDir));
   if (!output.includes("Arbiter Report")) {
     throw new Error("Report output missing header");
   }

@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { validateManifest } from "../dist/config/schema-validation.js";
 
-const tempRoot = resolve(tmpdir(), `arbiter-receipt-fail-${Date.now()}`);
+const tempRoot = resolve(tmpdir(), `arbiter-receipt-contract-${Date.now()}`);
 const runsDir = resolve(tempRoot, "runs");
 mkdirSync(runsDir, { recursive: true });
 
@@ -68,9 +68,8 @@ const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
 try {
-  execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`, {
-    stdio: "ignore",
-    env: { ...process.env, ARBITER_RECEIPT_FAIL: "1" }
+  execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir}`, {
+    stdio: "ignore"
   });
 
   const runDirs = readdirSync(runsDir);
@@ -85,16 +84,16 @@ try {
     throw new Error("Manifest failed schema validation in receipt failure test");
   }
 
-  if (existsSync(resolve(runDir, "receipt.txt"))) {
-    throw new Error("receipt.txt should not exist when write fails");
+  if (!existsSync(resolve(runDir, "receipt.txt"))) {
+    throw new Error("receipt.txt should exist for all executed runs");
   }
 
   const artifactPaths = manifest.artifacts?.entries?.map((entry) => entry.path) ?? [];
-  if (artifactPaths.includes("receipt.txt")) {
-    throw new Error("Manifest incorrectly includes receipt.txt after failure");
+  if (!artifactPaths.includes("receipt.txt")) {
+    throw new Error("Manifest is missing receipt.txt artifact entry");
   }
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }
 
-console.log("Receipt failure test OK");
+console.log("Receipt contract test OK");

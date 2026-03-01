@@ -78,7 +78,7 @@ let child;
 try {
   child = spawn(
     "node",
-    ["dist/cli/index.js", "run", "--config", configPath, "--out", runsDir, "--debug"],
+    ["dist/cli/index.js", "run", "--config", configPath, "--out", runsDir],
     {
       stdio: "inherit",
       env: { ...process.env, ARBITER_MOCK_DELAY_MS: "25" }
@@ -112,13 +112,13 @@ try {
     throw new Error("Manifest did not record user_interrupt with incomplete=true");
   }
 
-  const statePath = resolve(runDir, "clusters/online.state.json");
+  const statePath = resolve(runDir, "groups/state.json");
   const state = JSON.parse(readFileSync(statePath, "utf8"));
   if (!validateClusterState(state)) {
     throw new Error("Cluster state failed schema validation after interrupt");
   }
 
-  const assignmentsPath = resolve(runDir, "clusters/online.assignments.jsonl");
+  const assignmentsPath = resolve(runDir, "groups/assignments.jsonl");
   const assignmentLines = readFileSync(assignmentsPath, "utf8")
     .trim()
     .split("\n")
@@ -130,7 +130,7 @@ try {
     }
   }
 
-  const convergencePath = resolve(runDir, "convergence_trace.jsonl");
+  const convergencePath = resolve(runDir, "monitoring.jsonl");
   const convergenceLines = readFileSync(convergencePath, "utf8")
     .trim()
     .split("\n")

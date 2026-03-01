@@ -1,8 +1,7 @@
 import { execSync } from "node:child_process";
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { validateEmbeddingsProvenance } from "../dist/config/schema-validation.js";
 
 const tempRoot = resolve(tmpdir(), `arbiter-zero-eligible-${Date.now()}`);
 const runsDir = resolve(tempRoot, "runs");
@@ -68,7 +67,7 @@ const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
 try {
-  execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`, {
+  execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir}`, {
     stdio: "ignore",
     env: { ...process.env, ARBITER_MOCK_EMPTY_EMBED: "1" }
   });
@@ -79,13 +78,13 @@ try {
   }
 
   const runDir = resolve(runsDir, runDirs[0]);
-  const convergenceLines = readFileSync(resolve(runDir, "convergence_trace.jsonl"), "utf8")
+  const monitoringLines = readFileSync(resolve(runDir, "monitoring.jsonl"), "utf8")
     .trim()
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line));
 
-  for (const record of convergenceLines) {
+  for (const record of monitoringLines) {
     if (record.has_eligible_in_batch !== false) {
       throw new Error("Expected has_eligible_in_batch=false when embeddings skipped");
     }
@@ -94,18 +93,12 @@ try {
     }
   }
 
-  const aggregates = JSON.parse(readFileSync(resolve(runDir, "aggregates.json"), "utf8"));
-  if (aggregates.novelty_rate !== null || aggregates.mean_max_sim_to_prior !== null) {
-    throw new Error("Aggregates novelty metrics should be null when no eligible embeddings");
+  const manifest = JSON.parse(readFileSync(resolve(runDir, "manifest.json"), "utf8"));
+  if (manifest.measurement?.embedding?.status !== "not_generated") {
+    throw new Error("Expected manifest.measurement.embedding.status=not_generated");
   }
-
-  const provenancePath = resolve(runDir, "embeddings.provenance.json");
-  const provenance = JSON.parse(readFileSync(provenancePath, "utf8"));
-  if (!validateEmbeddingsProvenance(provenance)) {
-    throw new Error("Embeddings provenance should be schema-valid when no embeddings generated");
-  }
-  if (provenance.status !== "not_generated") {
-    throw new Error("Expected embeddings provenance status to be not_generated for zero embeddings");
+  if (existsSync(resolve(runDir, "embeddings.arrow"))) {
+    throw new Error("embeddings.arrow should not exist when zero eligible trials are produced");
   }
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });

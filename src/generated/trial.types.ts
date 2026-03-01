@@ -32,8 +32,7 @@ export interface ArbiterTrialRecord {
     [k: string]: unknown;
   };
   role_assignments?: {
-    proposer: RoleAssignment;
-    critic: RoleAssignment;
+    [k: string]: RoleAssignment;
   };
   calls?: CallRecord[];
   transcript?: TranscriptEntry[];
@@ -41,6 +40,29 @@ export interface ArbiterTrialRecord {
     [k: string]: unknown;
   };
   usage?: UsageStats;
+  parsed?: {
+    parse_status: "success" | "fallback" | "failed";
+    parser_version: string;
+    extraction_method?: string;
+    embed_text_source?: string;
+    confidence?: string | null;
+    outcome?: string;
+    rationale?: string;
+    embed_text?: string;
+    parse_error?: {
+      [k: string]: unknown;
+    };
+  };
+  embedding?: {
+    status: "success" | "failed" | "skipped";
+    generation_id?: string;
+    skip_reason?: string;
+    error?: string;
+  };
+  grouping?: {
+    embedding_group_id?: number;
+    similarity_to_exemplar?: number;
+  };
 }
 export interface DecodeParams {
   temperature?: number;
@@ -49,6 +71,10 @@ export interface DecodeParams {
   presence_penalty?: number;
   frequency_penalty?: number;
 }
+/**
+ * This interface was referenced by `undefined`'s JSON-Schema definition
+ * via the `patternProperty` "^[A-Z][A-Z0-9_]*$".
+ */
 export interface RoleAssignment {
   model_slug: string;
   persona_id: string | null;
@@ -57,7 +83,7 @@ export interface RoleAssignment {
 export interface CallRecord {
   call_index: number;
   turn: number;
-  role: "proposer" | "critic";
+  role: string;
   model_requested: string;
   model_actual: string | null;
   request_payload: {
@@ -83,6 +109,6 @@ export interface UsageStats {
 }
 export interface TranscriptEntry {
   turn: number;
-  role: "proposer" | "critic";
+  role: string;
   content: string;
 }

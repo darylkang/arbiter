@@ -110,10 +110,7 @@
         },
         "role": {
           "type": "string",
-          "enum": [
-            "proposer",
-            "critic"
-          ]
+          "minLength": 1
         },
         "model_requested": {
           "type": "string",
@@ -188,10 +185,7 @@
         },
         "role": {
           "type": "string",
-          "enum": [
-            "proposer",
-            "critic"
-          ]
+          "minLength": 1
         },
         "content": {
           "type": "string"
@@ -311,15 +305,9 @@
     "role_assignments": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "proposer",
-        "critic"
-      ],
-      "properties": {
-        "proposer": {
-          "$ref": "#/$defs/role_assignment"
-        },
-        "critic": {
+      "minProperties": 1,
+      "patternProperties": {
+        "^[A-Z][A-Z0-9_]*$": {
           "$ref": "#/$defs/role_assignment"
         }
       }
@@ -341,6 +329,93 @@
     },
     "usage": {
       "$ref": "#/$defs/usage_stats"
+    },
+    "parsed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parse_status",
+        "parser_version"
+      ],
+      "properties": {
+        "parse_status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "fallback",
+            "failed"
+          ]
+        },
+        "parser_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extraction_method": {
+          "type": "string"
+        },
+        "embed_text_source": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "embed_text": {
+          "type": "string"
+        },
+        "parse_error": {
+          "type": "object"
+        }
+      }
+    },
+    "embedding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "success",
+            "failed",
+            "skipped"
+          ]
+        },
+        "generation_id": {
+          "type": "string"
+        },
+        "skip_reason": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "grouping": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "embedding_group_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "similarity_to_exemplar": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
     }
   }
 }

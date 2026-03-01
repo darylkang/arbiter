@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-
-const ANSI_REGEX = /\u001b\[[0-9;]*m/g;
-const stripAnsi = (value) => value.replace(ANSI_REGEX, "");
 
 const cli = resolve("dist/cli/index.js");
 
@@ -25,80 +22,68 @@ const run = (args, options = {}) => {
   };
 };
 
-const rootHelp = run(["--headless", "--help"]);
+const rootHelp = run(["--help"]);
 assert.equal(rootHelp.status, 0);
-assert.equal(rootHelp.stdout.includes("quickstart"), false);
-assert.equal(rootHelp.stdout.includes("mock-run"), false);
+assert.equal(rootHelp.stdout.includes("arbiter init"), true);
 assert.equal(rootHelp.stdout.includes("arbiter run"), true);
-assert.equal(rootHelp.stdout.includes("receipt"), true);
-assert.equal(rootHelp.stdout.includes("Workflow:"), true);
-assert.equal(rootHelp.stdout.match(/\u001b\[/), null);
+assert.equal(rootHelp.stdout.includes("--headless"), false);
+assert.equal(rootHelp.stdout.includes("--verbose"), false);
+assert.equal(rootHelp.stdout.includes("verify"), false);
+assert.equal(rootHelp.stdout.includes("report"), false);
 
 const runHelp = run(["run", "--help"]);
 assert.equal(runHelp.status, 0);
-assert.equal(runHelp.stdout.includes("--live"), true);
-assert.equal(runHelp.stdout.includes("--yes"), true);
-assert.equal(runHelp.stdout.includes("--config"), true);
-assert.equal(runHelp.stdout.includes("--allow-free"), true);
-assert.equal(runHelp.stdout.includes("--allow-aliased"), true);
-assert.equal(runHelp.stdout.includes("--contract-failure"), true);
+assert.equal(runHelp.stdout.includes("--config <path>"), true);
+assert.equal(runHelp.stdout.includes("--dashboard"), true);
+assert.equal(runHelp.stdout.includes("--mode <mock|live>"), true);
+assert.equal(runHelp.stdout.includes("--live"), false);
+assert.equal(runHelp.stdout.includes("--yes"), false);
+assert.equal(runHelp.stdout.includes("--allow-free"), false);
 
 const unknown = run(["does-not-exist"]);
 assert.equal(unknown.status, 1);
-assert.equal(stripAnsi(unknown.stderr).includes("unknown command: does-not-exist"), true);
+assert.equal(unknown.stderr.includes("unknown command: does-not-exist"), true);
 
-const version = run(["--version"]);
+const version = run(["-V"]);
 assert.equal(version.status, 0);
-assert.match(
-  version.stdout.trim(),
-  /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
-);
+assert.match(version.stdout.trim(), /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
+
+const nonTtyRoot = run([]);
+assert.equal(nonTtyRoot.status, 0);
+assert.equal(nonTtyRoot.stdout.includes("Commands:"), true);
 
 const tempRoot = mkdtempSync(resolve(tmpdir(), "arbiter-cli-contracts-"));
 try {
-  const init = run(["init", "contract test question"], { cwd: tempRoot });
-  assert.equal(init.status, 0);
+  const init1 = run(["init"], { cwd: tempRoot });
+  assert.equal(init1.status, 0);
+  assert.equal(init1.stdout.includes("created config:"), true);
+  assert.equal(init1.stdout.includes("arbiter run --config"), true);
+  assert.equal(existsSync(resolve(tempRoot, "arbiter.config.json")), true);
 
-  const runMockDefault = run(["run", "--out", "runs"], {
+  const init2 = run(["init"], { cwd: tempRoot });
+  assert.equal(init2.status, 0);
+  assert.equal(existsSync(resolve(tempRoot, "arbiter.config.1.json")), true);
+
+  const runHeadless = run(["run", "--config", "arbiter.config.json"], {
     cwd: tempRoot,
     env: { OPENROUTER_API_KEY: "" }
   });
-  assert.equal(runMockDefault.status, 0);
-  assert.equal(stripAnsi(runMockDefault.stdout).includes("running in mock mode"), true);
-  assert.equal(stripAnsi(runMockDefault.stdout).includes("run complete (mock)"), true);
-  assert.equal(runMockDefault.stderr.match(ANSI_REGEX), null);
+  assert.equal(runHeadless.status, 0);
+  assert.equal(runHeadless.stdout.trim(), "");
 
-  const runDirMatch = stripAnsi(runMockDefault.stdout).match(/Run directory:\s+(.+)/);
-  assert.ok(runDirMatch?.[1], "Expected run directory in run output");
-  const runDir = runDirMatch[1].trim();
-
-  const report = run(["report", runDir], { cwd: tempRoot });
-  assert.equal(report.status, 0);
-  assert.equal(stripAnsi(report.stdout).includes("Arbiter Report"), true);
-  assert.equal(stripAnsi(report.stdout).includes("Counts:"), true);
-
-  const verify = run(["verify", runDir], { cwd: tempRoot });
-  assert.equal(verify.status, 0);
-  assert.equal(stripAnsi(verify.stdout).includes("OK"), true);
-
-  const receipt = run(["receipt", runDir], { cwd: tempRoot });
-  assert.equal(receipt.status, 0);
-  assert.equal(stripAnsi(receipt.stdout).includes("Arbiter Receipt"), true);
-
-  const runLiveNoYes = run(["run", "--live"], {
+  const runDashboardNoTty = run(["run", "--config", "arbiter.config.json", "--dashboard"], {
     cwd: tempRoot,
-    env: { OPENROUTER_API_KEY: "test-key", CI: "1" }
+    env: { OPENROUTER_API_KEY: "" }
   });
-  assert.equal(runLiveNoYes.status, 1);
-  assert.equal(stripAnsi(runLiveNoYes.stderr).includes("non-interactive live runs require --yes"), true);
+  assert.equal(runDashboardNoTty.status, 0);
+  assert.equal(
+    runDashboardNoTty.stderr.includes("--dashboard requires TTY stdout; continuing headless"),
+    true
+  );
 
   const missingConfig = run(["run", "--config", "missing.config.json"], { cwd: tempRoot });
   assert.equal(missingConfig.status, 1);
-  assert.equal(stripAnsi(missingConfig.stderr).includes("config not found"), true);
-  assert.equal(
-    stripAnsi(missingConfig.stderr).includes("arbiter init"),
-    true
-  );
+  assert.equal(missingConfig.stderr.toLowerCase().includes("no such file") || missingConfig.stderr.toLowerCase().includes("enoent"), true);
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }

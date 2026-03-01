@@ -1,3 +1,4 @@
+import type { ArbiterParsedOutputRecord } from "../../generated/parsed-output.types.js";
 import type { ArbiterTrialRecord } from "../../generated/trial.types.js";
 import type { TrialPlanEntry } from "../../planning/planner.js";
 import {
@@ -6,7 +7,6 @@ import {
   OpenRouterError,
   extractActualModel
 } from "../../openrouter/client.js";
-import { buildDebateMessages } from "./messages.js";
 import { buildDebateParsedOutput } from "./parser.js";
 import { formatDecisionContractClause } from "../contract/extraction.js";
 import { deriveFailureStatus } from "../../engine/status.js";
@@ -26,41 +26,115 @@ import {
   type LiveTrialExecutionContext
 } from "../../engine/live-trial-context.js";
 
-const buildDebateTrialFailure = (input: {
+const sortedSlots = (roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]>): string[] =>
+  Object.keys(roleAssignments).sort((a, b) => {
+    if (a === "A") {
+      return -1;
+    }
+    if (b === "A") {
+      return 1;
+    }
+    return a.localeCompare(b);
+  });
+
+const buildDebatePrompt = (input: {
+  question: string;
+  transcript: NonNullable<ArbiterTrialRecord["transcript"]>;
+  slotId: string;
+  round: number;
+  isFinal: boolean;
+}): string => {
+  const prefix = input.isFinal
+    ? `You are slot ${input.slotId}. Provide the final response.`
+    : `You are slot ${input.slotId}. Provide your response for round ${input.round}.`;
+
+  if (input.transcript.length === 0) {
+    return `${prefix}\n\nQuestion:\n${input.question}`;
+  }
+
+  const transcriptText = input.transcript
+    .map((entry) => `Turn ${entry.turn} [${entry.role}]: ${entry.content}`)
+    .join("\n");
+
+  return `${prefix}\n\nQuestion:\n${input.question}\n\nPrior turns:\n${transcriptText}`;
+};
+
+const resolveRolePrompt = (input: {
+  slotId: string;
+  isFinal: boolean;
+  protocolPrompts: NonNullable<ArbiterTrialRecord["metadata"]> & {
+    proposerSystem: string;
+    criticSystem: string;
+    proposerFinalSystem: string;
+  };
+}): string => {
+  if (input.slotId === "A") {
+    return input.isFinal ? input.protocolPrompts.proposerFinalSystem : input.protocolPrompts.proposerSystem;
+  }
+  return input.protocolPrompts.criticSystem;
+};
+
+const buildFailureTrialRecord = (input: {
   entry: TrialPlanEntry;
   roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]>;
   calls: NonNullable<ArbiterTrialRecord["calls"]>;
   transcript: NonNullable<ArbiterTrialRecord["transcript"]>;
   error: OpenRouterError | Error | undefined;
   errorCode: string | null;
-}) => {
-  const { entry, roleAssignments, calls, transcript } = input;
+}): ArbiterTrialRecord => {
   const status = deriveFailureStatus({
     timeoutExhausted: input.errorCode === "timeout_exhausted",
-    modelUnavailable: Boolean(
-      input.error instanceof OpenRouterError && input.error.modelUnavailable
-    )
+    modelUnavailable: Boolean(input.error instanceof OpenRouterError && input.error.modelUnavailable)
   });
 
   return {
-    trial_id: entry.trial_id,
-    requested_model_slug: entry.assigned_config.model,
+    trial_id: input.entry.trial_id,
+    requested_model_slug: input.entry.assigned_config.model,
     actual_model: null,
-    protocol: "debate_v1" as const,
+    protocol: "debate_v1",
     status,
-    assigned_config: entry.assigned_config,
-    role_assignments: roleAssignments,
-    calls,
-    transcript,
+    assigned_config: input.entry.assigned_config,
+    role_assignments: input.roleAssignments,
+    calls: input.calls,
+    transcript: input.transcript,
     error: {
       message: input.error?.message ?? "Debate call failed",
-      code: normalizeErrorCode(
-        input.error instanceof OpenRouterError ? input.error.code : undefined
-      ),
-      retryable:
-        input.error instanceof OpenRouterError ? input.error.retryable : false
+      code: normalizeErrorCode(input.error instanceof OpenRouterError ? input.error.code : undefined),
+      retryable: input.error instanceof OpenRouterError ? input.error.retryable : false
     },
-    error_code: input.errorCode
+    error_code: input.errorCode,
+    parsed: {
+      parse_status: "failed",
+      parser_version: "debate-v1"
+    },
+    embedding: {
+      status: "skipped",
+      skip_reason: "trial_not_success"
+    }
+  };
+};
+
+const attachParseSummary = (
+  trialRecord: ArbiterTrialRecord,
+  parsedRecord: ArbiterParsedOutputRecord
+): void => {
+  trialRecord.parsed = {
+    parse_status: parsedRecord.parse_status,
+    parser_version: parsedRecord.parser_version ?? "unknown",
+    ...(parsedRecord.extraction_method !== undefined
+      ? { extraction_method: parsedRecord.extraction_method }
+      : {}),
+    ...(parsedRecord.embed_text_source !== undefined
+      ? { embed_text_source: parsedRecord.embed_text_source }
+      : {}),
+    confidence:
+      parsedRecord.confidence === undefined || parsedRecord.confidence === null
+        ? parsedRecord.confidence
+        : String(parsedRecord.confidence),
+    ...(parsedRecord.outcome !== undefined ? { outcome: parsedRecord.outcome } : {}),
+    ...(parsedRecord.rationale !== undefined ? { rationale: parsedRecord.rationale } : {}),
+    ...(parsedRecord.embed_text !== undefined ? { embed_text: parsedRecord.embed_text } : {}),
+    ...(parsedRecord.parse_error !== undefined ? { parse_error: parsedRecord.parse_error } : {})
   };
 };
 
@@ -76,18 +150,24 @@ export const executeLiveDebateTrial = async (input: {
     throw new Error(`Missing role assignments for debate trial ${entry.trial_id}`);
   }
 
-  const proposerPersona = roleAssignments.proposer.persona_id
-    ? context.personaMap.get(roleAssignments.proposer.persona_id)
-    : undefined;
-  const criticPersona = roleAssignments.critic.persona_id
-    ? context.personaMap.get(roleAssignments.critic.persona_id)
-    : undefined;
-
   if (!resolvedConfig.protocol.prompts) {
     throw new Error("Debate prompts are missing from resolved config");
   }
 
-  const protocolPrompts = resolvedConfig.protocol.prompts;
+  const slots = sortedSlots(roleAssignments);
+  const slotA = slots.includes("A") ? "A" : slots[0];
+  if (!slotA) {
+    throw new Error(`Debate trial ${entry.trial_id} has no participant slots`);
+  }
+
+  const rounds = entry.debate?.rounds ?? resolvedConfig.protocol.rounds ?? 1;
+
+  const protocolPrompts = {
+    proposerSystem: resolvedConfig.protocol.prompts.proposer_system.text,
+    criticSystem: resolvedConfig.protocol.prompts.critic_system.text,
+    proposerFinalSystem: resolvedConfig.protocol.prompts.proposer_final_system.text
+  };
+
   const calls: NonNullable<ArbiterTrialRecord["calls"]> = [];
   const transcript: NonNullable<ArbiterTrialRecord["transcript"]> = [];
   const trialStartedMs = Date.now();
@@ -103,19 +183,21 @@ export const executeLiveDebateTrial = async (input: {
 
   const runCall = async (callInput: {
     callIndex: number;
-    turn: 0 | 1 | 2;
-    role: "proposer" | "critic";
-    systemPrompt: string;
-    personaPrompt?: string | null;
-    contractClause?: string;
-    proposerTurn?: string;
-    criticTurn?: string;
+    turn: number;
+    round: number;
+    slotId: string;
+    isFinal: boolean;
   }): Promise<{
     content?: string;
     modelActual?: string | null;
     error?: OpenRouterError | Error;
     errorCode?: string;
   }> => {
+    const assignment = roleAssignments[callInput.slotId];
+    if (!assignment) {
+      return { error: new Error(`Missing assignment for slot ${callInput.slotId}`) };
+    }
+
     const elapsed = Date.now() - trialStartedMs;
     const remaining = totalTimeoutMs - elapsed;
     if (remaining <= 0) {
@@ -123,15 +205,32 @@ export const executeLiveDebateTrial = async (input: {
     }
 
     const callStarted = new Date().toISOString();
-    const messages = buildDebateMessages({
-      turn: callInput.turn,
-      question: resolvedConfig.question.text,
-      systemPrompt: callInput.systemPrompt,
-      personaPrompt: callInput.personaPrompt,
-      contractClause: callInput.contractClause,
-      proposerTurn: callInput.proposerTurn,
-      criticTurn: callInput.criticTurn
+    const personaText = assignment.persona_id
+      ? (context.personaMap.get(assignment.persona_id)?.text ?? "")
+      : "";
+    const rolePrompt = resolveRolePrompt({
+      slotId: callInput.slotId,
+      isFinal: callInput.isFinal,
+      protocolPrompts
     });
+    const systemPrompt = callInput.isFinal && contractClause ? `${rolePrompt}\n\n${contractClause}` : rolePrompt;
+
+    const messages = [
+      {
+        role: "system" as const,
+        content: personaText && personaText.trim().length > 0 ? `${personaText}\n\n---\n\n${systemPrompt}` : systemPrompt
+      },
+      {
+        role: "user" as const,
+        content: buildDebatePrompt({
+          question: resolvedConfig.question.text,
+          transcript,
+          slotId: callInput.slotId,
+          round: callInput.round,
+          isFinal: callInput.isFinal
+        })
+      }
+    ];
 
     const timeout = createTimeoutSignal(Math.min(perCallTimeoutMs, remaining), context.abortSignal);
     let result: Awaited<ReturnType<typeof chatCompletion>> | null = null;
@@ -139,9 +238,9 @@ export const executeLiveDebateTrial = async (input: {
 
     try {
       result = await chatCompletion({
-        model: roleAssignments[callInput.role].model_slug,
+        model: assignment.model_slug,
         messages,
-        params: roleAssignments[callInput.role].decode,
+        params: assignment.decode,
         options: {
           retry: { maxRetries: perCallMaxRetries, backoffMs },
           signal: timeout.signal
@@ -158,8 +257,8 @@ export const executeLiveDebateTrial = async (input: {
       calls.push({
         call_index: callInput.callIndex,
         turn: callInput.turn,
-        role: callInput.role,
-        model_requested: roleAssignments[callInput.role].model_slug,
+        role: callInput.slotId,
+        model_requested: assignment.model_slug,
         model_actual: result.model ?? null,
         request_payload: result.requestPayload,
         response_payload: asObject(result.responseBody) ?? null,
@@ -172,7 +271,7 @@ export const executeLiveDebateTrial = async (input: {
         },
         error_message: null
       });
-      transcript.push({ turn: callInput.turn, role: callInput.role, content });
+      transcript.push({ turn: callInput.turn, role: callInput.slotId, content });
       return { content, modelActual: result.model ?? null };
     }
 
@@ -182,8 +281,7 @@ export const executeLiveDebateTrial = async (input: {
         : error?.message ?? "OpenRouter request failed";
     const retryCount = error instanceof OpenRouterError ? error.retryCount : 0;
     const latencyMs = error instanceof OpenRouterError ? error.latencyMs ?? 0 : 0;
-    const responsePayload =
-      error instanceof OpenRouterError ? error.responseBody : undefined;
+    const responsePayload = error instanceof OpenRouterError ? error.responseBody : undefined;
     const modelActual =
       error instanceof OpenRouterError ? extractActualModel(error.responseBody) : null;
     const timeoutCode = timeout.didTimeout() ? "timeout_exhausted" : undefined;
@@ -191,11 +289,10 @@ export const executeLiveDebateTrial = async (input: {
     calls.push({
       call_index: callInput.callIndex,
       turn: callInput.turn,
-      role: callInput.role,
-      model_requested: roleAssignments[callInput.role].model_slug,
+      role: callInput.slotId,
+      model_requested: assignment.model_slug,
       model_actual: modelActual,
-      request_payload:
-        error instanceof OpenRouterError ? (error.requestPayload ?? {}) : {},
+      request_payload: error instanceof OpenRouterError ? (error.requestPayload ?? {}) : {},
       response_payload: asObject(responsePayload) ?? null,
       attempt: {
         started_at: callStarted,
@@ -209,86 +306,102 @@ export const executeLiveDebateTrial = async (input: {
     return { error: error ?? new Error(errorMessage), errorCode: timeoutCode };
   };
 
-  const proposerPersonaText = proposerPersona?.text ?? "";
-  const criticPersonaText = criticPersona?.text ?? "";
+  let callIndex = 0;
+  let turn = 0;
+  let finalContent = "";
+  let finalModel: string | null = null;
 
-  const emitFailure = (result: { error?: OpenRouterError | Error; errorCode?: string }) => {
-    const errorCode = result.errorCode ?? (context.shouldStop().stop ? "shutdown_abort" : null);
-    const trialRecord = buildDebateTrialFailure({
+  for (let round = 1; round <= rounds; round += 1) {
+    for (const slotId of slots) {
+      const call = await runCall({
+        callIndex,
+        turn,
+        round,
+        slotId,
+        isFinal: false
+      });
+      callIndex += 1;
+      turn += 1;
+      if (!call.content) {
+        const trialRecord = buildFailureTrialRecord({
+          entry,
+          roleAssignments,
+          calls,
+          transcript,
+          error: call.error,
+          errorCode: call.errorCode ?? (context.shouldStop().stop ? "shutdown_abort" : null)
+        });
+        const parsedRecord: ArbiterParsedOutputRecord = {
+          trial_id: entry.trial_id,
+          parse_status: "failed",
+          parser_version: "debate-v1"
+        };
+        attachParseSummary(trialRecord, parsedRecord);
+
+        const embeddingRecord = buildSkippedEmbedding(entry.trial_id, "trial_not_success", emptyPreparation);
+        const skipReason =
+          embeddingRecord.embedding_status === "skipped" ? embeddingRecord.skip_reason : undefined;
+        trialRecord.embedding = {
+          status: "skipped",
+          skip_reason: skipReason
+        };
+
+        bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+        bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+        bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
+
+        return { trial_id: entry.trial_id, embedding: { status: "skipped" as const } };
+      }
+    }
+  }
+
+  const finalCall = await runCall({
+    callIndex,
+    turn,
+    round: rounds,
+    slotId: slotA,
+    isFinal: true
+  });
+  if (!finalCall.content) {
+    const trialRecord = buildFailureTrialRecord({
       entry,
       roleAssignments,
       calls,
       transcript,
-      error: result.error,
-      errorCode
+      error: finalCall.error,
+      errorCode: finalCall.errorCode ?? (context.shouldStop().stop ? "shutdown_abort" : null)
     });
+    const parsedRecord: ArbiterParsedOutputRecord = {
+      trial_id: entry.trial_id,
+      parse_status: "failed",
+      parser_version: "debate-v1"
+    };
+    attachParseSummary(trialRecord, parsedRecord);
+
+    const embeddingRecord = buildSkippedEmbedding(entry.trial_id, "trial_not_success", emptyPreparation);
+    const skipReason =
+      embeddingRecord.embedding_status === "skipped" ? embeddingRecord.skip_reason : undefined;
+    trialRecord.embedding = {
+      status: "skipped",
+      skip_reason: skipReason
+    };
 
     bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
-    bus.emit({
-      type: "parsed.output",
-      payload: {
-        parsed_record: {
-          trial_id: entry.trial_id,
-          parse_status: "failed",
-          parser_version: "debate-v1"
-        }
-      }
-    });
-    bus.emit({
-      type: "embedding.recorded",
-      payload: {
-        embedding_record: buildSkippedEmbedding(
-          entry.trial_id,
-          "trial_not_success",
-          emptyPreparation
-        )
-      }
-    });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+    bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
+
     return { trial_id: entry.trial_id, embedding: { status: "skipped" as const } };
-  };
-
-  const turn0 = await runCall({
-    callIndex: 0,
-    turn: 0,
-    role: "proposer",
-    systemPrompt: protocolPrompts.proposer_system.text,
-    personaPrompt: proposerPersonaText
-  });
-  if (!turn0.content) {
-    return emitFailure(turn0);
   }
 
-  const turn1 = await runCall({
-    callIndex: 1,
-    turn: 1,
-    role: "critic",
-    systemPrompt: protocolPrompts.critic_system.text,
-    personaPrompt: criticPersonaText,
-    proposerTurn: turn0.content
-  });
-  if (!turn1.content) {
-    return emitFailure(turn1);
-  }
-
-  const turn2 = await runCall({
-    callIndex: 2,
-    turn: 2,
-    role: "proposer",
-    systemPrompt: protocolPrompts.proposer_final_system.text,
-    personaPrompt: proposerPersonaText,
-    contractClause,
-    proposerTurn: turn0.content,
-    criticTurn: turn1.content
-  });
-  if (!turn2.content) {
-    return emitFailure(turn2);
-  }
+  finalContent = finalCall.content;
+  finalModel = finalCall.modelActual ?? null;
 
   const parsedRecord = buildDebateParsedOutput(
     entry.trial_id,
-    turn2.content,
+    finalContent,
     resolvedConfig.protocol.decision_contract ?? undefined
   );
+
   const contractParseFailure = isContractParseFailure({
     hasDecisionContract: context.hasDecisionContract,
     trialSucceeded: true,
@@ -308,18 +421,16 @@ export const executeLiveDebateTrial = async (input: {
   const trialRecord: ArbiterTrialRecord = {
     trial_id: entry.trial_id,
     requested_model_slug: entry.assigned_config.model,
-    actual_model: turn2.modelActual ?? null,
+    actual_model: finalModel,
     protocol: "debate_v1",
     status: "success",
     assigned_config: entry.assigned_config,
     role_assignments: roleAssignments,
     calls,
     transcript,
-    raw_assistant_text: turn2.content
+    raw_assistant_text: finalContent
   };
-
-  bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
-  bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+  attachParseSummary(trialRecord, parsedRecord);
 
   if (
     shouldExcludeContractFailure({
@@ -327,30 +438,34 @@ export const executeLiveDebateTrial = async (input: {
       contractFailurePolicy: context.contractFailurePolicy
     })
   ) {
-    bus.emit({
-      type: "embedding.recorded",
-      payload: {
-        embedding_record: buildSkippedEmbedding(
-          entry.trial_id,
-          "contract_parse_excluded",
-          preparation
-        )
-      }
-    });
+    const embeddingRecord = buildSkippedEmbedding(entry.trial_id, "contract_parse_excluded", preparation);
+    const skipReason =
+      embeddingRecord.embedding_status === "skipped" ? embeddingRecord.skip_reason : undefined;
+    trialRecord.embedding = {
+      status: "skipped",
+      skip_reason: skipReason
+    };
+
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+    bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
+
     return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
   }
 
   if (preparation.was_empty) {
-    bus.emit({
-      type: "embedding.recorded",
-      payload: {
-        embedding_record: buildSkippedEmbedding(
-          entry.trial_id,
-          "empty_embed_text",
-          preparation
-        )
-      }
-    });
+    const embeddingRecord = buildSkippedEmbedding(entry.trial_id, "empty_embed_text", preparation);
+    const skipReason =
+      embeddingRecord.embedding_status === "skipped" ? embeddingRecord.skip_reason : undefined;
+    trialRecord.embedding = {
+      status: "skipped",
+      skip_reason: skipReason
+    };
+
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+    bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
+
     return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
   }
 
@@ -374,17 +489,20 @@ export const executeLiveDebateTrial = async (input: {
       embedResult.generationId
     );
 
-    bus.emit({
-      type: "embedding.recorded",
-      payload: {
-        embedding_record: buildSuccessEmbedding(
-          entry.trial_id,
-          embedResult.vector,
-          preparation,
-          embedResult.generationId
-        )
-      }
-    });
+    const embeddingRecord = buildSuccessEmbedding(
+      entry.trial_id,
+      embedResult.vector,
+      preparation,
+      embedResult.generationId
+    );
+    trialRecord.embedding = {
+      status: "success",
+      generation_id: embedResult.generationId ?? undefined
+    };
+
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+    bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
 
     return {
       trial_id: entry.trial_id,
@@ -392,12 +510,16 @@ export const executeLiveDebateTrial = async (input: {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    bus.emit({
-      type: "embedding.recorded",
-      payload: {
-        embedding_record: buildFailedEmbedding(entry.trial_id, message, preparation)
-      }
-    });
+    const embeddingRecord = buildFailedEmbedding(entry.trial_id, message, preparation);
+    trialRecord.embedding = {
+      status: "failed",
+      error: message
+    };
+
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+    bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
+
     return { trial_id: entry.trial_id, embedding: { status: "failed" } };
   }
 };

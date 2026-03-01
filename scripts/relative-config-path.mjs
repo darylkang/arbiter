@@ -23,7 +23,7 @@ try {
 
   execFileSync(
     "node",
-    [cliPath, "run", "configs/relative.config.json", "--out", "runs", "--debug", "--quiet"],
+    [cliPath, "run", "--config", "configs/relative.config.json", "--out", "runs"],
     { cwd: tempRoot, stdio: "ignore" }
   );
 

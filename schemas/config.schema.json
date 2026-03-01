@@ -175,6 +175,8 @@
       "required": ["type", "timeouts"],
       "properties": {
         "type": { "type": "string", "enum": ["independent", "debate_v1"] },
+        "participants": { "type": "integer", "minimum": 2 },
+        "rounds": { "type": "integer", "minimum": 1 },
         "timeouts": {
           "type": "object",
           "additionalProperties": false,
@@ -341,9 +343,11 @@
         "properties": {
           "protocol": {
             "type": "object",
-            "required": ["prompts"],
+            "required": ["prompts", "participants", "rounds"],
             "properties": {
-              "prompts": {}
+              "prompts": {},
+              "participants": {},
+              "rounds": {}
             }
           }
         }

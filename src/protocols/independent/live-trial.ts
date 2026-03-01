@@ -48,11 +48,6 @@ export const executeLiveIndependentTrial = async (input: {
   const attemptStarted = new Date().toISOString();
   let trialRecord: ArbiterTrialRecord;
   let rawAssistantText = "";
-  let responsePayload: unknown;
-  let actualModel: string | null = null;
-  let retryCount = 0;
-  let latencyMs = 0;
-  let chatError: OpenRouterError | null = null;
 
   try {
     const chatResult = await chatCompletion({
@@ -68,16 +63,12 @@ export const executeLiveIndependentTrial = async (input: {
       }
     });
 
-    retryCount = chatResult.retryCount;
-    latencyMs = chatResult.latencyMs;
-    responsePayload = chatResult.responseBody;
-    actualModel = chatResult.model;
     rawAssistantText = extractAssistantText(chatResult.responseBody);
 
     trialRecord = {
       trial_id: entry.trial_id,
       requested_model_slug: entry.assigned_config.model,
-      actual_model: actualModel ?? null,
+      actual_model: chatResult.model ?? null,
       protocol: "independent",
       status: "success",
       assigned_config: entry.assigned_config,
@@ -85,19 +76,17 @@ export const executeLiveIndependentTrial = async (input: {
       attempt: {
         started_at: attemptStarted,
         completed_at: new Date().toISOString(),
-        latency_ms: latencyMs,
-        retry_count: retryCount
+        latency_ms: chatResult.latencyMs,
+        retry_count: chatResult.retryCount
       },
       raw_assistant_text: rawAssistantText,
       request_payload: chatResult.requestPayload,
-      response_payload: asObject(responsePayload)
+      response_payload: asObject(chatResult.responseBody)
     };
   } catch (error) {
-    chatError = error instanceof OpenRouterError ? error : null;
-    retryCount = chatError?.retryCount ?? 0;
-    latencyMs = chatError?.latencyMs ?? 0;
-    responsePayload = chatError?.responseBody;
-    actualModel = extractActualModel(chatError?.responseBody);
+    const chatError = error instanceof OpenRouterError ? error : null;
+    const responsePayload = chatError?.responseBody;
+    const actualModel = extractActualModel(chatError?.responseBody);
 
     const status = deriveFailureStatus({
       timeoutExhausted: timeout.didTimeout(),
@@ -114,8 +103,8 @@ export const executeLiveIndependentTrial = async (input: {
       attempt: {
         started_at: attemptStarted,
         completed_at: new Date().toISOString(),
-        latency_ms: latencyMs,
-        retry_count: retryCount
+        latency_ms: chatError?.latencyMs ?? 0,
+        retry_count: chatError?.retryCount ?? 0
       },
       error: {
         message: chatError?.message ?? "OpenRouter request failed",
@@ -130,8 +119,6 @@ export const executeLiveIndependentTrial = async (input: {
     timeout.cancel();
   }
 
-  bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
-
   const parseError =
     trialRecord.status === "success"
       ? rawAssistantText
@@ -140,9 +127,7 @@ export const executeLiveIndependentTrial = async (input: {
       : trialRecord.error?.message ?? "Trial did not complete successfully";
   const outcome = rawAssistantText;
   const embedTextValue =
-    resolvedConfig.measurement.embed_text_strategy === "outcome_only"
-      ? outcome
-      : outcome || rawAssistantText;
+    resolvedConfig.measurement.embed_text_strategy === "outcome_only" ? outcome : outcome || rawAssistantText;
 
   const parsedRecord = resolvedConfig.protocol.decision_contract
     ? buildParsedOutputWithContract({
@@ -151,13 +136,7 @@ export const executeLiveIndependentTrial = async (input: {
         contract: resolvedConfig.protocol.decision_contract,
         parserVersion: "independent-v1"
       })
-    : buildIndependentParsedOutput(
-        entry.trial_id,
-        outcome,
-        rawAssistantText,
-        embedTextValue,
-        parseError
-      );
+    : buildIndependentParsedOutput(entry.trial_id, outcome, rawAssistantText, embedTextValue, parseError);
 
   const contractParseFailure = isContractParseFailure({
     hasDecisionContract: context.hasDecisionContract,
@@ -174,19 +153,35 @@ export const executeLiveIndependentTrial = async (input: {
 
   const preparation = prepareEmbedText(parsedRecord.embed_text ?? "", context.embeddingMaxChars);
   parsedRecord.embed_text = preparation.text || undefined;
-  bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+  const normalizedConfidence =
+    parsedRecord.confidence === undefined || parsedRecord.confidence === null
+      ? parsedRecord.confidence
+      : String(parsedRecord.confidence);
+
+  trialRecord.parsed = {
+    parse_status: parsedRecord.parse_status,
+    parser_version: parsedRecord.parser_version ?? "unknown",
+    ...(parsedRecord.extraction_method !== undefined
+      ? { extraction_method: parsedRecord.extraction_method }
+      : {}),
+    ...(parsedRecord.embed_text_source !== undefined
+      ? { embed_text_source: parsedRecord.embed_text_source }
+      : {}),
+    confidence: normalizedConfidence,
+    ...(parsedRecord.outcome !== undefined ? { outcome: parsedRecord.outcome } : {}),
+    ...(parsedRecord.rationale !== undefined ? { rationale: parsedRecord.rationale } : {}),
+    ...(parsedRecord.embed_text !== undefined ? { embed_text: parsedRecord.embed_text } : {}),
+    ...(parsedRecord.parse_error !== undefined ? { parse_error: parsedRecord.parse_error } : {})
+  };
 
   if (trialRecord.status !== "success") {
-    bus.emit({
-      type: "embedding.recorded",
-      payload: {
-        embedding_record: buildSkippedEmbedding(
-          entry.trial_id,
-          "trial_not_success",
-          preparation
-        )
-      }
-    });
+    const embeddingRecord = buildSkippedEmbedding(entry.trial_id, "trial_not_success", preparation);
+    const skipReason =
+      embeddingRecord.embedding_status === "skipped" ? embeddingRecord.skip_reason : undefined;
+    trialRecord.embedding = { status: "skipped", skip_reason: skipReason };
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+    bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
     return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
   }
 
@@ -196,30 +191,24 @@ export const executeLiveIndependentTrial = async (input: {
       contractFailurePolicy: context.contractFailurePolicy
     })
   ) {
-    bus.emit({
-      type: "embedding.recorded",
-      payload: {
-        embedding_record: buildSkippedEmbedding(
-          entry.trial_id,
-          "contract_parse_excluded",
-          preparation
-        )
-      }
-    });
+    const embeddingRecord = buildSkippedEmbedding(entry.trial_id, "contract_parse_excluded", preparation);
+    const skipReason =
+      embeddingRecord.embedding_status === "skipped" ? embeddingRecord.skip_reason : undefined;
+    trialRecord.embedding = { status: "skipped", skip_reason: skipReason };
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+    bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
     return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
   }
 
   if (preparation.was_empty) {
-    bus.emit({
-      type: "embedding.recorded",
-      payload: {
-        embedding_record: buildSkippedEmbedding(
-          entry.trial_id,
-          "empty_embed_text",
-          preparation
-        )
-      }
-    });
+    const embeddingRecord = buildSkippedEmbedding(entry.trial_id, "empty_embed_text", preparation);
+    const skipReason =
+      embeddingRecord.embedding_status === "skipped" ? embeddingRecord.skip_reason : undefined;
+    trialRecord.embedding = { status: "skipped", skip_reason: skipReason };
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+    bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
     return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
   }
 
@@ -243,17 +232,20 @@ export const executeLiveIndependentTrial = async (input: {
       embedResult.generationId
     );
 
-    bus.emit({
-      type: "embedding.recorded",
-      payload: {
-        embedding_record: buildSuccessEmbedding(
-          entry.trial_id,
-          embedResult.vector,
-          preparation,
-          embedResult.generationId
-        )
-      }
-    });
+    const embeddingRecord = buildSuccessEmbedding(
+      entry.trial_id,
+      embedResult.vector,
+      preparation,
+      embedResult.generationId
+    );
+    trialRecord.embedding = {
+      status: "success",
+      generation_id: embedResult.generationId ?? undefined
+    };
+
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+    bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
 
     return {
       trial_id: entry.trial_id,
@@ -261,12 +253,14 @@ export const executeLiveIndependentTrial = async (input: {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    bus.emit({
-      type: "embedding.recorded",
-      payload: {
-        embedding_record: buildFailedEmbedding(entry.trial_id, message, preparation)
-      }
-    });
+    const embeddingRecord = buildFailedEmbedding(entry.trial_id, message, preparation);
+    trialRecord.embedding = {
+      status: "failed",
+      error: message
+    };
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+    bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
     return { trial_id: entry.trial_id, embedding: { status: "failed" } };
   }
 };

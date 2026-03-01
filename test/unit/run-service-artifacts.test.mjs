@@ -117,13 +117,10 @@ test("runMockService writes complete artifact set with manifest/count consistenc
     const files = listFilesRecursive(runDir);
 
     const requiredFiles = [
-      "aggregates.json",
       "config.resolved.json",
-      "convergence_trace.jsonl",
-      "embeddings.arrow",
-      "embeddings.provenance.json",
+      "config.source.json",
       "manifest.json",
-      "parsed.jsonl",
+      "monitoring.jsonl",
       "receipt.txt",
       "trial_plan.jsonl",
       "trials.jsonl"
@@ -151,16 +148,20 @@ test("runMockService writes complete artifact set with manifest/count consistenc
 
     const trialPlanCount = countJsonlLines(join(runDir, "trial_plan.jsonl"));
     const trialCount = countJsonlLines(join(runDir, "trials.jsonl"));
-    const parsedCount = countJsonlLines(join(runDir, "parsed.jsonl"));
+    const monitoringCount = countJsonlLines(join(runDir, "monitoring.jsonl"));
 
     assert.equal(trialPlanCount, resolvedConfig.execution.k_max);
     assert.equal(trialCount, result.kAttempted);
-    assert.equal(parsedCount, result.kAttempted);
+    assert.equal(monitoringCount > 0, true);
 
     const artifactPaths = manifest.artifacts.entries.map((entry) => entry.path).sort();
+    const hasEmbeddingsArtifact =
+      artifactPaths.includes("embeddings.arrow") || artifactPaths.includes("embeddings.jsonl");
+
     assert.equal(artifactPaths.includes("receipt.txt"), true);
-    assert.equal(artifactPaths.includes("embeddings.arrow"), true);
-    assert.equal(artifactPaths.includes("embeddings.provenance.json"), true);
+    assert.equal(artifactPaths.includes("config.source.json"), true);
+    assert.equal(artifactPaths.includes("monitoring.jsonl"), true);
+    assert.equal(hasEmbeddingsArtifact, true);
   });
 });
 
@@ -230,9 +231,8 @@ test("runMockService with contract_failure_policy=exclude completes with zero el
       "no_successful_embeddings"
     );
 
-    const embeddingsProvenance = JSON.parse(
-      readFileSync(join(result.runDir, "embeddings.provenance.json"), "utf8")
-    );
-    assert.equal(embeddingsProvenance.status, "not_generated");
+    const manifest = JSON.parse(readFileSync(join(result.runDir, "manifest.json"), "utf8"));
+    assert.equal(manifest.measurement.embedding.status, "not_generated");
+    assert.equal(existsSync(join(result.runDir, "embeddings.provenance.json")), false);
   });
 });

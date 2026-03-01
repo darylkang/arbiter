@@ -61,6 +61,12 @@ export interface ArbiterRunManifest {
       [k: string]: UsageStats;
     };
   };
+  measurement?: {
+    [k: string]: unknown;
+  };
+  metrics?: {
+    [k: string]: unknown;
+  };
 }
 export interface UsageStats {
   prompt_tokens: number;

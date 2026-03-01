@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { tableFromIPC } from "apache-arrow";
@@ -72,10 +72,9 @@ const configPath = resolve(tempRoot, "arbiter.config.json");
 writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
 try {
-  execSync(
-    `node dist/cli/index.js run --config ${configPath} --out ${runsDir} --debug`,
-    { stdio: "inherit" }
-  );
+  execSync(`node dist/cli/index.js run --config ${configPath} --out ${runsDir}`, {
+    stdio: "inherit"
+  });
 
   const runDirs = readdirSync(runsDir);
   if (runDirs.length !== 1) {
@@ -84,17 +83,14 @@ try {
 
   const runDir = resolve(runsDir, runDirs[0]);
   const requiredPaths = [
+    "config.source.json",
     "config.resolved.json",
     "manifest.json",
     "trial_plan.jsonl",
     "trials.jsonl",
-    "parsed.jsonl",
-    "convergence_trace.jsonl",
-    "embeddings.provenance.json",
+    "monitoring.jsonl",
     "embeddings.arrow",
-    "aggregates.json",
-    "receipt.txt",
-    "debug/embeddings.jsonl"
+    "receipt.txt"
   ];
 
   for (const relPath of requiredPaths) {
@@ -133,21 +129,21 @@ try {
     }
   });
 
-  const convergenceLines = readFileSync(resolve(runDir, "convergence_trace.jsonl"), "utf8")
+  const monitoringLines = readFileSync(resolve(runDir, "monitoring.jsonl"), "utf8")
     .trim()
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line));
-  const lastConvergence = convergenceLines[convergenceLines.length - 1];
-  const aggregates = JSON.parse(readFileSync(resolve(runDir, "aggregates.json"), "utf8"));
-  if (aggregates.novelty_rate !== lastConvergence.novelty_rate) {
-    throw new Error("Aggregates novelty_rate does not match final convergence record");
+  const lastMonitoring = monitoringLines[monitoringLines.length - 1];
+  const finalMetrics = manifest.metrics?.final ?? {};
+  if (finalMetrics.novelty_rate !== lastMonitoring.novelty_rate) {
+    throw new Error("Manifest final novelty_rate does not match last monitoring record");
   }
-  if (aggregates.mean_max_sim_to_prior !== lastConvergence.mean_max_sim_to_prior) {
-    throw new Error("Aggregates mean_max_sim_to_prior does not match final convergence record");
+  if (finalMetrics.mean_max_sim_to_prior !== lastMonitoring.mean_max_sim_to_prior) {
+    throw new Error("Manifest final mean_max_sim_to_prior does not match last monitoring record");
   }
-  if (aggregates.cluster_count !== null || aggregates.entropy !== null) {
-    throw new Error("Aggregates should not include clustering metrics when clustering is disabled");
+  if (manifest.measurement?.grouping?.enabled !== false) {
+    throw new Error("Expected grouping.enabled=false when clustering is disabled");
   }
 
   const arrowBuffer = readFileSync(resolve(runDir, "embeddings.arrow"));
@@ -156,22 +152,25 @@ try {
     throw new Error(`Expected 5 embeddings rows, got ${table.numRows}`);
   }
 
-  const embeddingLines = readFileSync(resolve(runDir, "debug/embeddings.jsonl"), "utf8")
-    .trim()
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => JSON.parse(line));
-  const successRecords = embeddingLines.filter(
-    (record) => record.embedding_status === "success"
-  );
-  if (successRecords.length === 0) {
-    throw new Error("Expected at least one successful embedding record");
-  }
-  successRecords.forEach((record) => {
-    if (!record.generation_id || typeof record.generation_id !== "string") {
-      throw new Error("Expected generation_id on successful embedding records");
+  const embeddingsJsonlPath = resolve(runDir, "embeddings.jsonl");
+  if (existsSync(embeddingsJsonlPath)) {
+    const embeddingLines = readFileSync(embeddingsJsonlPath, "utf8")
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+    const successRecords = embeddingLines.filter(
+      (record) => record.embedding_status === "success"
+    );
+    if (successRecords.length === 0) {
+      throw new Error("Expected at least one successful embedding record when embeddings.jsonl is present");
     }
-  });
+    successRecords.forEach((record) => {
+      if (!record.generation_id || typeof record.generation_id !== "string") {
+        throw new Error("Expected generation_id on successful embedding records");
+      }
+    });
+  }
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }

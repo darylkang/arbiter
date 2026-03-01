@@ -15,13 +15,12 @@ const run = (args) => {
 
 const noArgs = run([]);
 assert.equal(noArgs.status, 0);
-assert.match(noArgs.stdout, /Workflow:/);
-assert.doesNotMatch(noArgs.stdout, /wizard/i);
-assert.doesNotMatch(noArgs.stdout, /quickstart/);
-assert.doesNotMatch(noArgs.stdout, /mock-run/);
+assert.match(noArgs.stdout, /Commands:/);
+assert.match(noArgs.stdout, /arbiter run/);
+assert.doesNotMatch(noArgs.stdout, /--headless/);
 
-const headlessOnly = run(["--headless"]);
-assert.equal(headlessOnly.status, 0);
-assert.match(headlessOnly.stdout, /Workflow:/);
+const rootHelp = run(["--help"]);
+assert.equal(rootHelp.status, 0);
+assert.match(rootHelp.stdout, /Global flags:/);
 
 console.log("tui headless smoke: ok");

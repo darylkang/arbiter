@@ -41,6 +41,8 @@ export type ArbiterResolvedConfig = {
   };
   protocol: {
     type: "independent" | "debate_v1";
+    participants?: number;
+    rounds?: number;
     timeouts: {
       per_call_timeout_ms: number;
       per_call_max_retries: number;

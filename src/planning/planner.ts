@@ -11,6 +11,10 @@ export type TrialPlanEntry = {
   protocol: "independent" | "debate_v1";
   assigned_config: ArbiterTrialRecord["assigned_config"];
   role_assignments?: ArbiterTrialRecord["role_assignments"];
+  debate?: {
+    participants: number;
+    rounds: number;
+  };
 };
 
 const sampleWeighted = <T>(items: Array<WeightedItem<T>>, rng: () => number): T => {
@@ -75,40 +79,58 @@ export const generateTrialPlan = (
 ): { plan: TrialPlanEntry[]; planSha256: string } => {
   const plan: TrialPlanEntry[] = [];
 
+  const resolveSlotId = (index: number): string => {
+    if (index < 26) {
+      return String.fromCharCode(65 + index);
+    }
+    return `P${index + 1}`;
+  };
+
   for (let trialId = 0; trialId < config.execution.k_max; trialId += 1) {
     const planRng = createRngForTrial(config.run.seed, "plan", trialId);
-    const decodeRng = createRngForTrial(config.run.seed, "decode", trialId);
-
-    const model = sampleWeighted(config.sampling.models, planRng);
-    const decode = resolveDecodeParams(config.sampling.decode, decodeRng);
 
     if (config.protocol.type === "debate_v1") {
-      const proposerPersona = sampleWeighted(config.sampling.personas, planRng);
-      const criticPersona = sampleWeighted(config.sampling.personas, planRng);
+      const participants = config.protocol.participants ?? 2;
+      const rounds = config.protocol.rounds ?? 1;
+      const roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]> = {};
+
+      for (let participantIndex = 0; participantIndex < participants; participantIndex += 1) {
+        const slotId = resolveSlotId(participantIndex);
+        const sampledModel = sampleWeighted(config.sampling.models, planRng);
+        const sampledPersona = sampleWeighted(config.sampling.personas, planRng);
+        const slotDecodeRng = createRngForTrial(config.run.seed, `decode:${slotId}`, trialId);
+        const decode = resolveDecodeParams(config.sampling.decode, slotDecodeRng);
+        roleAssignments[slotId] = {
+          model_slug: sampledModel.model,
+          persona_id: sampledPersona.persona,
+          decode
+        };
+      }
+
+      const slotA = roleAssignments.A ?? Object.values(roleAssignments)[0];
+      if (!slotA) {
+        throw new Error("Debate plan generation produced no slot assignments");
+      }
 
       plan.push({
         trial_id: trialId,
         protocol: "debate_v1",
         assigned_config: {
-          model: model.model,
-          persona: proposerPersona.persona,
+          model: slotA.model_slug,
+          persona: slotA.persona_id ?? "persona_neutral",
           protocol: "debate_v1",
-          decode
+          decode: slotA.decode
         },
-        role_assignments: {
-          proposer: {
-            model_slug: model.model,
-            persona_id: proposerPersona.persona,
-            decode
-          },
-          critic: {
-            model_slug: model.model,
-            persona_id: criticPersona.persona,
-            decode
-          }
+        role_assignments: roleAssignments,
+        debate: {
+          participants,
+          rounds
         }
       });
     } else {
+      const decodeRng = createRngForTrial(config.run.seed, "decode", trialId);
+      const model = sampleWeighted(config.sampling.models, planRng);
+      const decode = resolveDecodeParams(config.sampling.decode, decodeRng);
       const persona = sampleWeighted(config.sampling.personas, planRng);
       const protocol = sampleWeighted(config.sampling.protocols, planRng);
       plan.push({

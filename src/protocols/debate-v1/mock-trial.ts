@@ -12,6 +12,17 @@ import {
   type MockTrialExecutionContext
 } from "../../engine/mock-trial-context.js";
 
+const sortedSlots = (roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]>): string[] =>
+  Object.keys(roleAssignments).sort((a, b) => {
+    if (a === "A") {
+      return -1;
+    }
+    if (b === "A") {
+      return 1;
+    }
+    return a.localeCompare(b);
+  });
+
 export const executeMockDebateTrial = async (input: {
   context: MockTrialExecutionContext;
   entry: TrialPlanEntry;
@@ -20,8 +31,42 @@ export const executeMockDebateTrial = async (input: {
   const { context, entry, embedRng } = input;
   const { bus, resolvedConfig } = context;
 
-  const proposerIntro = `Proposer opening ${entry.trial_id}`;
-  const criticReply = `Critic response ${entry.trial_id}`;
+  const roleAssignments = entry.role_assignments ?? { A: { model_slug: entry.assigned_config.model, persona_id: entry.assigned_config.persona } };
+  const slots = sortedSlots(roleAssignments);
+  const slotA = slots.includes("A") ? "A" : slots[0];
+  const rounds = entry.debate?.rounds ?? resolvedConfig.protocol.rounds ?? 1;
+
+  const calls: NonNullable<ArbiterTrialRecord["calls"]> = [];
+  const transcript: NonNullable<ArbiterTrialRecord["transcript"]> = [];
+
+  let callIndex = 0;
+  let turn = 0;
+  for (let round = 1; round <= rounds; round += 1) {
+    for (const slotId of slots) {
+      const content = `Slot ${slotId} round ${round} response for trial ${entry.trial_id}`;
+      const assignment = roleAssignments[slotId] ?? roleAssignments[slotA];
+      calls.push({
+        call_index: callIndex,
+        turn,
+        role: slotId,
+        model_requested: assignment.model_slug,
+        model_actual: assignment.model_slug,
+        request_payload: { mock: true, slot: slotId, round },
+        response_payload: { content },
+        attempt: {
+          started_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+          latency_ms: 0,
+          retry_count: 0
+        },
+        error_message: null
+      });
+      transcript.push({ turn, role: slotId, content });
+      callIndex += 1;
+      turn += 1;
+    }
+  }
+
   const finalPayload =
     entry.trial_id % 3 === 0
       ? `Here is the decision:\n\`\`\`json\n${JSON.stringify({
@@ -37,83 +82,31 @@ export const executeMockDebateTrial = async (input: {
           })}`
         : `Raw final content ${entry.trial_id}`;
 
-  const calls: NonNullable<ArbiterTrialRecord["calls"]> = [
-    {
-      call_index: 0,
-      turn: 0,
-      role: "proposer",
-      model_requested: entry.assigned_config.model,
-      model_actual: entry.assigned_config.model,
-      request_payload: { mock: true, turn: 0 },
-      response_payload: { content: proposerIntro },
-      attempt: {
-        started_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-        latency_ms: 0,
-        retry_count: 0
-      },
-      error_message: null
+  const slotAFinalAssignment = roleAssignments[slotA] ?? roleAssignments[slots[0]];
+  calls.push({
+    call_index: callIndex,
+    turn,
+    role: slotA,
+    model_requested: slotAFinalAssignment.model_slug,
+    model_actual: slotAFinalAssignment.model_slug,
+    request_payload: { mock: true, slot: slotA, final: true },
+    response_payload: { content: finalPayload },
+    attempt: {
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latency_ms: 0,
+      retry_count: 0
     },
-    {
-      call_index: 1,
-      turn: 1,
-      role: "critic",
-      model_requested: entry.assigned_config.model,
-      model_actual: entry.assigned_config.model,
-      request_payload: { mock: true, turn: 1 },
-      response_payload: { content: criticReply },
-      attempt: {
-        started_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-        latency_ms: 0,
-        retry_count: 0
-      },
-      error_message: null
-    },
-    {
-      call_index: 2,
-      turn: 2,
-      role: "proposer",
-      model_requested: entry.assigned_config.model,
-      model_actual: entry.assigned_config.model,
-      request_payload: { mock: true, turn: 2 },
-      response_payload: { content: finalPayload },
-      attempt: {
-        started_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-        latency_ms: 0,
-        retry_count: 0
-      },
-      error_message: null
-    }
-  ];
-
-  const transcript: NonNullable<ArbiterTrialRecord["transcript"]> = [
-    { turn: 0, role: "proposer", content: proposerIntro },
-    { turn: 1, role: "critic", content: criticReply },
-    { turn: 2, role: "proposer", content: finalPayload }
-  ];
-
-  const trialRecord: ArbiterTrialRecord = {
-    trial_id: entry.trial_id,
-    requested_model_slug: entry.assigned_config.model,
-    actual_model: entry.assigned_config.model,
-    protocol: "debate_v1",
-    status: "success",
-    assigned_config: entry.assigned_config,
-    role_assignments: entry.role_assignments,
-    calls,
-    transcript,
-    raw_assistant_text: finalPayload
-  };
-
-  bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    error_message: null
+  });
+  transcript.push({ turn, role: slotA, content: finalPayload });
 
   const parsedRecord = buildDebateParsedOutput(
     entry.trial_id,
     finalPayload,
     resolvedConfig.protocol.decision_contract ?? undefined
   );
+
   if (context.hasDecisionContract && parsedRecord.parse_status !== "success") {
     if (parsedRecord.parse_status === "fallback") {
       context.state.contractFailures.fallback += 1;
@@ -121,10 +114,43 @@ export const executeMockDebateTrial = async (input: {
       context.state.contractFailures.failed += 1;
     }
   }
-  const rawEmbedText = context.forceEmptyEmbedText ? "" : parsedRecord.embed_text ?? "";
-  const preparation = prepareEmbedText(rawEmbedText, context.embeddingMaxChars);
+
+  const preparation = prepareEmbedText(
+    context.forceEmptyEmbedText ? "" : parsedRecord.embed_text ?? "",
+    context.embeddingMaxChars
+  );
   parsedRecord.embed_text = preparation.text || undefined;
-  bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+
+  const trialRecord: ArbiterTrialRecord = {
+    trial_id: entry.trial_id,
+    requested_model_slug: entry.assigned_config.model,
+    actual_model: slotAFinalAssignment.model_slug,
+    protocol: "debate_v1",
+    status: "success",
+    assigned_config: entry.assigned_config,
+    role_assignments: roleAssignments,
+    calls,
+    transcript,
+    raw_assistant_text: finalPayload,
+    parsed: {
+      parse_status: parsedRecord.parse_status,
+      parser_version: parsedRecord.parser_version ?? "unknown",
+      ...(parsedRecord.extraction_method !== undefined
+        ? { extraction_method: parsedRecord.extraction_method }
+        : {}),
+      ...(parsedRecord.embed_text_source !== undefined
+        ? { embed_text_source: parsedRecord.embed_text_source }
+        : {}),
+      confidence:
+        parsedRecord.confidence === undefined || parsedRecord.confidence === null
+          ? parsedRecord.confidence
+          : String(parsedRecord.confidence),
+      ...(parsedRecord.outcome !== undefined ? { outcome: parsedRecord.outcome } : {}),
+      ...(parsedRecord.rationale !== undefined ? { rationale: parsedRecord.rationale } : {}),
+      ...(parsedRecord.embed_text !== undefined ? { embed_text: parsedRecord.embed_text } : {}),
+      ...(parsedRecord.parse_error !== undefined ? { parse_error: parsedRecord.parse_error } : {})
+    }
+  };
 
   if (
     shouldExcludeMockContractFailure({
@@ -139,6 +165,14 @@ export const executeMockDebateTrial = async (input: {
       parsedRecord,
       preparation
     );
+    const skipReason =
+      embeddingRecord.embedding_status === "skipped" ? embeddingRecord.skip_reason : undefined;
+    trialRecord.embedding = {
+      status: "skipped",
+      skip_reason: skipReason
+    };
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
     bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
     return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
   }
@@ -150,6 +184,14 @@ export const executeMockDebateTrial = async (input: {
       parsedRecord,
       preparation
     );
+    const skipReason =
+      embeddingRecord.embedding_status === "skipped" ? embeddingRecord.skip_reason : undefined;
+    trialRecord.embedding = {
+      status: "skipped",
+      skip_reason: skipReason
+    };
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
     bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
     return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
   }
@@ -172,6 +214,14 @@ export const executeMockDebateTrial = async (input: {
     embed_text_final_chars: preparation.final_chars,
     truncation_reason: preparation.truncation_reason
   };
+
+  trialRecord.embedding = {
+    status: "success",
+    generation_id: generationId
+  };
+
+  bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+  bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
   bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
 
   return { trial_id: entry.trial_id, embedding: { status: "success", vector } };

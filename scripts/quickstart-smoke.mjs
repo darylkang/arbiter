@@ -2,18 +2,16 @@ import { execSync } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { formatVerifyReport, verifyRunDir } from "../dist/tools/verify-run.js";
 
 const tempRoot = mkdtempSync(resolve(tmpdir(), "arbiter-quickstart-"));
 const runsDir = resolve(tempRoot, "runs");
 const cliPath = resolve("dist/cli/index.js");
 
 try {
-  execSync(
-    `node ${cliPath} init "Quickstart smoke question" --template quickstart_independent`,
-    { cwd: tempRoot, stdio: "inherit" }
-  );
+  execSync(`node ${cliPath} init`, { cwd: tempRoot, stdio: "inherit" });
 
-  execSync(`node ${cliPath} run --out ${runsDir}`, {
+  execSync(`node ${cliPath} run --config arbiter.config.json --out ${runsDir}`, {
     cwd: tempRoot,
     stdio: "inherit"
   });
@@ -24,7 +22,10 @@ try {
   }
 
   const runDir = resolve(runsDir, runDirs[0]);
-  execSync(`node ${cliPath} verify ${runDir}`, { stdio: "inherit" });
+  const report = verifyRunDir(runDir);
+  if (!report.ok) {
+    throw new Error(`quickstart verify failed:\n${formatVerifyReport(report)}`);
+  }
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }

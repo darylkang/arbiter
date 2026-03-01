@@ -32,6 +32,8 @@
   },
   "protocol": {
     "type": "debate_v1",
+    "participants": 2,
+    "rounds": 1,
     "timeouts": {
       "per_call_timeout_ms": 90000,
       "per_call_max_retries": 2,

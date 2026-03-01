@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { mkdirSync, readdirSync, rmSync, readFileSync } from "node:fs";
+import { mkdirSync, readdirSync, rmSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -20,10 +20,9 @@ for (const template of templates) {
   mkdirSync(runsDir, { recursive: true });
 
   try {
-    execSync(`node ${cliPath} init --template ${template}`, {
-      cwd: tempRoot,
-      stdio: "inherit"
-    });
+    const templatePath = resolve("resources/templates", `${template}.config.json`);
+    const templateConfig = JSON.parse(readFileSync(templatePath, "utf8"));
+    writeFileSync(resolve(tempRoot, "arbiter.config.json"), `${JSON.stringify(templateConfig, null, 2)}\n`, "utf8");
 
     execSync(
       `node ${cliPath} run --config arbiter.config.json --out ${runsDir} --max-trials 2 --batch-size 1 --workers 1`,
@@ -36,20 +35,23 @@ for (const template of templates) {
     }
     const runDir = resolve(runsDir, runDirs[0]);
     const requiredFiles = [
+      "config.source.json",
       "config.resolved.json",
       "manifest.json",
       "trial_plan.jsonl",
       "trials.jsonl",
-      "parsed.jsonl",
-      "convergence_trace.jsonl",
-      "aggregates.json",
-      "embeddings.arrow",
-      "embeddings.provenance.json",
+      "monitoring.jsonl",
       "receipt.txt"
     ];
     for (const file of requiredFiles) {
       const path = resolve(runDir, file);
       readFileSync(path);
+    }
+
+    const hasEmbeddings =
+      readdirSync(runDir).includes("embeddings.arrow") || readdirSync(runDir).includes("embeddings.jsonl");
+    if (!hasEmbeddings) {
+      throw new Error(`Expected embeddings artifact for template ${template}`);
     }
   } finally {
     rmSync(tempRoot, { recursive: true, force: true });

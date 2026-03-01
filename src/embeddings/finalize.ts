@@ -6,7 +6,6 @@ import { resolve } from "node:path";
 import { FixedSizeList, Field, Float32, Int32, Table, tableToIPC, vectorFromArray } from "apache-arrow";
 
 import type { EmbeddingsProvenance } from "../artifacts/embeddings-provenance.js";
-import { writeJsonAtomic } from "../artifacts/io.js";
 import { decodeFloat32Base64 } from "../utils/float32-base64.js";
 
 export type EmbeddingJsonlRecord = {
@@ -48,10 +47,9 @@ export const finalizeEmbeddingsToArrow = async (
   options: FinalizeEmbeddingsOptions
 ): Promise<FinalizeEmbeddingsResult> => {
   const debugJsonlPath = options.debugJsonlPath ??
-    resolve(options.runDir, "debug", "embeddings.jsonl");
+    resolve(options.runDir, "embeddings.jsonl");
   const arrowPath = resolve(options.runDir, "embeddings.arrow");
   const arrowTmpPath = `${arrowPath}.tmp`;
-  const provenancePath = resolve(options.runDir, "embeddings.provenance.json");
 
   const successes: Array<{ trial_id: number; vector: number[] }> = [];
   let successCount = 0;
@@ -137,7 +135,6 @@ export const finalizeEmbeddingsToArrow = async (
       debug_jsonl_present: true
     };
 
-    writeJsonAtomic(provenancePath, provenance);
     return { arrowPath, provenance };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -160,7 +157,6 @@ export const finalizeEmbeddingsToArrow = async (
       embed_text_strategy: options.provenance?.embedTextStrategy,
       normalization: options.provenance?.normalization
     };
-    writeJsonAtomic(provenancePath, provenance);
     return { provenance };
   }
 };

@@ -1,7 +1,8 @@
-import { execSync } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import { runResolveService } from "../dist/run/run-service.js";
+import { formatVerifyReport, verifyRunDir } from "../dist/tools/verify-run.js";
 
 const tempRoot = resolve(tmpdir(), `arbiter-resolve-only-${Date.now()}`);
 const runsDir = resolve(tempRoot, "runs");
@@ -13,15 +14,17 @@ try {
   const configPath = resolve(tempRoot, "arbiter.config.json");
   writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
-  execSync(`node dist/cli/index.js resolve --config ${configPath} --out ${runsDir}`, {
-    stdio: "ignore"
+  const result = runResolveService({
+    configPath,
+    assetRoot: resolve("."),
+    runsDir
   });
 
   const runDirs = readdirSync(runsDir);
   if (runDirs.length !== 1) {
     throw new Error(`Expected 1 run dir, got ${runDirs.length}`);
   }
-  const runDir = resolve(runsDir, runDirs[0]);
+  const runDir = result.runDir;
   const entries = readdirSync(runDir).sort();
   const expected = ["config.resolved.json", "manifest.json"];
   if (entries.length !== expected.length || entries.some((entry, i) => entry !== expected[i])) {
@@ -30,7 +33,10 @@ try {
     );
   }
 
-  execSync(`node dist/cli/index.js verify ${runDir}`, { stdio: "inherit" });
+  const report = verifyRunDir(runDir);
+  if (!report.ok) {
+    throw new Error(`resolve-only verify report failed:\n${formatVerifyReport(report)}`);
+  }
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }

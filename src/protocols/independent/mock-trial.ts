@@ -30,18 +30,6 @@ export const executeMockIndependentTrial = async (input: {
       ? outcome
       : outcome || rawAssistantText;
 
-  const trialRecord: ArbiterTrialRecord = {
-    trial_id: entry.trial_id,
-    requested_model_slug: entry.assigned_config.model,
-    actual_model: entry.assigned_config.model,
-    protocol: "independent",
-    status: "success",
-    assigned_config: entry.assigned_config,
-    raw_assistant_text: rawAssistantText
-  };
-
-  bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
-
   const parsedRecord = resolvedConfig.protocol.decision_contract
     ? buildParsedOutputWithContract({
         trialId: entry.trial_id,
@@ -49,17 +37,13 @@ export const executeMockIndependentTrial = async (input: {
         contract: resolvedConfig.protocol.decision_contract,
         parserVersion: "independent-v1"
       })
-    : buildMockIndependentParsedOutput(
-        entry.trial_id,
-        outcome,
-        rawAssistantText,
-        embedTextValue
-      );
+    : buildMockIndependentParsedOutput(entry.trial_id, outcome, rawAssistantText, embedTextValue);
 
   const preparation = prepareEmbedText(
     context.forceEmptyEmbedText ? "" : parsedRecord.embed_text ?? "",
     context.embeddingMaxChars
   );
+
   if (context.hasDecisionContract && parsedRecord.parse_status !== "success") {
     if (parsedRecord.parse_status === "fallback") {
       context.state.contractFailures.fallback += 1;
@@ -67,8 +51,37 @@ export const executeMockIndependentTrial = async (input: {
       context.state.contractFailures.failed += 1;
     }
   }
+
   parsedRecord.embed_text = preparation.text || undefined;
-  bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
+  const normalizedConfidence =
+    parsedRecord.confidence === undefined || parsedRecord.confidence === null
+      ? parsedRecord.confidence
+      : String(parsedRecord.confidence);
+
+  const trialRecord: ArbiterTrialRecord = {
+    trial_id: entry.trial_id,
+    requested_model_slug: entry.assigned_config.model,
+    actual_model: entry.assigned_config.model,
+    protocol: "independent",
+    status: "success",
+    assigned_config: entry.assigned_config,
+    raw_assistant_text: rawAssistantText,
+    parsed: {
+      parse_status: parsedRecord.parse_status,
+      parser_version: parsedRecord.parser_version ?? "unknown",
+      ...(parsedRecord.extraction_method !== undefined
+        ? { extraction_method: parsedRecord.extraction_method }
+        : {}),
+      ...(parsedRecord.embed_text_source !== undefined
+        ? { embed_text_source: parsedRecord.embed_text_source }
+        : {}),
+      confidence: normalizedConfidence,
+      ...(parsedRecord.outcome !== undefined ? { outcome: parsedRecord.outcome } : {}),
+      ...(parsedRecord.rationale !== undefined ? { rationale: parsedRecord.rationale } : {}),
+      ...(parsedRecord.embed_text !== undefined ? { embed_text: parsedRecord.embed_text } : {}),
+      ...(parsedRecord.parse_error !== undefined ? { parse_error: parsedRecord.parse_error } : {})
+    }
+  };
 
   if (
     shouldExcludeMockContractFailure({
@@ -83,6 +96,14 @@ export const executeMockIndependentTrial = async (input: {
       parsedRecord,
       preparation
     );
+    const skipReason =
+      embeddingRecord.embedding_status === "skipped" ? embeddingRecord.skip_reason : undefined;
+    trialRecord.embedding = {
+      status: "skipped",
+      skip_reason: skipReason
+    };
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
     bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
     return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
   }
@@ -94,6 +115,14 @@ export const executeMockIndependentTrial = async (input: {
       parsedRecord,
       preparation
     );
+    const skipReason =
+      embeddingRecord.embedding_status === "skipped" ? embeddingRecord.skip_reason : undefined;
+    trialRecord.embedding = {
+      status: "skipped",
+      skip_reason: skipReason
+    };
+    bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+    bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
     bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
     return { trial_id: entry.trial_id, embedding: { status: "skipped" } };
   }
@@ -116,6 +145,14 @@ export const executeMockIndependentTrial = async (input: {
     embed_text_final_chars: preparation.final_chars,
     truncation_reason: preparation.truncation_reason
   };
+
+  trialRecord.embedding = {
+    status: "success",
+    generation_id: generationId
+  };
+
+  bus.emit({ type: "trial.completed", payload: { trial_record: trialRecord } });
+  bus.emit({ type: "parsed.output", payload: { parsed_record: parsedRecord } });
   bus.emit({ type: "embedding.recorded", payload: { embedding_record: embeddingRecord } });
 
   return { trial_id: entry.trial_id, embedding: { status: "success", vector } };

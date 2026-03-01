@@ -29,6 +29,7 @@ export interface ResolveConfigOptions {
 }
 
 export interface ResolveConfigResult {
+  sourceConfig: ArbiterResolvedConfig;
   resolvedConfig: ArbiterResolvedConfig;
   warnings: string[];
   catalog: ArbiterModelCatalog;
@@ -109,7 +110,8 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
     options.contractManifestPath ?? "resources/contracts/manifest.json"
   );
 
-  const config = readJsonFile<ArbiterResolvedConfig>(configPath);
+  const sourceConfig = readJsonFile<ArbiterResolvedConfig>(configPath);
+  const config = JSON.parse(JSON.stringify(sourceConfig)) as ArbiterResolvedConfig;
   if (!config.protocol) {
     throw new Error("Protocol configuration is required.");
   }
@@ -187,6 +189,11 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
         resolvedConfig.protocol.timeouts.total_trial_timeout_ms ??
         DEFAULT_PROTOCOL_TIMEOUTS.total_trial_timeout_ms
     };
+  }
+
+  if (resolvedConfig.protocol.type === "debate_v1") {
+    resolvedConfig.protocol.participants = resolvedConfig.protocol.participants ?? 2;
+    resolvedConfig.protocol.rounds = resolvedConfig.protocol.rounds ?? 1;
   }
 
   if (resolvedConfig.measurement.embedding_max_chars === undefined) {
@@ -344,6 +351,7 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
   assertValid("resolved config", validateConfig(resolvedConfig), validateConfig.errors);
 
   return {
+    sourceConfig,
     resolvedConfig,
     warnings,
     catalog,
