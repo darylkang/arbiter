@@ -71,6 +71,57 @@ type PersonaOption = {
   description: string;
 };
 
+const WIZARD_STEP_LABELS = [
+  "0 Welcome",
+  "1 Question",
+  "2 Protocol",
+  "3 Models",
+  "4 Personas",
+  "5 Decode",
+  "6 Advanced",
+  "7 Review"
+];
+
+const clearScreen = (): void => {
+  output.write("\x1b[2J\x1b[H");
+};
+
+const renderStepFrame = (input: {
+  currentStepIndex: number;
+  completedUntilIndex: number;
+  runMode: RunMode | null;
+  apiKeyPresent: boolean;
+  configCount: number;
+  title: string;
+  hint?: string;
+}): void => {
+  clearScreen();
+  output.write("ARBITER\n");
+  output.write("Strict Linear Wizard\n");
+  output.write(
+    `Environment: OPENROUTER_API_KEY ${input.apiKeyPresent ? "yes" : "no"} | configs in CWD ${input.configCount}\n`
+  );
+  output.write(
+    `Run mode: ${input.runMode ?? "-"}\n`
+  );
+  output.write("\nProgress:\n");
+  for (let index = 0; index < WIZARD_STEP_LABELS.length; index += 1) {
+    const label = WIZARD_STEP_LABELS[index];
+    const marker =
+      index === input.currentStepIndex
+        ? "▶"
+        : index <= input.completedUntilIndex
+          ? "✓"
+          : "·";
+    output.write(`  ${marker} ${label}\n`);
+  }
+  output.write(`\n${input.title}\n`);
+  if (input.hint) {
+    output.write(`${input.hint}\n`);
+  }
+  output.write("\n");
+};
+
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 const asNonEmptyArray = <T>(items: T[], label: string): [T, ...T[]] => {
@@ -310,7 +361,6 @@ const askMultilineQuestion = async (
   rl: ReturnType<typeof createInterface>,
   initial: string
 ): Promise<string> => {
-  output.write("Step 1 — Research Question\n");
   output.write("Enter your question/context. Submit an empty line to finish.\n");
   if (initial.trim().length > 0) {
     output.write(`Current value (${initial.length} chars): ${initial}\n`);
@@ -442,14 +492,20 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
   const modelOptions = readCatalogModels(assetRoot);
   const personaOptions = readPersonaOptions(assetRoot);
   const configFiles = listConfigFiles();
+  const apiKeyPresent = Boolean(process.env.OPENROUTER_API_KEY);
 
   const rl = createInterface({ input, output });
 
   try {
-    output.write("ARBITER\n");
-    output.write("Reasoning as a distribution research harness\n");
-    output.write(`OpenRouter API key: ${process.env.OPENROUTER_API_KEY ? "yes" : "no"}\n`);
-    output.write(`Configs in CWD: ${configFiles.length}\n\n`);
+    renderStepFrame({
+      currentStepIndex: 0,
+      completedUntilIndex: -1,
+      runMode: null,
+      apiKeyPresent,
+      configCount: configFiles.length,
+      title: "Step 0 — Welcome",
+      hint: "Choose entry path and run mode."
+    });
 
     const entryPath = (await selectOne(
       rl,
@@ -472,10 +528,10 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       rl,
       "Step 0 — Run mode",
       [
-        { id: "live", label: "Live (OpenRouter)", disabled: !process.env.OPENROUTER_API_KEY },
+        { id: "live", label: "Live (OpenRouter)", disabled: !apiKeyPresent },
         { id: "mock", label: "Mock (no API calls)" }
       ],
-      process.env.OPENROUTER_API_KEY ? 0 : 1
+      apiKeyPresent ? 0 : 1
     )) as RunMode;
 
     const baseTemplate = loadTemplateConfig(assetRoot, "default") as ArbiterResolvedConfig;
@@ -501,8 +557,26 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
     while (true) {
       if (shouldRunStepFlow) {
+        renderStepFrame({
+          currentStepIndex: 1,
+          completedUntilIndex: 0,
+          runMode,
+          apiKeyPresent,
+          configCount: configFiles.length,
+          title: "Step 1 — Research Question",
+          hint: "Include relevant context. Arbiter samples responses to characterize distributional behavior."
+        });
         draft.question = await askMultilineQuestion(rl, draft.question);
 
+        renderStepFrame({
+          currentStepIndex: 2,
+          completedUntilIndex: 1,
+          runMode,
+          apiKeyPresent,
+          configCount: configFiles.length,
+          title: "Step 2 — Protocol",
+          hint: "Choose Independent or Debate."
+        });
         const protocol = await selectOne(
           rl,
           "Step 2 — Protocol",
@@ -518,6 +592,15 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           draft.rounds = await askInteger(rl, "Rounds", draft.rounds, 1);
         }
 
+        renderStepFrame({
+          currentStepIndex: 3,
+          completedUntilIndex: 2,
+          runMode,
+          apiKeyPresent,
+          configCount: configFiles.length,
+          title: "Step 3 — Models",
+          hint: "Select one or more models."
+        });
         draft.modelSlugs = await selectMany(
           rl,
           "Step 3 — Models",
@@ -528,6 +611,15 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           draft.modelSlugs
         );
 
+        renderStepFrame({
+          currentStepIndex: 4,
+          completedUntilIndex: 3,
+          runMode,
+          apiKeyPresent,
+          configCount: configFiles.length,
+          title: "Step 4 — Personas",
+          hint: "Select one or more personas."
+        });
         draft.personaIds = await selectMany(
           rl,
           "Step 4 — Personas",
@@ -535,6 +627,15 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           draft.personaIds
         );
 
+        renderStepFrame({
+          currentStepIndex: 5,
+          completedUntilIndex: 4,
+          runMode,
+          apiKeyPresent,
+          configCount: configFiles.length,
+          title: "Step 5 — Decode Params",
+          hint: "Configure temperature and seed modes."
+        });
         draft.temperatureMode = (await selectOne(
           rl,
           "Step 5 — Temperature mode",
@@ -566,6 +667,15 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           draft.fixedSeed = await askInteger(rl, "Fixed seed", draft.fixedSeed, 0);
         }
 
+        renderStepFrame({
+          currentStepIndex: 6,
+          completedUntilIndex: 5,
+          runMode,
+          apiKeyPresent,
+          configCount: configFiles.length,
+          title: "Step 6 — Advanced Settings",
+          hint: "Use defaults or customize execution and stopping settings."
+        });
         draft.useAdvancedDefaults =
           (await selectOne(
             rl,
@@ -615,6 +725,15 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
       const baseConfig = sourceConfig ?? baseTemplate;
       const configForReview = buildConfigFromDraft({ baseConfig, draft });
+      renderStepFrame({
+        currentStepIndex: 7,
+        completedUntilIndex: 6,
+        runMode,
+        apiKeyPresent,
+        configCount: configFiles.length,
+        title: "Step 7 — Review & Confirm",
+        hint: "Config is written only on Run now or Save config and exit."
+      });
       renderReview({
         draft,
         runMode,
