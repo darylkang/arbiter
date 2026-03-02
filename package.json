@@ -1,6 +1,6 @@
 {
   "name": "@darylkang/arbiter",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0",
   "description": "Research-grade CLI for studying LLM behavior as a distribution.",
   "license": "MIT",
   "type": "module",
@@ -9,6 +9,9 @@
   },
   "bin": {
     "arbiter": "dist/cli/index.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     "dist",
