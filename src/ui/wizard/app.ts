@@ -536,7 +536,7 @@ const askMultilineQuestion = async (
     renderBody: (errorLine) => {
       output.write("Step 1 — Research Question\n\n");
       output.write("Include all relevant context. Arbiter samples responses to characterize distributional behavior.\n");
-      output.write("Controls: Enter newline · Ctrl+Enter submit · Esc back · Ctrl+C exit\n\n");
+      output.write("Controls: Enter submit · Ctrl+J newline · Esc back · Ctrl+C exit\n\n");
       if (buffer.length === 0) {
         output.write("(start typing)\n");
       } else {
@@ -555,10 +555,17 @@ const askMultilineQuestion = async (
         return { done: true, value: SELECT_BACK };
       }
 
+      const newlineRequested = (key.ctrl && key.name === "j") || key.sequence === "\n";
+      if (newlineRequested) {
+        buffer += "\n";
+        return { done: false };
+      }
+
       const submitRequested =
-        (key.ctrl && (key.name === "return" || key.name === "enter" || key.name === "m" || key.name === "j")) ||
-        (key.ctrl && key.sequence === "\n") ||
-        (key.ctrl && key.name === "d"); // fallback for terminals that cannot send Ctrl+Enter distinctly
+        key.name === "return" ||
+        key.sequence === "\r" ||
+        (key.ctrl && key.name === "d") ||
+        key.sequence === "\x04"; // fallback submit key for terminals with unusual Enter handling
 
       if (submitRequested) {
         const question = buffer.trim();
@@ -566,11 +573,6 @@ const askMultilineQuestion = async (
           return { done: false, error: "Question cannot be empty." };
         }
         return { done: true, value: question };
-      }
-
-      if (key.name === "return" || key.sequence === "\r") {
-        buffer += "\n";
-        return { done: false };
       }
 
       if (key.name === "backspace" || key.sequence === "\x7f") {

@@ -134,6 +134,18 @@ const createPtySession = (input) => {
     proc.write("\r");
   };
 
+  const typeText = (text) => {
+    proc.write(text);
+  };
+
+  const ctrlD = () => {
+    proc.write("\u0004");
+  };
+
+  const ctrlC = () => {
+    proc.write("\u0003");
+  };
+
   const arrowDown = (count = 1) => {
     for (let index = 0; index < count; index += 1) {
       proc.write("\u001b[B");
@@ -158,6 +170,9 @@ const createPtySession = (input) => {
   return {
     waitForText,
     pressEnter,
+    typeText,
+    ctrlD,
+    ctrlC,
     arrowDown,
     escape,
     waitForExit,
@@ -223,6 +238,32 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
       false,
       "stage 3 should auto-exit with no next-action menu"
     );
+  } finally {
+    await session.stop();
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("pty: create-new path submits Step 1 question with Enter and exposes multiline hint", { concurrency: false }, async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-question-submit-"));
+  const session = createPtySession({ cwd });
+
+  try {
+    await session.waitForText("Step 0 — Entry path", 25000);
+    await session.waitForText("Create new study (guided wizard)", 25000);
+    session.pressEnter();
+
+    await session.waitForText("Step 0 — Run mode", 25000);
+    await session.waitForText("Mock (no API calls)", 25000);
+    session.pressEnter();
+
+    await session.waitForText("Step 1 — Research Question", 25000);
+    await session.waitForText("Enter submit", 25000);
+    await session.waitForText("Ctrl+J newline", 25000);
+    session.typeText("Question submit fallback test");
+    session.pressEnter();
+
+    await session.waitForText("Step 2 — Protocol", 25000);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });
