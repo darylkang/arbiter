@@ -138,14 +138,6 @@ const createPtySession = (input) => {
     proc.write(text);
   };
 
-  const ctrlD = () => {
-    proc.write("\u0004");
-  };
-
-  const ctrlC = () => {
-    proc.write("\u0003");
-  };
-
   const arrowDown = (count = 1) => {
     for (let index = 0; index < count; index += 1) {
       proc.write("\u001b[B");
@@ -171,8 +163,6 @@ const createPtySession = (input) => {
     waitForText,
     pressEnter,
     typeText,
-    ctrlD,
-    ctrlC,
     arrowDown,
     escape,
     waitForExit,
@@ -244,7 +234,7 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
   }
 });
 
-test("pty: create-new path submits Step 1 question with Enter and exposes multiline hint", { concurrency: false }, async () => {
+test("pty: create-new path submits Step 1 question with Enter", { concurrency: false }, async () => {
   const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-question-submit-"));
   const session = createPtySession({ cwd });
 
@@ -259,7 +249,6 @@ test("pty: create-new path submits Step 1 question with Enter and exposes multil
 
     await session.waitForText("Step 1 — Research Question", 25000);
     await session.waitForText("Enter submit", 25000);
-    await session.waitForText("Ctrl+J newline", 25000);
     session.typeText("Question submit fallback test");
     session.pressEnter();
 

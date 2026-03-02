@@ -536,7 +536,7 @@ const askMultilineQuestion = async (
     renderBody: (errorLine) => {
       output.write("Step 1 — Research Question\n\n");
       output.write("Include all relevant context. Arbiter samples responses to characterize distributional behavior.\n");
-      output.write("Controls: Enter submit · Ctrl+J newline · Esc back · Ctrl+C exit\n\n");
+      output.write("Controls: Enter submit · Esc back · Ctrl+C exit\n\n");
       if (buffer.length === 0) {
         output.write("(start typing)\n");
       } else {
@@ -555,17 +555,10 @@ const askMultilineQuestion = async (
         return { done: true, value: SELECT_BACK };
       }
 
-      const newlineRequested = (key.ctrl && key.name === "j") || key.sequence === "\n";
-      if (newlineRequested) {
-        buffer += "\n";
-        return { done: false };
-      }
-
       const submitRequested =
         key.name === "return" ||
         key.sequence === "\r" ||
-        (key.ctrl && key.name === "d") ||
-        key.sequence === "\x04"; // fallback submit key for terminals with unusual Enter handling
+        key.sequence === "\n";
 
       if (submitRequested) {
         const question = buffer.trim();

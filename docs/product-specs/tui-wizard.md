@@ -50,9 +50,8 @@ Interrupt behavior:
 Step 1 multiline editor behavior:
 
 1. `Enter` submits the question and advances when valid.
-2. `Ctrl+J` inserts a newline.
-3. `Ctrl+D` is an additional submit fallback for terminals with unusual Enter handling.
-4. `Esc` returns to the previous step.
+2. Manual newline insertion is intentionally unsupported in the wizard input field.
+3. `Esc` returns to the previous step.
 
 Validation and disabled controls:
 
