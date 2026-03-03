@@ -2,11 +2,11 @@
 
 Status: accepted implementation target
 Owner: Arbiter
-Last updated: 2026-02-18
+Last updated: 2026-03-02
 
 ## Purpose
 
-Define the canonical human UX for Arbiter as a strict, linear, full-screen wizard in TTY environments.
+Define the canonical human UX for Arbiter as a strict, linear wizard with persistent staged stack composition in TTY environments.
 
 This is an end-state UX target, not a description of current implementation.
 
@@ -166,11 +166,21 @@ Existing-config run behavior:
 
 ## Stage Model
 
-1. Stage 1: Intake Wizard
-2. Stage 2: Run Dashboard
-3. Stage 3: Receipt and auto-exit
+1. Stage 0: Persistent masthead and status strip
+2. Stage 1: Intake Wizard, then frozen Study Summary card
+3. Stage 2: Run Dashboard
+4. Stage 3: Receipt and auto-exit
 
 No Stage 4 next-action menu.
+
+### Stage Composition Contract
+
+1. Stage 0 masthead remains visible for all interactive stages in the run path.
+2. During editable Stage 1, only one wizard step is active at a time.
+3. On `Run now`, Stage 1 transitions from editable form to a frozen Stage 1 Study Summary card.
+4. Stage 2 renders below the frozen Stage 1 Study Summary card and updates in place.
+5. When Stage 2 ends, its final snapshot remains visible and Stage 3 renders below it.
+6. This is not a full transcript stack: prior editable step bodies are not persisted after commit.
 
 ## Stage 1: Intake Wizard
 
@@ -179,9 +189,10 @@ Global behavior:
 1. Strict linear flow, one active step at a time.
 2. Back navigation only through explicit Back controls.
 3. Progress spine shows completed and current steps.
-4. Main pane shows only active step content.
+4. Main pane shows only active step content while Stage 1 is editable.
 5. Validation gates Next or Confirm.
 6. Config is in-memory until explicit commit on Review.
+7. After `Run now`, Stage 1 is represented by a frozen Study Summary card rather than editable step pages.
 
 ### Step 0: Welcome and Entry
 
@@ -343,10 +354,17 @@ Commit rules:
 3. Existing-config path must not rewrite the selected config file on `Run now`.
 4. Existing-config path writes a new file only when user chooses save-copy behavior via `Save config and exit`.
 5. `Save config and exit` is always available even without OpenRouter API connectivity.
+6. `Run now` freezes Stage 1 into a Study Summary card and starts Stage 2 below it.
 
 ## Stage 2: Run Dashboard
 
 Stage 2 starts only after `Run now`.
+
+Layout behavior:
+
+1. Stage 2 is rendered below the persistent Stage 0 masthead and frozen Stage 1 Study Summary card.
+2. Only the Stage 2 region is live-updated; Stage 0 and Stage 1 summary remain static.
+3. On termination, Stage 2 final state remains visible above Stage 3 receipt.
 
 Required regions:
 
@@ -396,7 +414,8 @@ Termination paths:
 
 1. novelty saturation heuristic threshold met,
 2. `K_max` reached,
-3. stopped by user (graceful).
+3. stopped by user (graceful),
+4. run failed.
 
 ## Stage 3: Receipt and Exit
 
@@ -404,7 +423,9 @@ Stage 3 is static output followed by automatic process exit.
 
 No next-action menu.
 
-Receipt must remain visible after exit via normal terminal scrollback. Teardown must not clear the receipt from scrollback.
+Stage 3 renders below the final Stage 2 snapshot in the run path.
+
+Receipt must remain visible after exit via normal terminal scrollback. Teardown must not clear stacked output from scrollback.
 
 Receipt content:
 
@@ -412,6 +433,8 @@ Receipt content:
    - `Stopped: novelty saturation`
    - `Stopped: max trials reached`
    - `Stopped: user requested graceful stop`
+   - `Stopped: sampling complete`
+   - `Stopped: run failed`
 2. research-honest hint directly below banner:
    - stopping indicates diminishing novelty, not correctness.
 3. summary card:
@@ -487,6 +510,10 @@ Exit codes:
 25. `arbiter` launches wizard in TTY and prints help with exit code `0` in non-TTY.
 26. `arbiter run --config <file> --dashboard` renders dashboard in TTY and warns then continues headless in non-TTY.
 27. CLI help exposes no legacy flags (`--headless`, `--verbose`) and no extra primary commands beyond `arbiter`, `arbiter init`, and `arbiter run`.
+28. Stage 0 masthead remains visible throughout Stage 1-3 in the `Run now` path.
+29. After `Run now`, Stage 1 remains visible only as a frozen Study Summary card (no editable step bodies).
+30. Stage 2 final snapshot remains visible above Stage 3 receipt until auto-exit.
+31. Scrollback after exit preserves the stacked run-path output order: Stage 0 masthead, Stage 1 summary, Stage 2 final snapshot, Stage 3 receipt.
 
 ## Deliverables
 

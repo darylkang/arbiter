@@ -4,7 +4,7 @@ This ExecPlan is a living document and must be updated as work proceeds.
 This plan follows `docs/PLANS.md`.
 
 ## Purpose / Big Picture
-Deliver a premium visual and copy overhaul for Arbiter's Wizard/Dashboard/Receipt surfaces while preserving all stabilized behavior contracts.
+Deliver a premium visual and copy overhaul for Arbiter's Wizard/Dashboard/Receipt surfaces, including a persistent run-path stage stack (Stage 0 masthead + frozen Stage 1 summary + Stage 2/3), while preserving run semantics and artifact guarantees.
 
 This plan is intentionally pre-implementation heavy. It defines the visual system, copy system, component contracts, motion rules, and validation method before any code changes.
 
@@ -23,15 +23,16 @@ Observable user outcomes:
 1. `arbiter` wizard no longer looks barebones; it looks deliberate and first-class.
 2. Stage 1, Stage 2, and Stage 3 feel like one product, not separate outputs.
 3. Information hierarchy is clearer: what is primary vs secondary is visually obvious.
-4. Visual polish does not alter flow, semantics, keybindings, or artifact behavior.
+4. Visual/copy polish does not alter study semantics, keybindings, or artifact behavior.
 5. Non-TTY/headless behavior remains unchanged.
 6. Copy reads as deliberate and premium across all stages, with no terminology drift or mixed voice.
+7. Run-path layout preserves experiment context via a persistent masthead and frozen Study Summary above live/final run surfaces.
 
 Scope guardrails:
 
-1. In scope: visual language, color, spacing, borders, typography hierarchy, glyph usage, motion cues, rendering abstractions, and user-facing copy rewrite for Stage 1-3 surfaces.
+1. In scope: visual language, color, spacing, borders, typography hierarchy, glyph usage, motion cues, rendering abstractions, user-facing copy rewrite for Stage 1-3 surfaces, and staged run-path composition (persistent masthead + frozen Stage 1 summary + stacked Stage 2/3).
 2. Out of scope: step order, keybinding contract, protocol semantics, artifact semantics, stop logic, CLI command surface.
-3. Out of scope: any behavior change not strictly required for visual rendering.
+3. Out of scope: engine semantics, sampling behavior, stop-decision logic, and non-UI artifact contract changes.
 4. Styling restraint is mandatory: no visual noise, no aggressive blinking, no novelty animation.
 5. Design-first rule: visual contract decisions lead; UI tests are updated to reflect approved design output, not vice versa.
 6. Copy-first rigor rule: copy decisions must remain research-honest and semantically accurate; polish must not add scientific or correctness claims.
@@ -41,7 +42,7 @@ Scope guardrails:
 - [x] (2026-03-03 02:39Z) design freeze spec expanded with exact tokens, glyph, motion, and component contracts
 - [x] (2026-03-03 02:37Z) external review incorporated: blocker fixes and scope hardening added
 - [ ] (pending) milestone 0 complete: visual and copy contracts ratified after external review
-- [ ] (pending) milestone 1 complete: shared visual and copy seams implemented
+- [ ] (pending) milestone 1 complete: shared visual/copy seams and stage-stack scaffold implemented
 - [ ] (pending) milestone 2 complete: Stage 1 visual and copy restyle implemented
 - [ ] (pending) milestone 3 complete: Stage 2 visual and copy restyle implemented
 - [ ] (pending) milestone 4 complete: Stage 3 visual and copy restyle implemented
@@ -61,6 +62,8 @@ Scope guardrails:
   Evidence: `src/ui/wizard/app.ts`, `src/ui/run-lifecycle-hooks.ts`, `src/ui/receipt-model.ts`, `src/ui/receipt-text.ts`.
 - Observation: receipt/dashboard caveat language already uses canonical phrasing and should be preserved, not rewritten for novelty.
   Evidence: `src/ui/receipt-text.ts`, `src/ui/run-lifecycle-hooks.ts`.
+- Observation: current run path replaces screen regions via clear-screen and in-place redraw behavior; it does not persist a frozen Stage 1 summary above Stage 2/3.
+  Evidence: `src/ui/wizard/app.ts`, `src/ui/run-lifecycle-hooks.ts`.
 
 ## Decision Log
 - Decision: visual overhaul is phase-isolated from UX and architecture work.
@@ -92,6 +95,9 @@ Scope guardrails:
   Date/Author: 2026-03-03, Codex thread.
 - Decision: all Stage 1-3 user-facing strings must be sourced from explicit copy contract ownership points (central module or equivalent).
   Rationale: prevents tone drift and terminology regressions during future edits.
+  Date/Author: 2026-03-03, Codex thread.
+- Decision: adopt hybrid stack composition for run path: persistent Stage 0 masthead, frozen Stage 1 Study Summary card, Stage 2 live region, Stage 3 receipt appended below Stage 2 final snapshot.
+  Rationale: preserves experiment context without persisting full editable step transcripts.
   Date/Author: 2026-03-03, Codex thread.
 
 ## Context and Orientation
@@ -127,9 +133,10 @@ High-risk components:
 3. Motion effects interfering with readability or logs.
 4. Inconsistent stage styling if Stage 2/3 are restyled without shared primitives.
 5. Copy drift causing mixed terminology (`cluster` vs `group`, correctness language, inconsistent stop-reason phrasing).
+6. Stage-stack composition regressions (for example Stage 1 summary disappearing during Stage 2 redraws).
 
 ## Plan of Work
-Ordering principle: define and freeze visual+copy contracts first, then implement shared seams, then migrate stages sequentially, then validate behavior and language parity.
+Ordering principle: freeze stage-composition + visual+copy contracts first, then implement shared seams and stack scaffold, then migrate stages sequentially, then validate behavior and language parity.
 
 Implementation sequence:
 
@@ -144,27 +151,32 @@ Implementation sequence:
    - terminology canon and forbidden terms,
    - component-level microcopy patterns,
    - stage-by-stage required strings and caveat lines.
-3. Implement shared visual seam module(s) and copy seam module(s); migrate inline style and copy literals to these seams.
-4. Extract Stage 1 rendering into delegated renderer helpers before styling (behavior callbacks remain in place).
-5. Restyle and rewrite Stage 1 copy (wizard intake) without changing interaction behavior.
-6. Restyle and rewrite Stage 2 copy (dashboard) using same primitives and copy constraints.
-7. Restyle and rewrite Stage 3 copy (receipt) with static, high-legibility output and no interactive follow-up UI.
-8. Run contract-focused tests and capture before/after output evidence.
+3. Freeze stage-composition contract:
+   - persistent Stage 0 masthead in run path,
+   - frozen Stage 1 Study Summary card after `Run now`,
+   - Stage 2 region below summary,
+   - Stage 3 appended below final Stage 2 snapshot.
+4. Implement shared visual seam module(s), copy seam module(s), and staged stack rendering scaffold.
+5. Extract Stage 1 rendering into delegated renderer helpers before styling (behavior callbacks remain in place).
+6. Restyle and rewrite Stage 1 copy (wizard intake) and define frozen Study Summary card rendering.
+7. Restyle and rewrite Stage 2 copy (dashboard) using same primitives and stack constraints.
+8. Restyle and rewrite Stage 3 copy (receipt) with static, high-legibility output and no interactive follow-up UI.
+9. Run contract-focused tests and capture before/after output evidence.
 
 Milestones:
 
 1. Milestone 0: visual and copy contract freeze and review.
-2. Milestone 1: shared visual and copy seam extraction.
-3. Milestone 2: Stage 1 visual and copy migration.
-4. Milestone 3: Stage 2 visual and copy migration.
-5. Milestone 4: Stage 3 visual and copy migration.
+2. Milestone 1: shared visual/copy seam extraction and stage-stack scaffold.
+3. Milestone 2: Stage 1 visual and copy migration with frozen summary card.
+4. Milestone 3: Stage 2 visual and copy migration in stacked layout.
+5. Milestone 4: Stage 3 visual and copy migration in stacked layout.
 6. Milestone 5: cross-stage copy consistency verification and forbidden-term audit.
 7. Milestone 6: test/capture/docs verification.
 
 Milestone entry and exit gates:
 
 1. Milestone 0 exit gate:
-   - token table, glyph set, motion set, breakpoints, fallback map, and copy contract are complete and review-ready.
+   - token table, glyph set, motion set, breakpoints, fallback map, copy contract, and stage-composition contract are complete and review-ready.
    - `docs/product-specs/tui-copy-deck.md` exists with Stage 1-3 copy coverage and `LOCKED` vs `FLEX` line ownership.
 2. Milestone 1 exit gate:
    - no stage path uses ad-hoc ANSI literals for palette/border/chip styles.
@@ -174,14 +186,18 @@ Milestone entry and exit gates:
    - `rg -n "\\x1b\\[[0-9;]*m" src/ui --glob '!fmt.ts'` returns zero SGR style ANSI escapes outside the recorded seam module path(s).
    - terminal control sequences for screen/cursor control are allowed inline.
    - copy-seam boundary checks confirm canonical strings are centralized only where required by the ownership boundary contract.
+   - run-path scaffold preserves fixed Stage 0/Stage 1 summary region while allowing Stage 2 redraws below.
 3. Milestone 2 exit gate:
    - Stage 1 visuals and copy upgraded.
    - Stage 1 rendering functions delegate to renderer seam helpers; key handling and validation callbacks remain in `src/ui/wizard/app.ts`.
+   - `Run now` transition freezes Stage 1 into a non-editable Study Summary card.
    - step order, validation, and keybinding behavior unchanged.
 4. Milestone 3 exit gate:
    - Stage 2 visuals and copy upgraded with unchanged status semantics and graceful interrupt behavior.
+   - Stage 2 live updates occur below the frozen Stage 1 summary without erasing it.
 5. Milestone 4 exit gate:
    - Stage 3 visuals and copy upgraded.
+   - Stage 3 receipt renders below final Stage 2 snapshot in run path.
    - receipt remains scrollback-safe and auto-exit semantics unchanged.
 6. Milestone 5 exit gate:
    - cross-stage copy audit confirms canonical terminology used and forbidden terms absent from runtime UI surfaces.
@@ -218,27 +234,27 @@ Working directory: repository root.
 4. Introduce shared visual seam, shared copy seam, and Stage 1 rendering delegation seam.
    Commands:
    - `rg -n "from \"../fmt|createStdoutFormatter|createFormatter" src/ui -S`
-   - `rg -n "renderStepFrame|selectOne|selectMany|renderBody" src/ui/wizard/app.ts -S`
-   Expected evidence: centralized style and copy APIs consumed by Stage 1/2/3 codepaths, and Stage 1 rendering delegated through a renderer helper interface/module while key handling stays in place.
+   - `rg -n "renderStepFrame|selectOne|selectMany|renderBody|clearScreen|Study Summary|run-lifecycle-hooks" src/ui/wizard/app.ts src/ui/run-lifecycle-hooks.ts -S`
+   Expected evidence: centralized style/copy APIs consumed by Stage 1/2/3 codepaths, Stage 1 rendering delegated through a renderer helper interface/module while key handling stays in place, and stack scaffold anchor points identified.
 
 5. Apply Stage 1 restyle and copy rewrite against frozen contracts.
    Commands:
-   - `rg -n "renderStepFrame|selectOne|selectMany|WIZARD_STEP_LABELS|Step 0|Step 7" src/ui/wizard/app.ts -S`
+   - `rg -n "renderStepFrame|selectOne|selectMany|WIZARD_STEP_LABELS|Step 0|Step 7|Study Summary" src/ui/wizard/app.ts -S`
    - `rg -n "Research Question|Protocol|Models|Personas|Decode|Advanced Settings|Review|Run now|Save config" src/ui/wizard -S`
-   Expected evidence: updated frame/card/list visuals and coherent copy with no behavior drift.
+   Expected evidence: updated frame/card/list visuals, coherent copy, and Stage 1 frozen Study Summary card emitted on `Run now` transition.
 
 6. Apply Stage 2 restyle and copy rewrite against frozen contracts.
    Commands:
-   - `rg -n "RUN|progress|worker|novelty|ETA|usage|Ctrl\\+C" src/ui/run-lifecycle-hooks.ts src/ui -S`
+   - `rg -n "RUN|progress|worker|novelty|ETA|usage|Ctrl\\+C|render\\(|lastRenderedLineCount" src/ui/run-lifecycle-hooks.ts src/ui -S`
    - `rg -n "Stopped:|novelty saturation|diminishing novelty|embedding groups|semantic categories|usage not applicable|estimate" src/ui/run-lifecycle-hooks.ts src/ui -S`
-   Expected evidence: upgraded dashboard hierarchy, subtle functional motion, and canonical caveat/status language.
+   Expected evidence: upgraded dashboard hierarchy, subtle functional motion, canonical caveat/status language, and Stage 2 redraw region constrained below frozen Stage 1 summary.
 
 7. Apply Stage 3 restyle and copy rewrite against frozen contracts.
    Commands:
    - `rg -n "RECEIPT|receipt|artifact|stop reason|diminishing novelty|scrollback" src/ui/receipt-*.ts src/ui/run-lifecycle-hooks.ts -S`
    - `rg -n "\\x1b\\[" src/ui/receipt-text.ts -S`
    - `rg -n "Stopped: novelty saturation|Stopped: max trials reached|Stopped: user requested graceful stop|Stopped: sampling complete|Stopped: run failed|diminishing novelty, not correctness|embedding similarity, not semantic categories" src/ui/receipt-*.ts src/ui/run-lifecycle-hooks.ts -S`
-   Expected evidence: branded static receipt display with unchanged semantic content, canonical stop-reason language, and `src/ui/receipt-text.ts` remains ANSI-free artifact formatter.
+   Expected evidence: branded static receipt display with unchanged semantic content, canonical stop-reason language, Stage 3 appended below final Stage 2 snapshot, and `src/ui/receipt-text.ts` remains ANSI-free artifact formatter.
 
 8. Validate behavior parity and capability fallbacks.
    Commands:
@@ -278,6 +294,7 @@ Behavioral acceptance criteria:
 5. PTY E2E text assertions are updated atomically to reflect approved visual output; tests validate behavior, not legacy literal styling.
 6. `receipt.txt` artifact remains plain ANSI-free output.
 7. Run-mode behavior and protocol semantics remain unchanged; copy polish does not alter execution decisions.
+8. Run-path stage composition follows contract: persistent Stage 0 masthead, frozen Stage 1 Study Summary, Stage 2 live region below summary, Stage 3 appended below final Stage 2 snapshot.
 
 Visual acceptance criteria:
 
@@ -297,6 +314,11 @@ Visual acceptance criteria:
    - tier A: full polish,
    - tier B: no unicode corners but retained structure,
    - tier C: no-color ASCII readability.
+8. Run-path stacked hierarchy remains visually legible and stable across updates:
+   - Stage 0 masthead persists,
+   - Stage 1 summary remains fixed,
+   - Stage 2 updates in-place below,
+   - Stage 3 appends below.
 
 Copy acceptance criteria:
 
@@ -320,6 +342,7 @@ Copy acceptance criteria:
    - `Stopping indicates diminishing novelty, not correctness.` always in monitoring/receipt interpretation context.
    - `Groups reflect embedding similarity, not semantic categories.` only when group outputs are shown.
 7. Stage 1 completion spine confirmations are concise and consistently structured.
+8. Stage 0 masthead and Stage 1 frozen Study Summary copy remain consistent and visible in Stage 2/3 run-path renders.
 
 Validation commands:
 
@@ -334,6 +357,7 @@ Validation commands:
 9. `rg -n "['\\\"][^'\\\"]*\\bcorrectness\\b[^'\\\"]*['\\\"]" src/ui -S | rg -v "diminishing novelty, not correctness"` (expects no matches)
 10. `rg -n "['\\\"][^'\\\"]*\\bsemantic categories\\b[^'\\\"]*['\\\"]" src/ui -S | rg -v "Groups reflect embedding similarity, not semantic categories\\."` (expects no matches)
 11. `rg -n "TTY not detected\\. Showing headless help\\.|Dashboard requested without TTY; continuing in headless mode\\." src/ui src/cli -S` (expects canonical headless strings present)
+12. `rg -n "Study Summary|Run mode:|Output dir:" src/ui/wizard src/ui/run-lifecycle-hooks.ts -S` (expects run-path summary labels present in stack composition codepaths)
 
 Required evidence artifacts:
 
@@ -345,6 +369,7 @@ Required evidence artifacts:
 2. One no-color capture (`NO_COLOR=1`) for each stage entry surface.
 3. One narrow-width capture (`COLUMNS=90`) for Stage 1 and Stage 2.
 4. One "motion audit" capture proving active-only motion and static receipt calmness.
+5. One stacked run-path capture showing Stage 0 masthead + frozen Stage 1 Study Summary + Stage 2 final snapshot + Stage 3 receipt in order.
 
 ## Idempotence and Recovery
 1. Implement in milestone-sized commits so each stage can be reverted independently.
@@ -492,18 +517,21 @@ Width tiers:
 
 Stage-specific layout invariants:
 
-1. Stage 1 always shows active step context and completion spine (collapsed representation allowed on narrow widths).
-2. Stage 2 always keeps master progress visible, even when worker table overflows.
-3. Stage 3 always prints completion banner + summary card + artifacts list in readable order.
+1. Stage 0 masthead remains persistent in run-path output.
+2. Stage 1 editable mode shows active step context and completion spine (collapsed representation allowed on narrow widths).
+3. After `Run now`, Stage 1 is represented by a frozen Study Summary card above Stage 2/3 regions.
+4. Stage 2 always keeps master progress visible, even when worker table overflows.
+5. Stage 3 always prints completion banner + summary card + artifacts list in readable order below final Stage 2 snapshot.
 
 ### G. Component-Level Style Contracts
 Implementation ownership map:
 
 1. Stage 1 shell and step widgets: `src/ui/wizard/app.ts` plus extracted visual seam module.
-2. Stage 2 dashboard composition: `src/ui/run-lifecycle-hooks.ts`.
-3. Stage 3 display composition: `src/ui/run-lifecycle-hooks.ts` (TTY display only).
-4. Stage 3 artifact text: `src/ui/receipt-text.ts` (ANSI-free artifact output only; not display styling).
-5. Shared color/glyph/motion helpers: `src/ui/fmt.ts` and/or dedicated wizard visual seam module.
+2. Stage 0 masthead and Stage 1 summary persistence composition: `src/ui/wizard/app.ts` and `src/ui/run-lifecycle-hooks.ts`.
+3. Stage 2 dashboard composition: `src/ui/run-lifecycle-hooks.ts`.
+4. Stage 3 display composition: `src/ui/run-lifecycle-hooks.ts` (TTY display only).
+5. Stage 3 artifact text: `src/ui/receipt-text.ts` (ANSI-free artifact output only; not display styling).
+6. Shared color/glyph/motion helpers: `src/ui/fmt.ts` and/or dedicated wizard visual seam module.
 
 Wizard shell components:
 
@@ -511,8 +539,9 @@ Wizard shell components:
 2. Environment status strip.
 3. Progress spine card.
 4. Main step content card.
-5. Inline validation/error row style.
-6. Key-hint row style.
+5. Frozen Study Summary card (run path).
+6. Inline validation/error row style.
+7. Key-hint row style.
 
 Dashboard components:
 
@@ -543,6 +572,7 @@ The following must remain behaviorally identical:
 7. behavioral E2E assertions remain valid after visual updates (test literals updated atomically when presentation strings change),
 8. `receipt.txt` artifact output remains ANSI-free plain text.
 9. `receipt.txt` text content may be aligned with frozen copy contract wording, but artifact structure and field semantics must remain unchanged.
+10. run-path stacked order remains stable: Stage 0 masthead, frozen Stage 1 summary, Stage 2 region, then Stage 3 receipt.
 
 ### I. Pre-Implementation Review Checklist (for Opus pass)
 Checklist to clear before Milestone 1 starts:
@@ -611,3 +641,4 @@ Microcopy pattern contracts:
 - 2026-03-03 03:29Z: adopted Opus critique refinements: literal-targeted copy governance checks, receipt artifact text-boundary clarification, Milestone 5 audit-only framing, explicit copy seam ownership boundary, and microcopy calibration examples.
 - 2026-03-03 03:42Z: adopted follow-up alignment fixes: unified success glyph (`✔`), added missing receipt stop labels, aligned forbidden-term policy with caveat exception handling, added disabled-option copy pattern, and added headless-copy verification checks.
 - 2026-03-03 03:55Z: tightened Milestone 1 ANSI gate to SGR-only detection and explicitly allowed inline terminal control sequences.
+- 2026-03-03 04:14Z: updated plan for hybrid stack composition direction: persistent Stage 0 masthead, frozen Stage 1 Study Summary, Stage 2/3 stacked rendering, and corresponding gates/validation updates.

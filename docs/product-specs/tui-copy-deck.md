@@ -2,15 +2,16 @@
 
 Status: draft for review
 Owner: Arbiter
-Last updated: 2026-03-03
+Last updated: 2026-03-02
 
 ## Purpose
 
 Define the canonical user-facing copy for Arbiter TTY surfaces:
 
-1. Stage 1 Intake Wizard
-2. Stage 2 Run Dashboard
-3. Stage 3 Receipt
+1. Stage 0 Persistent Masthead
+2. Stage 1 Intake Wizard
+3. Stage 2 Run Dashboard
+4. Stage 3 Receipt
 
 This copy deck is implementation-facing and should be used with:
 
@@ -30,6 +31,14 @@ Formatting markers:
 
 1. `{var}` indicates runtime interpolation.
 2. `|` indicates inline option separators, not separate lines.
+
+## Stage Composition Copy Contract
+
+1. `LOCKED`: Stage 0 masthead is persistent in the run path and remains visible across Stage 1 through Stage 3.
+2. `LOCKED`: Stage 1 editable pages are replaced by a frozen Stage 1 Study Summary card once `Run now` is chosen.
+3. `LOCKED`: Stage 2 is rendered below the frozen Stage 1 Study Summary card and updates in place.
+4. `LOCKED`: Stage 3 is rendered below the final Stage 2 snapshot.
+5. `LOCKED`: The run-path stack is preserved in terminal scrollback on exit.
 
 ## Voice System
 
@@ -88,6 +97,21 @@ Disabled option interaction pattern:
 
 1. `LOCKED` structure: `{option} (unavailable)`
 2. `LOCKED`: `That option is not available.`
+
+## Stage 0 Persistent Masthead
+
+Identity lines:
+
+1. `LOCKED`: `ARBITER`
+2. `LOCKED`: `Distributional reasoning harness`
+3. `LOCKED`: `Version {version}`
+
+Status strip:
+
+1. `LOCKED`: `Environment`
+2. `LOCKED`: `OpenRouter API key: {present_or_missing}`
+3. `LOCKED`: `Run mode: {mode_or_dash}`
+4. `LOCKED`: `Configs in current directory: {count}`
 
 ## Stage 1 Intake Wizard
 
@@ -301,6 +325,24 @@ Action confirmations:
 2. `LOCKED`: `Starting run`
 3. `LOCKED`: `Returning to Step 1 with your selections preserved.`
 
+### Stage 1 Frozen Study Summary Card (Run Path)
+
+Card header:
+
+1. `LOCKED`: `Study Summary`
+
+Summary lines:
+
+1. `LOCKED`: `Question: {question}`
+2. `LOCKED`: `Protocol: {protocol_summary}`
+3. `LOCKED`: `Models: {models_summary}`
+4. `LOCKED`: `Personas: {personas_summary}`
+5. `LOCKED`: `Decode: {decode_summary}`
+6. `LOCKED`: `Execution: workers {workers}, batch {batch_size}, K_max {k_max}`
+7. `LOCKED`: `Run mode: {run_mode}`
+8. `LOCKED`: `Output dir: {output_dir}`
+9. `LOCKED`: `Source config: {source_config_path}` (show only when entering via `Run existing config`)
+
 ## Stage 2 Run Dashboard
 
 Title:
@@ -418,3 +460,5 @@ Exit line:
 4. Stop-reason labels are consistent across Stage 2 and Stage 3.
 5. Validation and warning messages follow the required patterns.
 6. Long lines in narrow terminals remain readable without semantic truncation.
+7. Stage 0 masthead remains present in Stage 2 and Stage 3 run-path renders.
+8. Frozen Stage 1 Study Summary card remains visible above Stage 2 and Stage 3 in run-path output.
