@@ -82,7 +82,12 @@ Warning pattern:
 
 Completion confirmation pattern (spine):
 
-1. `LOCKED` structure: `✓ {StepLabel}: {short summary}`
+1. `LOCKED` structure: `✔ {StepLabel}: {short summary}`
+
+Disabled option interaction pattern:
+
+1. `LOCKED` structure: `{option} (unavailable)`
+2. `LOCKED`: `That option is not available.`
 
 ## Stage 1 Intake Wizard
 
@@ -101,7 +106,7 @@ Completion confirmation pattern (spine):
 Header:
 
 1. `LOCKED`: `ARBITER`
-2. `FLEX`: `Distributional reasoning harness`
+2. `LOCKED`: `Distributional reasoning harness`
 3. `LOCKED`: `Version {version}`
 
 Environment strip:
@@ -150,7 +155,7 @@ Validation:
 
 Spine confirmation:
 
-1. `LOCKED`: `✓ Question: "{preview}" ({chars} chars)`
+1. `LOCKED`: `✔ Question: "{preview}" ({chars} chars)`
 
 ### Step 2 Protocol
 
@@ -175,8 +180,8 @@ Debate fields:
 
 Spine confirmation:
 
-1. `LOCKED`: `✓ Protocol: Independent`
-2. `LOCKED`: `✓ Protocol: Debate ({participants} participants, {rounds} rounds)`
+1. `LOCKED`: `✔ Protocol: Independent`
+2. `LOCKED`: `✔ Protocol: Debate ({participants} participants, {rounds} rounds)`
 
 ### Step 3 Models
 
@@ -195,7 +200,7 @@ Free-tier warning:
 
 Spine confirmation:
 
-1. `LOCKED`: `✓ Models: {summary} ({count} selected)`
+1. `LOCKED`: `✔ Models: {summary} ({count} selected)`
 
 ### Step 4 Personas
 
@@ -210,7 +215,7 @@ Validation:
 
 Spine confirmation:
 
-1. `LOCKED`: `✓ Personas: {summary} ({count} selected)`
+1. `LOCKED`: `✔ Personas: {summary} ({count} selected)`
 
 ### Step 5 Decode Params
 
@@ -239,7 +244,7 @@ Validation:
 
 Spine confirmation:
 
-1. `LOCKED`: `✓ Decode: temp {temp_summary}, seed {seed_summary}`
+1. `LOCKED`: `✔ Decode: temp {temp_summary}, seed {seed_summary}`
 
 ### Step 6 Advanced Settings
 
@@ -262,8 +267,8 @@ Group headers:
 
 Spine confirmation:
 
-1. `LOCKED`: `✓ Advanced: defaults`
-2. `LOCKED`: `✓ Advanced: {changed_summary}`
+1. `LOCKED`: `✔ Advanced: defaults`
+2. `LOCKED`: `✔ Advanced: {changed_summary}`
 
 ### Step 7 Review and Confirm
 
@@ -301,6 +306,8 @@ Action confirmations:
 Title:
 
 1. `LOCKED`: `═══ RUN ═══`
+
+Note: sentinel format may be updated during visual overhaul to match card-style headers. If updated, the new format becomes the `LOCKED` value and PTY assertions must be updated atomically.
 
 Summary strip:
 
@@ -346,11 +353,15 @@ Title:
 
 1. `LOCKED`: `═══ RECEIPT ═══`
 
+Note: sentinel format may be updated during visual overhaul to match card-style headers. If updated, the new format becomes the `LOCKED` value and PTY assertions must be updated atomically.
+
 Completion banner:
 
 1. `LOCKED`: `Stopped: novelty saturation`
 2. `LOCKED`: `Stopped: max trials reached`
 3. `LOCKED`: `Stopped: user requested graceful stop`
+4. `LOCKED`: `Stopped: sampling complete`
+5. `LOCKED`: `Stopped: run failed`
 
 Interpretation hint:
 

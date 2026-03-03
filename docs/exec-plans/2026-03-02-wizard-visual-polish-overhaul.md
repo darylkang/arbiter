@@ -236,7 +236,7 @@ Working directory: repository root.
    Commands:
    - `rg -n "RECEIPT|receipt|artifact|stop reason|diminishing novelty|scrollback" src/ui/receipt-*.ts src/ui/run-lifecycle-hooks.ts -S`
    - `rg -n "\\x1b\\[" src/ui/receipt-text.ts -S`
-   - `rg -n "Stopped: novelty saturation|Stopped: max trials reached|Stopped: user requested graceful stop|diminishing novelty, not correctness|embedding similarity, not semantic categories" src/ui/receipt-*.ts src/ui/run-lifecycle-hooks.ts -S`
+   - `rg -n "Stopped: novelty saturation|Stopped: max trials reached|Stopped: user requested graceful stop|Stopped: sampling complete|Stopped: run failed|diminishing novelty, not correctness|embedding similarity, not semantic categories" src/ui/receipt-*.ts src/ui/run-lifecycle-hooks.ts -S`
    Expected evidence: branded static receipt display with unchanged semantic content, canonical stop-reason language, and `src/ui/receipt-text.ts` remains ANSI-free artifact formatter.
 
 8. Validate behavior parity and capability fallbacks.
@@ -259,10 +259,13 @@ Working directory: repository root.
 
 10. Enforce copy governance checks.
    Commands:
-   - `rg -n "['\\\"][^'\\\"]*\\b(cluster|clusters|converged|correctness|truth|semantic categories|quickstart)\\b[^'\\\"]*['\\\"]" src/ui -S`
+   - `rg -n "['\\\"][^'\\\"]*\\b(cluster|clusters|converged|quickstart|truth)\\b[^'\\\"]*['\\\"]" src/ui -S`
+   - `rg -n "['\\\"][^'\\\"]*\\bcorrectness\\b[^'\\\"]*['\\\"]" src/ui -S | rg -v "diminishing novelty, not correctness"`
+   - `rg -n "['\\\"][^'\\\"]*\\bsemantic categories\\b[^'\\\"]*['\\\"]" src/ui -S | rg -v "Groups reflect embedding similarity, not semantic categories\\."`
    - `rg -n "embedding groups|similarity groups|novelty saturation|diminishing novelty, not correctness" src/ui -S`
-   Expected evidence: forbidden terms absent from runtime UI display strings and required canonical phrases present where contract requires them.
-   Note: internal code identifiers and enum values (for example stop-reason code `converged`, config namespace `clustering`) are not user-facing copy and are excluded from this check.
+   - `rg -n "TTY not detected\\. Showing headless help\\.|Dashboard requested without TTY; continuing in headless mode\\." src/ui src/cli -S`
+   Expected evidence: forbidden terms absent from runtime UI display strings and required canonical/headless phrases present where contract requires them.
+   Note: internal code identifiers and enum values (for example stop-reason code `converged`, config namespace `clustering`) are not user-facing copy and are excluded from this check; governance targets rendered string literals.
 
 ## Validation and Acceptance
 Behavioral acceptance criteria:
@@ -302,11 +305,15 @@ Copy acceptance criteria:
    - `embedding groups`/`similarity groups`,
    - `novelty saturation` and `diminishing novelty`.
 3. Forbidden wording is absent from runtime UI copy:
-   - `converged`, `correctness`, `truth`, `semantic categories`, `quickstart`.
+   - `converged`, `truth`, `quickstart`, `clusters`.
+   - `correctness` as a result or quality claim.
+   - `semantic categories` except in the required caveat sentence.
 4. Stop-reason labels are canonical and consistent across dashboard/receipt:
    - `Stopped: novelty saturation`,
    - `Stopped: max trials reached`,
-   - `Stopped: user requested graceful stop`.
+   - `Stopped: user requested graceful stop`,
+   - `Stopped: sampling complete`,
+   - `Stopped: run failed`.
 5. Every warning/error message follows the same pattern: condition, impact, and next action (or explicit no-action-needed note).
 6. Caveat language appears only where relevant:
    - `Stopping indicates diminishing novelty, not correctness.` always in monitoring/receipt interpretation context.
@@ -322,7 +329,10 @@ Validation commands:
 5. `npm run test:pack`
 6. `npm run test:unit`
 7. `node --test test/e2e/*.test.mjs`
-8. `rg -n "['\\\"][^'\\\"]*\\b(cluster|clusters|converged|correctness|truth|semantic categories|quickstart)\\b[^'\\\"]*['\\\"]" src/ui -S` (expects no user-facing display-string matches; internal enum/code-value matches are documented and allowed)
+8. `rg -n "['\\\"][^'\\\"]*\\b(cluster|clusters|converged|quickstart|truth)\\b[^'\\\"]*['\\\"]" src/ui -S` (expects no user-facing display-string matches)
+9. `rg -n "['\\\"][^'\\\"]*\\bcorrectness\\b[^'\\\"]*['\\\"]" src/ui -S | rg -v "diminishing novelty, not correctness"` (expects no matches)
+10. `rg -n "['\\\"][^'\\\"]*\\bsemantic categories\\b[^'\\\"]*['\\\"]" src/ui -S | rg -v "Groups reflect embedding similarity, not semantic categories\\."` (expects no matches)
+11. `rg -n "TTY not detected\\. Showing headless help\\.|Dashboard requested without TTY; continuing in headless mode\\." src/ui src/cli -S` (expects canonical headless strings present)
 
 Required evidence artifacts:
 
@@ -561,14 +571,17 @@ Terminology canon:
    - `Stopped: novelty saturation`
    - `Stopped: max trials reached`
    - `Stopped: user requested graceful stop`
+   - `Stopped: sampling complete`
+   - `Stopped: run failed`
 
 Forbidden terminology in runtime UI copy:
 
 1. `converged`
-2. `correctness`
+2. `correctness` as a result or quality claim
 3. `truth`
-4. `semantic categories`
-5. `quickstart`
+4. `semantic categories` except in the required caveat sentence
+5. `clusters` (use `embedding groups` or `similarity groups`)
+6. `quickstart`
 
 Microcopy pattern contracts:
 
@@ -581,7 +594,7 @@ Microcopy pattern contracts:
 4. Warnings: condition + risk + recommendation.
    Examples: `Warning: no API key detected. Live mode requires OPENROUTER_API_KEY. Set the key or use Mock mode.`, `Warning: free-tier models selected. Availability may be limited. Use paid models for publishable research.`
 5. Success confirmations: compact summary with stable format in the spine.
-   Examples: `✓ Question: "What is..." (42 chars)`, `✓ Protocol: Independent`, `✓ Models: 3 selected`.
+   Examples: `✔ Question: "What is..." (42 chars)`, `✔ Protocol: Independent`, `✔ Models: 3 selected`.
 6. Receipt hints: one-line interpretation guidance, research-honest and non-prescriptive.
    Examples: `Stopping indicates diminishing novelty, not correctness.`, `Groups reflect embedding similarity, not semantic categories.`
 
@@ -595,3 +608,4 @@ Microcopy pattern contracts:
 - 2026-03-03 03:08Z: aligned copy quality bar to Google/Stripe-style clarity and tightened milestone/progress wording for visual+copy parity.
 - 2026-03-03 03:16Z: linked `docs/product-specs/tui-copy-deck.md` as canonical copy-deck artifact for implementation and external review.
 - 2026-03-03 03:29Z: adopted Opus critique refinements: literal-targeted copy governance checks, receipt artifact text-boundary clarification, Milestone 5 audit-only framing, explicit copy seam ownership boundary, and microcopy calibration examples.
+- 2026-03-03 03:42Z: adopted follow-up alignment fixes: unified success glyph (`✔`), added missing receipt stop labels, aligned forbidden-term policy with caveat exception handling, added disabled-option copy pattern, and added headless-copy verification checks.
