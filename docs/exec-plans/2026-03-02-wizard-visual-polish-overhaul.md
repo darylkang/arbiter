@@ -40,12 +40,12 @@ Scope guardrails:
 - [x] (2026-03-03 02:21Z) initial plan drafted (`proposed`)
 - [x] (2026-03-03 02:39Z) design freeze spec expanded with exact tokens, glyph, motion, and component contracts
 - [x] (2026-03-03 02:37Z) external review incorporated: blocker fixes and scope hardening added
-- [ ] (pending) milestone 0 complete: visual contract ratified after external review
-- [ ] (pending) milestone 1 complete: shared visual seam implemented
+- [ ] (pending) milestone 0 complete: visual and copy contracts ratified after external review
+- [ ] (pending) milestone 1 complete: shared visual and copy seams implemented
 - [ ] (pending) milestone 2 complete: Stage 1 visual and copy restyle implemented
 - [ ] (pending) milestone 3 complete: Stage 2 visual and copy restyle implemented
 - [ ] (pending) milestone 4 complete: Stage 3 visual and copy restyle implemented
-- [ ] (pending) milestone 5 complete: copy system migration implemented across Stage 1-3
+- [ ] (pending) milestone 5 complete: cross-stage copy consistency verification and forbidden-term audit complete
 - [ ] (pending) milestone 6 complete: validation evidence captured and docs synchronized (`completed`)
 
 ## Surprises & Discoveries
@@ -59,6 +59,8 @@ Scope guardrails:
   Evidence: `src/ui/wizard/app.ts`, `src/ui/premium/screens/` (empty).
 - Observation: user-visible strings are currently distributed across wizard, lifecycle hooks, and receipt composition paths with no centralized copy contract.
   Evidence: `src/ui/wizard/app.ts`, `src/ui/run-lifecycle-hooks.ts`, `src/ui/receipt-model.ts`, `src/ui/receipt-text.ts`.
+- Observation: receipt/dashboard caveat language already uses canonical phrasing and should be preserved, not rewritten for novelty.
+  Evidence: `src/ui/receipt-text.ts`, `src/ui/run-lifecycle-hooks.ts`.
 
 ## Decision Log
 - Decision: visual overhaul is phase-isolated from UX and architecture work.
@@ -156,7 +158,7 @@ Milestones:
 3. Milestone 2: Stage 1 visual and copy migration.
 4. Milestone 3: Stage 2 visual and copy migration.
 5. Milestone 4: Stage 3 visual and copy migration.
-6. Milestone 5: cross-stage copy consistency hardening.
+6. Milestone 5: cross-stage copy consistency verification and forbidden-term audit.
 7. Milestone 6: test/capture/docs verification.
 
 Milestone entry and exit gates:
@@ -170,7 +172,7 @@ Milestone entry and exit gates:
    - all stage style and copy calls route through shared seam helpers/modules.
    - seam module path(s) are explicitly recorded in this plan at Milestone 1 entry.
    - `rg -n "\\x1b\\[" src/ui --glob '!fmt.ts'` returns zero style ANSI escapes outside the recorded seam module path(s).
-   - `rg -n "Step 0|Run now|Save config|novelty|correctness|cluster|converged" src/ui` only returns expected ownership modules and tests.
+   - copy-seam boundary checks confirm canonical strings are centralized only where required by the ownership boundary contract.
 3. Milestone 2 exit gate:
    - Stage 1 visuals and copy upgraded.
    - Stage 1 rendering functions delegate to renderer seam helpers; key handling and validation callbacks remain in `src/ui/wizard/app.ts`.
@@ -181,8 +183,9 @@ Milestone entry and exit gates:
    - Stage 3 visuals and copy upgraded.
    - receipt remains scrollback-safe and auto-exit semantics unchanged.
 6. Milestone 5 exit gate:
-   - Stage 1-3 copy uses canonical terminology and forbidden terms are absent from runtime UI surfaces.
-   - warning/error/helper/confirmation copy patterns are consistent across stages.
+   - cross-stage copy audit confirms canonical terminology used and forbidden terms absent from runtime UI surfaces.
+   - warning/error/helper/confirmation copy patterns verified consistent across stages.
+   - this milestone produces no new code unless audit reveals drift introduced during Milestones 2-4.
 7. Milestone 6 exit gate:
    - required tests pass.
    - before/after captures exist for required surfaces.
@@ -256,9 +259,10 @@ Working directory: repository root.
 
 10. Enforce copy governance checks.
    Commands:
-   - `rg -n "\\b(cluster|clusters|converged|correctness|truth|semantic categories|quickstart)\\b" src/ui -S`
+   - `rg -n "['\\\"][^'\\\"]*\\b(cluster|clusters|converged|correctness|truth|semantic categories|quickstart)\\b[^'\\\"]*['\\\"]" src/ui -S`
    - `rg -n "embedding groups|similarity groups|novelty saturation|diminishing novelty, not correctness" src/ui -S`
-   Expected evidence: forbidden terms absent from runtime UI copy and required canonical phrases present where contract requires them.
+   Expected evidence: forbidden terms absent from runtime UI display strings and required canonical phrases present where contract requires them.
+   Note: internal code identifiers and enum values (for example stop-reason code `converged`, config namespace `clustering`) are not user-facing copy and are excluded from this check.
 
 ## Validation and Acceptance
 Behavioral acceptance criteria:
@@ -318,7 +322,7 @@ Validation commands:
 5. `npm run test:pack`
 6. `npm run test:unit`
 7. `node --test test/e2e/*.test.mjs`
-8. `rg -n "\\b(cluster|clusters|converged|correctness|truth|semantic categories|quickstart)\\b" src/ui -S` (expects no matches)
+8. `rg -n "['\\\"][^'\\\"]*\\b(cluster|clusters|converged|correctness|truth|semantic categories|quickstart)\\b[^'\\\"]*['\\\"]" src/ui -S` (expects no user-facing display-string matches; internal enum/code-value matches are documented and allowed)
 
 Required evidence artifacts:
 
@@ -347,6 +351,12 @@ Primary files expected to change:
 4. `src/ui/receipt-model.ts` only if presentation fields need formatting helpers.
 5. copy ownership module(s) under `src/ui/` (for example `src/ui/copy.ts` or staged equivalents).
 6. `scripts/tui-*.mjs` and `test/e2e/tui-pty.test.mjs` only where output assertions need alignment with polished visuals.
+
+Copy seam ownership boundary:
+
+1. Centralized in copy module: terminology-canon strings, stop-reason labels, caveat lines, forbidden-term-adjacent phrases, and strings shared across multiple stages.
+2. Inline in component modules: structural/layout strings (column headers, control hints, one-off helper text that does not include canon terms).
+3. Rationale: centralize strings that require consistency governance; keep mechanical/local strings inline to avoid abstraction overhead.
 
 Dependencies and constraints:
 
@@ -521,6 +531,7 @@ The following must remain behaviorally identical:
 6. CLI headless fallback behavior,
 7. behavioral E2E assertions remain valid after visual updates (test literals updated atomically when presentation strings change),
 8. `receipt.txt` artifact output remains ANSI-free plain text.
+9. `receipt.txt` text content may be aligned with frozen copy contract wording, but artifact structure and field semantics must remain unchanged.
 
 ### I. Pre-Implementation Review Checklist (for Opus pass)
 Checklist to clear before Milestone 1 starts:
@@ -561,12 +572,18 @@ Forbidden terminology in runtime UI copy:
 
 Microcopy pattern contracts:
 
-1. Step headers: short imperative or noun phrase (`Research Question`, `Protocol`, `Models`).
+1. Step headers: short imperative or noun phrase.
+   Examples: `Research Question`, `Protocol`, `Models`, `Decode Params`, `Review and Confirm`.
 2. Helper text: one sentence, ends with concrete intent or caveat.
-3. Validation errors: explicit fix path (`Select at least one model.`).
+   Examples: `Arbiter samples responses to characterize distributional behavior.`, `Select models to include in the sampling pool.`
+3. Validation errors: explicit fix path.
+   Examples: `Fix required: select at least one model.`, `Fix required: enter a research question to continue.`, `Fix required: temperature must be within [0.0, 2.0].`
 4. Warnings: condition + risk + recommendation.
+   Examples: `Warning: no API key detected. Live mode requires OPENROUTER_API_KEY. Set the key or use Mock mode.`, `Warning: free-tier models selected. Availability may be limited. Use paid models for publishable research.`
 5. Success confirmations: compact summary with stable format in the spine.
+   Examples: `✓ Question: "What is..." (42 chars)`, `✓ Protocol: Independent`, `✓ Models: 3 selected`.
 6. Receipt hints: one-line interpretation guidance, research-honest and non-prescriptive.
+   Examples: `Stopping indicates diminishing novelty, not correctness.`, `Groups reflect embedding similarity, not semantic categories.`
 
 ## Plan Change Notes
 - 2026-03-03 02:21Z: initial draft created for UI-only premium polish phase after v0.1.0 release.
@@ -577,3 +594,4 @@ Microcopy pattern contracts:
 - 2026-03-03 03:02Z: expanded scope to include full Stage 1-3 copy overhaul with frozen voice/terminology/microcopy contract and copy-specific gates.
 - 2026-03-03 03:08Z: aligned copy quality bar to Google/Stripe-style clarity and tightened milestone/progress wording for visual+copy parity.
 - 2026-03-03 03:16Z: linked `docs/product-specs/tui-copy-deck.md` as canonical copy-deck artifact for implementation and external review.
+- 2026-03-03 03:29Z: adopted Opus critique refinements: literal-targeted copy governance checks, receipt artifact text-boundary clarification, Milestone 5 audit-only framing, explicit copy seam ownership boundary, and microcopy calibration examples.
