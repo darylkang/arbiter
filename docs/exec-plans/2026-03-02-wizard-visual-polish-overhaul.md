@@ -171,7 +171,8 @@ Milestone entry and exit gates:
    - no stage path uses unmanaged inline user-facing copy literals (outside approved copy ownership modules).
    - all stage style and copy calls route through shared seam helpers/modules.
    - seam module path(s) are explicitly recorded in this plan at Milestone 1 entry.
-   - `rg -n "\\x1b\\[" src/ui --glob '!fmt.ts'` returns zero style ANSI escapes outside the recorded seam module path(s).
+   - `rg -n "\\x1b\\[[0-9;]*m" src/ui --glob '!fmt.ts'` returns zero SGR style ANSI escapes outside the recorded seam module path(s).
+   - terminal control sequences for screen/cursor control are allowed inline.
    - copy-seam boundary checks confirm canonical strings are centralized only where required by the ownership boundary contract.
 3. Milestone 2 exit gate:
    - Stage 1 visuals and copy upgraded.
@@ -609,3 +610,4 @@ Microcopy pattern contracts:
 - 2026-03-03 03:16Z: linked `docs/product-specs/tui-copy-deck.md` as canonical copy-deck artifact for implementation and external review.
 - 2026-03-03 03:29Z: adopted Opus critique refinements: literal-targeted copy governance checks, receipt artifact text-boundary clarification, Milestone 5 audit-only framing, explicit copy seam ownership boundary, and microcopy calibration examples.
 - 2026-03-03 03:42Z: adopted follow-up alignment fixes: unified success glyph (`✔`), added missing receipt stop labels, aligned forbidden-term policy with caveat exception handling, added disabled-option copy pattern, and added headless-copy verification checks.
+- 2026-03-03 03:55Z: tightened Milestone 1 ANSI gate to SGR-only detection and explicitly allowed inline terminal control sequences.

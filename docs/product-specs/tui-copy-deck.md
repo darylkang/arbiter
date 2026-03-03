@@ -14,8 +14,8 @@ Define the canonical user-facing copy for Arbiter TTY surfaces:
 
 This copy deck is implementation-facing and should be used with:
 
-1. `/Users/darylkang/Developer/arbiter/docs/product-specs/tui-wizard.md` for behavior and UX contract
-2. `/Users/darylkang/Developer/arbiter/docs/exec-plans/2026-03-02-wizard-visual-polish-overhaul.md` for execution plan and validation gates
+1. `docs/product-specs/tui-wizard.md` for behavior and UX contract
+2. `docs/exec-plans/2026-03-02-wizard-visual-polish-overhaul.md` for execution plan and validation gates
 
 When this deck and the wizard spec conflict, behavior semantics from `tui-wizard.md` win.
 
@@ -366,6 +366,7 @@ Completion banner:
 Interpretation hint:
 
 1. `LOCKED`: `Stopping indicates diminishing novelty, not correctness.`
+2. `FLEX` note: this hint is currently emitted for all stop reasons; a future refinement may conditionally scope it to novelty-related stops.
 
 Summary section labels:
 
