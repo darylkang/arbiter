@@ -1,12 +1,12 @@
-# Overhaul Wizard Visual System for Warm Instrument Clarity
+# Overhaul Wizard Visual and Copy System for Warm Instrument Clarity
 
 This ExecPlan is a living document and must be updated as work proceeds.
 This plan follows `docs/PLANS.md`.
 
 ## Purpose / Big Picture
-Deliver a premium visual overhaul for Arbiter's Wizard/Dashboard/Receipt surfaces while preserving all stabilized behavior contracts.
+Deliver a premium visual and copy overhaul for Arbiter's Wizard/Dashboard/Receipt surfaces while preserving all stabilized behavior contracts.
 
-This plan is intentionally pre-implementation heavy. It defines the visual system, component contracts, motion rules, and validation method before any code changes.
+This plan is intentionally pre-implementation heavy. It defines the visual system, copy system, component contracts, motion rules, and validation method before any code changes.
 
 Target visual direction:
 
@@ -16,6 +16,7 @@ Target visual direction:
 4. Compact, distinctive title treatment with strong brand presence (no oversized figlet-style block art).
 5. Shared design-system seam (tokens + render primitives), no one-off ANSI styling.
 6. Premium touches through disciplined glyphs and restrained motion.
+7. Product-grade copy system: clear, coherent, research-honest language with consistent terminology and interaction text patterns.
 
 Observable user outcomes:
 
@@ -24,14 +25,16 @@ Observable user outcomes:
 3. Information hierarchy is clearer: what is primary vs secondary is visually obvious.
 4. Visual polish does not alter flow, semantics, keybindings, or artifact behavior.
 5. Non-TTY/headless behavior remains unchanged.
+6. Copy reads as deliberate and premium across all stages, with no terminology drift or mixed voice.
 
 Scope guardrails:
 
-1. In scope: visual language, color, spacing, borders, typography hierarchy, glyph usage, motion cues, and rendering abstractions.
+1. In scope: visual language, color, spacing, borders, typography hierarchy, glyph usage, motion cues, rendering abstractions, and user-facing copy rewrite for Stage 1-3 surfaces.
 2. Out of scope: step order, keybinding contract, protocol semantics, artifact semantics, stop logic, CLI command surface.
 3. Out of scope: any behavior change not strictly required for visual rendering.
 4. Styling restraint is mandatory: no visual noise, no aggressive blinking, no novelty animation.
 5. Design-first rule: visual contract decisions lead; UI tests are updated to reflect approved design output, not vice versa.
+6. Copy-first rigor rule: copy decisions must remain research-honest and semantically accurate; polish must not add scientific or correctness claims.
 
 ## Progress
 - [x] (2026-03-03 02:21Z) initial plan drafted (`proposed`)
@@ -39,10 +42,11 @@ Scope guardrails:
 - [x] (2026-03-03 02:37Z) external review incorporated: blocker fixes and scope hardening added
 - [ ] (pending) milestone 0 complete: visual contract ratified after external review
 - [ ] (pending) milestone 1 complete: shared visual seam implemented
-- [ ] (pending) milestone 2 complete: Stage 1 visual restyle implemented
-- [ ] (pending) milestone 3 complete: Stage 2 visual restyle implemented
-- [ ] (pending) milestone 4 complete: Stage 3 visual restyle implemented
-- [ ] (pending) milestone 5 complete: validation evidence captured and docs synchronized (`completed`)
+- [ ] (pending) milestone 2 complete: Stage 1 visual and copy restyle implemented
+- [ ] (pending) milestone 3 complete: Stage 2 visual and copy restyle implemented
+- [ ] (pending) milestone 4 complete: Stage 3 visual and copy restyle implemented
+- [ ] (pending) milestone 5 complete: copy system migration implemented across Stage 1-3
+- [ ] (pending) milestone 6 complete: validation evidence captured and docs synchronized (`completed`)
 
 ## Surprises & Discoveries
 - Observation: current wizard rendering is concentrated in one file with inline frame output, which increases style drift risk if patched incrementally.
@@ -53,6 +57,8 @@ Scope guardrails:
   Evidence: `/Users/darylkang/Developer/openclaw/src/terminal/palette.ts`, `/Users/darylkang/Developer/openclaw/src/tui/theme/theme.ts`.
 - Observation: Arbiter currently has no dedicated wizard visual module, so first implementation step must be extraction before restyling.
   Evidence: `src/ui/wizard/app.ts`, `src/ui/premium/screens/` (empty).
+- Observation: user-visible strings are currently distributed across wizard, lifecycle hooks, and receipt composition paths with no centralized copy contract.
+  Evidence: `src/ui/wizard/app.ts`, `src/ui/run-lifecycle-hooks.ts`, `src/ui/receipt-model.ts`, `src/ui/receipt-text.ts`.
 
 ## Decision Log
 - Decision: visual overhaul is phase-isolated from UX and architecture work.
@@ -79,6 +85,12 @@ Scope guardrails:
 - Decision: visual identity is warm instrument clarity, not retro pastiche or franchise homage.
   Rationale: Arbiter is a research instrument; visual language should communicate competence, warmth, and craftsmanship without IP mimicry or nostalgia gimmicks.
   Date/Author: 2026-03-03, Codex thread.
+- Decision: copy overhaul ships in the same phase as visual overhaul, with a frozen copy contract before implementation.
+  Rationale: visual polish without language coherence leaves the product feeling unfinished and inconsistent.
+  Date/Author: 2026-03-03, Codex thread.
+- Decision: all Stage 1-3 user-facing strings must be sourced from explicit copy contract ownership points (central module or equivalent).
+  Rationale: prevents tone drift and terminology regressions during future edits.
+  Date/Author: 2026-03-03, Codex thread.
 
 ## Context and Orientation
 Reviewed before finalizing this plan:
@@ -93,6 +105,7 @@ Reviewed before finalizing this plan:
 8. `src/ui/fmt.ts` for terminal capability detection and baseline style helpers.
 9. `scripts/tui-intent.mjs`, `scripts/tui-headless.mjs`, `scripts/tui-command-smoke.mjs`, `test/e2e/tui-pty.test.mjs` for behavior regression guards.
 10. `/Users/darylkang/Developer/openclaw/src/terminal/palette.ts`, `/Users/darylkang/Developer/openclaw/src/tui/theme/theme.ts` for maintainable theme architecture patterns.
+11. `docs/product-specs/tui-wizard.md` terminology rules and wording constraints for research-honest copy.
 
 Non-obvious terms used in this plan:
 
@@ -110,9 +123,10 @@ High-risk components:
 2. ANSI-heavy styling causing wrap/cropping issues in narrower terminals.
 3. Motion effects interfering with readability or logs.
 4. Inconsistent stage styling if Stage 2/3 are restyled without shared primitives.
+5. Copy drift causing mixed terminology (`cluster` vs `group`, correctness language, inconsistent stop-reason phrasing).
 
 ## Plan of Work
-Ordering principle: define and freeze visual contract first, then implement shared primitives, then migrate stages sequentially, then validate behavior parity.
+Ordering principle: define and freeze visual+copy contracts first, then implement shared seams, then migrate stages sequentially, then validate behavior and language parity.
 
 Implementation sequence:
 
@@ -122,41 +136,52 @@ Implementation sequence:
    - motion vocabulary and cadence,
    - color usage budget,
    - width breakpoints and fallback rules.
-2. Implement shared visual seam module(s) and migrate existing style literals to that seam.
-3. Extract Stage 1 rendering into delegated renderer helpers before styling (behavior callbacks remain in place).
-4. Restyle Stage 1 (wizard intake) without changing interaction behavior.
-5. Restyle Stage 2 (dashboard) using same primitives and motion budget.
-6. Restyle Stage 3 (receipt) with static, high-legibility output and no interactive follow-up UI.
-7. Run contract-focused tests and capture before/after output evidence.
+2. Freeze copy contract in this plan:
+   - voice/tone attributes,
+   - terminology canon and forbidden terms,
+   - component-level microcopy patterns,
+   - stage-by-stage required strings and caveat lines.
+3. Implement shared visual seam module(s) and copy seam module(s); migrate inline style and copy literals to these seams.
+4. Extract Stage 1 rendering into delegated renderer helpers before styling (behavior callbacks remain in place).
+5. Restyle and rewrite Stage 1 copy (wizard intake) without changing interaction behavior.
+6. Restyle and rewrite Stage 2 copy (dashboard) using same primitives and copy constraints.
+7. Restyle and rewrite Stage 3 copy (receipt) with static, high-legibility output and no interactive follow-up UI.
+8. Run contract-focused tests and capture before/after output evidence.
 
 Milestones:
 
-1. Milestone 0: visual contract freeze and review.
-2. Milestone 1: shared visual seam extraction.
-3. Milestone 2: Stage 1 visual migration.
-4. Milestone 3: Stage 2 visual migration.
-5. Milestone 4: Stage 3 visual migration.
-6. Milestone 5: test/capture/docs verification.
+1. Milestone 0: visual and copy contract freeze and review.
+2. Milestone 1: shared visual and copy seam extraction.
+3. Milestone 2: Stage 1 visual and copy migration.
+4. Milestone 3: Stage 2 visual and copy migration.
+5. Milestone 4: Stage 3 visual and copy migration.
+6. Milestone 5: cross-stage copy consistency hardening.
+7. Milestone 6: test/capture/docs verification.
 
 Milestone entry and exit gates:
 
 1. Milestone 0 exit gate:
-   - token table, glyph set, motion set, breakpoints, and fallback map are complete and review-ready.
+   - token table, glyph set, motion set, breakpoints, fallback map, and copy contract are complete and review-ready.
 2. Milestone 1 exit gate:
    - no stage path uses ad-hoc ANSI literals for palette/border/chip styles.
-   - all stage style calls route through shared visual seam helpers.
+   - no stage path uses unmanaged inline user-facing copy literals (outside approved copy ownership modules).
+   - all stage style and copy calls route through shared seam helpers/modules.
    - seam module path(s) are explicitly recorded in this plan at Milestone 1 entry.
    - `rg -n "\\x1b\\[" src/ui --glob '!fmt.ts'` returns zero style ANSI escapes outside the recorded seam module path(s).
+   - `rg -n "Step 0|Run now|Save config|novelty|correctness|cluster|converged" src/ui` only returns expected ownership modules and tests.
 3. Milestone 2 exit gate:
-   - Stage 1 visuals upgraded.
+   - Stage 1 visuals and copy upgraded.
    - Stage 1 rendering functions delegate to renderer seam helpers; key handling and validation callbacks remain in `src/ui/wizard/app.ts`.
    - step order, validation, and keybinding behavior unchanged.
 4. Milestone 3 exit gate:
-   - Stage 2 visuals upgraded with unchanged status semantics and graceful interrupt behavior.
+   - Stage 2 visuals and copy upgraded with unchanged status semantics and graceful interrupt behavior.
 5. Milestone 4 exit gate:
-   - Stage 3 visuals upgraded.
+   - Stage 3 visuals and copy upgraded.
    - receipt remains scrollback-safe and auto-exit semantics unchanged.
 6. Milestone 5 exit gate:
+   - Stage 1-3 copy uses canonical terminology and forbidden terms are absent from runtime UI surfaces.
+   - warning/error/helper/confirmation copy patterns are consistent across stages.
+7. Milestone 6 exit gate:
    - required tests pass.
    - before/after captures exist for required surfaces.
    - docs still align with behavior contract.
@@ -178,29 +203,38 @@ Working directory: repository root.
    - `rg -n "statusChip|warnBlock|errorBlock|header|divider|createFormatter" src/ui src/cli -S`
    Expected evidence: explicit ownership map for style extraction.
 
-3. Introduce shared visual seam and Stage 1 rendering delegation seam.
+3. Map current copy emission points and terminology drift hotspots.
+   Commands:
+   - `rg -n "Run existing config|Create new study|Run now|Save config|Review|Stopped:|novelty|cluster|group|correct|converged|truth|semantic categories" src/ui docs/product-specs/tui-wizard.md -S`
+   - `rg -n "\"[^\"]{8,}\"" src/ui/wizard/app.ts src/ui/run-lifecycle-hooks.ts src/ui/receipt-model.ts src/ui/receipt-text.ts -S`
+   Expected evidence: explicit ownership map for copy extraction and rewrite.
+
+4. Introduce shared visual seam, shared copy seam, and Stage 1 rendering delegation seam.
    Commands:
    - `rg -n "from \"../fmt|createStdoutFormatter|createFormatter" src/ui -S`
    - `rg -n "renderStepFrame|selectOne|selectMany|renderBody" src/ui/wizard/app.ts -S`
-   Expected evidence: centralized style APIs consumed by Stage 1/2/3 codepaths, and Stage 1 rendering delegated through a renderer helper interface/module while key handling stays in place.
+   Expected evidence: centralized style and copy APIs consumed by Stage 1/2/3 codepaths, and Stage 1 rendering delegated through a renderer helper interface/module while key handling stays in place.
 
-4. Apply Stage 1 restyle against frozen contracts.
+5. Apply Stage 1 restyle and copy rewrite against frozen contracts.
    Commands:
    - `rg -n "renderStepFrame|selectOne|selectMany|WIZARD_STEP_LABELS|Step 0|Step 7" src/ui/wizard/app.ts -S`
-   Expected evidence: updated frame/card/list visuals with no behavior drift.
+   - `rg -n "Research Question|Protocol|Models|Personas|Decode|Advanced Settings|Review|Run now|Save config" src/ui/wizard -S`
+   Expected evidence: updated frame/card/list visuals and coherent copy with no behavior drift.
 
-5. Apply Stage 2 restyle against frozen contracts.
+6. Apply Stage 2 restyle and copy rewrite against frozen contracts.
    Commands:
    - `rg -n "RUN|progress|worker|novelty|ETA|usage|Ctrl\\+C" src/ui/run-lifecycle-hooks.ts src/ui -S`
-   Expected evidence: upgraded dashboard hierarchy and subtle functional motion only.
+   - `rg -n "Stopped:|novelty saturation|diminishing novelty|embedding groups|semantic categories|usage not applicable|estimate" src/ui/run-lifecycle-hooks.ts src/ui -S`
+   Expected evidence: upgraded dashboard hierarchy, subtle functional motion, and canonical caveat/status language.
 
-6. Apply Stage 3 restyle against frozen contracts.
+7. Apply Stage 3 restyle and copy rewrite against frozen contracts.
    Commands:
    - `rg -n "RECEIPT|receipt|artifact|stop reason|diminishing novelty|scrollback" src/ui/receipt-*.ts src/ui/run-lifecycle-hooks.ts -S`
    - `rg -n "\\x1b\\[" src/ui/receipt-text.ts -S`
-   Expected evidence: branded static receipt display with unchanged semantic content, and `src/ui/receipt-text.ts` remains ANSI-free artifact formatter.
+   - `rg -n "Stopped: novelty saturation|Stopped: max trials reached|Stopped: user requested graceful stop|diminishing novelty, not correctness|embedding similarity, not semantic categories" src/ui/receipt-*.ts src/ui/run-lifecycle-hooks.ts -S`
+   Expected evidence: branded static receipt display with unchanged semantic content, canonical stop-reason language, and `src/ui/receipt-text.ts` remains ANSI-free artifact formatter.
 
-7. Validate behavior parity and capability fallbacks.
+8. Validate behavior parity and capability fallbacks.
    Commands:
    - `npm run check:types`
    - `npm run test:ui`
@@ -212,11 +246,17 @@ Working directory: repository root.
    - `COLUMNS=90 node dist/cli/index.js --help`
    Expected evidence: no contract regressions; readable output in fallback scenarios.
 
-8. Enforce restraint and style-governance checks.
+9. Enforce restraint and style-governance checks.
    Commands:
    - `rg -n "blink|rapid|rainbow|party|strobe" src/ui -S`
    - `rg -n "\\x1b\\[[0-9;]*m" src/ui --glob '!fmt.ts' -S`
    Expected evidence: motion/color behavior is governed by seam helpers and approved motion set.
+
+10. Enforce copy governance checks.
+   Commands:
+   - `rg -n "\\b(cluster|clusters|converged|correctness|truth|semantic categories|quickstart)\\b" src/ui -S`
+   - `rg -n "embedding groups|similarity groups|novelty saturation|diminishing novelty, not correctness" src/ui -S`
+   Expected evidence: forbidden terms absent from runtime UI copy and required canonical phrases present where contract requires them.
 
 ## Validation and Acceptance
 Behavioral acceptance criteria:
@@ -227,6 +267,7 @@ Behavioral acceptance criteria:
 4. Headless/non-TTY behavior remains unchanged.
 5. PTY E2E text assertions are updated atomically to reflect approved visual output; tests validate behavior, not legacy literal styling.
 6. `receipt.txt` artifact remains plain ANSI-free output.
+7. Run-mode behavior and protocol semantics remain unchanged; copy polish does not alter execution decisions.
 
 Visual acceptance criteria:
 
@@ -247,6 +288,25 @@ Visual acceptance criteria:
    - tier B: no unicode corners but retained structure,
    - tier C: no-color ASCII readability.
 
+Copy acceptance criteria:
+
+1. Stage 1-3 copy adheres to one voice system: precise, calm, declarative, and action-oriented.
+2. Canonical terminology is used consistently:
+   - `Independent`, `Debate`,
+   - `embedding groups`/`similarity groups`,
+   - `novelty saturation` and `diminishing novelty`.
+3. Forbidden wording is absent from runtime UI copy:
+   - `converged`, `correctness`, `truth`, `semantic categories`, `quickstart`.
+4. Stop-reason labels are canonical and consistent across dashboard/receipt:
+   - `Stopped: novelty saturation`,
+   - `Stopped: max trials reached`,
+   - `Stopped: user requested graceful stop`.
+5. Every warning/error message follows the same pattern: condition, impact, and next action (or explicit no-action-needed note).
+6. Caveat language appears only where relevant:
+   - `Stopping indicates diminishing novelty, not correctness.` always in monitoring/receipt interpretation context.
+   - `Groups reflect embedding similarity, not semantic categories.` only when group outputs are shown.
+7. Stage 1 completion spine confirmations are concise and consistently structured.
+
 Validation commands:
 
 1. `npm run check:types`
@@ -256,6 +316,7 @@ Validation commands:
 5. `npm run test:pack`
 6. `npm run test:unit`
 7. `node --test test/e2e/*.test.mjs`
+8. `rg -n "\\b(cluster|clusters|converged|correctness|truth|semantic categories|quickstart)\\b" src/ui -S` (expects no matches)
 
 Required evidence artifacts:
 
@@ -282,7 +343,8 @@ Primary files expected to change:
 2. `src/ui/wizard/app.ts`.
 3. `src/ui/run-lifecycle-hooks.ts`.
 4. `src/ui/receipt-model.ts` only if presentation fields need formatting helpers.
-5. `scripts/tui-*.mjs` and `test/e2e/tui-pty.test.mjs` only where output assertions need alignment with polished visuals.
+5. copy ownership module(s) under `src/ui/` (for example `src/ui/copy.ts` or staged equivalents).
+6. `scripts/tui-*.mjs` and `test/e2e/tui-pty.test.mjs` only where output assertions need alignment with polished visuals.
 
 Dependencies and constraints:
 
@@ -290,6 +352,7 @@ Dependencies and constraints:
 2. Stage 2/3 rendering must remain downstream of run events and lifecycle hooks.
 3. No new runtime dependency is required for this plan unless proven necessary during implementation.
 4. `src/ui/receipt-text.ts` is artifact formatting and must remain ANSI-free; any styled receipt rendering belongs in display-layer codepaths.
+5. Copy contracts in `docs/product-specs/tui-wizard.md` remain authoritative for terminology restrictions and semantic caveats.
 
 ## Artifacts and Notes
 Design north star: Arbiter's visual identity is warm instrument clarity. Every surface communicates information hierarchy through structured composition, warm muted tones, and typographic confidence. If a visual choice does not serve clarity, it does not belong.
@@ -466,9 +529,47 @@ Checklist to clear before Milestone 1 starts:
 5. Must-not-change contract maps to existing tests.
 6. Validation evidence requirements are concrete and collectible.
 
+### J. Frozen Copy Contract
+Voice and style system:
+
+1. Tone: calm, precise, competent, and concise.
+2. Sentence style: declarative, active voice, one primary idea per line.
+3. Framing: operational and research-honest; never persuasive or hype-driven.
+4. Reading rhythm: short lines for terminal scanability; avoid dense paragraph blocks in live screens.
+5. Quality benchmark: Google/Stripe-style clarity (direct language, high signal, consistent structure, no filler).
+
+Terminology canon:
+
+1. Protocol labels: `Independent`, `Debate`.
+2. Grouping labels: `embedding groups` and `similarity groups` (never `clusters` in user-facing UI).
+3. Stopping language: `novelty saturation`, `diminishing novelty`, and explicit caveat that stopping is not correctness.
+4. Stop-reason display labels:
+   - `Stopped: novelty saturation`
+   - `Stopped: max trials reached`
+   - `Stopped: user requested graceful stop`
+
+Forbidden terminology in runtime UI copy:
+
+1. `converged`
+2. `correctness`
+3. `truth`
+4. `semantic categories`
+5. `quickstart`
+
+Microcopy pattern contracts:
+
+1. Step headers: short imperative or noun phrase (`Research Question`, `Protocol`, `Models`).
+2. Helper text: one sentence, ends with concrete intent or caveat.
+3. Validation errors: explicit fix path (`Select at least one model.`).
+4. Warnings: condition + risk + recommendation.
+5. Success confirmations: compact summary with stable format in the spine.
+6. Receipt hints: one-line interpretation guidance, research-honest and non-prescriptive.
+
 ## Plan Change Notes
 - 2026-03-03 02:21Z: initial draft created for UI-only premium polish phase after v0.1.0 release.
 - 2026-03-03 02:39Z: expanded to full pre-implementation design contract (exact token/glyph/motion/breakpoint/component rules) for external review before coding.
 - 2026-03-03 02:37Z: integrated external critique: split warning/accent tokens, added explicit Tier B table, narrowed responsiveness scope, added renderer extraction seam, and clarified receipt artifact vs display styling boundary.
 - 2026-03-03 02:37Z: set design-first rule: tests adapt atomically to approved visual output rather than constraining design choices.
 - 2026-03-03 02:46Z: adopted follow-up critique refinements: reframed identity to warm instrument clarity, fixed Tier B accent/warn differentiation, made ANSI gate seam-path-aware, and formalized non-emission of `bg.*` tokens.
+- 2026-03-03 03:02Z: expanded scope to include full Stage 1-3 copy overhaul with frozen voice/terminology/microcopy contract and copy-specific gates.
+- 2026-03-03 03:08Z: aligned copy quality bar to Google/Stripe-style clarity and tightened milestone/progress wording for visual+copy parity.
