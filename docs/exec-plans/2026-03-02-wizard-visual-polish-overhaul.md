@@ -1,4 +1,4 @@
-# Overhaul Wizard Visual System for Premium Warm Terminal Modernism
+# Overhaul Wizard Visual System for Warm Instrument Clarity
 
 This ExecPlan is a living document and must be updated as work proceeds.
 This plan follows `docs/PLANS.md`.
@@ -10,7 +10,7 @@ This plan is intentionally pre-implementation heavy. It defines the visual syste
 
 Target visual direction:
 
-1. Retro-futuristic warm terminal modernism (not kitsch arcade nostalgia).
+1. Warm instrument clarity: structured, calm, information-dense.
 2. Gruvbox-inspired palette tuned for extended terminal reading.
 3. Rounded bubble/card composition language (inspired by OpenClaw's TUI polish pattern, not a copy).
 4. Compact, distinctive title treatment with strong brand presence (no oversized figlet-style block art).
@@ -75,6 +75,9 @@ Scope guardrails:
   Date/Author: 2026-03-03, Codex thread.
 - Decision: v1 responsiveness is two-tier (`>=100` wide, `<100` narrow), not four-tier.
   Rationale: keeps this phase design-only and avoids scope creep into layout-engine feature work.
+  Date/Author: 2026-03-03, Codex thread.
+- Decision: visual identity is warm instrument clarity, not retro pastiche or franchise homage.
+  Rationale: Arbiter is a research instrument; visual language should communicate competence, warmth, and craftsmanship without IP mimicry or nostalgia gimmicks.
   Date/Author: 2026-03-03, Codex thread.
 
 ## Context and Orientation
@@ -142,7 +145,8 @@ Milestone entry and exit gates:
 2. Milestone 1 exit gate:
    - no stage path uses ad-hoc ANSI literals for palette/border/chip styles.
    - all stage style calls route through shared visual seam helpers.
-   - `rg -n "\\x1b\\[" src/ui --glob '!fmt.ts' --glob '!wizard-visual*.ts'` returns zero style ANSI escapes outside approved seam files.
+   - seam module path(s) are explicitly recorded in this plan at Milestone 1 entry.
+   - `rg -n "\\x1b\\[" src/ui --glob '!fmt.ts'` returns zero style ANSI escapes outside the recorded seam module path(s).
 3. Milestone 2 exit gate:
    - Stage 1 visuals upgraded.
    - Stage 1 rendering functions delegate to renderer seam helpers; key handling and validation callbacks remain in `src/ui/wizard/app.ts`.
@@ -211,7 +215,7 @@ Working directory: repository root.
 8. Enforce restraint and style-governance checks.
    Commands:
    - `rg -n "blink|rapid|rainbow|party|strobe" src/ui -S`
-   - `rg -n "\\x1b\\[[0-9;]*m" src/ui --glob '!fmt.ts' --glob '!wizard-visual*.ts' -S`
+   - `rg -n "\\x1b\\[[0-9;]*m" src/ui --glob '!fmt.ts' -S`
    Expected evidence: motion/color behavior is governed by seam helpers and approved motion set.
 
 ## Validation and Acceptance
@@ -288,6 +292,8 @@ Dependencies and constraints:
 4. `src/ui/receipt-text.ts` is artifact formatting and must remain ANSI-free; any styled receipt rendering belongs in display-layer codepaths.
 
 ## Artifacts and Notes
+Design north star: Arbiter's visual identity is warm instrument clarity. Every surface communicates information hierarchy through structured composition, warm muted tones, and typographic confidence. If a visual choice does not serve clarity, it does not belong.
+
 ### A. Frozen Visual Token Contract
 Color tokens (tier A; hex truth):
 
@@ -315,8 +321,8 @@ Tier B mapping (16-color-safe ANSI approximations):
 | `fg.primary` | `\x1b[37m` (white) |
 | `fg.secondary` | `\x1b[37m` (white, non-bold) |
 | `fg.muted` | `\x1b[90m` (bright black) |
-| `accent.primary` | `\x1b[33m` (yellow) |
-| `accent.secondary` | `\x1b[93m` (bright yellow) |
+| `accent.primary` | `\x1b[93m` (bright yellow) |
+| `accent.secondary` | `\x1b[33m` (yellow) |
 | `status.success` | `\x1b[32m` (green) |
 | `status.warn` | `\x1b[33;1m` (bold yellow) |
 | `status.error` | `\x1b[31m` (red) |
@@ -324,6 +330,8 @@ Tier B mapping (16-color-safe ANSI approximations):
 | `border.subtle` | `\x1b[90m` (bright black) |
 | `border.default` | `\x1b[90m` (bright black) |
 | `border.strong` | `\x1b[37m` (white) |
+
+Background token rule: `bg.*` tokens are reference values and are never emitted as ANSI background codes in any tier.
 
 Tier C (no color): use text labels and symbol prefixes only.
 
@@ -463,3 +471,4 @@ Checklist to clear before Milestone 1 starts:
 - 2026-03-03 02:39Z: expanded to full pre-implementation design contract (exact token/glyph/motion/breakpoint/component rules) for external review before coding.
 - 2026-03-03 02:37Z: integrated external critique: split warning/accent tokens, added explicit Tier B table, narrowed responsiveness scope, added renderer extraction seam, and clarified receipt artifact vs display styling boundary.
 - 2026-03-03 02:37Z: set design-first rule: tests adapt atomically to approved visual output rather than constraining design choices.
+- 2026-03-03 02:46Z: adopted follow-up critique refinements: reframed identity to warm instrument clarity, fixed Tier B accent/warn differentiation, made ANSI gate seam-path-aware, and formalized non-emission of `bg.*` tokens.
