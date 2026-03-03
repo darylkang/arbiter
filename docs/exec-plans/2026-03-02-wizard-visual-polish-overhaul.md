@@ -106,6 +106,7 @@ Reviewed before finalizing this plan:
 9. `scripts/tui-intent.mjs`, `scripts/tui-headless.mjs`, `scripts/tui-command-smoke.mjs`, `test/e2e/tui-pty.test.mjs` for behavior regression guards.
 10. `/Users/darylkang/Developer/openclaw/src/terminal/palette.ts`, `/Users/darylkang/Developer/openclaw/src/tui/theme/theme.ts` for maintainable theme architecture patterns.
 11. `docs/product-specs/tui-wizard.md` terminology rules and wording constraints for research-honest copy.
+12. `docs/product-specs/tui-copy-deck.md` as the canonical per-surface copy source for implementation and review.
 
 Non-obvious terms used in this plan:
 
@@ -162,6 +163,7 @@ Milestone entry and exit gates:
 
 1. Milestone 0 exit gate:
    - token table, glyph set, motion set, breakpoints, fallback map, and copy contract are complete and review-ready.
+   - `docs/product-specs/tui-copy-deck.md` exists with Stage 1-3 copy coverage and `LOCKED` vs `FLEX` line ownership.
 2. Milestone 1 exit gate:
    - no stage path uses ad-hoc ANSI literals for palette/border/chip styles.
    - no stage path uses unmanaged inline user-facing copy literals (outside approved copy ownership modules).
@@ -353,6 +355,7 @@ Dependencies and constraints:
 3. No new runtime dependency is required for this plan unless proven necessary during implementation.
 4. `src/ui/receipt-text.ts` is artifact formatting and must remain ANSI-free; any styled receipt rendering belongs in display-layer codepaths.
 5. Copy contracts in `docs/product-specs/tui-wizard.md` remain authoritative for terminology restrictions and semantic caveats.
+6. `docs/product-specs/tui-copy-deck.md` is the runtime copy source of truth; ad-hoc string authoring outside ownership modules is not allowed.
 
 ## Artifacts and Notes
 Design north star: Arbiter's visual identity is warm instrument clarity. Every surface communicates information hierarchy through structured composition, warm muted tones, and typographic confidence. If a visual choice does not serve clarity, it does not belong.
@@ -573,3 +576,4 @@ Microcopy pattern contracts:
 - 2026-03-03 02:46Z: adopted follow-up critique refinements: reframed identity to warm instrument clarity, fixed Tier B accent/warn differentiation, made ANSI gate seam-path-aware, and formalized non-emission of `bg.*` tokens.
 - 2026-03-03 03:02Z: expanded scope to include full Stage 1-3 copy overhaul with frozen voice/terminology/microcopy contract and copy-specific gates.
 - 2026-03-03 03:08Z: aligned copy quality bar to Google/Stripe-style clarity and tightened milestone/progress wording for visual+copy parity.
+- 2026-03-03 03:16Z: linked `docs/product-specs/tui-copy-deck.md` as canonical copy-deck artifact for implementation and external review.
