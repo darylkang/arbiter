@@ -2,7 +2,7 @@
 
 Status: accepted implementation target
 Owner: Arbiter
-Last updated: 2026-03-02
+Last updated: 2026-03-03
 
 ## Purpose
 
@@ -181,6 +181,7 @@ No Stage 4 next-action menu.
 4. Stage 2 renders below the frozen Stage 1 Study Summary card and updates in place.
 5. When Stage 2 ends, its final snapshot remains visible and Stage 3 renders below it.
 6. This is not a full transcript stack: prior editable step bodies are not persisted after commit.
+7. Stacked composition applies only to wizard `Run now` path; `arbiter run --dashboard` renders Stage 2 and Stage 3 without persistent Stage 0 masthead or Stage 1 summary.
 
 ## Stage 1: Intake Wizard
 
@@ -198,11 +199,8 @@ Global behavior:
 
 Header:
 
-1. ARBITER title treatment.
-2. Tagline and version.
-3. Environment indicators:
-   - OpenRouter key present yes or no
-   - config files detected in CWD yes or no and count
+1. Stage 0 persistent masthead is the single source for title, tagline, version, and environment indicators.
+2. Step 0 does not duplicate masthead identity/status lines in the step body.
 
 Two sequential selections:
 
@@ -365,10 +363,11 @@ Layout behavior:
 1. Stage 2 is rendered below the persistent Stage 0 masthead and frozen Stage 1 Study Summary card.
 2. Only the Stage 2 region is live-updated; Stage 0 and Stage 1 summary remain static.
 3. On termination, Stage 2 final state remains visible above Stage 3 receipt.
+4. If terminal height is constrained, frozen content may scroll into terminal scrollback naturally while Stage 2 remains legible in visible rows.
 
 Required regions:
 
-1. Experiment summary line: question excerpt, mode, protocol, trials, workers.
+1. Compact dynamic summary line: trials completed/planned and workers.
 2. Master progress: progress bar, completed and planned counts, elapsed time, and best-effort ETA (`—` when unknown).
 3. Worker table when workers > 1:
    - worker id
@@ -407,14 +406,14 @@ Interrupt behavior:
 2. Stop dispatching new trials.
 3. Allow in-flight workers to finish.
 4. Write partial artifacts.
-5. Continue to Stage 3 with UI stop reason `Stopped by user (graceful)`.
+5. Continue to Stage 3 with UI stop reason `Stopped: user requested graceful stop`.
 6. Artifact stop-reason code may use internal code values such as `user_cancel`.
 
 Termination paths:
 
 1. novelty saturation heuristic threshold met,
 2. `K_max` reached,
-3. stopped by user (graceful),
+3. user requested graceful stop,
 4. run failed.
 
 ## Stage 3: Receipt and Exit

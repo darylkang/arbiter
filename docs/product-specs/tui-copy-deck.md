@@ -1,8 +1,8 @@
 # Arbiter TUI Copy Deck
 
-Status: draft for review
+Status: accepted implementation target
 Owner: Arbiter
-Last updated: 2026-03-02
+Last updated: 2026-03-03
 
 ## Purpose
 
@@ -39,6 +39,7 @@ Formatting markers:
 3. `LOCKED`: Stage 2 is rendered below the frozen Stage 1 Study Summary card and updates in place.
 4. `LOCKED`: Stage 3 is rendered below the final Stage 2 snapshot.
 5. `LOCKED`: The run-path stack is preserved in terminal scrollback on exit.
+6. `LOCKED`: `arbiter run --dashboard` renders Stage 2 and Stage 3 without Stage 0 masthead or frozen Stage 1 Study Summary.
 
 ## Voice System
 
@@ -112,6 +113,8 @@ Status strip:
 2. `LOCKED`: `OpenRouter API key: {present_or_missing}`
 3. `LOCKED`: `Run mode: {mode_or_dash}`
 4. `LOCKED`: `Configs in current directory: {count}`
+5. `LOCKED`: `{present_or_missing}` values are `detected` or `not detected`.
+6. `LOCKED`: `{mode_or_dash}` values are `Live`, `Mock`, or `—`.
 
 ## Stage 1 Intake Wizard
 
@@ -127,17 +130,10 @@ Status strip:
 
 ### Step 0 Welcome and Entry
 
-Header:
+Header and status strip:
 
-1. `LOCKED`: `ARBITER`
-2. `LOCKED`: `Distributional reasoning harness`
-3. `LOCKED`: `Version {version}`
-
-Environment strip:
-
-1. `LOCKED`: `Environment`
-2. `LOCKED`: `OpenRouter API key: {present_or_missing}`
-3. `LOCKED`: `Configs in current directory: {count}`
+1. `LOCKED`: rendered by Stage 0 Persistent Masthead.
+2. `LOCKED`: Step 0 does not duplicate Stage 0 identity/status lines.
 
 Entry path prompt:
 
@@ -334,12 +330,12 @@ Card header:
 Summary lines:
 
 1. `LOCKED`: `Question: {question}`
-2. `LOCKED`: `Protocol: {protocol_summary}`
-3. `LOCKED`: `Models: {models_summary}`
-4. `LOCKED`: `Personas: {personas_summary}`
-5. `LOCKED`: `Decode: {decode_summary}`
-6. `LOCKED`: `Execution: workers {workers}, batch {batch_size}, K_max {k_max}`
-7. `LOCKED`: `Run mode: {run_mode}`
+2. `FLEX` note: if question text is long, truncate for summary readability (recommended first 80 chars with ellipsis).
+3. `LOCKED`: `Protocol: {protocol_summary}`
+4. `LOCKED`: `Models: {models_summary}`
+5. `LOCKED`: `Personas: {personas_summary}`
+6. `LOCKED`: `Decode: {decode_summary}`
+7. `LOCKED`: `Execution: workers {workers}, batch {batch_size}, K_max {k_max}`
 8. `LOCKED`: `Output dir: {output_dir}`
 9. `LOCKED`: `Source config: {source_config_path}` (show only when entering via `Run existing config`)
 
@@ -353,8 +349,7 @@ Note: sentinel format may be updated during visual overhaul to match card-style 
 
 Summary strip:
 
-1. `LOCKED`: `Question: {excerpt}`
-2. `LOCKED`: `Mode: {mode} | Protocol: {protocol} | Trials: {completed}/{planned} | Workers: {workers}`
+1. `LOCKED`: `Trials: {completed}/{planned} | Workers: {workers}`
 
 Progress block:
 

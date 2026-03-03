@@ -295,6 +295,7 @@ Behavioral acceptance criteria:
 6. `receipt.txt` artifact remains plain ANSI-free output.
 7. Run-mode behavior and protocol semantics remain unchanged; copy polish does not alter execution decisions.
 8. Run-path stage composition follows contract: persistent Stage 0 masthead, frozen Stage 1 Study Summary, Stage 2 live region below summary, Stage 3 appended below final Stage 2 snapshot.
+9. `arbiter run --dashboard` remains a Stage 2/3-only display path without Stage 0/Stage 1 stacked composition.
 
 Visual acceptance criteria:
 
@@ -357,7 +358,7 @@ Validation commands:
 9. `rg -n "['\\\"][^'\\\"]*\\bcorrectness\\b[^'\\\"]*['\\\"]" src/ui -S | rg -v "diminishing novelty, not correctness"` (expects no matches)
 10. `rg -n "['\\\"][^'\\\"]*\\bsemantic categories\\b[^'\\\"]*['\\\"]" src/ui -S | rg -v "Groups reflect embedding similarity, not semantic categories\\."` (expects no matches)
 11. `rg -n "TTY not detected\\. Showing headless help\\.|Dashboard requested without TTY; continuing in headless mode\\." src/ui src/cli -S` (expects canonical headless strings present)
-12. `rg -n "Study Summary|Run mode:|Output dir:" src/ui/wizard src/ui/run-lifecycle-hooks.ts -S` (expects run-path summary labels present in stack composition codepaths)
+12. `rg -n "Study Summary|Starting run|lastRenderedLineCount|\\x1b\\[[0-9]+A\\x1b\\[J" src/ui/wizard/app.ts src/ui/run-lifecycle-hooks.ts -S` (expects explicit frozen-summary and dashboard-redraw-boundary signals in run-path stack codepaths)
 
 Required evidence artifacts:
 
@@ -522,6 +523,20 @@ Stage-specific layout invariants:
 3. After `Run now`, Stage 1 is represented by a frozen Study Summary card above Stage 2/3 regions.
 4. Stage 2 always keeps master progress visible, even when worker table overflows.
 5. Stage 3 always prints completion banner + summary card + artifacts list in readable order below final Stage 2 snapshot.
+6. `arbiter run --dashboard` renders Stage 2/3 only and does not include persistent Stage 0/Stage 1 stacked regions.
+
+Stage-stack redraw mechanism:
+
+1. Frozen region (Stage 0 masthead + Stage 1 Study Summary) is written once at run start transition.
+2. Dashboard redraw tracks dashboard-region line count independently from frozen-region line count.
+3. Cursor-up redraw operations must never exceed dashboard-region line count.
+4. Dashboard redraw must not erase or rewrite the frozen region above.
+
+Height constraint:
+
+1. If terminal height minus frozen-region height leaves fewer than 10 visible rows for Stage 2, frozen content may scroll into terminal scrollback naturally.
+2. In short-terminal fallback, Stage 2 rendering remains legible and interactive in visible rows.
+3. Frozen content is not repeatedly re-rendered once scrolled out of viewport.
 
 ### G. Component-Level Style Contracts
 Implementation ownership map:
@@ -642,3 +657,4 @@ Microcopy pattern contracts:
 - 2026-03-03 03:42Z: adopted follow-up alignment fixes: unified success glyph (`✔`), added missing receipt stop labels, aligned forbidden-term policy with caveat exception handling, added disabled-option copy pattern, and added headless-copy verification checks.
 - 2026-03-03 03:55Z: tightened Milestone 1 ANSI gate to SGR-only detection and explicitly allowed inline terminal control sequences.
 - 2026-03-03 04:14Z: updated plan for hybrid stack composition direction: persistent Stage 0 masthead, frozen Stage 1 Study Summary, Stage 2/3 stacked rendering, and corresponding gates/validation updates.
+- 2026-03-03 04:33Z: resolved stacked-composition audit gaps: removed Stage 0/Step 0 header duplication, clarified dashboard-only (`--dashboard`) path semantics, added redraw-boundary and short-terminal fallback contract, and aligned stop-reason wording to copy-deck canonical labels.
