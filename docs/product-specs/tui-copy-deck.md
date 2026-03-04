@@ -2,7 +2,7 @@
 
 Status: accepted implementation target
 Owner: Arbiter
-Last updated: 2026-03-03
+Last updated: 2026-03-04
 
 ## Purpose
 
@@ -16,7 +16,8 @@ Define the canonical user-facing copy for Arbiter TTY surfaces:
 This copy deck is implementation-facing and should be used with:
 
 1. `docs/product-specs/tui-wizard.md` for behavior and UX contract
-2. `docs/exec-plans/2026-03-02-wizard-visual-polish-overhaul.md` for execution plan and validation gates
+2. `docs/product-specs/tui-visual-screen-deck.md` for concrete visual layout targets
+3. `docs/exec-plans/2026-03-04-premium-visual-reboot.md` for execution plan and validation gates
 
 When this deck and the wizard spec conflict, behavior semantics from `tui-wizard.md` win.
 

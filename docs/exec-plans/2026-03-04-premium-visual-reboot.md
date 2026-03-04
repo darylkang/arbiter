@@ -17,6 +17,8 @@ Primary user-visible outcome:
 
 ## Progress
 - [x] (2026-03-04 04:34Z) reboot plan drafted from benchmark research and post-implementation misalignment analysis (`proposed`)
+- [x] (2026-03-04 13:40Z) review round A complete (internal spec coherence and ambiguity audit)
+- [x] (2026-03-04 13:52Z) review round B complete (expanded screen-deck pass integrated)
 - [ ] (pending) visual reboot contract freeze complete (style, hierarchy, motion, hero treatment)
 - [ ] (pending) copy and visual cohesion freeze complete (cross-stage tone + layout pairing)
 - [ ] (pending) Stage 1 visual reboot implemented and screenshot-audited
@@ -61,10 +63,11 @@ Reviewed before drafting this plan:
 2. `docs/PLANS.md` and `docs/exec-plans/README.md` for ExecPlan requirements and status conventions.
 3. `docs/product-specs/tui-wizard.md` for immutable behavior contracts.
 4. `docs/product-specs/tui-copy-deck.md` for copy ownership and runtime language constraints.
-5. `docs/exec-plans/2026-03-02-wizard-visual-polish-overhaul.md` for prior design decisions and what was delivered.
-6. `src/ui/wizard/app.ts`, `src/ui/wizard-theme.ts`, `src/ui/run-lifecycle-hooks.ts`, `src/ui/fmt.ts` for current implementation seams.
-7. `scripts/tui-visual-capture.mjs`, `scripts/tui-terminal-viewer.html` for current visual inspection pipeline.
-8. External reference projects:
+5. `docs/product-specs/tui-visual-screen-deck.md` for concrete visual layout targets by stage and width tier.
+6. `docs/exec-plans/2026-03-02-wizard-visual-polish-overhaul.md` for prior design decisions and what was delivered.
+7. `src/ui/wizard/app.ts`, `src/ui/wizard-theme.ts`, `src/ui/run-lifecycle-hooks.ts`, `src/ui/fmt.ts` for current implementation seams.
+8. `scripts/tui-visual-capture.mjs`, `scripts/tui-terminal-viewer.html` for current visual inspection pipeline.
+9. External reference projects:
    - `https://github.com/jesseduffield/lazygit`
    - `https://github.com/jesseduffield/lazydocker`
    - `https://github.com/derailed/k9s`
@@ -74,7 +77,7 @@ Reviewed before drafting this plan:
    - `https://github.com/charmbracelet/lipgloss`
    - `https://github.com/charmbracelet/vhs`
    - `https://github.com/tsl0922/ttyd`
-9. Local OpenCLAW references:
+10. Local OpenCLAW references:
    - `/Users/darylkang/Developer/openclaw/src/tui/theme/theme.ts`
    - `/Users/darylkang/Developer/openclaw/src/terminal/palette.ts`
 
@@ -95,10 +98,16 @@ High-risk areas:
 ## Plan of Work
 Ordering principle: lock premium quality rubric and audit method first, then implement stage-by-stage with screenshot-based gates.
 
+Pre-implementation review-cycle rule:
+
+1. run at least two documented review cycles before M2 code implementation starts,
+2. each review cycle must produce concrete doc deltas (not comments only),
+3. unresolved P1-level ambiguities block M2 start.
+
 Milestones:
 
-1. M0: freeze premium visual contract and benchmark rubric, including explicit sentinel header format decision.
-2. M1: freeze audit contract (what must be captured, how reviewed, pass/fail criteria).
+1. M0: review round A and B completed; visual contract freeze complete (including explicit sentinel header format decision).
+2. M1: audit contract freeze complete (what must be captured, how reviewed, pass/fail criteria).
 3. M2: Stage 1 reboot implementation (hero, spine, cards, selectors, controls).
 4. M3: Stage 2 reboot implementation (dashboard hierarchy, motion, density, status clarity).
 5. M4: Stage 3 reboot implementation (receipt prominence, closure quality, final scrollback composition).
@@ -114,6 +123,11 @@ Design constraints for this reboot:
 5. stable readability in long sessions and narrow terminal widths.
 
 Concrete visual targets (frozen in M0 before implementation):
+
+Source of truth:
+
+1. `docs/product-specs/tui-visual-screen-deck.md` is the canonical stage-by-stage visual layout deck.
+2. The examples below summarize anchor screens for quick scan and must remain aligned with the visual screen deck.
 
 1. Stage 0 + Step 0 composition target:
 
@@ -146,7 +160,9 @@ Concrete visual targets (frozen in M0 before implementation):
 [frozen masthead]
 [frozen study summary card]
 
-╭─ RUN ─────────────────────────────────────────────────────────────────────╮
+═══ RUN ═══
+
+╭─ Master progress ─────────────────────────────────────────────────────────╮
 │ Progress  28/80  [███████████░░░░░░░░░░░░░░] 35%                        │
 │ Elapsed 00:02:12  ETA 00:04:03                                           │
 ╰───────────────────────────────────────────────────────────────────────────╯
@@ -164,7 +180,9 @@ Concrete visual targets (frozen in M0 before implementation):
 [frozen study summary card]
 [final Stage 2 snapshot]
 
-╭─ RECEIPT ─────────────────────────────────────────────────────────────────╮
+═══ RECEIPT ═══
+
+╭─ Receipt Summary ─────────────────────────────────────────────────────────╮
 │ Stopped: novelty saturation                                               │
 │ Trials completed: 64 / 80                                                 │
 │ Eligible: 60  Failed: 4                                                   │
@@ -172,6 +190,13 @@ Concrete visual targets (frozen in M0 before implementation):
 │ Stopping indicates diminishing novelty, not correctness.                  │
 ╰───────────────────────────────────────────────────────────────────────────╯
 ```
+
+M0 freeze deliverables:
+
+1. screen deck approved for Step 0 through Step 7, Stage 2, and Stage 3,
+2. sentinel decision recorded (`retain` or `replace`) with atomic test/update rule,
+3. hero treatment frozen (title structure, accent behavior, line rhythm),
+4. copy deck and screen deck cross-checked for LOCKED/FLEX alignment.
 
 ## Visual Evaluation Framework (End-User Reality Loop)
 This framework is mandatory for every reboot milestone. Code-level review alone is insufficient.
@@ -195,6 +220,15 @@ Evaluation scorecard (1-5 each; weighted):
 5. data-density legibility in Stage 2 (15%)
 6. motion quality (functional, non-distracting) (10%)
 7. fallback robustness across terminal capability tiers (10%)
+
+Score calibration anchors:
+
+1. 5/5 hierarchy clarity: primary action and current step are immediately obvious in under two seconds with no visual hunting.
+2. 3/5 hierarchy clarity: current step is discoverable but competes with secondary information.
+3. 5/5 brand distinctiveness: first screen is unmistakably Arbiter without relying on novelty effects.
+4. 3/5 brand distinctiveness: competent but interchangeable with generic CLI cards.
+5. 5/5 data-density legibility: Stage 2 shows all critical metrics without cramped wrapping at target widths.
+6. 3/5 data-density legibility: complete but visually dense enough to slow scan speed.
 
 Gate thresholds:
 
@@ -225,60 +259,73 @@ Evaluator role:
 ## Concrete Steps
 Working directory: repository root.
 
-1. Baseline current visuals for fail-before evidence.
+1. Run review round A (internal coherence and ambiguity audit) on:
+   - `docs/exec-plans/2026-03-04-premium-visual-reboot.md`
+   - `docs/product-specs/tui-copy-deck.md`
+   - `docs/product-specs/tui-visual-screen-deck.md`
+   Commands:
+   - `rg -n "LOCKED|FLEX|Stage 0|Study Summary|RUN|RECEIPT|COLUMNS" docs/product-specs docs/exec-plans/2026-03-04-premium-visual-reboot.md -S`
+   Expected evidence: ambiguity log resolved with explicit wording updates.
+
+2. Run review round B (independent critique pass) and integrate required edits.
+   Commands:
+   - N/A (review feedback integration step)
+   Expected evidence: second-round critique items mapped to doc changes with no unresolved P1 blockers.
+
+3. Baseline current visuals for fail-before evidence.
    Commands:
    - `npm run build`
    - `node scripts/tui-visual-capture.mjs`
    Expected evidence: ANSI checkpoints saved under `output/playwright/tui-visual/<timestamp>/`.
 
-2. Render baseline screenshots from ANSI checkpoints.
+4. Render baseline screenshots from ANSI checkpoints.
    Commands:
    - `python -m http.server 4173 --bind 127.0.0.1`
    - use Playwright MCP to load `scripts/tui-terminal-viewer.html`, replay checkpoints, and save PNGs.
    Expected evidence: baseline screenshot pack with Stage 0, Step 3, Step 7, Stage 2, Stage 3.
 
-3. Capture baseline end-user runtime screenshots (non-emulated).
+5. Capture baseline end-user runtime screenshots (non-emulated).
    Commands:
    - `echo "TERM=$TERM COLORTERM=$COLORTERM NO_COLOR=${NO_COLOR:-}"` (in user runtime shell)
    - run `arbiter` in real TTY and capture screenshots for Stage 0, Step 3, Step 7, Stage 2, Stage 3.
    Expected evidence: baseline real-usage screenshot pack and terminal profile metadata.
 
-4. Freeze premium visual rubric in this plan (no code changes yet).
+6. Freeze premium visual rubric in this plan (no code changes yet).
    Commands:
    - N/A (doc update step)
    Expected evidence: rubric section complete with weighted criteria and rejection criteria, and M0 records whether sentinels are retained or replaced.
 
-5. Freeze visual audit standard in this plan.
+7. Freeze visual audit standard in this plan.
    Commands:
    - N/A (doc update step)
    Expected evidence: required screenshot sequence, viewport, terminal profile, and approval checklist defined.
 
-6. Implement Stage 1 reboot against frozen contract.
+8. Implement Stage 1 reboot against frozen contract.
    Commands:
    - `rg -n "renderStepFrame|renderMasthead|renderProgressSpine|renderCard|selectOne|selectMany|Research Question" src/ui -S`
    - `npm run build && npm run test:ui`
    Expected evidence: Stage 1 screenshots visibly match contract and pass behavior tests.
 
-7. Implement Stage 2 reboot against frozen contract.
+9. Implement Stage 2 reboot against frozen contract.
    Commands:
    - `rg -n "buildRunDashboardText|Master progress|Monitoring|Workers|Usage|renderTick" src/ui -S`
    - `npm run build && npm run test:ui`
    Expected evidence: Stage 2 screenshot quality and motion meet contract; no behavior regressions.
 
-8. Implement Stage 3 reboot against frozen contract.
+10. Implement Stage 3 reboot against frozen contract.
    Commands:
    - `rg -n "receipt|RECEIPT|readReceiptText|receipt.txt" src/ui -S`
    - `npm run build && npm run test:ui`
    Expected evidence: Stage 3 closure quality improved while preserving plain-text artifact integrity.
 
-9. Run visual evaluation loop and scorecard before final test gates.
+11. Run visual evaluation loop and scorecard before final test gates.
    Commands:
    - regenerate deterministic screenshot pack
    - regenerate end-user runtime screenshot pack
    - score both packs against framework and record decisions in an evaluation report.
    Expected evidence: completed scorecard with pass/fail per category and explicit defect log.
 
-10. Run full quality gates and package evidence.
+12. Run full quality gates and package evidence.
    Commands:
    - `npm run check:types`
    - `npm run check:schemas`
@@ -301,6 +348,7 @@ Behavior acceptance (must remain true):
 2. Headless CLI behavior remains unchanged.
 3. `receipt.txt` remains ANSI-free and semantically stable.
 4. Stage-stack behavior remains: Stage 0 masthead, frozen Stage 1 summary, Stage 2 live/final snapshot, Stage 3 appended receipt.
+5. M2+ implementation does not begin until M0 review rounds A/B and contract freeze are complete.
 
 Premium visual acceptance (must all pass):
 
@@ -414,4 +462,6 @@ Reference-derived avoid patterns:
 
 ## Plan Change Notes
 - 2026-03-04 04:34Z: initial reboot plan created after explicit user rejection of prior restrained visual outcome and benchmark-driven research pass.
-- 2026-03-04 17:10Z: hardened reboot gates with independent evaluator ownership, weighted scorecard alignment, measurable M5 criteria, narrow-width evidence requirements, and concrete ASCII target layouts.
+- 2026-03-04 12:10Z: hardened reboot gates with independent evaluator ownership, weighted scorecard alignment, measurable M5 criteria, narrow-width evidence requirements, and concrete ASCII target layouts.
+- 2026-03-04 12:20Z: expanded to full review-cycle workflow with explicit pre-implementation two-round critique requirement and cross-links to canonical visual screen deck.
+- 2026-03-04 13:52Z: completed two doc hardening rounds, added score calibration anchors, and promoted full-stage visual deck to canonical layout source.
