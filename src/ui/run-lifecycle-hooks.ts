@@ -41,7 +41,6 @@ type DashboardSnapshot = {
 };
 
 const MAX_DASHBOARD_QUESTION_CHARS = 88;
-const MAX_VISIBLE_WORKERS = 8;
 const SPINNER_FRAMES = ["-", "\\", "|", "/"];
 
 const shouldRenderDashboard = (enabled: boolean): boolean =>
@@ -129,6 +128,8 @@ const mapStopStateFromCompletion = (
 const spinnerFrame = (tick: number): string =>
   SPINNER_FRAMES[Math.max(0, tick) % SPINNER_FRAMES.length];
 
+const countRenderedLines = (value: string): number => value.split("\n").length;
+
 export const buildRunDashboardText = (
   snapshot: DashboardSnapshot,
   nowMs = Date.now()
@@ -137,15 +138,15 @@ export const buildRunDashboardText = (
   const eta = formatEta(snapshot);
   const progressBar = formatProgressBar(snapshot.attempted, snapshot.planned);
 
-  const lines: string[] = [];
-  lines.push(UI_COPY.runHeader);
-  lines.push(
+  const sections: string[] = [];
+  sections.push(UI_COPY.runHeader);
+  sections.push(
     renderCard({
       title: "Run",
       lines: [`Trials: ${snapshot.attempted}/${snapshot.planned} | Workers: ${snapshot.workers}`]
     })
   );
-  lines.push(
+  sections.push(
     renderCard({
       title: "Master progress",
       lines: [
@@ -155,35 +156,6 @@ export const buildRunDashboardText = (
       ]
     })
   );
-
-  if (snapshot.workers > 1) {
-    const workerLines: string[] = [];
-    const sorted = Array.from(snapshot.workerStatus.entries()).sort((a, b) => a[0] - b[0]);
-    const visible = sorted.slice(0, MAX_VISIBLE_WORKERS);
-    for (const [workerId, state] of visible) {
-      if (state.status === "running") {
-        workerLines.push(
-          `W${workerId} | running | trial ${state.trialId ?? "-"} | ${spinnerFrame(snapshot.renderTick)} calling model`
-        );
-      } else if (state.status === "finishing") {
-        workerLines.push(`W${workerId} | finishing | trial ${state.trialId ?? "-"} | ${spinnerFrame(snapshot.renderTick)} finishing`);
-      } else if (state.status === "error") {
-        workerLines.push(`W${workerId} | error | trial ${state.trialId ?? "-"} | error`);
-      } else {
-        workerLines.push(`W${workerId} | idle | trial ${state.trialId ?? "-"} | idle`);
-      }
-    }
-    const hidden = sorted.length - visible.length;
-    if (hidden > 0) {
-      workerLines.push(`(+${hidden} more workers)`);
-    }
-    lines.push(
-      renderCard({
-        title: "Workers",
-        lines: workerLines
-      })
-    );
-  }
 
   const novelty = snapshot.noveltyRate === null ? "—" : snapshot.noveltyRate.toFixed(3);
   const noveltyThreshold =
@@ -217,15 +189,14 @@ export const buildRunDashboardText = (
   if (snapshot.groupingEnabled) {
     monitoringLines.push(UI_COPY.groupingCaveat);
   }
-  lines.push(
-    renderCard({
-      title: "Monitoring",
-      lines: monitoringLines
-    })
-  );
+  const monitoringCard = renderCard({
+    title: "Monitoring",
+    lines: monitoringLines
+  });
 
   if (snapshot.mode === "mock") {
-    lines.push(renderCard({ title: "Usage", lines: ["Usage not applicable"] }));
+    sections.push(monitoringCard);
+    sections.push(renderCard({ title: "Usage", lines: ["Usage not applicable"] }));
   } else {
     const usageLines = [
       `Usage so far: ${snapshot.usage.total} tokens (in ${snapshot.usage.prompt}, out ${snapshot.usage.completion})`
@@ -233,7 +204,8 @@ export const buildRunDashboardText = (
     if (snapshot.usage.cost !== undefined) {
       usageLines.push(`Cost: ${snapshot.usage.cost.toFixed(6)} (estimate)`);
     }
-    lines.push(
+    sections.push(monitoringCard);
+    sections.push(
       renderCard({
         title: "Usage",
         lines: usageLines
@@ -241,7 +213,54 @@ export const buildRunDashboardText = (
     );
   }
 
-  return `${lines.join("\n")}\n`;
+  if (snapshot.workers > 1) {
+    const rows = process.stdout.rows ?? 24;
+    const maxFrameLines = Math.max(10, rows - 1);
+    const baseLineCount =
+      sections.reduce((total, section) => total + countRenderedLines(section), 0) +
+      Math.max(0, sections.length - 1);
+    const availableForWorkerCard = Math.max(0, maxFrameLines - baseLineCount - 1);
+    const availableWorkerRows = Math.max(0, availableForWorkerCard - 2);
+
+    if (availableWorkerRows > 0) {
+      const sorted = Array.from(snapshot.workerStatus.entries()).sort((a, b) => a[0] - b[0]);
+      const needsOverflow = sorted.length > availableWorkerRows;
+      const visibleTarget = needsOverflow
+        ? Math.max(0, availableWorkerRows - 1)
+        : availableWorkerRows;
+      const visible = sorted.slice(0, visibleTarget);
+      const workerLines: string[] = [];
+      for (const [workerId, state] of visible) {
+        if (state.status === "running") {
+          workerLines.push(
+            `W${workerId} | running | trial ${state.trialId ?? "-"} | ${spinnerFrame(snapshot.renderTick)} calling model`
+          );
+        } else if (state.status === "finishing") {
+          workerLines.push(
+            `W${workerId} | finishing | trial ${state.trialId ?? "-"} | ${spinnerFrame(snapshot.renderTick)} finishing`
+          );
+        } else if (state.status === "error") {
+          workerLines.push(`W${workerId} | error | trial ${state.trialId ?? "-"} | error`);
+        } else {
+          workerLines.push(`W${workerId} | idle | trial ${state.trialId ?? "-"} | idle`);
+        }
+      }
+      const hidden = sorted.length - visible.length;
+      if (hidden > 0) {
+        workerLines.push(`(+${hidden} more workers)`);
+      }
+      sections.splice(
+        3,
+        0,
+        renderCard({
+          title: "Workers",
+          lines: workerLines
+        })
+      );
+    }
+  }
+
+  return `${sections.join("\n")}\n`;
 };
 
 class RunDashboardMonitor {

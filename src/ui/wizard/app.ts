@@ -114,6 +114,9 @@ const WIZARD_STEP_LABELS = [
   "7 Review"
 ];
 
+const ALT_SCREEN_ENABLE = "\x1b[?1049h";
+const ALT_SCREEN_DISABLE = "\x1b[?1049l";
+
 const clearScreen = (): void => {
   output.write("\x1b[2J\x1b[H");
 };
@@ -846,8 +849,26 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
   const apiKeyPresent = Boolean(process.env.OPENROUTER_API_KEY);
 
   const rl = createInterface({ input, output });
+  let interactiveScreenEnabled = false;
+  const enterInteractiveScreen = (): void => {
+    if (output.isTTY && !interactiveScreenEnabled) {
+      output.write(ALT_SCREEN_ENABLE);
+      interactiveScreenEnabled = true;
+    }
+  };
+  const leaveInteractiveScreen = (): void => {
+    if (interactiveScreenEnabled) {
+      output.write(ALT_SCREEN_DISABLE);
+      interactiveScreenEnabled = false;
+    }
+  };
+  const exitWizard = (message: string): void => {
+    leaveInteractiveScreen();
+    output.write(`${message}\n`);
+  };
 
   try {
+    enterInteractiveScreen();
     renderStepFrame({
       version,
       currentStepIndex: 0,
@@ -894,7 +915,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         step0Frame
       );
       if (entryChoice === SELECT_EXIT || entryChoice === SELECT_BACK) {
-        output.write("Wizard exited.\n");
+        exitWizard("Wizard exited.");
         return;
       }
       entryPath = entryChoice as EntryPath;
@@ -918,7 +939,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         }
       );
       if (runChoice === SELECT_EXIT) {
-        output.write("Wizard exited.\n");
+        exitWizard("Wizard exited.");
         return;
       }
       if (runChoice === SELECT_BACK) {
@@ -965,7 +986,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         stepSummaries: undefined
       });
       if (!selectedConfigPath) {
-        output.write("Wizard exited.\n");
+        exitWizard("Wizard exited.");
         return;
       }
       sourceConfig = readJsonFile<ArbiterResolvedConfig>(selectedConfigPath);
@@ -987,7 +1008,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           )
         });
         if (questionInput === SELECT_EXIT) {
-          output.write("Wizard exited.\n");
+          exitWizard("Wizard exited.");
           return;
         }
         if (questionInput === SELECT_BACK) {
@@ -1011,7 +1032,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           buildStepFrame(2, 1, "Protocol", "Select how each trial is structured.")
         );
         if (protocolSelection === SELECT_EXIT) {
-          output.write("Wizard exited.\n");
+          exitWizard("Wizard exited.");
           return;
         }
         if (protocolSelection === SELECT_BACK) {
@@ -1048,7 +1069,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           buildStepFrame(3, 2, "Models", "Select one or more models for sampling.")
         );
         if (selectedModels === SELECT_EXIT) {
-          output.write("Wizard exited.\n");
+          exitWizard("Wizard exited.");
           return;
         }
         if (selectedModels === SELECT_BACK) {
@@ -1075,7 +1096,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           buildStepFrame(4, 3, "Personas", "Select one or more personas for sampling.")
         );
         if (selectedPersonas === SELECT_EXIT) {
-          output.write("Wizard exited.\n");
+          exitWizard("Wizard exited.");
           return;
         }
         if (selectedPersonas === SELECT_BACK) {
@@ -1100,7 +1121,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
             buildStepFrame(5, 4, "Decode Params", "Set temperature and seed behavior for trial sampling.")
           );
           if (temperatureModeSelection === SELECT_EXIT) {
-            output.write("Wizard exited.\n");
+            exitWizard("Wizard exited.");
             return;
           }
           if (temperatureModeSelection === SELECT_BACK) {
@@ -1135,7 +1156,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
             buildStepFrame(5, 4, "Decode Params", "Set temperature and seed behavior for trial sampling.")
           );
           if (seedModeSelection === SELECT_EXIT) {
-            output.write("Wizard exited.\n");
+            exitWizard("Wizard exited.");
             return;
           }
           if (seedModeSelection === SELECT_BACK) {
@@ -1171,7 +1192,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           )
         );
         if (advancedSelection === SELECT_EXIT) {
-          output.write("Wizard exited.\n");
+          exitWizard("Wizard exited.");
           return;
         }
         if (advancedSelection === SELECT_BACK) {
@@ -1253,7 +1274,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       );
 
       if (actionSelection === SELECT_EXIT) {
-        output.write("Wizard exited.\n");
+        exitWizard("Wizard exited.");
         return;
       }
       if (actionSelection === SELECT_BACK) {
@@ -1264,7 +1285,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
       const action = actionSelection as ReviewAction;
       if (action === "quit") {
-        output.write("Wizard exited without saving.\n");
+        exitWizard("Wizard exited without saving.");
         return;
       }
 
@@ -1286,6 +1307,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       if (action === "save") {
         const saveTarget = nextCollisionSafeConfigPath();
         writeJsonFile(saveTarget, configForReview);
+        leaveInteractiveScreen();
         output.write(`Config saved: ${saveTarget}\n`);
         return;
       }
@@ -1318,6 +1340,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         ""
       ].join("\n");
 
+      leaveInteractiveScreen();
       clearScreen();
       await runStudy({
         runMode,
@@ -1328,6 +1351,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       return;
     }
   } finally {
+    leaveInteractiveScreen();
     rl.close();
   }
 };
