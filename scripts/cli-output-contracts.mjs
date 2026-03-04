@@ -50,6 +50,7 @@ assert.match(version.stdout.trim(), /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9
 
 const nonTtyRoot = run([]);
 assert.equal(nonTtyRoot.status, 0);
+assert.equal(nonTtyRoot.stdout.includes("TTY not detected. Showing headless help."), true);
 assert.equal(nonTtyRoot.stdout.includes("Commands:"), true);
 
 const tempRoot = mkdtempSync(resolve(tmpdir(), "arbiter-cli-contracts-"));

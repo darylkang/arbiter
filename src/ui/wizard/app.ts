@@ -58,6 +58,7 @@ type Choice = {
   id: string;
   label: string;
   disabled?: boolean;
+  disabledReason?: string;
 };
 
 type ReviewAction = "run" | "save" | "revise" | "quit";
@@ -279,6 +280,18 @@ const toDecodeSummary = (draft: WizardDraft): string => {
   return `temp ${tempSummary}, seed ${seedSummary}`;
 };
 
+const summarizeSelection = (values: string[]): string => {
+  if (values.length === 0) {
+    return "none";
+  }
+  const visible = values.slice(0, 2);
+  const hidden = values.length - visible.length;
+  if (hidden <= 0) {
+    return visible.join(", ");
+  }
+  return `${visible.join(", ")} +${hidden} more`;
+};
+
 const toStepSummaries = (input: {
   draft: WizardDraft;
   currentStep: StepIndex | number;
@@ -299,10 +312,10 @@ const toStepSummaries = (input: {
         : "✔ Protocol: Independent";
   }
   if (input.currentStep >= 3 && draft.modelSlugs.length > 0) {
-    summaries[3] = `✔ Models: ${draft.modelSlugs.length} selected`;
+    summaries[3] = `✔ Models: ${summarizeSelection(draft.modelSlugs)} (${draft.modelSlugs.length} selected)`;
   }
   if (input.currentStep >= 4 && draft.personaIds.length > 0) {
-    summaries[4] = `✔ Personas: ${draft.personaIds.length} selected`;
+    summaries[4] = `✔ Personas: ${summarizeSelection(draft.personaIds)} (${draft.personaIds.length} selected)`;
   }
   if (input.currentStep >= 5) {
     summaries[5] = `✔ Decode: ${toDecodeSummary(draft)}`;
@@ -442,7 +455,7 @@ const askInteger = async (rl: ReturnType<typeof createInterface>, prompt: string
     if (Number.isInteger(parsed) && parsed >= min) {
       return parsed;
     }
-    output.write(`Enter an integer >= ${min}.\n`);
+    output.write(`Fix required: ${prompt} must be an integer greater than or equal to ${min}.\n`);
   }
 };
 
@@ -462,7 +475,7 @@ const askFloat = async (
     if (Number.isFinite(parsed) && parsed >= min && parsed <= max) {
       return parsed;
     }
-    output.write(`Enter a number in [${min}, ${max}].\n`);
+    output.write(`Fix required: ${prompt} must be within [${min}, ${max}].\n`);
   }
 };
 
@@ -489,6 +502,13 @@ const selectOne = async (
         const marker = index === selectedIndex ? "▸" : " ";
         lines.push(`${marker} ${choice.label}`);
       });
+      const disabledReasons = choices
+        .filter((choice) => choice.disabled && typeof choice.disabledReason === "string")
+        .map((choice) => choice.disabledReason as string);
+      if (disabledReasons.length > 0) {
+        lines.push("");
+        lines.push(...disabledReasons);
+      }
       lines.push("");
       lines.push("Controls: ↑/↓ move · Enter confirm · Esc back");
       if (errorLine) {
@@ -520,7 +540,10 @@ const selectOne = async (
       if (key.name === "return" || key.sequence === "\r") {
         const choice = choices[selectedIndex];
         if (!choice || choice.disabled) {
-          return { done: false, error: UI_COPY.disabledOption };
+          return {
+            done: false,
+            error: choice?.disabledReason ?? UI_COPY.disabledOption
+          };
         }
         return { done: true, value: choice.id };
       }
@@ -623,6 +646,7 @@ const askMultilineQuestion = async (
     renderBody: (errorLine) => {
       const lines = [
         "Include all relevant context. Arbiter samples responses to characterize distributional behavior.",
+        "Question",
         "Type your question and press Enter to continue.",
         "Controls: Enter continue · Esc back · Ctrl+C exit",
         "",
@@ -858,7 +882,8 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
               configFiles.length === 0
                 ? "Run existing config (unavailable)"
                 : "Run existing config",
-            disabled: configFiles.length === 0
+            disabled: configFiles.length === 0,
+            disabledReason: UI_COPY.runExistingUnavailable
           },
           {
             id: "new",
@@ -881,7 +906,8 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           {
             id: "live",
             label: !apiKeyPresent ? "Live (OpenRouter) (unavailable)" : "Live (OpenRouter)",
-            disabled: !apiKeyPresent
+            disabled: !apiKeyPresent,
+            disabledReason: UI_COPY.liveModeUnavailable
           },
           { id: "mock", label: "Mock (no API calls)" }
         ],
@@ -1002,8 +1028,8 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
               "Each round: all participants speak in order; after R rounds, participant A gives the final response."
             )
           });
-          draft.participants = await askInteger(rl, "Participants", draft.participants, 2);
-          draft.rounds = await askInteger(rl, "Rounds", draft.rounds, 1);
+          draft.participants = await askInteger(rl, "Participants (P)", draft.participants, 2);
+          draft.rounds = await askInteger(rl, "Rounds (R)", draft.rounds, 1);
         }
         currentStep = 3;
         continue;

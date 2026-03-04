@@ -86,20 +86,20 @@ const setupShutdownHandlers = (input: {
   let shutdownRequested = false;
   let shutdownTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const requestShutdown = (signalName: string): void => {
+  const requestShutdown = (): void => {
     if (shutdownRequested) {
       return;
     }
     shutdownRequested = true;
     input.warningSink.warn(
-      `${signalName} received: stopping new trials, waiting for in-flight to finish...`,
+      "Graceful stop requested. Finishing in-flight trials and writing partial artifacts.",
       "shutdown"
     );
     shutdownTimer = setTimeout(() => controller.abort(), input.timeoutMs);
   };
 
-  const onSigint = (): void => requestShutdown("SIGINT");
-  const onSigterm = (): void => requestShutdown("SIGTERM");
+  const onSigint = (): void => requestShutdown();
+  const onSigterm = (): void => requestShutdown();
 
   process.on("SIGINT", onSigint);
   process.on("SIGTERM", onSigterm);

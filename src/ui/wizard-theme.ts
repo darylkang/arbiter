@@ -128,7 +128,6 @@ export const renderMasthead = (input: {
   unicode?: boolean;
 }): string => {
   const lines = [
-    UI_COPY.brand,
     UI_COPY.tagline,
     `Version ${input.version}`,
     "",

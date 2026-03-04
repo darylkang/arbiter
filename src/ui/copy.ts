@@ -8,6 +8,12 @@ export const UI_COPY = {
   headlessNoTty: "TTY not detected. Showing headless help.",
   dashboardNoTty: "Dashboard requested without TTY; continuing in headless mode.",
   disabledOption: "That option is not available.",
+  runExistingUnavailable:
+    "Run existing config is unavailable: no config files found in this directory.",
+  liveModeUnavailable:
+    "Live mode is unavailable: OPENROUTER_API_KEY not detected.",
+  gracefulStopRequested:
+    "Graceful stop requested. Finishing in-flight trials and writing partial artifacts.",
   startingRun: "Starting run",
   runHeader: "═══ RUN ═══",
   receiptHeader: "═══ RECEIPT ═══"

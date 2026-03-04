@@ -198,6 +198,9 @@ export const buildRunDashboardText = (
     `Patience: ${snapshot.lowNoveltyStreak}/${snapshot.patience}`,
     `Status: ${snapshot.stopState}`
   ];
+  if (snapshot.stopState === "user requested graceful stop") {
+    monitoringLines.push(UI_COPY.gracefulStopRequested);
+  }
   if (snapshot.similarityThreshold !== null) {
     monitoringLines.splice(
       1,

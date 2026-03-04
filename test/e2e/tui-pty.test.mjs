@@ -206,6 +206,7 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
     await session.waitForText("Review and Confirm", 25000);
     session.pressEnter();
 
+    await session.waitForText("Study Summary", 45000);
     await session.waitForText("═══ RUN ═══", 45000);
     await session.waitForText("Usage not applicable", 45000);
     await session.waitForText("═══ RECEIPT ═══", 45000);
@@ -223,6 +224,14 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
     assertRunArtifacts(cwd, latestRunDir);
 
     const output = session.getOutput();
+    const mastheadIndex = output.indexOf("ARBITER");
+    const summaryIndex = output.indexOf("Study Summary");
+    const runIndex = output.indexOf("═══ RUN ═══");
+    const receiptIndex = output.indexOf("═══ RECEIPT ═══");
+    assert.ok(mastheadIndex >= 0, "expected Stage 0 masthead in output");
+    assert.ok(summaryIndex > mastheadIndex, "expected Stage 1 summary after masthead");
+    assert.ok(runIndex > summaryIndex, "expected Stage 2 run dashboard after Stage 1 summary");
+    assert.ok(receiptIndex > runIndex, "expected Stage 3 receipt after Stage 2 output");
     assert.equal(
       output.includes("Choose the next action"),
       false,
