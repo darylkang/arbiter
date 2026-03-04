@@ -6,6 +6,7 @@ import type { EventPayloadMap } from "../events/types.js";
 import type { RunLifecycleContext, RunLifecycleHooks } from "../run/lifecycle-hooks.js";
 import { UI_COPY } from "./copy.js";
 import { renderCard } from "./wizard-theme.js";
+import { createStdoutFormatter } from "./fmt.js";
 
 type WorkerViewStatus = "idle" | "running" | "finishing" | "error";
 
@@ -129,6 +130,10 @@ const spinnerFrame = (tick: number): string =>
   SPINNER_FRAMES[Math.max(0, tick) % SPINNER_FRAMES.length];
 
 const countRenderedLines = (value: string): number => value.split("\n").length;
+const createStyledRunHeader = (value: string): string => {
+  const formatter = createStdoutFormatter();
+  return formatter.bold(formatter.brand(value));
+};
 
 export const buildRunDashboardText = (
   snapshot: DashboardSnapshot,
@@ -136,24 +141,30 @@ export const buildRunDashboardText = (
 ): string => {
   const elapsed = formatDuration(Math.max(0, nowMs - snapshot.startedAtMs));
   const eta = formatEta(snapshot);
+  const shouldAnimateProgress =
+    snapshot.attempted < snapshot.planned &&
+    snapshot.stopState !== "sampling complete" &&
+    snapshot.stopState !== "run failed" &&
+    snapshot.stopState !== "user requested graceful stop";
   const progressBar = formatProgressBar(snapshot.attempted, snapshot.planned);
 
   const sections: string[] = [];
-  sections.push(UI_COPY.runHeader);
   sections.push(
     renderCard({
       title: "Run",
-      lines: [`Trials: ${snapshot.attempted}/${snapshot.planned} | Workers: ${snapshot.workers}`]
+      lines: [`Trials: ${snapshot.attempted}/${snapshot.planned} | Workers: ${snapshot.workers}`],
+      lineStyler: (line, _index, fmt) => fmt.bold(fmt.accent(line))
     })
   );
   sections.push(
     renderCard({
       title: "Master progress",
       lines: [
-        `${progressBar} ${snapshot.attempted}/${snapshot.planned}`,
+        `${shouldAnimateProgress ? `${spinnerFrame(snapshot.renderTick)} ` : ""}${progressBar} ${snapshot.attempted}/${snapshot.planned}`,
         `Elapsed: ${elapsed}`,
         `ETA: ${eta}`
-      ]
+      ],
+      lineStyler: (line, index, fmt) => (index === 0 ? fmt.bold(fmt.info(line)) : fmt.text(line))
     })
   );
 
@@ -191,12 +202,36 @@ export const buildRunDashboardText = (
   }
   const monitoringCard = renderCard({
     title: "Monitoring",
-    lines: monitoringLines
+    lines: monitoringLines,
+    lineStyler: (line, _index, fmt) => {
+      if (line.includes(UI_COPY.stoppingCaveat) || line.includes(UI_COPY.groupingCaveat)) {
+        return fmt.muted(line);
+      }
+      if (line.startsWith("Status:")) {
+        if (line.includes("threshold met")) {
+          return fmt.warn(line);
+        }
+        if (line.includes("run failed")) {
+          return fmt.error(line);
+        }
+        if (line.includes("sampling complete")) {
+          return fmt.success(line);
+        }
+        return fmt.info(line);
+      }
+      return fmt.text(line);
+    }
   });
 
   if (snapshot.mode === "mock") {
     sections.push(monitoringCard);
-    sections.push(renderCard({ title: "Usage", lines: ["Usage not applicable"] }));
+    sections.push(
+      renderCard({
+        title: "Usage",
+        lines: ["Usage not applicable"],
+        lineStyler: (line, _index, fmt) => fmt.muted(line)
+      })
+    );
   } else {
     const usageLines = [
       `Usage so far: ${snapshot.usage.total} tokens (in ${snapshot.usage.prompt}, out ${snapshot.usage.completion})`
@@ -208,7 +243,9 @@ export const buildRunDashboardText = (
     sections.push(
       renderCard({
         title: "Usage",
-        lines: usageLines
+        lines: usageLines,
+        lineStyler: (line, _index, fmt) =>
+          line.startsWith("Cost:") ? fmt.warn(line) : fmt.info(line)
       })
     );
   }
@@ -254,13 +291,28 @@ export const buildRunDashboardText = (
         0,
         renderCard({
           title: "Workers",
-          lines: workerLines
+          lines: workerLines,
+          lineStyler: (line, _index, fmt) => {
+            if (line.includes("| error |")) {
+              return fmt.error(line);
+            }
+            if (line.includes("| running |")) {
+              return fmt.info(line);
+            }
+            if (line.includes("| finishing |")) {
+              return fmt.warn(line);
+            }
+            if (line.startsWith("(+")) {
+              return fmt.muted(line);
+            }
+            return fmt.text(line);
+          }
         })
       );
     }
   }
 
-  return `${sections.join("\n")}\n`;
+  return `${createStyledRunHeader(UI_COPY.runHeader)}\n${sections.join("\n")}\n`;
 };
 
 class RunDashboardMonitor {
@@ -268,6 +320,7 @@ class RunDashboardMonitor {
   private readonly snapshot: DashboardSnapshot;
   private readonly unsubs: Array<() => void> = [];
   private lastRenderedLineCount = 0;
+  private animationTimer: NodeJS.Timeout | null = null;
 
   constructor(context: RunLifecycleContext) {
     this.bus = context.bus;
@@ -316,10 +369,40 @@ class RunDashboardMonitor {
       this.bus.subscribeSafe("run.completed", (payload) => this.onRunCompleted(payload)),
       this.bus.subscribeSafe("run.failed", () => this.onRunFailed())
     );
+    this.startAnimationLoop();
   }
 
   detach(): void {
+    this.stopAnimationLoop();
     this.unsubs.splice(0).forEach((unsubscribe) => unsubscribe());
+  }
+
+  private startAnimationLoop(): void {
+    if (this.animationTimer) {
+      return;
+    }
+    this.animationTimer = setInterval(() => {
+      if (this.shouldAnimate()) {
+        this.render();
+      }
+    }, 120);
+  }
+
+  private stopAnimationLoop(): void {
+    if (!this.animationTimer) {
+      return;
+    }
+    clearInterval(this.animationTimer);
+    this.animationTimer = null;
+  }
+
+  private shouldAnimate(): boolean {
+    return (
+      this.snapshot.attempted < this.snapshot.planned &&
+      this.snapshot.stopState !== "sampling complete" &&
+      this.snapshot.stopState !== "run failed" &&
+      this.snapshot.stopState !== "user requested graceful stop"
+    );
   }
 
   private onRunStarted(payload: EventPayloadMap["run.started"]): void {
@@ -480,7 +563,7 @@ export const createUiRunLifecycleHooks = (input?: {
         return;
       }
 
-      process.stdout.write(`${UI_COPY.receiptHeader}\n`);
+      process.stdout.write(`${createStyledRunHeader(UI_COPY.receiptHeader)}\n`);
       process.stdout.write(receiptText);
     }
   };

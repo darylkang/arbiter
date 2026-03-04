@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Arbiter TUI Visual Viewer</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@xterm/xterm@5.5.0/css/xterm.css"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #1d2021;
+        height: 100%;
+      }
+      #terminal {
+        width: 100%;
+        height: 100%;
+        padding: 16px;
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="terminal"></div>
+    <script src="https://unpkg.com/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+    <script>
+      const term = new Terminal({
+        cols: 120,
+        rows: 40,
+        convertEol: false,
+        fontFamily: "Menlo, Monaco, Consolas, monospace",
+        fontSize: 14,
+        lineHeight: 1.15,
+        cursorBlink: false,
+        disableStdin: true,
+        allowTransparency: false,
+        theme: {
+          background: "#1d2021",
+          foreground: "#ebdbb2"
+        }
+      });
+      term.open(document.getElementById("terminal"));
+
+      window.renderSnapshot = async (ansiData) => {
+        term.reset();
+        term.write(ansiData);
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      };
+    </script>
+  </body>
+</html>

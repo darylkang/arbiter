@@ -121,6 +121,8 @@ const clearScreen = (): void => {
   output.write("\x1b[2J\x1b[H");
 };
 
+const countRenderedLines = (value: string): number => value.split("\n").length;
+
 const toProgressSteps = (input: {
   currentStepIndex: StepIndex;
   completedUntilIndex: number;
@@ -191,7 +193,7 @@ const nextSelectableIndex = (choices: Choice[], currentIndex: number, delta: num
 
 const withRawKeyCapture = async <T>(inputControl: {
   beforeRender: () => void;
-  renderBody: (errorLine?: string) => void;
+  renderBody: (errorLine?: string) => string;
   onKey: (str: string, key: RawKey) => { done: true; value: T } | { done: false; error?: string };
 }): Promise<T> => {
   const stdin = process.stdin;
@@ -206,10 +208,19 @@ const withRawKeyCapture = async <T>(inputControl: {
     stdin.resume();
 
     let currentError = "";
+    let hasRenderedFrame = false;
+    let bodyLineCount = 0;
 
     const render = (): void => {
-      inputControl.beforeRender();
-      inputControl.renderBody(currentError || undefined);
+      if (!hasRenderedFrame) {
+        inputControl.beforeRender();
+        hasRenderedFrame = true;
+      } else if (bodyLineCount > 0) {
+        output.write(`\x1b[${bodyLineCount}A\x1b[J`);
+      }
+      const body = inputControl.renderBody(currentError || undefined);
+      output.write(body);
+      bodyLineCount = countRenderedLines(body.trimEnd());
     };
 
     const cleanup = (): void => {
@@ -518,12 +529,10 @@ const selectOne = async (
         lines.push("");
         lines.push(errorLine);
       }
-      output.write(
-        `${renderCard({
-          title: prompt,
-          lines
-        })}\n`
-      );
+      return `${renderCard({
+        title: prompt,
+        lines
+      })}\n`;
     },
     onKey: (_str, key) => {
       if (key.ctrl && key.name === "c") {
@@ -589,12 +598,10 @@ const selectMany = async (
         lines.push("");
         lines.push(errorLine);
       }
-      output.write(
-        `${renderCard({
-          title: prompt,
-          lines
-        })}\n`
-      );
+      return `${renderCard({
+        title: prompt,
+        lines
+      })}\n`;
     },
     onKey: (_str, key) => {
       if (key.ctrl && key.name === "c") {
@@ -661,12 +668,10 @@ const askMultilineQuestion = async (
         lines.push("");
         lines.push(errorLine);
       }
-      output.write(
-        `${renderCard({
-          title: "Research Question",
-          lines
-        })}\n`
-      );
+      return `${renderCard({
+        title: "Research Question",
+        lines
+      })}\n`;
     },
     onKey: (str, key) => {
       if (key.ctrl && key.name === "c") {
