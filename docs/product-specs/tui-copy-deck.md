@@ -435,7 +435,7 @@ Repro section:
 
 Exit line:
 
-1. `FLEX`: `Run complete. Exiting.`
+1. `FLEX`: `Run complete.`
 
 ## Non-TTY / Headless Copy
 

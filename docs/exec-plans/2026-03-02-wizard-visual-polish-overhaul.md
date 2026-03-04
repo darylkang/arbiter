@@ -12,7 +12,7 @@ Target visual direction:
 
 1. Warm instrument clarity: structured, calm, information-dense.
 2. Gruvbox-inspired palette tuned for extended terminal reading.
-3. Rounded bubble/card composition language (inspired by OpenClaw's TUI polish pattern, not a copy).
+3. Rounded bubble/card composition language with centralized theme ownership.
 4. Compact, distinctive title treatment with strong brand presence (no oversized figlet-style block art).
 5. Shared design-system seam (tokens + render primitives), no one-off ANSI styling.
 6. Premium touches through disciplined glyphs and restrained motion.
@@ -408,7 +408,7 @@ Dependencies and constraints:
 Design north star: Arbiter's visual identity is warm instrument clarity. Every surface communicates information hierarchy through structured composition, warm muted tones, and typographic confidence. If a visual choice does not serve clarity, it does not belong.
 
 ### A. Frozen Visual Token Contract
-Color tokens (tier A; hex truth):
+Color tokens (tier A; hex reference values):
 
 | Token | Hex | Use |
 | --- | --- | --- |
