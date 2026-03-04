@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import type { EventBus } from "../events/event-bus.js";
 import type { EventPayloadMap } from "../events/types.js";
 import type { RunLifecycleContext, RunLifecycleHooks } from "../run/lifecycle-hooks.js";
+import { UI_COPY } from "./copy.js";
+import { renderCard } from "./wizard-theme.js";
 
 type WorkerViewStatus = "idle" | "running" | "finishing" | "error";
 
@@ -116,7 +118,7 @@ const mapStopStateFromCompletion = (
     return "threshold met";
   }
   if (stopReason === "user_interrupt") {
-    return "stopped by user (graceful)";
+    return "user requested graceful stop";
   }
   if (stopReason === "k_max_reached" || stopReason === "completed") {
     return "sampling complete";
@@ -136,34 +138,51 @@ export const buildRunDashboardText = (
   const progressBar = formatProgressBar(snapshot.attempted, snapshot.planned);
 
   const lines: string[] = [];
-  lines.push("═══ RUN ═══");
+  lines.push(UI_COPY.runHeader);
   lines.push(
-    `Question: ${snapshot.questionExcerpt} | mode ${snapshot.mode} | protocol ${snapshot.protocolLabel} | trials ${snapshot.attempted}/${snapshot.planned} | workers ${snapshot.workers}`
+    renderCard({
+      title: "Run",
+      lines: [`Trials: ${snapshot.attempted}/${snapshot.planned} | Workers: ${snapshot.workers}`]
+    })
   );
-  lines.push(`Progress: ${progressBar} ${snapshot.attempted}/${snapshot.planned}`);
-  lines.push(`Timing: elapsed ${elapsed} | ETA ${eta}`);
+  lines.push(
+    renderCard({
+      title: "Master progress",
+      lines: [
+        `${progressBar} ${snapshot.attempted}/${snapshot.planned}`,
+        `Elapsed: ${elapsed}`,
+        `ETA: ${eta}`
+      ]
+    })
+  );
 
   if (snapshot.workers > 1) {
-    lines.push("Workers:");
+    const workerLines: string[] = [];
     const sorted = Array.from(snapshot.workerStatus.entries()).sort((a, b) => a[0] - b[0]);
     const visible = sorted.slice(0, MAX_VISIBLE_WORKERS);
     for (const [workerId, state] of visible) {
       if (state.status === "running") {
-        lines.push(
-          `  W${workerId}: ${spinnerFrame(snapshot.renderTick)} calling model (trial ${state.trialId ?? "-"})`
+        workerLines.push(
+          `W${workerId} | running | trial ${state.trialId ?? "-"} | ${spinnerFrame(snapshot.renderTick)} calling model`
         );
       } else if (state.status === "finishing") {
-        lines.push(`  W${workerId}: ${spinnerFrame(snapshot.renderTick)} finishing`);
+        workerLines.push(`W${workerId} | finishing | trial ${state.trialId ?? "-"} | ${spinnerFrame(snapshot.renderTick)} finishing`);
       } else if (state.status === "error") {
-        lines.push(`  W${workerId}: ! error`);
+        workerLines.push(`W${workerId} | error | trial ${state.trialId ?? "-"} | error`);
       } else {
-        lines.push(`  W${workerId}: idle`);
+        workerLines.push(`W${workerId} | idle | trial ${state.trialId ?? "-"} | idle`);
       }
     }
     const hidden = sorted.length - visible.length;
     if (hidden > 0) {
-      lines.push(`  (+${hidden} more workers)`);
+      workerLines.push(`(+${hidden} more workers)`);
     }
+    lines.push(
+      renderCard({
+        title: "Workers",
+        lines: workerLines
+      })
+    );
   }
 
   const novelty = snapshot.noveltyRate === null ? "—" : snapshot.noveltyRate.toFixed(3);
@@ -174,29 +193,49 @@ export const buildRunDashboardText = (
   const similarityThreshold =
     snapshot.similarityThreshold === null ? "—" : snapshot.similarityThreshold.toFixed(3);
 
-  lines.push("Monitoring:");
-  lines.push(`  novelty rate: ${novelty} (threshold ${noveltyThreshold})`);
-  lines.push(`  mean max similarity: ${meanMaxSimilarity} (threshold ${similarityThreshold})`);
-  lines.push(`  patience: ${snapshot.lowNoveltyStreak}/${snapshot.patience} low-novelty batches`);
-  lines.push(`  status: ${snapshot.stopState}`);
-  if (snapshot.groupingEnabled) {
-    lines.push(`  embedding groups: ${snapshot.groupCount === null ? "—" : snapshot.groupCount}`);
+  const monitoringLines = [
+    `Novelty rate: ${novelty} (threshold ${noveltyThreshold})`,
+    `Patience: ${snapshot.lowNoveltyStreak}/${snapshot.patience}`,
+    `Status: ${snapshot.stopState}`
+  ];
+  if (snapshot.similarityThreshold !== null) {
+    monitoringLines.splice(
+      1,
+      0,
+      `Similarity advisory: ${meanMaxSimilarity} (threshold ${similarityThreshold})`
+    );
   }
+  if (snapshot.groupingEnabled) {
+    monitoringLines.push(
+      `Embedding groups: ${snapshot.groupCount === null ? "—" : snapshot.groupCount}`
+    );
+  }
+  monitoringLines.push(UI_COPY.stoppingCaveat);
+  if (snapshot.groupingEnabled) {
+    monitoringLines.push(UI_COPY.groupingCaveat);
+  }
+  lines.push(
+    renderCard({
+      title: "Monitoring",
+      lines: monitoringLines
+    })
+  );
 
   if (snapshot.mode === "mock") {
-    lines.push("Usage so far: usage not applicable (mock mode)");
+    lines.push(renderCard({ title: "Usage", lines: ["Usage not applicable"] }));
   } else {
-    lines.push(
+    const usageLines = [
       `Usage so far: ${snapshot.usage.total} tokens (in ${snapshot.usage.prompt}, out ${snapshot.usage.completion})`
-    );
+    ];
     if (snapshot.usage.cost !== undefined) {
-      lines.push(`Cost estimate so far: $${snapshot.usage.cost.toFixed(6)}`);
+      usageLines.push(`Cost: ${snapshot.usage.cost.toFixed(6)} (estimate)`);
     }
-  }
-
-  lines.push("Stopping indicates diminishing novelty, not correctness.");
-  if (snapshot.groupingEnabled) {
-    lines.push("Embedding groups reflect similarity, not semantic categories.");
+    lines.push(
+      renderCard({
+        title: "Usage",
+        lines: usageLines
+      })
+    );
   }
 
   return `${lines.join("\n")}\n`;
@@ -384,14 +423,21 @@ const readReceiptText = (runDir: string): string | null => {
   return readFileSync(receiptPath, "utf8");
 };
 
-export const createUiRunLifecycleHooks = (input?: { dashboard?: boolean }): RunLifecycleHooks => {
+export const createUiRunLifecycleHooks = (input?: {
+  dashboard?: boolean;
+  stackPrefixText?: string;
+}): RunLifecycleHooks => {
   const dashboardEnabled = shouldRenderDashboard(Boolean(input?.dashboard));
+  const stackPrefixText = input?.stackPrefixText;
   let monitor: RunDashboardMonitor | null = null;
 
   return {
     onRunSetup: (context): void => {
       if (!dashboardEnabled) {
         return;
+      }
+      if (stackPrefixText && stackPrefixText.trim().length > 0) {
+        process.stdout.write(`${stackPrefixText.replace(/\n+$/, "")}\n`);
       }
       monitor = new RunDashboardMonitor(context);
       monitor.attach();
@@ -412,7 +458,7 @@ export const createUiRunLifecycleHooks = (input?: { dashboard?: boolean }): RunL
         return;
       }
 
-      process.stdout.write("═══ RECEIPT ═══\n");
+      process.stdout.write(`${UI_COPY.receiptHeader}\n`);
       process.stdout.write(receiptText);
     }
   };

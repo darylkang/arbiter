@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 
 import { getAssetRoot } from "../utils/asset-root.js";
 import { createStdoutFormatter } from "../ui/fmt.js";
+import { UI_COPY } from "../ui/copy.js";
 import { createUiRunLifecycleHooks } from "../ui/run-lifecycle-hooks.js";
 import { launchWizardTUI } from "../ui/wizard/app.js";
 import { runLiveService, runMockService } from "../run/run-service.js";
@@ -108,7 +109,7 @@ const runHeadless = async (input: {
   const dashboardRequested = hasFlag(parsed.flags, "--dashboard");
   const dashboardEnabled = dashboardRequested && Boolean(process.stdout.isTTY);
   if (dashboardRequested && !process.stdout.isTTY) {
-    process.stderr.write("warning: --dashboard requires TTY stdout; continuing headless\n");
+    process.stderr.write(`${UI_COPY.dashboardNoTty}\n`);
   }
 
   const warnings = dashboardEnabled ? undefined : createSilentWarningSink();
@@ -174,6 +175,7 @@ const main = async (): Promise<void> => {
       await launchWizardTUI({ assetRoot });
       return;
     }
+    process.stdout.write(`${UI_COPY.headlessNoTty}\n`);
     process.stdout.write(renderRootHelp(fmt));
     return;
   }

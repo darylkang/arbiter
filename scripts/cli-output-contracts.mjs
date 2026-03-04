@@ -77,7 +77,7 @@ try {
   });
   assert.equal(runDashboardNoTty.status, 0);
   assert.equal(
-    runDashboardNoTty.stderr.includes("--dashboard requires TTY stdout; continuing headless"),
+    runDashboardNoTty.stderr.includes("Dashboard requested without TTY; continuing in headless mode."),
     true
   );
 

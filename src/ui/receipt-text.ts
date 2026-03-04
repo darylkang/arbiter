@@ -1,27 +1,13 @@
 import type { ReceiptModel } from "./receipt-model.js";
+import { UI_COPY, toStopBanner } from "./copy.js";
 
 const formatCount = (value: number | undefined): string => (value === undefined ? "-" : String(value));
-
-const formatStopBanner = (reason?: string): string => {
-  switch (reason) {
-    case "converged":
-      return "Stopped: novelty saturation";
-    case "k_max_reached":
-      return "Stopped: max trials reached";
-    case "user_interrupt":
-      return "Stopped: user requested graceful stop";
-    case "completed":
-      return "Stopped: sampling complete";
-    default:
-      return "Stopped: run failed";
-  }
-};
 
 export const formatReceiptText = (model: ReceiptModel): string => {
   const lines: string[] = [];
 
-  lines.push(formatStopBanner(model.stop_reason));
-  lines.push("Stopping indicates diminishing novelty, not correctness.");
+  lines.push(toStopBanner(model.stop_reason));
+  lines.push(UI_COPY.stoppingCaveat);
   lines.push("");
 
   lines.push("Summary:");
@@ -47,7 +33,7 @@ export const formatReceiptText = (model: ReceiptModel): string => {
 
   if (model.grouping?.enabled) {
     lines.push(`- embedding groups: ${model.grouping.group_count ?? model.monitoring?.group_count ?? "-"}`);
-    lines.push("- groups reflect embedding similarity, not semantic categories.");
+    lines.push(`- ${UI_COPY.groupingCaveat}`);
   }
 
   if ((model.counts.k_eligible ?? 0) === 0) {
@@ -66,7 +52,10 @@ export const formatReceiptText = (model: ReceiptModel): string => {
   }
 
   lines.push("");
-  lines.push(`Reproduce: arbiter run --config ${model.run_dir}/config.resolved.json`);
+  lines.push("Reproduce this run:");
+  lines.push(`arbiter run --config ${model.run_dir}/config.resolved.json`);
+  lines.push("");
+  lines.push("Run complete.");
 
   return `${lines.join("\n")}\n`;
 };

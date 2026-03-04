@@ -1,4 +1,4 @@
-import { accessSync, constants, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { accessSync, constants, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { emitKeypressEvents } from "node:readline";
@@ -13,6 +13,8 @@ import { runLiveService, runMockService } from "../../run/run-service.js";
 import { listModels } from "../../openrouter/client.js";
 import { createConsoleWarningSink } from "../../utils/warnings.js";
 import { createUiRunLifecycleHooks } from "../run-lifecycle-hooks.js";
+import { UI_COPY, toRunModeLabel, type UiRunMode } from "../copy.js";
+import { renderCard, renderMasthead, renderProgressSpine, truncate } from "../wizard-theme.js";
 import {
   listConfigFiles,
   nextCollisionSafeConfigPath,
@@ -86,6 +88,20 @@ type RawKey = {
   sequence?: string;
 };
 
+type StepIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+type StepFrame = {
+  version: string;
+  currentStepIndex: StepIndex;
+  completedUntilIndex: number;
+  runMode: RunMode | null;
+  apiKeyPresent: boolean;
+  configCount: number;
+  title: string;
+  hint?: string;
+  stepSummaries?: Partial<Record<number, string>>;
+};
+
 const WIZARD_STEP_LABELS = [
   "0 Welcome",
   "1 Question",
@@ -101,40 +117,47 @@ const clearScreen = (): void => {
   output.write("\x1b[2J\x1b[H");
 };
 
-const renderStepFrame = (input: {
-  currentStepIndex: number;
+const toProgressSteps = (input: {
+  currentStepIndex: StepIndex;
   completedUntilIndex: number;
-  runMode: RunMode | null;
-  apiKeyPresent: boolean;
-  configCount: number;
-  title: string;
-  hint?: string;
-}): void => {
-  clearScreen();
-  output.write("ARBITER\n");
-  output.write("Strict Linear Wizard\n");
-  output.write(
-    `Environment: OPENROUTER_API_KEY ${input.apiKeyPresent ? "yes" : "no"} | configs in CWD ${input.configCount}\n`
-  );
-  output.write(
-    `Run mode: ${input.runMode ?? "-"}\n`
-  );
-  output.write("\nProgress:\n");
-  for (let index = 0; index < WIZARD_STEP_LABELS.length; index += 1) {
-    const label = WIZARD_STEP_LABELS[index];
-    const marker =
+  stepSummaries?: Partial<Record<number, string>>;
+}) =>
+  WIZARD_STEP_LABELS.map((label, index) => ({
+    label,
+    status:
       index === input.currentStepIndex
-        ? "▶"
+        ? ("current" as const)
         : index <= input.completedUntilIndex
-          ? "✓"
-          : "·";
-    output.write(`  ${marker} ${label}\n`);
-  }
-  output.write(`\n${input.title}\n`);
-  if (input.hint) {
-    output.write(`${input.hint}\n`);
-  }
-  output.write("\n");
+          ? ("completed" as const)
+          : ("pending" as const),
+    summary: input.stepSummaries?.[index]
+  }));
+
+const renderStepFrame = (input: StepFrame): void => {
+  clearScreen();
+  output.write(
+    `${renderMasthead({
+      version: input.version,
+      apiKeyPresent: input.apiKeyPresent,
+      runMode: input.runMode as UiRunMode,
+      configCount: input.configCount
+    })}\n\n`
+  );
+  output.write(
+    `${renderProgressSpine({
+      steps: toProgressSteps({
+        currentStepIndex: input.currentStepIndex,
+        completedUntilIndex: input.completedUntilIndex,
+        stepSummaries: input.stepSummaries
+      })
+    })}\n\n`
+  );
+  output.write(
+    `${renderCard({
+      title: input.title,
+      lines: input.hint ? [input.hint] : []
+    })}\n\n`
+  );
 };
 
 const firstEnabledIndex = (choices: Choice[], fallbackIndex: number): number => {
@@ -241,6 +264,79 @@ const formatProtocol = (draft: WizardDraft): string =>
   draft.protocolType === "debate_v1"
     ? `Debate (${draft.participants} participants, ${draft.rounds} rounds)`
     : "Independent";
+
+const loadVersion = (assetRoot: string): string => {
+  const pkg = readJsonFile<{ version?: string }>(resolve(assetRoot, "package.json"));
+  return pkg.version ?? "0.0.0";
+};
+
+const toDecodeSummary = (draft: WizardDraft): string => {
+  const tempSummary =
+    draft.temperatureMode === "single"
+      ? `${draft.temperatureSingle}`
+      : `${draft.temperatureMin}-${draft.temperatureMax} (uniform)`;
+  const seedSummary = draft.seedMode === "fixed" ? String(draft.fixedSeed) : "random";
+  return `temp ${tempSummary}, seed ${seedSummary}`;
+};
+
+const toStepSummaries = (input: {
+  draft: WizardDraft;
+  currentStep: StepIndex | number;
+}): Partial<Record<number, string>> => {
+  const summaries: Partial<Record<number, string>> = {};
+  const { draft } = input;
+
+  if (input.currentStep >= 1) {
+    const trimmed = draft.question.trim();
+    if (trimmed.length > 0) {
+      summaries[1] = `✔ Question: "${truncate(trimmed, 42)}" (${trimmed.length} chars)`;
+    }
+  }
+  if (input.currentStep >= 2) {
+    summaries[2] =
+      draft.protocolType === "debate_v1"
+        ? `✔ Protocol: Debate (${draft.participants} participants, ${draft.rounds} rounds)`
+        : "✔ Protocol: Independent";
+  }
+  if (input.currentStep >= 3 && draft.modelSlugs.length > 0) {
+    summaries[3] = `✔ Models: ${draft.modelSlugs.length} selected`;
+  }
+  if (input.currentStep >= 4 && draft.personaIds.length > 0) {
+    summaries[4] = `✔ Personas: ${draft.personaIds.length} selected`;
+  }
+  if (input.currentStep >= 5) {
+    summaries[5] = `✔ Decode: ${toDecodeSummary(draft)}`;
+  }
+  if (input.currentStep >= 6) {
+    summaries[6] = draft.useAdvancedDefaults
+      ? "✔ Advanced: defaults"
+      : `✔ Advanced: workers=${draft.workers}, K_max=${draft.kMax}, batch=${draft.batchSize}`;
+  }
+  return summaries;
+};
+
+const buildFrozenStudySummary = (input: {
+  draft: WizardDraft;
+  selectedConfigPath: string | null;
+  entryPath: EntryPath;
+}): string => {
+  const lines = [
+    `Question: ${truncate(input.draft.question.trim(), 80)}`,
+    `Protocol: ${formatProtocol(input.draft)}`,
+    `Models: ${input.draft.modelSlugs.length} selected`,
+    `Personas: ${input.draft.personaIds.length} selected`,
+    `Decode: ${toDecodeSummary(input.draft)}`,
+    `Execution: workers ${input.draft.workers}, batch ${input.draft.batchSize}, K_max ${input.draft.kMax}`,
+    `Output dir: ${input.draft.outputDir}`
+  ];
+  if (input.entryPath === "existing" && input.selectedConfigPath) {
+    lines.push(`Source config: ${input.selectedConfigPath}`);
+  }
+  return renderCard({
+    title: "Study Summary",
+    lines
+  });
+};
 
 const buildDraftFromConfig = (
   config: ArbiterResolvedConfig,
@@ -375,15 +471,7 @@ const selectOne = async (
   prompt: string,
   choices: Choice[],
   defaultIndex = 0,
-  frame?: {
-    currentStepIndex: number;
-    completedUntilIndex: number;
-    runMode: RunMode | null;
-    apiKeyPresent: boolean;
-    configCount: number;
-    title: string;
-    hint?: string;
-  }
+  frame?: StepFrame
 ): Promise<SelectOneResult> => {
   rl.pause();
   let selectedIndex = firstEnabledIndex(choices, defaultIndex);
@@ -396,16 +484,23 @@ const selectOne = async (
       }
     },
     renderBody: (errorLine) => {
-      output.write(`${prompt}\n\n`);
+      const lines: string[] = [];
       choices.forEach((choice, index) => {
-        const marker = index === selectedIndex ? "▶" : " ";
-        const disabled = choice.disabled ? " (disabled)" : "";
-        output.write(` ${marker} ${choice.label}${disabled}\n`);
+        const marker = index === selectedIndex ? "▸" : " ";
+        lines.push(`${marker} ${choice.label}`);
       });
-      output.write("\nControls: ↑/↓ move · Enter confirm · Esc back\n");
+      lines.push("");
+      lines.push("Controls: ↑/↓ move · Enter confirm · Esc back");
       if (errorLine) {
-        output.write(`\n${errorLine}\n`);
+        lines.push("");
+        lines.push(errorLine);
       }
+      output.write(
+        `${renderCard({
+          title: prompt,
+          lines
+        })}\n`
+      );
     },
     onKey: (_str, key) => {
       if (key.ctrl && key.name === "c") {
@@ -425,7 +520,7 @@ const selectOne = async (
       if (key.name === "return" || key.sequence === "\r") {
         const choice = choices[selectedIndex];
         if (!choice || choice.disabled) {
-          return { done: false, error: "That option is disabled." };
+          return { done: false, error: UI_COPY.disabledOption };
         }
         return { done: true, value: choice.id };
       }
@@ -441,15 +536,8 @@ const selectMany = async (
   prompt: string,
   choices: Choice[],
   defaults: string[],
-  frame?: {
-    currentStepIndex: number;
-    completedUntilIndex: number;
-    runMode: RunMode | null;
-    apiKeyPresent: boolean;
-    configCount: number;
-    title: string;
-    hint?: string;
-  }
+  emptySelectionError = "Fix required: select at least one option.",
+  frame?: StepFrame
 ): Promise<SelectManyResult> => {
   rl.pause();
   const selectedIds = new Set(defaults);
@@ -463,17 +551,24 @@ const selectMany = async (
       }
     },
     renderBody: (errorLine) => {
-      output.write(`${prompt}\n\n`);
+      const lines: string[] = [];
       choices.forEach((choice, index) => {
-        const cursor = index === selectedIndex ? "▶" : " ";
+        const cursor = index === selectedIndex ? "▸" : " ";
         const checked = selectedIds.has(choice.id) ? "x" : " ";
-        const disabled = choice.disabled ? " (disabled)" : "";
-        output.write(` ${cursor} [${checked}] ${choice.label}${disabled}\n`);
+        lines.push(`${cursor} [${checked}] ${choice.label}`);
       });
-      output.write("\nControls: ↑/↓ move · Space toggle · Enter confirm · Esc back\n");
+      lines.push("");
+      lines.push("Controls: ↑/↓ move · Space toggle · Enter confirm · Esc back");
       if (errorLine) {
-        output.write(`\n${errorLine}\n`);
+        lines.push("");
+        lines.push(errorLine);
       }
+      output.write(
+        `${renderCard({
+          title: prompt,
+          lines
+        })}\n`
+      );
     },
     onKey: (_str, key) => {
       if (key.ctrl && key.name === "c") {
@@ -503,7 +598,7 @@ const selectMany = async (
       }
       if (key.name === "return" || key.sequence === "\r") {
         if (selectedIds.size === 0) {
-          return { done: false, error: "Select at least one option." };
+          return { done: false, error: emptySelectionError };
         }
         return { done: true, value: Array.from(selectedIds) };
       }
@@ -517,15 +612,7 @@ const selectMany = async (
 const askMultilineQuestion = async (
   rl: ReturnType<typeof createInterface>,
   initial: string,
-  frame: {
-    currentStepIndex: number;
-    completedUntilIndex: number;
-    runMode: RunMode | null;
-    apiKeyPresent: boolean;
-    configCount: number;
-    title: string;
-    hint?: string;
-  }
+  frame: StepFrame
 ): Promise<string | NavigationSignal> => {
   rl.pause();
   let buffer = initial;
@@ -534,18 +621,25 @@ const askMultilineQuestion = async (
       renderStepFrame(frame);
     },
     renderBody: (errorLine) => {
-      output.write("Step 1 — Research Question\n\n");
-      output.write("Include all relevant context. Arbiter samples responses to characterize distributional behavior.\n");
-      output.write("Controls: Enter submit · Esc back · Ctrl+C exit\n\n");
-      if (buffer.length === 0) {
-        output.write("(start typing)\n");
-      } else {
-        output.write(`${buffer}\n`);
-      }
-      output.write(`\nCharacters: ${buffer.length}\n`);
+      const lines = [
+        "Include all relevant context. Arbiter samples responses to characterize distributional behavior.",
+        "Type your question and press Enter to continue.",
+        "Controls: Enter continue · Esc back · Ctrl+C exit",
+        "",
+        buffer.length === 0 ? "(start typing)" : buffer,
+        "",
+        `Characters: ${buffer.length}`
+      ];
       if (errorLine) {
-        output.write(`\n${errorLine}\n`);
+        lines.push("");
+        lines.push(errorLine);
       }
+      output.write(
+        `${renderCard({
+          title: "Research Question",
+          lines
+        })}\n`
+      );
     },
     onKey: (str, key) => {
       if (key.ctrl && key.name === "c") {
@@ -563,7 +657,7 @@ const askMultilineQuestion = async (
       if (submitRequested) {
         const question = buffer.trim();
         if (question.length === 0) {
-          return { done: false, error: "Question cannot be empty." };
+          return { done: false, error: "Fix required: enter a research question to continue." };
         }
         return { done: true, value: question };
       }
@@ -652,32 +746,32 @@ const renderReview = (input: {
   isExistingPath: boolean;
 }): void => {
   const { draft, runMode, selectedConfigPath, isExistingPath } = input;
-  output.write("\nStep 7 — Review & Confirm\n");
-  output.write(`Question: ${draft.question}\n`);
-  output.write(`Protocol: ${formatProtocol(draft)}\n`);
-  output.write(`Models: ${draft.modelSlugs.length} selected\n`);
-  output.write(`Personas: ${draft.personaIds.length} selected\n`);
-  output.write(
-    `Decode: ${
-      draft.temperatureMode === "single"
-        ? `temp ${draft.temperatureSingle}`
-        : `temp ${draft.temperatureMin}-${draft.temperatureMax} (uniform)`
-    }, seed ${draft.seedMode === "fixed" ? draft.fixedSeed : "random"}\n`
-  );
-  output.write(`Execution: workers ${draft.workers}, batch ${draft.batchSize}, K_max ${draft.kMax}\n`);
-  output.write(`Run mode: ${runMode}\n`);
-  output.write(`Output dir: ${draft.outputDir}\n`);
+  const lines = [
+    `Question: ${truncate(draft.question.trim(), 80)}`,
+    `Protocol: ${formatProtocol(draft)}`,
+    `Models: ${draft.modelSlugs.length} selected`,
+    `Personas: ${draft.personaIds.length} selected`,
+    `Decode: ${toDecodeSummary(draft)}`,
+    `Execution: workers ${draft.workers}, batch ${draft.batchSize}, K_max ${draft.kMax}`,
+    `Run mode: ${toRunModeLabel(runMode)}`,
+    `Output dir: ${draft.outputDir}`
+  ];
   if (isExistingPath && selectedConfigPath) {
-    output.write(`Source config: ${selectedConfigPath}\n`);
+    lines.push(`Source config: ${selectedConfigPath}`);
   }
+  output.write(`${renderCard({ title: "Review", lines })}\n`);
 };
 
 const runStudy = async (input: {
   runMode: RunMode;
   configPath: string;
   assetRoot: string;
+  stackPrefixText?: string;
 }): Promise<void> => {
-  const hooks = createUiRunLifecycleHooks({ dashboard: true });
+  const hooks = createUiRunLifecycleHooks({
+    dashboard: true,
+    stackPrefixText: input.stackPrefixText
+  });
   const warningSink = createConsoleWarningSink();
   const common = {
     configPath: input.configPath,
@@ -700,15 +794,7 @@ const runStudy = async (input: {
 const chooseConfigFile = async (
   rl: ReturnType<typeof createInterface>,
   configs: string[],
-  frame: {
-    currentStepIndex: number;
-    completedUntilIndex: number;
-    runMode: RunMode | null;
-    apiKeyPresent: boolean;
-    configCount: number;
-    title: string;
-    hint?: string;
-  }
+  frame: StepFrame
 ): Promise<string | null> => {
   if (configs.length === 1) {
     return resolve(process.cwd(), configs[0]);
@@ -716,7 +802,7 @@ const chooseConfigFile = async (
 
   const selected = await selectOne(
     rl,
-    "Select existing config:",
+    "Select a config file",
     configs.map((name) => ({ id: name, label: name })),
     0,
     frame
@@ -729,6 +815,7 @@ const chooseConfigFile = async (
 
 export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise<void> => {
   const assetRoot = options?.assetRoot ?? process.cwd();
+  const version = loadVersion(assetRoot);
   const modelOptions = readCatalogModels(assetRoot);
   const personaOptions = readPersonaOptions(assetRoot);
   const configFiles = listConfigFiles();
@@ -738,34 +825,39 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
   try {
     renderStepFrame({
+      version,
       currentStepIndex: 0,
       completedUntilIndex: -1,
       runMode: null,
       apiKeyPresent,
       configCount: configFiles.length,
-      title: "Step 0 — Welcome",
-      hint: "Choose entry path and run mode."
+      title: "Step 0 Welcome and Entry",
+      hint: "Choose how to start and choose run mode."
     });
 
     let entryPath: EntryPath | null = null;
     let runMode: RunMode | null = null;
     while (!entryPath || !runMode) {
-      const step0Frame = {
+      const step0Frame: StepFrame = {
+        version,
         currentStepIndex: 0,
         completedUntilIndex: -1,
         runMode: null,
         apiKeyPresent,
         configCount: configFiles.length,
-        title: "Step 0 — Welcome",
-        hint: "Choose entry path and run mode."
+        title: "Step 0 Welcome and Entry",
+        hint: "Choose how to start and choose run mode."
       };
       const entryChoice = await selectOne(
         rl,
-        "Step 0 — Entry path",
+        "Choose how to start",
         [
           {
             id: "existing",
-            label: "Run existing config",
+            label:
+              configFiles.length === 0
+                ? "Run existing config (unavailable)"
+                : "Run existing config",
             disabled: configFiles.length === 0
           },
           {
@@ -784,9 +876,13 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
       const runChoice = await selectOne(
         rl,
-        "Step 0 — Run mode",
+        "Choose run mode",
         [
-          { id: "live", label: "Live (OpenRouter)", disabled: !apiKeyPresent },
+          {
+            id: "live",
+            label: !apiKeyPresent ? "Live (OpenRouter) (unavailable)" : "Live (OpenRouter)",
+            disabled: !apiKeyPresent
+          },
           { id: "mock", label: "Mock (no API calls)" }
         ],
         apiKeyPresent ? 0 : 1,
@@ -817,15 +913,30 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
     let revised = entryPath === "new";
     let currentStep: 1 | 2 | 3 | 4 | 5 | 6 | 7 = entryPath === "new" ? 1 : 7;
 
+    const buildStepFrame = (
+      currentStepIndex: StepIndex,
+      completedUntilIndex: number,
+      title: string,
+      hint?: string
+    ): StepFrame => ({
+      version,
+      currentStepIndex,
+      completedUntilIndex,
+      runMode,
+      apiKeyPresent,
+      configCount: configFiles.length,
+      title,
+      hint,
+      stepSummaries: toStepSummaries({
+        draft,
+        currentStep: currentStepIndex
+      })
+    });
+
     if (entryPath === "existing") {
       selectedConfigPath = await chooseConfigFile(rl, configFiles, {
-        currentStepIndex: 0,
-        completedUntilIndex: 0,
-        runMode,
-        apiKeyPresent,
-        configCount: configFiles.length,
-        title: "Step 0 — Welcome",
-        hint: "Select existing config."
+        ...buildStepFrame(0, 0, "Step 0 Welcome and Entry", "Select a config file"),
+        stepSummaries: undefined
       });
       if (!selectedConfigPath) {
         output.write("Wizard exited.\n");
@@ -842,13 +953,12 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
     while (true) {
       if (currentStep === 1) {
         const questionInput = await askMultilineQuestion(rl, draft.question, {
-          currentStepIndex: 1,
-          completedUntilIndex: 0,
-          runMode,
-          apiKeyPresent,
-          configCount: configFiles.length,
-          title: "Step 1 — Research Question",
-          hint: "Include relevant context. Arbiter samples responses to characterize distributional behavior."
+          ...buildStepFrame(
+            1,
+            0,
+            "Research Question",
+            "Include all relevant context. Arbiter samples responses to characterize distributional behavior."
+          )
         });
         if (questionInput === SELECT_EXIT) {
           output.write("Wizard exited.\n");
@@ -866,21 +976,13 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       if (currentStep === 2) {
         const protocolSelection = await selectOne(
           rl,
-          "Step 2 — Protocol",
+          "Step 2 Protocol",
           [
             { id: "independent", label: "Independent" },
             { id: "debate_v1", label: "Debate" }
           ],
           draft.protocolType === "debate_v1" ? 1 : 0,
-          {
-            currentStepIndex: 2,
-            completedUntilIndex: 1,
-            runMode,
-            apiKeyPresent,
-            configCount: configFiles.length,
-            title: "Step 2 — Protocol",
-            hint: "Choose Independent or Debate."
-          }
+          buildStepFrame(2, 1, "Protocol", "Select how each trial is structured.")
         );
         if (protocolSelection === SELECT_EXIT) {
           output.write("Wizard exited.\n");
@@ -893,13 +995,12 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         draft.protocolType = protocolSelection as ProtocolType;
         if (draft.protocolType === "debate_v1") {
           renderStepFrame({
-            currentStepIndex: 2,
-            completedUntilIndex: 1,
-            runMode,
-            apiKeyPresent,
-            configCount: configFiles.length,
-            title: "Step 2 — Protocol",
-            hint: "Set Debate participants and rounds."
+            ...buildStepFrame(
+              2,
+              1,
+              "Protocol",
+              "Each round: all participants speak in order; after R rounds, participant A gives the final response."
+            )
           });
           draft.participants = await askInteger(rl, "Participants", draft.participants, 2);
           draft.rounds = await askInteger(rl, "Rounds", draft.rounds, 1);
@@ -911,21 +1012,14 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       if (currentStep === 3) {
         const selectedModels = await selectMany(
           rl,
-          "Step 3 — Models",
+          "Step 3 Models",
           modelOptions.map((model) => ({
             id: model.slug,
             label: `${model.display} (${model.provider}) [${model.tier}]${model.slug.endsWith(":free") ? " FREE" : ""}`
           })),
           draft.modelSlugs,
-          {
-            currentStepIndex: 3,
-            completedUntilIndex: 2,
-            runMode,
-            apiKeyPresent,
-            configCount: configFiles.length,
-            title: "Step 3 — Models",
-            hint: "Select one or more models."
-          }
+          "Fix required: select at least one model.",
+          buildStepFrame(3, 2, "Models", "Select one or more models for sampling.")
         );
         if (selectedModels === SELECT_EXIT) {
           output.write("Wizard exited.\n");
@@ -938,7 +1032,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         draft.modelSlugs = selectedModels;
         if (draft.modelSlugs.some((model) => model.endsWith(":free"))) {
           output.write(
-            "warning: Free-tier models may be rate-limited or unavailable; not recommended for publishable research.\n"
+            "Warning: free-tier models selected. Availability may be limited. Use paid models for publishable research.\n"
           );
         }
         currentStep = 4;
@@ -948,18 +1042,11 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       if (currentStep === 4) {
         const selectedPersonas = await selectMany(
           rl,
-          "Step 4 — Personas",
+          "Step 4 Personas",
           personaOptions.map((persona) => ({ id: persona.id, label: `${persona.id} - ${persona.description}` })),
           draft.personaIds,
-          {
-            currentStepIndex: 4,
-            completedUntilIndex: 3,
-            runMode,
-            apiKeyPresent,
-            configCount: configFiles.length,
-            title: "Step 4 — Personas",
-            hint: "Select one or more personas."
-          }
+          "Fix required: select at least one persona.",
+          buildStepFrame(4, 3, "Personas", "Select one or more personas for sampling.")
         );
         if (selectedPersonas === SELECT_EXIT) {
           output.write("Wizard exited.\n");
@@ -978,21 +1065,13 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         while (true) {
           const temperatureModeSelection = await selectOne(
             rl,
-            "Step 5 — Temperature mode",
+            "Temperature mode",
             [
               { id: "single", label: "Single value" },
               { id: "range", label: "Range (uniform)" }
             ],
             draft.temperatureMode === "range" ? 1 : 0,
-            {
-              currentStepIndex: 5,
-              completedUntilIndex: 4,
-              runMode,
-              apiKeyPresent,
-              configCount: configFiles.length,
-              title: "Step 5 — Decode Params",
-              hint: "Configure temperature and seed modes."
-            }
+            buildStepFrame(5, 4, "Decode Params", "Set temperature and seed behavior for trial sampling.")
           );
           if (temperatureModeSelection === SELECT_EXIT) {
             output.write("Wizard exited.\n");
@@ -1005,13 +1084,12 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
           draft.temperatureMode = temperatureModeSelection as TemperatureMode;
           renderStepFrame({
-            currentStepIndex: 5,
-            completedUntilIndex: 4,
-            runMode,
-            apiKeyPresent,
-            configCount: configFiles.length,
-            title: "Step 5 — Decode Params",
-            hint: "Enter numeric decode values."
+            ...buildStepFrame(
+              5,
+              4,
+              "Decode Params",
+              "Set numeric decode values."
+            )
           });
           if (draft.temperatureMode === "single") {
             draft.temperatureSingle = await askFloat(rl, "Temperature", draft.temperatureSingle, 0, 2);
@@ -1022,21 +1100,13 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
           const seedModeSelection = await selectOne(
             rl,
-            "Step 5 — Seed mode",
+            "Seed mode",
             [
               { id: "random", label: "Random" },
               { id: "fixed", label: "Fixed seed" }
             ],
             draft.seedMode === "fixed" ? 1 : 0,
-            {
-              currentStepIndex: 5,
-              completedUntilIndex: 4,
-              runMode,
-              apiKeyPresent,
-              configCount: configFiles.length,
-              title: "Step 5 — Decode Params",
-              hint: "Configure temperature and seed modes."
-            }
+            buildStepFrame(5, 4, "Decode Params", "Set temperature and seed behavior for trial sampling.")
           );
           if (seedModeSelection === SELECT_EXIT) {
             output.write("Wizard exited.\n");
@@ -1048,13 +1118,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           draft.seedMode = seedModeSelection as SeedMode;
           if (draft.seedMode === "fixed") {
             renderStepFrame({
-              currentStepIndex: 5,
-              completedUntilIndex: 4,
-              runMode,
-              apiKeyPresent,
-              configCount: configFiles.length,
-              title: "Step 5 — Decode Params",
-              hint: "Set fixed seed."
+              ...buildStepFrame(5, 4, "Decode Params", "Set fixed seed.")
             });
             draft.fixedSeed = await askInteger(rl, "Fixed seed", draft.fixedSeed, 0);
           }
@@ -1067,21 +1131,18 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       if (currentStep === 6) {
         const advancedSelection = await selectOne(
           rl,
-          "Step 6 — Advanced",
+          "Advanced settings",
           [
             { id: "defaults", label: "Use defaults (recommended)" },
             { id: "custom", label: "Customize" }
           ],
           draft.useAdvancedDefaults ? 0 : 1,
-          {
-            currentStepIndex: 6,
-            completedUntilIndex: 5,
-            runMode,
-            apiKeyPresent,
-            configCount: configFiles.length,
-            title: "Step 6 — Advanced Settings",
-            hint: "Use defaults or customize execution and stopping settings."
-          }
+          buildStepFrame(
+            6,
+            5,
+            "Advanced Settings",
+            "Use defaults or customize execution and stopping settings."
+          )
         );
         if (advancedSelection === SELECT_EXIT) {
           output.write("Wizard exited.\n");
@@ -1133,13 +1194,12 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       const baseConfig = sourceConfig ?? baseTemplate;
       const configForReview = buildConfigFromDraft({ baseConfig, draft });
       renderStepFrame({
-        currentStepIndex: 7,
-        completedUntilIndex: 6,
-        runMode,
-        apiKeyPresent,
-        configCount: configFiles.length,
-        title: "Step 7 — Review & Confirm",
-        hint: "Config is written only on Run now or Save config and exit."
+        ...buildStepFrame(
+          7,
+          6,
+          "Review and Confirm",
+          "Review settings, run checks, and choose how to proceed."
+        )
       });
       renderReview({
         draft,
@@ -1158,15 +1218,12 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           { id: "quit", label: "Quit without saving" }
         ],
         0,
-        {
-          currentStepIndex: 7,
-          completedUntilIndex: 6,
-          runMode,
-          apiKeyPresent,
-          configCount: configFiles.length,
-          title: "Step 7 — Review & Confirm",
-          hint: "Config is written only on Run now or Save config and exit."
-        }
+        buildStepFrame(
+          7,
+          6,
+          "Review and Confirm",
+          "Review settings, run checks, and choose how to proceed."
+        )
       );
 
       if (actionSelection === SELECT_EXIT) {
@@ -1187,6 +1244,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
       if (action === "revise") {
         revised = true;
+        output.write("Returning to Step 1 with your selections preserved.\n");
         currentStep = 1;
         continue;
       }
@@ -1197,12 +1255,12 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         runMode,
         action
       });
-      warnings.forEach((warning) => output.write(`warning: ${warning}\n`));
+      warnings.forEach((warning) => output.write(`${warning}\n`));
 
       if (action === "save") {
         const saveTarget = nextCollisionSafeConfigPath();
         writeJsonFile(saveTarget, configForReview);
-        output.write(`Saved config: ${saveTarget}\n`);
+        output.write(`Config saved: ${saveTarget}\n`);
         return;
       }
 
@@ -1212,14 +1270,34 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       } else {
         const saveTarget = nextCollisionSafeConfigPath();
         writeJsonFile(saveTarget, configForReview);
-        output.write(`Saved config: ${saveTarget}\n`);
+        output.write(`Config saved: ${saveTarget}\n`);
         configPathToRun = saveTarget;
       }
 
+      const stackPrefixText = [
+        renderMasthead({
+          version,
+          apiKeyPresent,
+          runMode,
+          configCount: configFiles.length
+        }),
+        "",
+        buildFrozenStudySummary({
+          draft,
+          selectedConfigPath,
+          entryPath
+        }),
+        "",
+        UI_COPY.startingRun,
+        ""
+      ].join("\n");
+
+      clearScreen();
       await runStudy({
         runMode,
         configPath: configPathToRun,
-        assetRoot
+        assetRoot,
+        stackPrefixText
       });
       return;
     }

@@ -41,13 +41,13 @@ Scope guardrails:
 - [x] (2026-03-03 02:21Z) initial plan drafted (`proposed`)
 - [x] (2026-03-03 02:39Z) design freeze spec expanded with exact tokens, glyph, motion, and component contracts
 - [x] (2026-03-03 02:37Z) external review incorporated: blocker fixes and scope hardening added
-- [ ] (pending) milestone 0 complete: visual and copy contracts ratified after external review
-- [ ] (pending) milestone 1 complete: shared visual/copy seams and stage-stack scaffold implemented
-- [ ] (pending) milestone 2 complete: Stage 1 visual and copy restyle implemented
-- [ ] (pending) milestone 3 complete: Stage 2 visual and copy restyle implemented
-- [ ] (pending) milestone 4 complete: Stage 3 visual and copy restyle implemented
-- [ ] (pending) milestone 5 complete: cross-stage copy consistency verification and forbidden-term audit complete
-- [ ] (pending) milestone 6 complete: validation evidence captured and docs synchronized (`completed`)
+- [x] (2026-03-04 03:15Z) milestone 0 complete: visual and copy contracts ratified after external review
+- [x] (2026-03-04 03:15Z) milestone 1 complete: shared visual/copy seams and stage-stack scaffold implemented
+- [x] (2026-03-04 03:15Z) milestone 2 complete: Stage 1 visual and copy restyle implemented
+- [x] (2026-03-04 03:15Z) milestone 3 complete: Stage 2 visual and copy restyle implemented
+- [x] (2026-03-04 03:15Z) milestone 4 complete: Stage 3 visual and copy restyle implemented
+- [x] (2026-03-04 03:15Z) milestone 5 complete: cross-stage copy consistency verification and forbidden-term audit complete
+- [x] (2026-03-04 03:15Z) milestone 6 complete: validation evidence captured and docs synchronized (`completed`)
 
 ## Surprises & Discoveries
 - Observation: current wizard rendering is concentrated in one file with inline frame output, which increases style drift risk if patched incrementally.
@@ -64,6 +64,8 @@ Scope guardrails:
   Evidence: `src/ui/receipt-text.ts`, `src/ui/run-lifecycle-hooks.ts`.
 - Observation: current run path replaces screen regions via clear-screen and in-place redraw behavior; it does not persist a frozen Stage 1 summary above Stage 2/3.
   Evidence: `src/ui/wizard/app.ts`, `src/ui/run-lifecycle-hooks.ts`.
+- Observation: stacked run-path persistence can be implemented without terminal scroll-region complexity by writing a frozen prefix once and constraining cursor-up redraw to dashboard line count.
+  Evidence: `src/ui/run-lifecycle-hooks.ts` (`lastRenderedLineCount` redraw path and `stackPrefixText` setup).
 
 ## Decision Log
 - Decision: visual overhaul is phase-isolated from UX and architecture work.
@@ -658,3 +660,4 @@ Microcopy pattern contracts:
 - 2026-03-03 03:55Z: tightened Milestone 1 ANSI gate to SGR-only detection and explicitly allowed inline terminal control sequences.
 - 2026-03-03 04:14Z: updated plan for hybrid stack composition direction: persistent Stage 0 masthead, frozen Stage 1 Study Summary, Stage 2/3 stacked rendering, and corresponding gates/validation updates.
 - 2026-03-03 04:33Z: resolved stacked-composition audit gaps: removed Stage 0/Step 0 header duplication, clarified dashboard-only (`--dashboard`) path semantics, added redraw-boundary and short-terminal fallback contract, and aligned stop-reason wording to copy-deck canonical labels.
+- 2026-03-04 03:15Z: completed implementation milestones 1-6 with new `src/ui/copy.ts` + `src/ui/wizard-theme.ts` seams, Stage 0/1/2/3 stacked run-path rendering, CLI headless copy alignment, and full AGENTS quality-gate validation pass.

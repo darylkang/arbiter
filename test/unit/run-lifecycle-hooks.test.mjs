@@ -39,8 +39,8 @@ const buildSnapshot = (overrides = {}) => ({
 
 test("dashboard omits embedding-group caveat when grouping is disabled", () => {
   const text = buildRunDashboardText(buildSnapshot({ groupingEnabled: false }));
-  assert.equal(text.includes("Embedding groups reflect similarity, not semantic categories."), false);
-  assert.equal(text.includes("embedding groups:"), false);
+  assert.equal(text.includes("Groups reflect embedding similarity, not semantic categories."), false);
+  assert.equal(text.includes("Embedding groups:"), false);
 });
 
 test("dashboard includes embedding-group caveat when grouping is enabled", () => {
@@ -50,16 +50,16 @@ test("dashboard includes embedding-group caveat when grouping is enabled", () =>
       groupCount: 3
     })
   );
-  assert.equal(text.includes("Embedding groups reflect similarity, not semantic categories."), true);
-  assert.equal(text.includes("embedding groups: 3"), true);
+  assert.equal(text.includes("Groups reflect embedding similarity, not semantic categories."), true);
+  assert.equal(text.includes("Embedding groups: 3"), true);
 });
 
 test("dashboard uses best-effort ETA and shows unknown when insufficient data", () => {
   const text = buildRunDashboardText(buildSnapshot({ attempted: 0, planned: 10 }));
-  assert.equal(text.includes("ETA —"), true);
+  assert.equal(text.includes("ETA: —"), true);
 });
 
 test("dashboard marks usage as not applicable in mock mode", () => {
   const text = buildRunDashboardText(buildSnapshot({ mode: "mock" }));
-  assert.equal(text.includes("usage not applicable (mock mode)"), true);
+  assert.equal(text.includes("Usage not applicable"), true);
 });

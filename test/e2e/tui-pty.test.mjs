@@ -177,7 +177,7 @@ test("pty: wizard launches in TTY and exits cleanly from Step 0", { concurrency:
 
   try {
     await session.waitForText("ARBITER", 25000);
-    await session.waitForText("Step 0 — Entry path", 25000);
+    await session.waitForText("Choose how to start", 25000);
     await session.waitForText("Run existing config", 25000);
     await session.waitForText("Create new study (guided wizard)", 25000);
     session.escape();
@@ -196,18 +196,18 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
   const session = createPtySession({ cwd });
 
   try {
-    await session.waitForText("Step 0 — Entry path", 25000);
+    await session.waitForText("Choose how to start", 25000);
     session.pressEnter();
 
-    await session.waitForText("Step 0 — Run mode", 25000);
+    await session.waitForText("Choose run mode", 25000);
     session.arrowDown(1);
     session.pressEnter();
 
-    await session.waitForText("Step 7 — Review & Confirm", 25000);
+    await session.waitForText("Review and Confirm", 25000);
     session.pressEnter();
 
     await session.waitForText("═══ RUN ═══", 45000);
-    await session.waitForText("Usage so far: usage not applicable (mock mode)", 45000);
+    await session.waitForText("Usage not applicable", 45000);
     await session.waitForText("═══ RECEIPT ═══", 45000);
 
     const exit = await session.waitForExit(45000);
@@ -239,20 +239,20 @@ test("pty: create-new path submits Step 1 question with Enter", { concurrency: f
   const session = createPtySession({ cwd });
 
   try {
-    await session.waitForText("Step 0 — Entry path", 25000);
+    await session.waitForText("Choose how to start", 25000);
     await session.waitForText("Create new study (guided wizard)", 25000);
     session.pressEnter();
 
-    await session.waitForText("Step 0 — Run mode", 25000);
+    await session.waitForText("Choose run mode", 25000);
     await session.waitForText("Mock (no API calls)", 25000);
     session.pressEnter();
 
-    await session.waitForText("Step 1 — Research Question", 25000);
-    await session.waitForText("Enter submit", 25000);
+    await session.waitForText("Research Question", 25000);
+    await session.waitForText("press Enter to continue", 25000);
     session.typeText("Question submit fallback test");
     session.pressEnter();
 
-    await session.waitForText("Step 2 — Protocol", 25000);
+    await session.waitForText("Protocol", 25000);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });
