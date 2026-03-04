@@ -17,12 +17,12 @@ Primary user-visible outcome:
 
 ## Progress
 - [x] (2026-03-04 04:34Z) reboot plan drafted from benchmark research and post-implementation misalignment analysis (`proposed`)
-- [ ] (2026-03-04 00:00Z) visual reboot contract freeze complete (style, hierarchy, motion, hero treatment)
-- [ ] (2026-03-04 00:00Z) copy and visual cohesion freeze complete (cross-stage tone + layout pairing)
-- [ ] (2026-03-04 00:00Z) Stage 1 visual reboot implemented and screenshot-audited
-- [ ] (2026-03-04 00:00Z) Stage 2 visual reboot implemented and screenshot-audited
-- [ ] (2026-03-04 00:00Z) Stage 3 visual reboot implemented and screenshot-audited
-- [ ] (2026-03-04 00:00Z) final visual sign-off evidence captured and docs synchronized (`completed`)
+- [ ] (pending) visual reboot contract freeze complete (style, hierarchy, motion, hero treatment)
+- [ ] (pending) copy and visual cohesion freeze complete (cross-stage tone + layout pairing)
+- [ ] (pending) Stage 1 visual reboot implemented and screenshot-audited
+- [ ] (pending) Stage 2 visual reboot implemented and screenshot-audited
+- [ ] (pending) Stage 3 visual reboot implemented and screenshot-audited
+- [ ] (pending) final visual sign-off evidence captured and docs synchronized (`completed`)
 
 ## Surprises & Discoveries
 - Observation: the prior completed visual plan delivered coherent structure but under-shot perceived premium quality for target taste.
@@ -49,6 +49,9 @@ Primary user-visible outcome:
   Date/Author: 2026-03-04, Codex thread.
 - Decision: adopt dual visual audit paths.
   Rationale: in-repo path is portable and immediate; `ttyd` path is interactive and mirrors VHS-style tooling.
+  Date/Author: 2026-03-04, Codex thread.
+- Decision: Stage 2/3 sentinel headers (`═══ RUN ═══` and `═══ RECEIPT ═══`) are in visual reboot scope and may be upgraded during M0 contract freeze.
+  Rationale: sentinels are high-visibility visual identity elements; if changed, copy deck LOCKED values and PTY assertions must be updated atomically in the same milestone commit.
   Date/Author: 2026-03-04, Codex thread.
 
 ## Context and Orientation
@@ -94,12 +97,12 @@ Ordering principle: lock premium quality rubric and audit method first, then imp
 
 Milestones:
 
-1. M0: freeze premium visual contract and benchmark rubric.
+1. M0: freeze premium visual contract and benchmark rubric, including explicit sentinel header format decision.
 2. M1: freeze audit contract (what must be captured, how reviewed, pass/fail criteria).
 3. M2: Stage 1 reboot implementation (hero, spine, cards, selectors, controls).
 4. M3: Stage 2 reboot implementation (dashboard hierarchy, motion, density, status clarity).
 5. M4: Stage 3 reboot implementation (receipt prominence, closure quality, final scrollback composition).
-6. M5: cross-stage harmony pass (consistency, contrast balance, visual rhythm).
+6. M5: cross-stage harmony pass. Gate: side-by-side screenshots confirm consistent card border grammar, card width constraints, accent usage pattern, and spacing rhythm across Stage 1/2/3.
 7. M6: validation, evidence packaging, and doc sync.
 
 Design constraints for this reboot:
@@ -109,6 +112,66 @@ Design constraints for this reboot:
 3. rich but disciplined color hierarchy,
 4. clearly distinctive brand character at first glance,
 5. stable readability in long sessions and narrow terminal widths.
+
+Concrete visual targets (frozen in M0 before implementation):
+
+1. Stage 0 + Step 0 composition target:
+
+```text
+╭─ ARBITER ───────────────────────────────────────────────────────────────╮
+│ Distributional reasoning harness                                         │
+│ Version x.y.z                                                            │
+│ Environment  API key: detected  Mode: Mock  Configs in CWD: 3            │
+╰───────────────────────────────────────────────────────────────────────────╯
+
+╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
+│ ◆ Research Question                                                      │
+│ · Protocol                                                               │
+│ · Models                                                                 │
+│ · Personas                                                               │
+│ · Decode Parameters                                                      │
+│ · Advanced Settings                                                      │
+│ · Review and Confirm                                                     │
+╰───────────────────────────────────────────────────────────────────────────╯
+
+╭─ Entry Path ─────────────────────────────────────────────────────────────╮
+│ ▸ Create new study                                                       │
+│   Run existing config (unavailable)                                      │
+╰───────────────────────────────────────────────────────────────────────────╯
+```
+
+2. Stage 2 dashboard composition target:
+
+```text
+[frozen masthead]
+[frozen study summary card]
+
+╭─ RUN ─────────────────────────────────────────────────────────────────────╮
+│ Progress  28/80  [███████████░░░░░░░░░░░░░░] 35%                        │
+│ Elapsed 00:02:12  ETA 00:04:03                                           │
+╰───────────────────────────────────────────────────────────────────────────╯
+
+╭─ Monitoring ─────────────────────────────────────────────────────────────╮
+│ Novelty rate: 0.18     Patience: 2/4     Stop signal: continue           │
+│ Stopping indicates diminishing novelty, not correctness.                 │
+╰───────────────────────────────────────────────────────────────────────────╯
+```
+
+3. Stage 3 receipt composition target:
+
+```text
+[frozen masthead]
+[frozen study summary card]
+[final Stage 2 snapshot]
+
+╭─ RECEIPT ─────────────────────────────────────────────────────────────────╮
+│ Stopped: novelty saturation                                               │
+│ Trials completed: 64 / 80                                                 │
+│ Eligible: 60  Failed: 4                                                   │
+│ Artifacts written: manifest.json, trials.jsonl, monitoring.jsonl, ...    │
+│ Stopping indicates diminishing novelty, not correctness.                  │
+╰───────────────────────────────────────────────────────────────────────────╯
+```
 
 ## Visual Evaluation Framework (End-User Reality Loop)
 This framework is mandatory for every reboot milestone. Code-level review alone is insufficient.
@@ -123,16 +186,15 @@ Evaluation inputs (both required):
    - Record terminal profile evidence (`TERM`, `COLORTERM`, `NO_COLOR`) plus screenshots.
    - Purpose: verify what users actually see, not just emulator output.
 
-Evaluation scorecard (1-5 each):
+Evaluation scorecard (1-5 each; weighted):
 
-1. visual first impression quality
-2. hierarchy clarity under scan
-3. stage-to-stage coherence
-4. brand distinctiveness/memorability
-5. status readability and semantic color clarity
-6. data-density legibility in Stage 2
-7. motion quality (functional, non-distracting)
-8. polish quality of typography/spacing/borders
+1. hierarchy clarity under scan (20%)
+2. compositional confidence and rhythm (15%)
+3. brand distinctiveness/memorability (15%)
+4. status readability and semantic color clarity (15%)
+5. data-density legibility in Stage 2 (15%)
+6. motion quality (functional, non-distracting) (10%)
+7. fallback robustness across terminal capability tiers (10%)
 
 Gate thresholds:
 
@@ -152,6 +214,13 @@ Milestone advancement rule:
 
 1. A milestone is not complete until the scorecard passes on both deterministic and end-user runtime inputs.
 2. If scores conflict between deterministic and end-user runtime passes, end-user runtime result is authoritative.
+
+Evaluator role:
+
+1. implementing agent captures screenshots and assembles the evidence pack.
+2. milestone scoring is performed by the user or a designated review agent that did not implement the milestone.
+3. implementing-agent self-scores are advisory only and cannot independently advance a milestone.
+4. if no independent reviewer is available, user approval of the screenshot pack is required to advance.
 
 ## Concrete Steps
 Working directory: repository root.
@@ -177,7 +246,7 @@ Working directory: repository root.
 4. Freeze premium visual rubric in this plan (no code changes yet).
    Commands:
    - N/A (doc update step)
-   Expected evidence: rubric section complete with weighted criteria and rejection criteria.
+   Expected evidence: rubric section complete with weighted criteria and rejection criteria, and M0 records whether sentinels are retained or replaced.
 
 5. Freeze visual audit standard in this plan.
    Commands:
@@ -257,6 +326,8 @@ Required visual evidence pack:
 9. Step 7 review
 10. Stage 2 run dashboard (mid-run and terminal state near completion)
 11. Stage 3 final receipt
+12. Step 0 entry at narrow width (`COLUMNS=90`)
+13. Stage 2 dashboard at narrow width (`COLUMNS=90`)
 
 Required evaluation artifacts:
 
@@ -264,6 +335,7 @@ Required evaluation artifacts:
 2. end-user runtime screenshot pack (`output/playwright/tui-user-runtime/<timestamp>/` or equivalent documented location)
 3. visual scorecard report with category scores, weighted result, and gating decision
 4. defect log (resolved vs deferred), with screenshot references
+5. reviewer sign-off record (user or designated independent reviewer)
 
 Visual audit tooling acceptance:
 
@@ -304,25 +376,26 @@ Audit dependencies:
 ## Artifacts and Notes
 Benchmark rubric (weighted):
 
-1. hierarchy clarity (20%)
+1. hierarchy clarity under scan (20%)
 2. compositional confidence and rhythm (15%)
-3. brand distinctiveness and memorability (15%)
-4. status semantics and contrast discipline (15%)
-5. data-density readability under load (15%)
-6. motion quality and restraint (10%)
+3. brand distinctiveness/memorability (15%)
+4. status readability and semantic color clarity (15%)
+5. data-density legibility in Stage 2 (15%)
+6. motion quality (functional, non-distracting) (10%)
 7. fallback robustness across terminal capability tiers (10%)
 
 Scorecard template (per milestone):
 
-1. visual first impression quality: `<score>/5`
-2. hierarchy clarity under scan: `<score>/5`
-3. stage-to-stage coherence: `<score>/5`
-4. brand distinctiveness/memorability: `<score>/5`
-5. status readability and semantic color clarity: `<score>/5`
-6. Stage 2 density legibility: `<score>/5`
-7. motion quality (functional, non-distracting): `<score>/5`
-8. polish quality of typography/spacing/borders: `<score>/5`
-9. weighted overall: `<score>/5` (pass threshold `>= 4.3`)
+1. hierarchy clarity under scan: `<score>/5` (weight: 20%)
+2. compositional confidence and rhythm: `<score>/5` (weight: 15%)
+3. brand distinctiveness/memorability: `<score>/5` (weight: 15%)
+4. status readability and semantic color clarity: `<score>/5` (weight: 15%)
+5. data-density legibility in Stage 2: `<score>/5` (weight: 15%)
+6. motion quality (functional, non-distracting): `<score>/5` (weight: 10%)
+7. fallback robustness across terminal capability tiers: `<score>/5` (weight: 10%)
+8. weighted overall: `<computed>/5` (pass threshold `>= 4.3`)
+
+Weighted overall is computed as the sum of each category score multiplied by its weight percentage.
 
 Reference-derived adopt patterns:
 
@@ -341,3 +414,4 @@ Reference-derived avoid patterns:
 
 ## Plan Change Notes
 - 2026-03-04 04:34Z: initial reboot plan created after explicit user rejection of prior restrained visual outcome and benchmark-driven research pass.
+- 2026-03-04 17:10Z: hardened reboot gates with independent evaluator ownership, weighted scorecard alignment, measurable M5 criteria, narrow-width evidence requirements, and concrete ASCII target layouts.
