@@ -48,6 +48,14 @@ Formatting markers:
 2. `LOCKED`: command footer is always present and control-first.
 3. `LOCKED`: tab hints, when shown, use `←/→ cycle tabs`.
 
+## Color Semantics Contract
+
+1. `LOCKED`: runtime UI uses color to encode focus and status; monochrome-only presentation is not an acceptable premium target.
+2. `LOCKED`: warnings use warn color, errors use error color, success states use success color.
+3. `LOCKED`: active selection/focus uses accent color; non-active rows remain neutral.
+4. `LOCKED`: master and worker progress bars are colorized, with semantic status coloring for worker bars.
+5. `LOCKED`: color remains disciplined (no decorative rainbow styling).
+
 ## Voice System
 
 Arbiter copy should read as a high-confidence research instrument.
@@ -378,16 +386,17 @@ Summary strip:
 Progress block:
 
 1. `LOCKED`: `Master progress`
-2. `LOCKED`: `Elapsed: {elapsed}`
-3. `LOCKED`: `ETA: {eta_or_dash}`
+2. `LOCKED`: `[{bar}] {pct}%`
+3. `LOCKED`: `Elapsed: {elapsed}`
+4. `LOCKED`: `ETA: {eta_or_dash}`
 
 Worker block:
 
 1. `LOCKED`: `Workers`
-2. `LOCKED`: `Status`
-3. `LOCKED`: `Trial`
-4. `LOCKED`: `Activity`
-5. `LOCKED`: `(+{hidden_count} more workers)`
+2. `LOCKED` structure: `W{worker_index} [{worker_bar}] {worker_pct}% · {worker_status} · trial {worker_trial}`
+3. `LOCKED`: `(+{hidden_count} more workers)`
+4. `LOCKED`: `one worker progress row is rendered per visible async worker.`
+5. `LOCKED`: `stage dashboard includes one master progress bar plus per-worker progress bars.`
 
 Monitoring block:
 

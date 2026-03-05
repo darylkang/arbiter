@@ -48,6 +48,7 @@ Global rules:
 10. Motion is functional only (spinner + progress updates).
 11. Every major screen uses app-shell composition: top status strip, primary content region, command footer.
 12. Where tabbed subviews exist, tab chrome is rendered in-line and keyboard discoverability is always shown.
+13. Stage 2 always shows one master progress bar plus one progress bar per async worker.
 
 ## Premium Signature Contract
 
@@ -100,6 +101,40 @@ Shell rules:
 3. bottom strip is always present and never visually noisy.
 4. shell separators use consistent border weight across all stages.
 
+## Color System Contract
+
+Color is mandatory in the final product. The reboot must feel vivid and premium, but still disciplined.
+
+Tier A (truecolor/256-color target palette):
+
+1. `fg.primary`: `#ebdbb2`
+2. `fg.muted`: `#a89984`
+3. `border.default`: `#665c54`
+4. `accent.primary`: `#fabd2f` (active focus, current step, primary progress)
+5. `accent.secondary`: `#83a598` (secondary highlights, pane accents)
+6. `status.success`: `#b8bb26`
+7. `status.warn`: `#d79921`
+8. `status.error`: `#fb4934`
+9. `status.info`: `#8ec07c`
+
+Tier B (16-color fallback mapping):
+
+1. `accent.primary`: bright yellow
+2. `accent.secondary`: cyan
+3. `status.success`: green
+4. `status.warn`: yellow (bold)
+5. `status.error`: red
+6. `status.info`: cyan
+7. `fg.primary`/`fg.muted` and border tones map to white/bright-black equivalents
+
+Color application rules:
+
+1. active row, current rail marker, and focused value always use `accent.primary`.
+2. selected options are colorized; unselected options stay neutral.
+3. master progress bar uses `accent.primary`; worker bars use semantic color by worker status.
+4. warning, error, and success messages always use semantic status colors.
+5. no rainbow styling: max two accent hues per screen plus status colors where semantically required.
+
 ## Stage 1 Panel Template (Border-Integrated Rail)
 
 This template defines the Stage 1 composition grammar used by all steps.
@@ -138,6 +173,8 @@ Tier behavior:
 3. Wide Stage 2 shows monitoring and usage as separate cards.
 4. Narrow Stage 2 collapses to one merged operational card when needed.
 5. No clipping of LOCKED copy in either tier; wrap at word boundaries.
+6. Wide Stage 2 shows one worker progress row per visible worker.
+7. Narrow Stage 2 may truncate worker rows by height, but each shown row still includes a worker bar and percent.
 
 ## Stage 0 + Stage 1 Screen Deck (Wide)
 
@@ -349,15 +386,25 @@ Plugins  Discover  Installed   (←/→ cycle)
 ╰───────────────────────────────────────────────────────────────────────────╯
 
 ╭─ Monitoring ─────────────────────────╮╭─ Workers ─────────────────────────╮
-│ Novelty rate: {value}               ││ W1  running  trial {id}           │
-│ Patience: {current}/{target}        ││ W2  idle     trial {id}           │
-│ Status: {sampling_status}           ││ W3  running  trial {id}           │
-│ Stopping indicates diminishing      ││ (+{hidden_count} more workers)    │
-│ novelty, not correctness.           │╰────────────────────────────────────╯
-╰──────────────────────────────────────╯
+│ Novelty rate: {value}               ││ W1 [{w1_bar}] {w1_pct}% · running │
+│ Patience: {current}/{target}        ││    trial {w1_trial}               │
+│ Status: {sampling_status}           ││ W2 [{w2_bar}] {w2_pct}% · idle    │
+│ Stopping indicates diminishing      ││    trial {w2_trial}               │
+│ novelty, not correctness.           ││ W3 [{w3_bar}] {w3_pct}% · running │
+╰──────────────────────────────────────╯│    trial {w3_trial}               │
+                                        │ ...                               │
+                                        │ (+{hidden_count} more workers)    │
+                                        ╰────────────────────────────────────╯
 ───────────────────────────────────────────────────────────────────────────────
 Ctrl+C graceful stop · q ignore updates
 ```
+
+Worker progress rule:
+
+1. one worker progress row exists per visible worker.
+2. each worker row includes worker label, mini progress bar, percentage, and status/trial context.
+3. when worker count exceeds available height, render top N workers and `(+{hidden_count} more workers)`.
+4. master bar remains the global source of overall progress.
 
 ### Final Stage 3 Receipt
 
@@ -420,6 +467,12 @@ Narrow Stage 2 shape:
 │ {completed}/{planned}  [{bar}] {pct}%                                    │
 │ Elapsed: {elapsed}  ETA: {eta_or_dash}                                   │
 │ Novelty: {value}  Patience: {current}/{target}                           │
+╰───────────────────────────────────────────────────────────────────────────╯
+╭─ Workers ─────────────────────────────────────────────────────────────────╮
+│ W1 [{w1_bar}] {w1_pct}% · {w1_status} · trial {w1_trial}                │
+│ W2 [{w2_bar}] {w2_pct}% · {w2_status} · trial {w2_trial}                │
+│ ...                                                                      │
+│ (+{hidden_count} more workers)                                           │
 ╰───────────────────────────────────────────────────────────────────────────╯
 ───────────────────────────────────────────────────────────────────────────────
 Ctrl+C graceful stop · q ignore updates

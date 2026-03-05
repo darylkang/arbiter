@@ -124,7 +124,8 @@ Design constraints for this reboot:
 6. border-integrated navigation rail/timeline treatment (not separate utility spine card),
 7. glyph-native selectors for prompt options (`○/●`, `◇/◆`) instead of bracket checkboxes,
 8. app-shell composition with top status strip, primary content region, and command footer,
-9. split-pane information architecture on wide terminals where it improves scan speed.
+9. split-pane information architecture on wide terminals where it improves scan speed,
+10. Stage 2 shows one master progress bar plus one progress bar per async worker.
 
 Concrete visual targets (frozen in M0 before implementation):
 
@@ -176,12 +177,14 @@ Source of truth:
 ╰───────────────────────────────────────────────────────────────────────────╯
 
 ╭─ Monitoring ─────────────────────────╮╭─ Workers ─────────────────────────╮
-│ Novelty rate: 0.18                  ││ W1  running  trial 28             │
-│ Patience: 2/4                       ││ W2  idle     trial 19             │
-│ Status: sampling continues          ││ W3  running  trial 27             │
-│ Stopping indicates diminishing      ││ (+2 more workers)                  │
-│ novelty, not correctness.           │╰────────────────────────────────────╯
-╰──────────────────────────────────────╯
+│ Novelty rate: 0.18                  ││ W1 [██████░░░░░░░] 42% · running   │
+│ Patience: 2/4                       ││    trial 28                        │
+│ Status: sampling continues          ││ W2 [████████░░░░░] 58% · idle     │
+│ Stopping indicates diminishing      ││    trial 19                        │
+│ novelty, not correctness.           ││ W3 [███░░░░░░░░░░] 21% · running  │
+╰──────────────────────────────────────╯│    trial 27                        │
+                                        │ (+2 more workers)                  │
+                                        ╰────────────────────────────────────╯
 ───────────────────────────────────────────────────────────────────────────────
 Ctrl+C graceful stop · q ignore updates
 ```
@@ -382,6 +385,8 @@ Premium visual acceptance (must all pass):
 10. Selector-glyph test: binary and multi-select prompts use glyph-native controls (no `[ ]` or `[x]`).
 11. App-shell test: each major surface includes top status strip + primary region + command footer.
 12. Split-pane test: wide-mode screens use at least one deliberate split-pane region where it improves scanability.
+13. Multi-progress test: Stage 2 shows one master progress bar and one per-worker progress bar for each visible worker row.
+14. Color-presence test: focus, status, and progress states are colorized in runtime captures (not monochrome/basic look), while staying within disciplined palette rules.
 
 Required visual evidence pack:
 
@@ -398,6 +403,7 @@ Required visual evidence pack:
 11. Stage 3 final receipt
 12. Step 0 entry at narrow width (`COLUMNS=90`)
 13. Stage 2 dashboard at narrow width (`COLUMNS=90`)
+14. Stage 2 dashboard at higher parallelism (`workers=8`) with one master bar plus one worker bar per visible worker.
 
 Required evaluation artifacts:
 
@@ -489,3 +495,4 @@ Reference-derived avoid patterns:
 - 2026-03-04 13:52Z: completed two doc hardening rounds, added score calibration anchors, and promoted full-stage visual deck to canonical layout source.
 - 2026-03-05 00:13Z: incorporated premium motif constraints from rendered benchmark review (border-integrated rail, timeline markers, glyph-native selectors) and elevated them to acceptance gates.
 - 2026-03-05 00:21Z: escalated visual contract toward Claude Code/OpenClaw parity with app-shell framing, split-pane emphasis, and upgraded ASCII targets for Step 0 run mode, Step 4 personas, and narrow-mode shells.
+- 2026-03-05 00:37Z: added explicit color-system contract and Stage 2 multi-progress-bar requirement (one master plus per-worker bars), including acceptance and evidence updates.
