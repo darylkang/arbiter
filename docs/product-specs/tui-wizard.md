@@ -166,8 +166,8 @@ Existing-config run behavior:
 
 ## Stage Model
 
-1. Stage 0: Persistent masthead and status strip
-2. Stage 1: Intake Wizard, then frozen Study Summary card
+1. Stage 0: Status strip and brand identity
+2. Stage 1: Intake Wizard, then frozen Stage 1 summary
 3. Stage 2: Run Dashboard
 4. Stage 3: Receipt and auto-exit
 
@@ -175,13 +175,13 @@ No Stage 4 next-action menu.
 
 ### Stage Composition Contract
 
-1. Stage 0 masthead remains visible for all interactive stages in the run path.
+1. Stage 0 status strip remains visible for all interactive stages in the run path. Brand identity block renders only on Step 0 entry.
 2. During editable Stage 1, only one wizard step is active at a time.
-3. On `Run now`, Stage 1 transitions from editable form to a frozen Stage 1 Study Summary card.
-4. Stage 2 renders below the frozen Stage 1 Study Summary card and updates in place.
+3. On `Run now`, Stage 1 transitions from editable form to a frozen Stage 1 summary.
+4. Stage 2 renders below the frozen Stage 1 summary and updates in place.
 5. When Stage 2 ends, its final snapshot remains visible and Stage 3 renders below it.
 6. This is not a full transcript stack: prior editable step bodies are not persisted after commit.
-7. Stacked composition applies only to wizard `Run now` path; `arbiter run --dashboard` renders Stage 2 and Stage 3 without persistent Stage 0 masthead or Stage 1 summary.
+7. Stacked composition applies only to wizard `Run now` path; `arbiter run --dashboard` renders Stage 2 and Stage 3 without brand identity block or Stage 1 summary.
 
 ## Stage 1: Intake Wizard
 
@@ -189,18 +189,18 @@ Global behavior:
 
 1. Strict linear flow, one active step at a time.
 2. Back navigation only through explicit Back controls.
-3. Progress spine shows completed and current steps.
+3. Navigation rail shows completed and current steps.
 4. Main pane shows only active step content while Stage 1 is editable.
 5. Validation gates Next or Confirm.
 6. Config is in-memory until explicit commit on Review.
-7. After `Run now`, Stage 1 is represented by a frozen Study Summary card rather than editable step pages.
+7. After `Run now`, Stage 1 is represented by a frozen summary rather than editable step pages.
 
 ### Step 0: Welcome and Entry
 
 Header:
 
-1. Stage 0 persistent masthead is the single source for title, tagline, version, and environment indicators.
-2. Step 0 does not duplicate masthead identity/status lines in the step body.
+1. Stage 0 brand identity block (rendered on Step 0 entry) and status strip (persistent on all steps) are the source for title, tagline, version, and environment indicators.
+2. Step 0 does not duplicate brand identity lines in the step content area.
 
 Two sequential selections:
 
@@ -226,8 +226,7 @@ Rules:
 1. Large multiline text input.
 2. Validation: non-empty.
 3. Optional char count.
-4. Confirmation summary in progress spine:
-   - `Question: "<preview>" (N chars)`
+4. Rail confirmation: `✔  Research Question    "{preview}" ({chars} chars)`
 
 ### Step 2: Protocol (`pi`)
 
@@ -323,7 +322,7 @@ Summary should list changed values only.
 
 ### Step 7: Review and Confirm (Commit Point)
 
-1. Human-readable summary card, no raw JSON.
+1. Human-readable config review in the content region, no raw JSON.
 2. Preflight checks:
    - schema valid for both `Run now` and `Save config and exit`
    - output path writable for both `Run now` and `Save config and exit`
@@ -352,7 +351,7 @@ Commit rules:
 3. Existing-config path must not rewrite the selected config file on `Run now`.
 4. Existing-config path writes a new file only when user chooses save-copy behavior via `Save config and exit`.
 5. `Save config and exit` is always available even without OpenRouter API connectivity.
-6. `Run now` freezes Stage 1 into a Study Summary card and starts Stage 2 below it.
+6. `Run now` freezes Stage 1 into a frozen summary and starts Stage 2 below it.
 
 ## Stage 2: Run Dashboard
 
@@ -360,14 +359,14 @@ Stage 2 starts only after `Run now`.
 
 Layout behavior:
 
-1. Stage 2 is rendered below the persistent Stage 0 masthead and frozen Stage 1 Study Summary card.
+1. Stage 2 is rendered below the persistent Stage 0 status strip and frozen Stage 1 summary.
 2. Only the Stage 2 region is live-updated; Stage 0 and Stage 1 summary remain static.
 3. On termination, Stage 2 final state remains visible above Stage 3 receipt.
 4. If terminal height is constrained, frozen content may scroll into terminal scrollback naturally while Stage 2 remains legible in visible rows.
 
 Required regions:
 
-1. Compact dynamic summary line: trials completed/planned and workers.
+1. Compact dynamic summary line: trials completed/planned and workers. (Stage 3 receipt uses planned/completed/eligible order — the asymmetry is intentional: Stage 2 foregrounds progress, Stage 3 foregrounds completeness.)
 2. Master progress: progress bar, completed and planned counts, elapsed time, and best-effort ETA (`—` when unknown).
 3. Worker table when workers > 1:
    - worker id
@@ -436,7 +435,7 @@ Receipt content:
    - `Stopped: run failed`
 2. research-honest hint directly below banner:
    - stopping indicates diminishing novelty, not correctness.
-3. summary card:
+3. receipt summary section:
    - stop reason
    - planned, completed, and eligible counts
    - duration
@@ -509,10 +508,10 @@ Exit codes:
 25. `arbiter` launches wizard in TTY and prints help with exit code `0` in non-TTY.
 26. `arbiter run --config <file> --dashboard` renders dashboard in TTY and warns then continues headless in non-TTY.
 27. CLI help exposes no legacy flags (`--headless`, `--verbose`) and no extra primary commands beyond `arbiter`, `arbiter init`, and `arbiter run`.
-28. Stage 0 masthead remains visible throughout Stage 1-3 in the `Run now` path.
-29. After `Run now`, Stage 1 remains visible only as a frozen Study Summary card (no editable step bodies).
+28. Stage 0 status strip remains visible throughout Stage 1-3 in the `Run now` path.
+29. After `Run now`, Stage 1 remains visible only as a frozen summary (no editable step bodies).
 30. Stage 2 final snapshot remains visible above Stage 3 receipt until auto-exit.
-31. Scrollback after exit preserves the stacked run-path output order: Stage 0 masthead, Stage 1 summary, Stage 2 final snapshot, Stage 3 receipt.
+31. Scrollback after exit preserves the stacked run-path output order: Stage 0 status strip, Stage 1 frozen summary, Stage 2 final snapshot, Stage 3 receipt.
 
 ## Deliverables
 

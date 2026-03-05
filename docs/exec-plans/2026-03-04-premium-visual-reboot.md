@@ -118,19 +118,20 @@ Design constraints for this reboot:
 
 1. no “clinical minimalism” failure mode,
 2. no novelty gimmicks (CRT filters, heavy blink, chaotic effects),
-3. rich but disciplined color hierarchy,
-4. clearly distinctive brand character at first glance,
-5. stable readability in long sessions and narrow terminal widths,
-6. border-integrated navigation rail/timeline treatment (not separate utility spine card),
+3. rich but disciplined color hierarchy with amber/teal dual-accent,
+4. clearly distinctive brand character at first glance (letter-spaced `A R B I T E R` nameplate),
+5. stable readability in long sessions and any terminal width (minimum 60 columns),
+6. **inline rail composition**: Stage 1 renders as a single vertical document where content expands under the active `◆` marker, indented by `│` continuation lines. Completed steps show `✔` with inline summaries. No box-bordered cards.
 7. glyph-native selectors for prompt options (`○/●`, `□/■`) instead of bracket checkboxes,
 8. app-shell composition with top status strip, primary content region, and command footer,
-9. split-pane information architecture on wide terminals where it improves scan speed,
+9. **width-agnostic layout**: no split-pane or narrow/wide mode switching. One rendering path for all widths.
 10. Stage 2 shows one master progress bar plus one progress bar per async worker,
-11. welcome hero is compact and deliberate (product tile style), not oversized ASCII poster styling,
+11. brand identity block appears only on Step 0 entry path; subsequent steps and stages use status strip,
 12. no borrowed tab/navigation rows are introduced unless behavior is explicitly specified in `tui-wizard.md`,
 13. preflight rows use checklist semantics (`✓`, `⚠`, `✗`), not navigation glyph semantics,
-14. Stage 2 monitoring/workers readouts use aligned key/value and table-style columns,
-15. rail glyphs (`◆/◇`) and multi-select glyphs (`■/□`) remain semantically distinct.
+14. **ruled-section grammar**: Stage 2/3 sections use `── LABEL ──` horizontal rules instead of bordered cards,
+15. **bracketless progress bars**: `████░░░ {pct}%` without `[` `]` wrapping,
+16. each glyph has exactly one semantic role — rail glyphs (`◆/◇/✔`), selection glyphs (`●/○`, `■/□`), preflight glyphs (`✓/⚠/✗`) are never mixed.
 
 Concrete visual targets (frozen in M0 before implementation):
 
@@ -139,86 +140,121 @@ Source of truth:
 1. `docs/product-specs/tui-visual-screen-deck.md` is the canonical stage-by-stage visual layout deck.
 2. The examples below summarize anchor screens for quick scan and must remain aligned with the visual screen deck.
 
-1. Stage 0 + Step 0 composition target:
+1. Stage 0 + Step 0 composition target (inline rail with brand identity block):
 
 ```text
-› arbiter  onboarding                                                      00:09
+› arbiter  onboarding                                                    00:09
 ───────────────────────────────────────────────────────────────────────────────
-╭─ Arbiter ───────────────────────────────────────┬───────────────────────────╮
-│ Arbiter v{x.y.z}                                │ API key: detected         │
-│ Distributional experiment harness               │ Run mode: Mock            │
-│                                                 │ Configs in CWD: 3         │
-╰─────────────────────────────────────────────────┴───────────────────────────╯
 
-╭─ Setup ─────────────────────────────────────────┬───────────────────────────╮
-│ ◆ Entry Path                                   │ ▸ ● Create new study      │
-│ ◇ Research Question                            │   ○ Run existing config   │
-│ ◇ Protocol                                     │     (unavailable)         │
-│ ◇ Models                                       │                           │
-│ ◇ Personas                                     │ Run existing config is    │
-│ ◇ Decode Params                                │ unavailable: no config    │
-│ ◇ Advanced Settings                            │ files found in directory. │
-│ ◇ Review and Confirm                           │                           │
-├─────────────────────────────────────────────────┴───────────────────────────┤
-│ ↑/↓ move · Enter select · Esc back                                        │
-╰─────────────────────────────────────────────────────────────────────────────╯
+A R B I T E R                                          v0.1.0
+Distributional reasoning harness
+
+API key:    detected
+Run mode:   —
+Configs:    0 in current directory
+
+◆  Entry Path
+│
+│   Choose how to start
+│
+│   ▸ ● Create new study (guided wizard)
+│     ○ Run existing config (unavailable)
+│
+│   Run existing config is unavailable:
+│   no config files found in this directory.
+│
+◇  Research Question
+◇  Protocol
+◇  Models
+◇  Personas
+◇  Decode Params
+◇  Advanced Settings
+◇  Review and Confirm
+
+───────────────────────────────────────────────────────────────────────────────
+↑/↓ move · Enter select · Esc back
 ```
 
-2. Stage 2 dashboard composition target:
+2. Stage 2 dashboard composition target (frozen rail + ruled sections + bracketless bars):
 
 ```text
-› arbiter  run / monitoring                                                00:19
+› arbiter  run / monitoring                                              00:19
 ───────────────────────────────────────────────────────────────────────────────
-[frozen masthead]
-[frozen study summary card]
 
-═══ RUN ═══
-╭─ Master progress ─────────────────────────────────────────────────────────╮
-│ Trials: 28/80 | Workers: 3                                                │
-│ [███████████░░░░░░░░░░░░░] 35%    Elapsed 00:02:12    ETA 00:04:03       │
-╰───────────────────────────────────────────────────────────────────────────╯
+✔  Entry Path           Create new study
+✔  Run Mode             Mock
+✔  Research Question    "What is the effect of..." (72 chars)
+✔  Protocol             Independent
+✔  Models               gpt-5, gpt-4.1-mini (2 selected)
+✔  Personas             neutral_analyst, skeptical_reviewer (2 selected)
+✔  Decode Params        temp 0.70, seed random
+✔  Advanced Settings    defaults
 
-╭─ Monitoring ─────────────────────────╮╭─ Workers ─────────────────────────╮
-│ Novelty rate        0.18            ││ ID  Progress   State   Trial Model │
-│ Patience            2/4             ││ W1 [██████░░░] 42% run   28   gpt5 │
-│ Status              sampling         ││ W2 [████████░░] 58% idle  19   —   │
-│ Stop signal         continue         ││ W3 [███░░░░░░] 21% run   27   s4   │
-│ Stopping indicates diminishing       ││ ...                                │
-│ novelty, not correctness.            ││ (+2 more workers)                  │
-╰──────────────────────────────────────╯╰────────────────────────────────────╯
+── PROGRESS ────────────────────────────────────────────────────────────────
+
+Trials: 28/80 · Workers: 3
+████████████░░░░░░░░░░░░░░░░░░  35%    00:02:12  ETA 00:04:03
+
+── MONITORING ──────────────────────────────────────────────────────────────
+
+Novelty rate    0.18 (threshold 0.05)
+Patience        2/4
+Status          sampling continues
+
+Stopping indicates diminishing novelty, not correctness.
+
+── WORKERS ─────────────────────────────────────────────────────────────────
+
+W1  ████████░░  42%  running  trial 28  gpt-5
+W2  ██████████  58%  idle     trial 19  gpt-4.1-mini
+W3  ███████░░░  21%  running  trial 27  gpt-5
+
 ───────────────────────────────────────────────────────────────────────────────
 Ctrl+C graceful stop
 ```
 
-3. Stage 3 receipt composition target:
+3. Stage 3 receipt composition target (ruled sections, key-value summary):
 
 ```text
-[frozen masthead]
-[frozen study summary card]
-[final Stage 2 snapshot]
+[frozen rail summary — all steps ✔]
+[final Stage 2 snapshot — progress at 100%]
 
-═══ RECEIPT ═══
+── RECEIPT ─────────────────────────────────────────────────────────────────
 
-╭─ Completion ─────────────────────────╮╭─ Artifacts ───────────────────────╮
-│ Stopped: novelty saturation          ││ config.source.json                │
-│ Trials: 80 / 80 / 76                ││ config.resolved.json              │
-│ Duration: 00:05:47                  ││ manifest.json                     │
-│ Usage: 122k tokens (estimate)       ││ trials.jsonl                      │
-│                                      ││ monitoring.jsonl                  │
-│ Stopping indicates diminishing       ││ receipt.txt                       │
-│ novelty, not correctness.            │╰────────────────────────────────────╯
-╰──────────────────────────────────────╯
+Stopped: novelty saturation
+Stopping indicates diminishing novelty, not correctness.
+
+── SUMMARY ─────────────────────────────────────────────────────────────────
+
+Stop reason     novelty saturation
+Trials          80 / 80 / 76 (planned / completed / eligible)
+Duration        00:05:47
+Usage           122k tokens (est.)
+Protocol        Independent
+Models          gpt-5, gpt-4.1-mini
+Personas        neutral_analyst, skeptical_reviewer
+
+── ARTIFACTS ───────────────────────────────────────────────────────────────
+
+config.source.json    config.resolved.json    manifest.json
+trials.jsonl          monitoring.jsonl         receipt.txt
+
+── REPRODUCE ───────────────────────────────────────────────────────────────
+
+arbiter run --config ./arbiter.config.json
+
 ───────────────────────────────────────────────────────────────────────────────
 Run complete.
 ```
 
 M0 freeze deliverables:
 
-1. screen deck approved for Step 0 through Step 7, Stage 2, and Stage 3,
-2. sentinel decision recorded (`retain` or `replace`) with atomic test/update rule,
-3. hero treatment frozen (title structure, accent behavior, line rhythm),
-4. copy deck and screen deck cross-checked for LOCKED/FLEX alignment.
-5. selector glyph contract frozen and reflected in all Step 0-7 visual targets.
+1. screen deck approved for Step 0 through Step 7, Stage 2, and Stage 3 with inline-rail wireframes,
+2. sentinel decision recorded: `── PROGRESS ──` replaces `═══ RUN ═══`, `── RECEIPT ──` replaces `═══ RECEIPT ═══`,
+3. brand treatment frozen: letter-spaced `A R B I T E R` nameplate on Step 0 only, status strip on all other screens,
+4. copy deck and screen deck cross-checked for LOCKED/FLEX alignment,
+5. glyph vocabulary frozen: rail (`◆/◇/✔`), selection (`●/○`, `■/□`), preflight (`✓/⚠/✗`), progress (`█/░`),
+6. color palette frozen: amber (`#fabd2f`) primary accent, teal (`#83a598`) structural accent, with 256-color and 16-color fallback codes.
 
 ## Visual Evaluation Framework (End-User Reality Loop)
 This framework is mandatory for every reboot milestone. Code-level review alone is insufficient.
@@ -369,25 +405,26 @@ Behavior acceptance (must remain true):
 1. Step order, validation gating, and commit-point semantics remain as specified in `docs/product-specs/tui-wizard.md`.
 2. Headless CLI behavior remains unchanged.
 3. `receipt.txt` remains ANSI-free and semantically stable.
-4. Stage-stack behavior remains: Stage 0 masthead, frozen Stage 1 summary, Stage 2 live/final snapshot, Stage 3 appended receipt.
+4. Stage-stack behavior remains: brand identity block (Step 0 only), frozen Stage 1 rail summary, Stage 2 live/final snapshot, Stage 3 appended receipt.
 5. M2+ implementation does not begin until M0 review rounds A/B and contract freeze are complete.
 
 Premium visual acceptance (must all pass):
 
-1. First-screen impression test: Stage 0 immediately reads as branded and high-quality, not generic.
+1. First-screen impression test: Step 0 with letter-spaced `A R B I T E R` brand immediately reads as premium and distinctive, not generic.
 2. Hierarchy test: current action, warnings, and status-critical data are visually obvious within two seconds.
-3. Rhythm test: spacing and border cadence is consistent across Stage 1/2/3.
+3. Rhythm test: spacing cadence is consistent across Stage 1/2/3 — inline rail, ruled sections, key-value rows all share the same vertical rhythm.
 4. Density test: Stage 2 is information-rich without crowding.
 5. Restraint test: motion is functional and non-distracting; no decorative animation.
 6. Distinctiveness test: UI is recognizable as Arbiter, not interchangeable with stock TUIs.
-7. Readability test: no layout breakage at narrow mode (`<100` cols) and no semantic ambiguity in status colors.
+7. Readability test: no layout breakage at any width (`>=60` cols) and no semantic ambiguity in status colors.
 8. Copy+visual cohesion test: tone and visual prominence align (no severe mismatch between “premium look” and flat wording).
-9. Integrated-rail test: Stage 1 uses a border-integrated timeline rail, not a detached utility list card.
+9. Inline-rail test: Stage 1 uses inline rail where content expands under active `◆` marker. No box-bordered cards. No detached spine list.
 10. Selector-glyph test: binary and multi-select prompts use glyph-native controls (no `[ ]` or `[x]`).
 11. App-shell test: each major surface includes top status strip + primary region + command footer.
-12. Split-pane test: wide-mode screens use at least one deliberate split-pane region where it improves scanability.
-13. Multi-progress test: Stage 2 shows one master progress bar and one per-worker progress bar for each visible worker row.
-14. Color-presence test: focus, status, and progress states are colorized in runtime captures (not monochrome/basic look), while staying within disciplined palette rules.
+12. Ruled-section test: Stage 2/3 sections use `── LABEL ──` ruled headers, not bordered cards.
+13. Multi-progress test: Stage 2 shows one bracketless master progress bar and one per-worker bracketless progress bar for each visible worker row.
+14. Color-presence test: amber/teal dual-accent is visible. Focus, status, and progress states are colorized in runtime captures (not monochrome/basic look), while staying within disciplined palette rules.
+15. Width-agnostic test: same rendering algorithm works at 60, 80, 100, and 120 columns without layout mode switching.
 
 Required visual evidence pack:
 
@@ -402,8 +439,8 @@ Required visual evidence pack:
 9. Step 7 review
 10. Stage 2 run dashboard (mid-run and terminal state near completion)
 11. Stage 3 final receipt
-12. Step 0 entry at narrow width (`COLUMNS=90`)
-13. Stage 2 dashboard at narrow width (`COLUMNS=90`)
+12. Step 0 entry at narrow width (`COLUMNS=60`) — verifies width-agnostic rendering,
+13. Stage 2 dashboard at narrow width (`COLUMNS=60`) — verifies width-agnostic rendering,
 14. Stage 2 dashboard at higher parallelism (`workers=8`) with one master bar plus one worker bar per visible worker.
 
 Required evaluation artifacts:
@@ -499,3 +536,4 @@ Reference-derived avoid patterns:
 - 2026-03-05 00:37Z: added explicit color-system contract and Stage 2 multi-progress-bar requirement (one master plus per-worker bars), including acceptance and evidence updates.
 - 2026-03-05 01:07Z: adopted Round C aesthetic hardening updates (compact hero, strict split-card Stage 1 grammar, preflight checklist symbols, metadata badges, and table-grade Stage 2 readout alignment).
 - 2026-03-05 01:09Z: removed tab-artifact styling from models wireframes, separated rail vs multi-select glyph semantics, and aligned narrow-mode examples with stacked-rail rules.
+- 2026-03-05 02:30Z: complete visual direction overhaul to inline-rail composition. Replaced bordered split-card grammar with single-column inline rail where content expands under active `◆` marker. Replaced box-bordered cards with `── LABEL ──` ruled sections. Added bracketless progress bars, letter-spaced brand nameplate, amber/teal dual-accent color scheme. Eliminated width-tier switching (now width-agnostic). Updated sentinels (`═══ RUN ═══` → `── PROGRESS ──`, `═══ RECEIPT ═══` → `── RECEIPT ──`). Replaced frozen Study Summary card with frozen rail summary. Added implementation guide with file-level mapping for Codex.
