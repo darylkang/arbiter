@@ -2,7 +2,7 @@
 
 Status: accepted implementation target
 Owner: Arbiter
-Last updated: 2026-03-04
+Last updated: 2026-03-05
 
 ## Purpose
 
@@ -94,6 +94,12 @@ Warning pattern:
 Completion confirmation pattern (spine):
 
 1. `LOCKED` structure: `✔ {StepLabel}: {short summary}`
+
+Selection glyph pattern:
+
+1. `LOCKED` single-choice structure: `○ {option}` (unselected), `● {option}` (selected).
+2. `LOCKED` multi-choice structure: `◇ {option}` (unselected), `◆ {option}` (selected).
+3. `LOCKED`: do not use `[ ]` or `[x]` in premium-mode selectors.
 
 Disabled option interaction pattern:
 

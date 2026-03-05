@@ -120,7 +120,9 @@ Design constraints for this reboot:
 2. no novelty gimmicks (CRT filters, heavy blink, chaotic effects),
 3. rich but disciplined color hierarchy,
 4. clearly distinctive brand character at first glance,
-5. stable readability in long sessions and narrow terminal widths.
+5. stable readability in long sessions and narrow terminal widths,
+6. border-integrated navigation rail/timeline treatment (not separate utility spine card),
+7. glyph-native selectors for prompt options (`○/●`, `◇/◆`) instead of bracket checkboxes.
 
 Concrete visual targets (frozen in M0 before implementation):
 
@@ -197,6 +199,7 @@ M0 freeze deliverables:
 2. sentinel decision recorded (`retain` or `replace`) with atomic test/update rule,
 3. hero treatment frozen (title structure, accent behavior, line rhythm),
 4. copy deck and screen deck cross-checked for LOCKED/FLEX alignment.
+5. selector glyph contract frozen and reflected in all Step 0-7 visual targets.
 
 ## Visual Evaluation Framework (End-User Reality Loop)
 This framework is mandatory for every reboot milestone. Code-level review alone is insufficient.
@@ -360,6 +363,8 @@ Premium visual acceptance (must all pass):
 6. Distinctiveness test: UI is recognizable as Arbiter, not interchangeable with stock TUIs.
 7. Readability test: no layout breakage at narrow mode (`<100` cols) and no semantic ambiguity in status colors.
 8. Copy+visual cohesion test: tone and visual prominence align (no severe mismatch between “premium look” and flat wording).
+9. Integrated-rail test: Stage 1 uses a border-integrated timeline rail, not a detached utility list card.
+10. Selector-glyph test: binary and multi-select prompts use glyph-native controls (no `[ ]` or `[x]`).
 
 Required visual evidence pack:
 
@@ -465,3 +470,4 @@ Reference-derived avoid patterns:
 - 2026-03-04 12:10Z: hardened reboot gates with independent evaluator ownership, weighted scorecard alignment, measurable M5 criteria, narrow-width evidence requirements, and concrete ASCII target layouts.
 - 2026-03-04 12:20Z: expanded to full review-cycle workflow with explicit pre-implementation two-round critique requirement and cross-links to canonical visual screen deck.
 - 2026-03-04 13:52Z: completed two doc hardening rounds, added score calibration anchors, and promoted full-stage visual deck to canonical layout source.
+- 2026-03-05 00:13Z: incorporated premium motif constraints from rendered benchmark review (border-integrated rail, timeline markers, glyph-native selectors) and elevated them to acceptance gates.

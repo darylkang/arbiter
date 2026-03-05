@@ -2,7 +2,7 @@
 
 Status: accepted implementation target
 Owner: Arbiter
-Last updated: 2026-03-04
+Last updated: 2026-03-05
 
 ## Purpose
 
@@ -47,6 +47,46 @@ Global rules:
 9. Status colors are semantic only (not decorative).
 10. Motion is functional only (spinner + progress updates).
 
+## Premium Signature Contract
+
+These motifs are required for the premium reboot and supersede plain utility styling.
+
+1. Navigation spine is integrated into container borders, not rendered as a separate list card.
+2. Stage 1 rail uses timeline semantics:
+   - `◆` current section,
+   - `◇` non-current section anchors,
+   - `│` vertical continuation.
+3. Choice controls use glyph selectors:
+   - single-choice: `○` unselected, `●` selected,
+   - multi-choice: `◇` unselected, `◆` selected.
+4. Primary focus cursor uses `▸` only for current actionable row.
+5. Bracket checkbox styling (`[ ]`, `[x]`) is not used in premium mode.
+6. Hero lockup must read as deliberate brand treatment (block/glyph title or compact premium caps), not plain one-line label text.
+
+## Stage 1 Panel Template (Border-Integrated Rail)
+
+This template defines the Stage 1 composition grammar used by all steps.
+
+```text
+╭─ {Stage Heading} ────────────────────────────────────────────────────────╮
+│ ◆ {Current step label}                                                   │
+│ │ {current step helper/fields...}                                        │
+│ │ {current step helper/fields...}                                        │
+│ ◇ {Next step label}                                                      │
+│ ◇ {Next step label}                                                      │
+│ ◇ {Next step label}                                                      │
+│                                                                           │
+│ {context/validation/warning lines}                                       │
+│ {controls hint line}                                                     │
+╰───────────────────────────────────────────────────────────────────────────╯
+```
+
+Interpretation:
+
+1. the rail runs inside the left edge of the same primary container.
+2. current-step content appears adjacent to the `◆` and `│` rail.
+3. pending steps are listed as compact `◇` anchors.
+
 ## Width Tiers
 
 Tier definitions:
@@ -74,29 +114,40 @@ Tier behavior:
 │  Configs in CWD: {count}                                                │
 ╰──────────────────────────────────────────────────────────────────────────╯
 
-╭─ Stage 1 / Setup ─────────────────╮  ╭─ Entry Path ─────────────────────╮
-│  ◆ Research Question              │  │  Choose how to start             │
-│  · Protocol                       │  │                                   │
-│  · Models                         │  │  ▸ Create new study (guided      │
-│  · Personas                       │  │    wizard)                        │
-│  · Decode Params                  │  │    Run existing config            │
-│  · Advanced Settings              │  │                                   │
-│  · Review and Confirm             │  │  Controls: ↑/↓ move · Enter      │
-╰───────────────────────────────────╯  ╰───────────────────────────────────╯
+╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
+│ ◆ Entry Path                                                              │
+│ │ Choose how to start                                                     │
+│ │                                                                         │
+│ │ ▸ ● Create new study (guided wizard)                                    │
+│ │   ○ Run existing config (unavailable)                                   │
+│ ◇ Research Question                                                       │
+│ ◇ Protocol                                                                │
+│ ◇ Models                                                                  │
+│ ◇ Personas                                                                │
+│ ◇ Decode Params                                                           │
+│ ◇ Advanced Settings                                                       │
+│ ◇ Review and Confirm                                                      │
+╰───────────────────────────────────────────────────────────────────────────╯
 ```
 
 ### Step 0: Run Mode
 
 ```text
-╭─ Stage 1 / Setup ─────────────────╮  ╭─ Run Mode ───────────────────────╮
-│  ◆ Research Question              │  │  Choose run mode                 │
-│  · Protocol                       │  │                                   │
-│  · Models                         │  │  ▸ Mock (no API calls)           │
-│  · Personas                       │  │    Live (OpenRouter)             │
-│  · Decode Params                  │  │                                   │
-│  · Advanced Settings              │  │  Live mode is unavailable:        │
-│  · Review and Confirm             │  │  OPENROUTER_API_KEY not detected. │
-╰───────────────────────────────────╯  ╰───────────────────────────────────╯
+╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
+│ ◆ Run Mode                                                                │
+│ │ Choose run mode                                                         │
+│ │                                                                         │
+│ │ ▸ ● Mock (no API calls)                                                 │
+│ │   ○ Live (OpenRouter)                                                   │
+│ │ Live mode is unavailable: OPENROUTER_API_KEY not detected.             │
+│ ◇ Research Question                                                       │
+│ ◇ Protocol                                                                │
+│ ◇ Models                                                                  │
+│ ◇ Personas                                                                │
+│ ◇ Decode Params                                                           │
+│ ◇ Advanced Settings                                                       │
+│ ◇ Review and Confirm                                                      │
+╰───────────────────────────────────────────────────────────────────────────╯
 ```
 
 ### Step 1: Research Question
@@ -132,32 +183,38 @@ Tier behavior:
 ### Step 3: Models
 
 ```text
-╭─ Stage 1 / Setup ─────────────────╮  ╭─ Models ─────────────────────────╮
-│  ✔ Research Question              │  │  Select one or more models for   │
-│  ✔ Protocol                       │  │  sampling.                        │
-│  ◆ Models                         │  │                                   │
-│  · Personas                       │  │  [x] openai/gpt-5                │
-│  · Decode Params                  │  │  [ ] anthropic/claude-sonnet-4   │
-│  · Advanced Settings              │  │  [x] openai/gpt-4.1-mini         │
-│  · Review and Confirm             │  │                                   │
-│                                   │  │  Warning: free-tier models       │
-│                                   │  │  selected...                      │
-╰───────────────────────────────────╯  ╰───────────────────────────────────╯
+╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
+│ ◆ Models                                                                  │
+│ │ Select one or more models for sampling.                                 │
+│ │                                                                         │
+│ │ ▸ ◆ openai/gpt-5                                                        │
+│ │   ◇ anthropic/claude-sonnet-4                                           │
+│ │   ◆ openai/gpt-4.1-mini                                                 │
+│ │                                                                         │
+│ │ Warning: free-tier models selected...                                   │
+│ ◇ Personas                                                                │
+│ ◇ Decode Params                                                           │
+│ ◇ Advanced Settings                                                       │
+│ ◇ Review and Confirm                                                      │
+╰───────────────────────────────────────────────────────────────────────────╯
 ```
 
 ### Step 4: Personas
 
 ```text
-╭─ Stage 1 / Setup ─────────────────╮  ╭─ Personas ───────────────────────╮
-│  ✔ Research Question              │  │  Select one or more personas     │
-│  ✔ Protocol                       │  │  for sampling.                    │
-│  ✔ Models                         │  │                                   │
-│  ◆ Personas                       │  │  [x] neutral_analyst             │
-│  · Decode Params                  │  │  [x] skeptical_reviewer          │
-│  · Advanced Settings              │  │  [ ] policy_formalist            │
-│  · Review and Confirm             │  │                                   │
-│                                   │  │  Controls: ↑/↓ move · Space      │
-╰───────────────────────────────────╯  ╰───────────────────────────────────╯
+╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
+│ ◆ Personas                                                                │
+│ │ Select one or more personas for sampling.                               │
+│ │                                                                         │
+│ │ ▸ ◆ neutral_analyst                                                     │
+│ │   ◆ skeptical_reviewer                                                  │
+│ │   ◇ policy_formalist                                                    │
+│ │                                                                         │
+│ │ Controls: ↑/↓ move · Space toggle · Enter confirm                      │
+│ ◇ Decode Params                                                           │
+│ ◇ Advanced Settings                                                       │
+│ ◇ Review and Confirm                                                      │
+╰───────────────────────────────────────────────────────────────────────────╯
 ```
 
 ### Step 5: Decode Params
@@ -192,17 +249,19 @@ Tier behavior:
 ### Step 7: Review and Confirm
 
 ```text
-╭─ Stage 1 / Setup ─────────────────╮  ╭─ Review and Confirm ─────────────╮
-│  ✔ Research Question              │  │  Preflight                         │
-│  ✔ Protocol                       │  │  ✔ Schema validation               │
-│  ✔ Models                         │  │  ✔ Output path writable            │
-│  ✔ Personas                       │  │  ○ Live connectivity check         │
-│  ✔ Decode Params                  │  │                                     │
-│  ✔ Advanced Settings              │  │  ▸ Run now                         │
-│  ◆ Review and Confirm             │  │    Save config and exit            │
-│                                   │  │    Revise                          │
-│                                   │  │    Quit without saving             │
-╰───────────────────────────────────╯  ╰───────────────────────────────────╯
+╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
+│ ◆ Review and Confirm                                                      │
+│ │ Preflight                                                               │
+│ │ ◆ Schema validation                                                     │
+│ │ ◆ Output path writable                                                  │
+│ │ ◇ Live connectivity check                                               │
+│ │                                                                         │
+│ │ ▸ ● Run now                                                             │
+│ │   ○ Save config and exit                                                │
+│ │   ○ Revise                                                              │
+│ │   ○ Quit without saving                                                 │
+│ ◇ Completed setup summary                                                 │
+╰───────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## Run-Path Stack Deck (Wide)
@@ -271,13 +330,13 @@ Narrow Step 3 shape:
 
 ```text
 ╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
-│  ✔ Research Question  ✔ Protocol  ◆ Models  · Personas  · Decode  · Adv │
+│  ◆ Models  ◇ Personas  ◇ Decode Params  ◇ Advanced  ◇ Review             │
 ╰───────────────────────────────────────────────────────────────────────────╯
 
 ╭─ Models ──────────────────────────────────────────────────────────────────╮
-│  [x] openai/gpt-5                                                         │
-│  [ ] anthropic/claude-sonnet-4                                            │
-│  [x] openai/gpt-4.1-mini                                                  │
+│  ▸ ◆ openai/gpt-5                                                         │
+│    ◇ anthropic/claude-sonnet-4                                            │
+│    ◆ openai/gpt-4.1-mini                                                  │
 ╰───────────────────────────────────────────────────────────────────────────╯
 ```
 
