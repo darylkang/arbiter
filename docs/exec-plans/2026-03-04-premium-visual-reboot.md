@@ -122,10 +122,15 @@ Design constraints for this reboot:
 4. clearly distinctive brand character at first glance,
 5. stable readability in long sessions and narrow terminal widths,
 6. border-integrated navigation rail/timeline treatment (not separate utility spine card),
-7. glyph-native selectors for prompt options (`○/●`, `◇/◆`) instead of bracket checkboxes,
+7. glyph-native selectors for prompt options (`○/●`, `□/■`) instead of bracket checkboxes,
 8. app-shell composition with top status strip, primary content region, and command footer,
 9. split-pane information architecture on wide terminals where it improves scan speed,
-10. Stage 2 shows one master progress bar plus one progress bar per async worker.
+10. Stage 2 shows one master progress bar plus one progress bar per async worker,
+11. welcome hero is compact and deliberate (product tile style), not oversized ASCII poster styling,
+12. no borrowed tab/navigation rows are introduced unless behavior is explicitly specified in `tui-wizard.md`,
+13. preflight rows use checklist semantics (`✓`, `⚠`, `✗`), not navigation glyph semantics,
+14. Stage 2 monitoring/workers readouts use aligned key/value and table-style columns,
+15. rail glyphs (`◆/◇`) and multi-select glyphs (`■/□`) remain semantically distinct.
 
 Concrete visual targets (frozen in M0 before implementation):
 
@@ -139,27 +144,24 @@ Source of truth:
 ```text
 › arbiter  onboarding                                                      00:09
 ───────────────────────────────────────────────────────────────────────────────
-╭─────────────────────────────╮╭─────────────────────────────────────────────╮
-│ █████╗ ██████╗ ██████╗      ││  Distributional reasoning harness            │
-│ ██╔══██╗██╔══██╗██╔══██╗    ││  Version x.y.z                               │
-│ ███████║██████╔╝██████╔╝    ││  API key: detected                           │
-│ ██╔══██║██╔══██╗██╔══██╗    ││  Run mode: Mock                              │
-│ ██║  ██║██║  ██║██████╔╝    ││  Configs in CWD: 3                           │
-╰─────────────────────────────╯╰─────────────────────────────────────────────╯
+╭─ Arbiter ───────────────────────────────────────┬───────────────────────────╮
+│ Arbiter v{x.y.z}                                │ API key: detected         │
+│ Distributional experiment harness               │ Run mode: Mock            │
+│                                                 │ Configs in CWD: 3         │
+╰─────────────────────────────────────────────────┴───────────────────────────╯
 
-╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
-│ ◆ Entry Path            │  ▸ ● Create new study (guided wizard)            │
-│ │ Choose how to start   │    ○ Run existing config (unavailable)            │
-│ ◇ Research Question     │                                                     │
-│ ◇ Protocol              │  Run existing config is unavailable: no config     │
-│ ◇ Models                │  files found in this directory.                    │
-│ ◇ Personas              │                                                     │
-│ ◇ Decode Params         │                                                     │
-│ ◇ Advanced Settings     │                                                     │
-│ ◇ Review and Confirm    │                                                     │
-╰───────────────────────────────────────────────────────────────────────────────╯
-───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Enter select · Esc back
+╭─ Setup ─────────────────────────────────────────┬───────────────────────────╮
+│ ◆ Entry Path                                   │ ▸ ● Create new study      │
+│ ◇ Research Question                            │   ○ Run existing config   │
+│ ◇ Protocol                                     │     (unavailable)         │
+│ ◇ Models                                       │                           │
+│ ◇ Personas                                     │ Run existing config is    │
+│ ◇ Decode Params                                │ unavailable: no config    │
+│ ◇ Advanced Settings                            │ files found in directory. │
+│ ◇ Review and Confirm                           │                           │
+├─────────────────────────────────────────────────┴───────────────────────────┤
+│ ↑/↓ move · Enter select · Esc back                                        │
+╰─────────────────────────────────────────────────────────────────────────────╯
 ```
 
 2. Stage 2 dashboard composition target:
@@ -177,16 +179,15 @@ Source of truth:
 ╰───────────────────────────────────────────────────────────────────────────╯
 
 ╭─ Monitoring ─────────────────────────╮╭─ Workers ─────────────────────────╮
-│ Novelty rate: 0.18                  ││ W1 [██████░░░░░░░] 42% · running   │
-│ Patience: 2/4                       ││    trial 28                        │
-│ Status: sampling continues          ││ W2 [████████░░░░░] 58% · idle     │
-│ Stopping indicates diminishing      ││    trial 19                        │
-│ novelty, not correctness.           ││ W3 [███░░░░░░░░░░] 21% · running  │
-╰──────────────────────────────────────╯│    trial 27                        │
-                                        │ (+2 more workers)                  │
-                                        ╰────────────────────────────────────╯
+│ Novelty rate        0.18            ││ ID  Progress   State   Trial Model │
+│ Patience            2/4             ││ W1 [██████░░░] 42% run   28   gpt5 │
+│ Status              sampling         ││ W2 [████████░░] 58% idle  19   —   │
+│ Stop signal         continue         ││ W3 [███░░░░░░] 21% run   27   s4   │
+│ Stopping indicates diminishing       ││ ...                                │
+│ novelty, not correctness.            ││ (+2 more workers)                  │
+╰──────────────────────────────────────╯╰────────────────────────────────────╯
 ───────────────────────────────────────────────────────────────────────────────
-Ctrl+C graceful stop · q ignore updates
+Ctrl+C graceful stop
 ```
 
 3. Stage 3 receipt composition target:
@@ -496,3 +497,5 @@ Reference-derived avoid patterns:
 - 2026-03-05 00:13Z: incorporated premium motif constraints from rendered benchmark review (border-integrated rail, timeline markers, glyph-native selectors) and elevated them to acceptance gates.
 - 2026-03-05 00:21Z: escalated visual contract toward Claude Code/OpenClaw parity with app-shell framing, split-pane emphasis, and upgraded ASCII targets for Step 0 run mode, Step 4 personas, and narrow-mode shells.
 - 2026-03-05 00:37Z: added explicit color-system contract and Stage 2 multi-progress-bar requirement (one master plus per-worker bars), including acceptance and evidence updates.
+- 2026-03-05 01:07Z: adopted Round C aesthetic hardening updates (compact hero, strict split-card Stage 1 grammar, preflight checklist symbols, metadata badges, and table-grade Stage 2 readout alignment).
+- 2026-03-05 01:09Z: removed tab-artifact styling from models wireframes, separated rail vs multi-select glyph semantics, and aligned narrow-mode examples with stacked-rail rules.

@@ -112,7 +112,7 @@ Completion confirmation pattern (spine):
 Selection glyph pattern:
 
 1. `LOCKED` single-choice structure: `○ {option}` (unselected), `● {option}` (selected).
-2. `LOCKED` multi-choice structure: `◇ {option}` (unselected), `◆ {option}` (selected).
+2. `LOCKED` multi-choice structure: `□ {option}` (unselected), `■ {option}` (selected).
 3. `LOCKED`: do not use `[ ]` or `[x]` in premium-mode selectors.
 
 Navigation hint pattern:
@@ -125,6 +125,17 @@ App-shell chrome pattern:
 
 1. `FLEX`: top status strip should use compact context labels (`setup / models`, `run / monitoring`).
 2. `LOCKED`: command footer copy must be concise and control-first.
+
+Metadata badge pattern:
+
+1. `LOCKED`: pricing/plan metadata uses compact badges (`[paid]`, `[free]`).
+2. `FLEX`: additional capability badges (for example `[fast]`, `[stable]`) may be used when consistently applied.
+
+Preflight checklist symbol pattern:
+
+1. `LOCKED`: `✓` indicates passed preflight checks.
+2. `LOCKED`: `⚠` indicates skipped or warning-state preflight checks.
+3. `LOCKED`: `✗` indicates failed preflight checks.
 
 Disabled option interaction pattern:
 
@@ -335,6 +346,9 @@ Preflight labels:
 2. `LOCKED`: `Schema validation`
 3. `LOCKED`: `Output path writable`
 4. `LOCKED`: `Live connectivity check`
+5. `LOCKED` structure: `✓ {check_name}`
+6. `LOCKED` structure: `⚠ {check_name}`
+7. `LOCKED` structure: `✗ {check_name}`
 
 Live save warning:
 
@@ -393,10 +407,15 @@ Progress block:
 Worker block:
 
 1. `LOCKED`: `Workers`
-2. `LOCKED` structure: `W{worker_index} [{worker_bar}] {worker_pct}% · {worker_status} · trial {worker_trial}`
-3. `LOCKED`: `(+{hidden_count} more workers)`
-4. `LOCKED`: `one worker progress row is rendered per visible async worker.`
-5. `LOCKED`: `stage dashboard includes one master progress bar plus per-worker progress bars.`
+2. `LOCKED`: `ID`
+3. `LOCKED`: `Progress`
+4. `LOCKED`: `State`
+5. `LOCKED`: `Trial`
+6. `LOCKED`: `Model`
+7. `LOCKED` structure: `W{worker_index} [{worker_bar}] {worker_pct}% · {worker_state} · {worker_trial} · {worker_model}`
+8. `LOCKED`: `(+{hidden_count} more workers)`
+9. `LOCKED`: `one worker progress row is rendered per visible async worker.`
+10. `LOCKED`: `stage dashboard includes one master progress bar plus per-worker progress bars.`
 
 Monitoring block:
 

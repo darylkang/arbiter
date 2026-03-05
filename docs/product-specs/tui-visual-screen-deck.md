@@ -61,7 +61,7 @@ These motifs are required for the premium reboot and supersede plain utility sty
    - `│` vertical continuation.
 3. Choice controls use glyph selectors:
    - single-choice: `○` unselected, `●` selected,
-   - multi-choice: `◇` unselected, `◆` selected.
+   - multi-choice: `□` unselected, `■` selected.
 4. Primary focus cursor uses `▸` only for current actionable row.
 5. Bracket checkbox styling (`[ ]`, `[x]`) is not used in premium mode.
 6. Hero lockup must read as deliberate brand treatment (block/glyph title or compact premium caps), not plain one-line label text.
@@ -135,29 +135,52 @@ Color application rules:
 4. warning, error, and success messages always use semantic status colors.
 5. no rainbow styling: max two accent hues per screen plus status colors where semantically required.
 
-## Stage 1 Panel Template (Border-Integrated Rail)
+## Stage 1 Panel Template (Split-Card Grammar)
 
-This template defines the Stage 1 composition grammar used by all steps.
+This template defines the Stage 1 composition grammar used by all steps on wide terminals.
 
 ```text
-╭─ {Stage Heading} ────────────────────────────────────────────────────────╮
-│ ◆ {Current step label}                                                   │
-│ │ {current step helper/fields...}                                        │
-│ │ {current step helper/fields...}                                        │
-│ ◇ {Next step label}                                                      │
-│ ◇ {Next step label}                                                      │
-│ ◇ {Next step label}                                                      │
-│                                                                           │
-│ {context/validation/warning lines}                                       │
-│ {controls hint line}                                                     │
-╰───────────────────────────────────────────────────────────────────────────╯
+╭─ {Setup} ─────────────────────────────────────────────┬─────────────────────╮
+│ ◆ {current step}                                      │ {active content...} │
+│ ◇ {next step}                                         │ {active content...} │
+│ ◇ {next step}                                         │                     │
+│ ◇ {next step}                                         │                     │
+│ ◇ {next step}                                         │                     │
+├───────────────────────────────────────────────────────┴─────────────────────┤
+│ {validation / warnings}                                                     │
+│ {controls hint line}                                                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 Interpretation:
 
-1. the rail runs inside the left edge of the same primary container.
-2. current-step content appears adjacent to the `◆` and `│` rail.
-3. pending steps are listed as compact `◇` anchors.
+1. Stage 1 wide layout always uses one outer split-card with an internal divider.
+2. left pane is fixed-width rail/timeline; right pane is active step content.
+3. footer rows use a single grammar per screen (either integrated footer row or shell footer line), not mixed styles.
+
+## Metadata Badge Contract
+
+Model and status metadata should read like aligned UI rows, not prose blobs.
+
+1. capability/economics tags use compact badges: `[paid]`, `[free]`, `[fast]`, `[stable]`.
+2. each list row keeps primary label left and badges/status metadata right-aligned where possible.
+3. detailed model slug can appear as muted secondary line only when needed.
+
+## Preflight Checklist Grammar
+
+Preflight rows must use checklist semantics, not navigation glyphs.
+
+1. `✓` passed check,
+2. `⚠` skipped or warning check,
+3. `✗` failed check.
+
+## Stage 2 Table-Grade Rule
+
+Operational readouts should be aligned as key/value rows or table columns.
+
+1. monitoring block uses aligned key/value rows.
+2. workers block uses stable columns (`ID`, `Progress`, `State`, `Trial`, `Model`).
+3. avoid prose-style metric lines when table alignment is possible.
 
 ## Width Tiers
 
@@ -168,9 +191,9 @@ Tier definitions:
 
 Tier behavior:
 
-1. Wide uses full two-card composition in Stage 1 (spine + active card).
-2. Narrow stacks spine above active card.
-3. Wide Stage 2 shows monitoring and usage as separate cards.
+1. Wide uses one split-card Stage 1 composition (rail left, active content right).
+2. Narrow stacks rail above active content.
+3. Wide Stage 2 shows monitoring and workers as separate panes with aligned table/key-value readouts.
 4. Narrow Stage 2 collapses to one merged operational card when needed.
 5. No clipping of LOCKED copy in either tier; wrap at word boundaries.
 6. Wide Stage 2 shows one worker progress row per visible worker.
@@ -183,27 +206,25 @@ Tier behavior:
 ```text
 › arbiter  onboarding                                                      00:09
 ───────────────────────────────────────────────────────────────────────────────
-╭─────────────────────────────╮╭─────────────────────────────────────────────╮
-│ █████╗ ██████╗ ██████╗      ││  Distributional reasoning harness            │
-│ ██╔══██╗██╔══██╗██╔══██╗    ││  Version {version}                           │
-│ ███████║██████╔╝██████╔╝    ││  API key: {detected|not detected}            │
-│ ██╔══██║██╔══██╗██╔══██╗    ││  Run mode: {—|Mock|Live}                     │
-│ ██║  ██║██║  ██║██████╔╝    ││  Configs in CWD: {count}                     │
-╰─────────────────────────────╯╰─────────────────────────────────────────────╯
+╭─ Arbiter ───────────────────────────────────────┬───────────────────────────╮
+│ Arbiter v{version}                              │ API key: {detected|missing}│
+│ Distributional experiment harness               │ Run mode: {—|Mock|Live}   │
+│                                                 │ Configs in CWD: {count}    │
+╰─────────────────────────────────────────────────┴───────────────────────────╯
 
-╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
-│ ◆ Entry Path            │  ▸ ● Create new study (guided wizard)            │
-│ │ Choose how to start   │    ○ Run existing config (unavailable)            │
-│ ◇ Research Question     │                                                     │
-│ ◇ Protocol              │  Run existing config is unavailable: no config     │
-│ ◇ Models                │  files found in this directory.                    │
-│ ◇ Personas              │                                                     │
-│ ◇ Decode Params         │                                                     │
-│ ◇ Advanced Settings     │                                                     │
-│ ◇ Review and Confirm    │                                                     │
-╰───────────────────────────────────────────────────────────────────────────────╯
+╭─ Setup ─────────────────────────────────────────┬───────────────────────────╮
+│ ◆ Entry Path                                   │ ▸ ● Create new study      │
+│ ◇ Research Question                            │   ○ Run existing config   │
+│ ◇ Protocol                                     │     (unavailable)         │
+│ ◇ Models                                       │                           │
+│ ◇ Personas                                     │ Run existing config is    │
+│ ◇ Decode Params                                │ unavailable: no config    │
+│ ◇ Advanced Settings                            │ files found in directory. │
+│ ◇ Review and Confirm                           │                           │
+├─────────────────────────────────────────────────┴───────────────────────────┤
+│ ↑/↓ move · Enter select · Esc back                                        │
+╰─────────────────────────────────────────────────────────────────────────────╯
 ───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Enter select · Esc back
 ```
 
 ### Step 0: Run Mode
@@ -211,21 +232,19 @@ Tier behavior:
 ```text
 › arbiter  onboarding / mode                                               00:10
 ───────────────────────────────────────────────────────────────────────────────
-╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
-│ ◆ Run Mode              │  Choose run mode                                 │
-│ │                       │                                                   │
-│ │ ▸ ● Mock (no API calls)│                                                  │
-│ │   ○ Live (OpenRouter) │                                                  │
-│ ◇ Research Question     │                                                   │
-│ ◇ Protocol              │  Live mode is unavailable:                        │
-│ ◇ Models                │  OPENROUTER_API_KEY not detected.                │
-│ ◇ Personas              │                                                   │
-│ ◇ Decode Params         │                                                   │
-│ ◇ Advanced Settings     │                                                   │
-│ ◇ Review and Confirm    │                                                   │
-╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Setup ─────────────────────────────────────────┬───────────────────────────╮
+│ ◆ Run Mode                                     │ Choose run mode           │
+│ ◇ Research Question                            │                           │
+│ ◇ Protocol                                     │ ▸ ● Mock (no API calls)  │
+│ ◇ Models                                       │   ○ Live (OpenRouter)    │
+│ ◇ Personas                                     │                           │
+│ ◇ Decode Params                                │ Live mode is unavailable: │
+│ ◇ Advanced Settings                            │ OPENROUTER_API_KEY not    │
+│ ◇ Review and Confirm                           │ detected.                 │
+├─────────────────────────────────────────────────┴───────────────────────────┤
+│ ↑/↓ move · Enter select · Esc back                                        │
+╰─────────────────────────────────────────────────────────────────────────────╯
 ───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Enter select · Esc back
 ```
 
 ### Step 1: Research Question
@@ -233,7 +252,7 @@ Tier behavior:
 ```text
 › arbiter  setup / question                                                00:11
 ───────────────────────────────────────────────────────────────────────────────
-╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+╭─ Setup ───────────────────────────────────────────────────────────╮
 │ ◆ Research Question    │  Question                                          │
 │ │ Include all relevant │  {multiline input}                                 │
 │ │ context. Arbiter     │                                                    │
@@ -254,7 +273,7 @@ Enter continue · Esc back
 ```text
 › arbiter  setup / protocol                                                00:12
 ───────────────────────────────────────────────────────────────────────────────
-╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+╭─ Setup ───────────────────────────────────────────────────────────╮
 │ ◆ Protocol              │  Select how each trial is structured.            │
 │ │                       │                                                   │
 │ │ ▸ ● Independent       │                                                   │
@@ -274,20 +293,20 @@ Enter continue · Esc back
 ```text
 › arbiter  setup / models                                                  00:13
 ───────────────────────────────────────────────────────────────────────────────
-Plugins  Discover  Installed   (←/→ cycle)
-───────────────────────────────────────────────────────────────────────────────
-╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
-│ ◆ Models                │  Search models...                                │
-│ │ Select one or more    │  ──────────────────────────────────────────────  │
-│ │ models for sampling.  │  ▸ ◆ openai/gpt-5 · stable · paid               │
-│ ◇ Personas              │    ◇ anthropic/claude-sonnet-4 · premium         │
-│ ◇ Decode Params         │    ◆ openai/gpt-4.1-mini · fast                  │
-│ ◇ Advanced Settings     │    ◇ google/gemini-2.0-flash · free              │
-│ ◇ Review and Confirm    │                                                   │
-│                         │  Warning: free-tier models selected.             │
-╰──────────────────────────────────────────────────────────────────────────────╯
-───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Space toggle · Enter confirm · Esc back
+╭─ Setup ─────────────────────────────────────────┬───────────────────────────╮
+│ ◆ Models                                       │ Models to sample          │
+│ ◇ Personas                                     │                           │
+│ ◇ Decode Params                                │ Search: {input}          │
+│ ◇ Advanced Settings                            │                           │
+│ ◇ Review and Confirm                           │ ▸ ■ GPT-5         [paid] │
+│                                                │   □ Claude Sonnet  [paid] │
+│                                                │   ■ GPT-4.1 mini   [paid] │
+│                                                │   □ Gemini Flash   [free] │
+├─────────────────────────────────────────────────┴───────────────────────────┤
+│ At least one model is required.                                            │
+│ Warning: free-tier models are for exploration only.                        │
+│ ↑/↓ move · Space toggle · Enter confirm · Esc back                         │
+╰─────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ### Step 4: Personas
@@ -295,12 +314,12 @@ Plugins  Discover  Installed   (←/→ cycle)
 ```text
 › arbiter  setup / personas                                                00:13
 ───────────────────────────────────────────────────────────────────────────────
-╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+╭─ Setup ───────────────────────────────────────────────────────────╮
 │ ◆ Personas              │  Select one or more personas for sampling.       │
 │ │                       │                                                   │
-│ │ ▸ ◆ neutral_analyst   │                                                   │
-│ │   ◆ skeptical_reviewer│                                                   │
-│ │   ◇ policy_formalist  │                                                   │
+│ │ ▸ ■ neutral_analyst   │                                                   │
+│ │   ■ skeptical_reviewer│                                                   │
+│ │   □ policy_formalist  │                                                   │
 │ ◇ Decode Params         │                                                   │
 │ ◇ Advanced Settings     │                                                   │
 │ ◇ Review and Confirm    │                                                   │
@@ -316,7 +335,7 @@ Plugins  Discover  Installed   (←/→ cycle)
 ```text
 › arbiter  setup / decode                                                  00:14
 ───────────────────────────────────────────────────────────────────────────────
-╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+╭─ Setup ───────────────────────────────────────────────────────────╮
 │ ◆ Decode Params         │  Temperature mode                                │
 │ │ Set temperature and   │  ▸ ● Single value                                │
 │ │ seed behavior for     │    ○ Range (uniform)                             │
@@ -335,7 +354,7 @@ Plugins  Discover  Installed   (←/→ cycle)
 ```text
 › arbiter  setup / advanced                                                00:15
 ───────────────────────────────────────────────────────────────────────────────
-╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+╭─ Setup ───────────────────────────────────────────────────────────╮
 │ ◆ Advanced Settings     │  Use defaults or customize execution and         │
 │ │                       │  stopping settings.                              │
 │ │ ▸ ● Use defaults      │                                                  │
@@ -354,19 +373,20 @@ Plugins  Discover  Installed   (←/→ cycle)
 ```text
 › arbiter  setup / review                                                  00:16
 ───────────────────────────────────────────────────────────────────────────────
-╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
-│ ◆ Review and Confirm    │  Preflight                                       │
-│ │ Verify settings and   │  ◆ Schema validation                             │
-│ │ choose execution path │  ◆ Output path writable                          │
-│ ◇ Summary               │  ◇ Live connectivity check                       │
-│                         │                                                   │
-│                         │  ▸ ● Run now                                     │
-│                         │    ○ Save config and exit                        │
-│                         │    ○ Revise                                      │
-│                         │    ○ Quit without saving                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Enter select · Esc back
+╭─ Setup ─────────────────────────────────────────┬───────────────────────────╮
+│ ◆ Review and Confirm                           │ Preflight                 │
+│ ◇ Summary                                      │ ✓ Schema validation       │
+│                                                │ ✓ Output path writable    │
+│                                                │ ⚠ Live connectivity check │
+│                                                │   (skipped in Mock mode)  │
+│                                                │                           │
+│                                                │ ▸ ● Run now               │
+│                                                │   ○ Save config and exit  │
+│                                                │   ○ Revise                │
+│                                                │   ○ Quit without saving   │
+├─────────────────────────────────────────────────┴───────────────────────────┤
+│ ↑/↓ move · Enter select · Esc back                                         │
+╰─────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## Run-Path Stack Deck (Wide)
@@ -386,23 +406,21 @@ Plugins  Discover  Installed   (←/→ cycle)
 ╰───────────────────────────────────────────────────────────────────────────╯
 
 ╭─ Monitoring ─────────────────────────╮╭─ Workers ─────────────────────────╮
-│ Novelty rate: {value}               ││ W1 [{w1_bar}] {w1_pct}% · running │
-│ Patience: {current}/{target}        ││    trial {w1_trial}               │
-│ Status: {sampling_status}           ││ W2 [{w2_bar}] {w2_pct}% · idle    │
-│ Stopping indicates diminishing      ││    trial {w2_trial}               │
-│ novelty, not correctness.           ││ W3 [{w3_bar}] {w3_pct}% · running │
-╰──────────────────────────────────────╯│    trial {w3_trial}               │
-                                        │ ...                               │
-                                        │ (+{hidden_count} more workers)    │
-                                        ╰────────────────────────────────────╯
+│ Novelty rate        {value}         ││ ID  Progress   State    Trial Model│
+│ Patience            {cur}/{target}  ││ W1 [{w1_bar}] {w1_pct}%  run  17 g5│
+│ Status              {sampling_status}││ W2 [{w2_bar}] {w2_pct}%  idle  —  —│
+│ Stop signal         {stop_signal}   ││ W3 [{w3_bar}] {w3_pct}%  run  18 s4│
+│ Stopping indicates diminishing      ││ ...                               │
+│ novelty, not correctness.           ││ (+{hidden_count} more workers)    │
+╰──────────────────────────────────────╯╰────────────────────────────────────╯
 ───────────────────────────────────────────────────────────────────────────────
-Ctrl+C graceful stop · q ignore updates
+Ctrl+C graceful stop
 ```
 
 Worker progress rule:
 
 1. one worker progress row exists per visible worker.
-2. each worker row includes worker label, mini progress bar, percentage, and status/trial context.
+2. each worker row includes worker label, mini progress bar, percentage, state, trial, and model context.
 3. when worker count exceeds available height, render top N workers and `(+{hidden_count} more workers)`.
 4. master bar remains the global source of overall progress.
 
@@ -435,21 +453,22 @@ Narrow rules:
 1. stage spine stacks above active card,
 2. cards use short labels where needed but preserve LOCKED terminology,
 3. long summaries truncate with ellipsis in frozen Study Summary card,
-4. Stage 2 merges monitoring and usage when vertical space is constrained.
+4. Stage 2 compacts monitoring and workers into short stacked sections when vertical space is constrained.
 
 Narrow Step 3 shape:
 
 ```text
 › arbiter  setup / models (narrow)                                         00:13
 ───────────────────────────────────────────────────────────────────────────────
-╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
-│ ◆ Models                │  ▸ ◆ openai/gpt-5                               │
-│ │                       │    ◇ anthropic/claude-sonnet-4                  │
-│ ◇ Personas              │    ◆ openai/gpt-4.1-mini                        │
-│ ◇ Decode Params         │                                                  │
-│ ◇ Advanced Settings     │                                                  │
-│ ◇ Review and Confirm    │                                                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
+◆ Models  ◇ Personas  ◇ Decode  ◇ Advanced  ◇ Review
+───────────────────────────────────────────────────────────────────────────────
+Models to sample
+  ▸ ■ openai/gpt-5         [paid]
+    □ anthropic/claude-sonnet-4 [paid]
+    ■ openai/gpt-4.1-mini  [paid]
+    □ google/gemini-2.0-flash [free]
+
+Warning: free-tier models are for exploration only.
 ───────────────────────────────────────────────────────────────────────────────
 ↑/↓ move · Space toggle · Enter confirm · Esc back
 ```
@@ -475,7 +494,7 @@ Narrow Stage 2 shape:
 │ (+{hidden_count} more workers)                                           │
 ╰───────────────────────────────────────────────────────────────────────────╯
 ───────────────────────────────────────────────────────────────────────────────
-Ctrl+C graceful stop · q ignore updates
+Ctrl+C graceful stop
 ```
 
 ## Sentinels
