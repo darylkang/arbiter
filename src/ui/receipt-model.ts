@@ -78,7 +78,9 @@ export const buildReceiptModel = (runDir: string): ReceiptModel => {
     protocol:
       config?.protocol.type === "debate_v1"
         ? `Debate (${config.protocol.participants ?? 2} participants, ${config.protocol.rounds ?? 1} rounds)`
-        : config?.protocol.type,
+        : config?.protocol.type === "independent"
+          ? "Independent"
+          : config?.protocol.type,
     model_count: config?.sampling.models.length ?? 0,
     persona_count: config?.sampling.personas.length ?? 0,
     counts: {

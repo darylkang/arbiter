@@ -117,12 +117,15 @@ const mapStopStateFromCompletion = (
   stopReason: EventPayloadMap["run.completed"]["stop_reason"]
 ): string => {
   if (stopReason === "converged") {
-    return "threshold met";
+    return "novelty saturation";
   }
   if (stopReason === "user_interrupt") {
     return "user requested graceful stop";
   }
-  if (stopReason === "k_max_reached" || stopReason === "completed") {
+  if (stopReason === "k_max_reached") {
+    return "max trials reached";
+  }
+  if (stopReason === "completed") {
     return "sampling complete";
   }
   return "run failed";
@@ -137,6 +140,25 @@ const toPercent = (attempted: number, planned: number): number =>
 
 const toUsageSummary = (snapshot: DashboardSnapshot): string =>
   `${snapshot.usage.total} tokens (in ${snapshot.usage.prompt}, out ${snapshot.usage.completion})`;
+
+const toWorkerPercent = (trialId: number | undefined, planned: number): number => {
+  if (!trialId || planned <= 0) {
+    return 0;
+  }
+  return Math.max(0, Math.min(100, (trialId / planned) * 100));
+};
+
+const toDurationFromIso = (startedAt?: string, completedAt?: string): string => {
+  if (!startedAt || !completedAt) {
+    return "—";
+  }
+  const started = Date.parse(startedAt);
+  const completed = Date.parse(completedAt);
+  if (!Number.isFinite(started) || !Number.isFinite(completed) || completed < started) {
+    return "—";
+  }
+  return formatClockHMS(completed - started);
+};
 
 export const buildRunDashboardText = (
   snapshot: DashboardSnapshot,
@@ -206,7 +228,7 @@ export const buildRunDashboardText = (
     const rows = process.stdout.rows ?? 24;
     const maxFrameLines = Math.max(10, rows - 1);
     const baseLineCount = sections.reduce((total, section) => total + countRenderedLines(section), 0);
-    const availableWorkerRows = Math.max(0, maxFrameLines - baseLineCount - 8);
+    const availableWorkerRows = Math.max(0, maxFrameLines - baseLineCount - 9);
     if (availableWorkerRows > 0) {
       const sorted = Array.from(snapshot.workerStatus.entries()).sort((a, b) => a[0] - b[0]);
       const needsOverflow = sorted.length > availableWorkerRows;
@@ -217,16 +239,17 @@ export const buildRunDashboardText = (
       sections.push("");
       sections.push(renderRuledSection("WORKERS", width, fmt));
       sections.push("");
+      sections.push(fmt.muted("ID  Progress      State     Trial     Model"));
       for (const [workerId, state] of visible) {
         const workerRow: WorkerRow = {
           id: workerId,
-          pct,
+          pct: toWorkerPercent(state.trialId, snapshot.planned),
           state: state.status,
           trialId: state.trialId,
           model: snapshot.mode === "mock" ? "mock" : "live",
           spinner: state.status === "idle" ? spinnerFrame(snapshot.renderTick) : undefined
         };
-        sections.push(renderWorkerRow(workerRow, fmt));
+        sections.push(renderWorkerRow(workerRow, fmt, width));
       }
       const hidden = sorted.length - visible.length;
       if (hidden > 0) {
@@ -459,24 +482,26 @@ const buildReceiptDisplayText = (runDir: string): string | null => {
     const model = buildReceiptModel(runDir);
     const fmt = createStdoutFormatter();
     const width = fmt.termWidth();
+    const stopBanner = toStopBanner(model.stop_reason);
+    const stopReasonLabel = stopBanner.replace(/^Stopped:\s*/i, "").trim();
     const lines: string[] = [
       renderStatusStrip("run / receipt", 0, width, fmt),
       renderSeparator(width, fmt),
       "",
       renderRuledSection("RECEIPT", width, fmt),
       "",
-      toStopBanner(model.stop_reason),
+      stopBanner,
       fmt.muted(UI_COPY.stoppingCaveat),
       "",
       renderRuledSection("SUMMARY", width, fmt),
       "",
-      renderKV("Stop reason", model.stop_reason ?? "unknown", fmt),
+      renderKV("Stop reason", stopReasonLabel || "unknown", fmt),
       renderKV(
         "Trials",
         `${model.counts.k_planned ?? "-"} / ${model.counts.k_attempted ?? "-"} / ${model.counts.k_eligible ?? "-"} (planned / completed / eligible)`,
         fmt
       ),
-      renderKV("Duration", `${model.started_at ?? "-"} -> ${model.completed_at ?? "-"}`, fmt),
+      renderKV("Duration", toDurationFromIso(model.started_at, model.completed_at), fmt),
       renderKV(
         "Usage",
         model.usage
@@ -485,13 +510,15 @@ const buildReceiptDisplayText = (runDir: string): string | null => {
         fmt
       ),
       renderKV("Protocol", model.protocol ?? "-", fmt),
-      renderKV("Models", String(model.model_count), fmt),
-      renderKV("Personas", String(model.persona_count), fmt)
+      renderKV("Models", `${model.model_count}`, fmt),
+      renderKV("Personas", `${model.persona_count}`, fmt)
     ];
 
     if (model.grouping?.enabled) {
       lines.push("");
       lines.push(renderRuledSection("GROUPS", width, fmt));
+      lines.push("");
+      lines.push(`Embedding groups: ${model.grouping.group_count ?? "—"}`);
       lines.push("");
       lines.push("Top group sizes");
       lines.push(model.grouping.group_count !== undefined ? String(model.grouping.group_count) : "—");
@@ -502,8 +529,9 @@ const buildReceiptDisplayText = (runDir: string): string | null => {
     lines.push("");
     lines.push(renderRuledSection("ARTIFACTS", width, fmt));
     lines.push("");
+    lines.push(fmt.muted("Only generated files are listed."));
     if ((model.artifacts?.length ?? 0) === 0) {
-      lines.push("(no artifacts listed)");
+      lines.push("—");
     } else {
       const paths = model.artifacts?.map((artifact) => artifact.path) ?? [];
       for (let index = 0; index < paths.length; index += 3) {

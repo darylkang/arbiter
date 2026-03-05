@@ -167,7 +167,14 @@ export const renderStatusStrip = (
 export const renderKV = (key: string, value: string, fmt: Formatter, keyWidth = KV_KEY_WIDTH): string =>
   `${fmt.muted(padRight(key, keyWidth))}${fmt.text(value)}`;
 
-export const renderWorkerRow = (worker: WorkerRow, fmt: Formatter): string => {
+const truncatePlain = (value: string, max: number): string => {
+  if (max <= 1 || value.length <= max) {
+    return value;
+  }
+  return `${value.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+};
+
+export const renderWorkerRow = (worker: WorkerRow, fmt: Formatter, width = fmt.termWidth()): string => {
   const stateColor = (() => {
     if (worker.state === "error") {
       return fmt.error;
@@ -196,13 +203,15 @@ export const renderWorkerRow = (worker: WorkerRow, fmt: Formatter): string => {
 
   const bar =
     worker.state === "idle" && worker.spinner
-      ? fmt.muted(padRight(worker.spinner, WORKER_BAR_WIDTH))
+      ? `${fmt.muted(worker.spinner)}${fmt.muted("░".repeat(Math.max(0, WORKER_BAR_WIDTH - 1)))}`
       : renderProgressBar(worker.pct, WORKER_BAR_WIDTH, fillColor, fmt);
 
   const pct = `${Math.round(toRatio(worker.pct) * 100)}%`.padStart(4, " ");
   const state = padRight(worker.state, 8);
-  const trial = `trial ${worker.trialId ?? "-"}`;
-  const model = worker.model ?? "—";
+  const trial = padRight(`trial ${worker.trialId ?? "—"}`, 9);
+  const reserved = 4 + WORKER_BAR_WIDTH + 2 + 4 + 2 + 8 + 2 + 9 + 2;
+  const modelWidth = Math.max(4, width - reserved);
+  const model = truncatePlain(worker.model ?? "—", modelWidth);
 
   return `${fmt.text(padRight(`W${worker.id}`, 4))}${bar}  ${fmt.text(pct)}  ${stateColor(state)}  ${fmt.text(
     trial

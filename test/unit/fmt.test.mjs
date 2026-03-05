@@ -62,7 +62,7 @@ test("formatter emits ANSI color in tty mode when enabled", () => {
   assert.equal(stripAnsi(chip).includes("batch"), true);
 
   const divider = stripAnsi(fmt.divider(20));
-  assert.equal(divider.length, 24);
+  assert.equal(divider.length, 60);
 });
 
 test("formatter supports CLICOLOR_FORCE for non-tty streams", () => {

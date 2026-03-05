@@ -71,7 +71,7 @@ const buildColorCodes = (enabled: boolean, extended: boolean) => {
   }
 
   return {
-    brand: "\x1b[33m",
+    brand: "\x1b[93m",
     accent: "\x1b[36m",
     success: "\x1b[32m",
     error: "\x1b[31m",
@@ -92,7 +92,7 @@ const padKey = (value: string, width: number): string => {
   return `${value}${" ".repeat(width - value.length)}`;
 };
 
-const normalizeWidth = (width: number): number => Math.max(24, Math.min(width, 78));
+const normalizeWidth = (width: number): number => Math.max(60, width);
 
 const toPlainPrefix = (level: StatusLevel): string => {
   if (level === "success") {

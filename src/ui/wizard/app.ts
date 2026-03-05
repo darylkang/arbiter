@@ -188,7 +188,7 @@ const renderStepFrame = (input: StepFrame): void => {
     const isActiveStep = step.state === "active";
     parts.push(renderRailStep(step, fmt, input.dimmedRail === true));
     if (isActiveStep) {
-      parts.push(renderRailContent([input.activeLabel, "", ...input.activeLines], fmt));
+      parts.push(renderRailContent(input.activeLines, fmt));
     }
   }
 
@@ -499,7 +499,13 @@ const buildConfigFromDraft = (input: {
   return config;
 };
 
-const askInteger = async (rl: ReturnType<typeof createInterface>, prompt: string, defaultValue: number, min: number): Promise<number> => {
+const askInteger = async (
+  rl: ReturnType<typeof createInterface>,
+  prompt: string,
+  defaultValue: number,
+  min: number,
+  onInvalid?: () => string
+): Promise<number> => {
   while (true) {
     const answer = (await rl.question(`${prompt} [${defaultValue}]: `)).trim();
     if (answer.length === 0) {
@@ -509,7 +515,7 @@ const askInteger = async (rl: ReturnType<typeof createInterface>, prompt: string
     if (Number.isInteger(parsed) && parsed >= min) {
       return parsed;
     }
-    output.write(`Fix required: ${prompt} must be an integer greater than or equal to ${min}.\n`);
+    output.write(`${onInvalid ? onInvalid() : `Fix required: ${prompt} must be an integer greater than or equal to ${min}.`}\n`);
   }
 };
 
@@ -518,7 +524,8 @@ const askFloat = async (
   prompt: string,
   defaultValue: number,
   min: number,
-  max: number
+  max: number,
+  onInvalid?: () => string
 ): Promise<number> => {
   while (true) {
     const answer = (await rl.question(`${prompt} [${defaultValue}]: `)).trim();
@@ -529,7 +536,7 @@ const askFloat = async (
     if (Number.isFinite(parsed) && parsed >= min && parsed <= max) {
       return parsed;
     }
-    output.write(`Fix required: ${prompt} must be within [${min}, ${max}].\n`);
+    output.write(`${onInvalid ? onInvalid() : `Fix required: ${prompt} must be within [${min}, ${max}].`}\n`);
   }
 };
 
@@ -544,7 +551,9 @@ const selectOne = async (
   let selectedIndex = firstEnabledIndex(choices, defaultIndex);
   const selected = await withRawKeyCapture<SelectOneResult>({
     render: (errorLine) => {
-      const lines: string[] = [prompt, ""];
+      const includePrompt =
+        !frame || prompt.trim().toLowerCase() !== frame.activeLabel.trim().toLowerCase();
+      const lines: string[] = includePrompt ? [prompt, ""] : [""];
       choices.forEach((choice, index) => {
         const marker = index === selectedIndex ? "▸ " : "  ";
         const selectedGlyph = index === selectedIndex ? "●" : "○";
@@ -610,19 +619,29 @@ const selectMany = async (
   choices: Choice[],
   defaults: string[],
   emptySelectionError = "Fix required: select at least one option.",
-  frame?: StepFrame
+  frame?: StepFrame,
+  extraLines?: (selected: ReadonlySet<string>) => string[]
 ): Promise<SelectManyResult> => {
   rl.pause();
   const selectedIds = new Set(defaults);
   let selectedIndex = firstEnabledIndex(choices, 0);
   const resolved = await withRawKeyCapture<SelectManyResult>({
     render: (errorLine) => {
-      const lines: string[] = [prompt, ""];
+      const includePrompt =
+        !frame || prompt.trim().toLowerCase() !== frame.activeLabel.trim().toLowerCase();
+      const lines: string[] = includePrompt ? [prompt, ""] : [""];
       choices.forEach((choice, index) => {
         const cursor = index === selectedIndex ? "▸ " : "  ";
         const checked = selectedIds.has(choice.id) ? "■" : "□";
         lines.push(`${cursor}${checked} ${choice.label}`);
       });
+      if (extraLines) {
+        const extras = extraLines(selectedIds);
+        if (extras.length > 0) {
+          lines.push("");
+          lines.push(...extras);
+        }
+      }
       if (errorLine) {
         lines.push("");
         lines.push(errorLine);
@@ -687,7 +706,6 @@ const askMultilineQuestion = async (
   const resolved = await withRawKeyCapture<string | NavigationSignal>({
     render: (errorLine) => {
       const lines = [
-        "Include all relevant context. Arbiter samples responses to characterize distributional behavior.",
         "Question",
         "Type your question and press Enter to continue.",
         "",
@@ -786,7 +804,9 @@ const runPreflight = async (input: {
 
   const selectedModels = input.config.sampling.models.map((model) => model.model);
   if (selectedModels.some((model) => model.endsWith(":free"))) {
-    warnings.push("Free-tier models may be rate-limited or unavailable; not recommended for publishable research.");
+    warnings.push(
+      "Warning: free-tier models selected. Availability may be limited. Use paid models for publishable research."
+    );
   }
 
   if (input.action === "run" && input.runMode === "live") {
@@ -1116,8 +1136,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           ...buildStepFrame(
             1,
             0,
-            "Research Question",
-            "Include all relevant context. Arbiter samples responses to characterize distributional behavior."
+            "Research Question"
           )
         });
         if (questionInput === SELECT_EXIT) {
@@ -1136,7 +1155,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       if (currentStep === 2) {
         const protocolSelection = await selectOne(
           rl,
-          "Step 2 Protocol",
+          "Protocol",
           [
             { id: "independent", label: "Independent" },
             { id: "debate_v1", label: "Debate" }
@@ -1172,14 +1191,26 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       if (currentStep === 3) {
         const selectedModels = await selectMany(
           rl,
-          "Step 3 Models",
+          "Models",
           modelOptions.map((model) => ({
             id: model.slug,
-            label: `${model.display} (${model.provider}) [${model.tier}]${model.slug.endsWith(":free") ? " FREE" : ""}`
+            label: `${model.slug} ${model.slug.endsWith(":free") ? "[free]" : "[paid]"}${
+              model.slug.includes("mini") || model.slug.includes("flash")
+                ? " [fast]"
+                : !model.slug.endsWith(":free")
+                  ? " [stable]"
+                  : ""
+            }`
           })),
           draft.modelSlugs,
           "Fix required: select at least one model.",
-          buildStepFrame(3, 2, "Models", "Select one or more models for sampling.")
+          buildStepFrame(3, 2, "Models", "Select one or more models for sampling."),
+          (selected) =>
+            Array.from(selected).some((slug) => slug.endsWith(":free"))
+              ? [
+                  "Warning: free-tier models selected. Availability may be limited. Use paid models for publishable research."
+                ]
+              : []
         );
         if (selectedModels === SELECT_EXIT) {
           exitWizard("Wizard exited.");
@@ -1202,7 +1233,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       if (currentStep === 4) {
         const selectedPersonas = await selectMany(
           rl,
-          "Step 4 Personas",
+          "Personas",
           personaOptions.map((persona) => ({ id: persona.id, label: `${persona.id} - ${persona.description}` })),
           draft.personaIds,
           "Fix required: select at least one persona.",
@@ -1252,10 +1283,35 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
             )
           });
           if (draft.temperatureMode === "single") {
-            draft.temperatureSingle = await askFloat(rl, "Temperature", draft.temperatureSingle, 0, 2);
+            draft.temperatureSingle = await askFloat(
+              rl,
+              "Temperature",
+              draft.temperatureSingle,
+              0,
+              2,
+              () => "Fix required: temperature must be within [0.0, 2.0]."
+            );
           } else {
-            draft.temperatureMin = await askFloat(rl, "Temperature min", draft.temperatureMin, 0, 2);
-            draft.temperatureMax = await askFloat(rl, "Temperature max", draft.temperatureMax, draft.temperatureMin, 2);
+            draft.temperatureMin = await askFloat(
+              rl,
+              "Temperature min",
+              draft.temperatureMin,
+              0,
+              2,
+              () => "Fix required: temperature must be within [0.0, 2.0]."
+            );
+            draft.temperatureMax = await askFloat(
+              rl,
+              "Temperature max",
+              draft.temperatureMax,
+              0,
+              2,
+              () => "Fix required: temperature must be within [0.0, 2.0]."
+            );
+            if (draft.temperatureMin > draft.temperatureMax) {
+              output.write("Fix required: range min must be less than or equal to max.\n");
+              continue;
+            }
           }
 
           const seedModeSelection = await selectOne(
@@ -1280,7 +1336,13 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
             renderStepFrame({
               ...buildStepFrame(5, 4, "Decode Params", "Set fixed seed.")
             });
-            draft.fixedSeed = await askInteger(rl, "Fixed seed", draft.fixedSeed, 0);
+            draft.fixedSeed = await askInteger(
+              rl,
+              "Fixed seed",
+              draft.fixedSeed,
+              0,
+              () => "Fix required: seed must be a non-negative integer."
+            );
           }
           currentStep = 6;
           break;
@@ -1291,7 +1353,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       if (currentStep === 6) {
         const advancedSelection = await selectOne(
           rl,
-          "Advanced settings",
+          "Advanced Settings",
           [
             { id: "defaults", label: "Use defaults (recommended)" },
             { id: "custom", label: "Customize" }
