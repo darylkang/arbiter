@@ -58,11 +58,19 @@ const waitForText = (text, timeoutMs = 25000) =>
 
 const delay = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
 
-const saveSnapshot = (slug) => {
+const saveSnapshot = (slug, options = {}) => {
+  const { endBeforeText } = options;
+  let snapshotText = rawOutput;
+  if (typeof endBeforeText === "string" && endBeforeText.length > 0) {
+    const endIndex = rawOutput.indexOf(endBeforeText);
+    if (endIndex >= 0) {
+      snapshotText = rawOutput.slice(0, endIndex);
+    }
+  }
   checkpointIndex += 1;
   const filename = `${String(checkpointIndex).padStart(2, "0")}-${slug}.ansi`;
   const path = resolve(outputDir, filename);
-  writeFileSync(path, rawOutput, "utf8");
+  writeFileSync(path, snapshotText, "utf8");
   checkpoints.push(filename);
 };
 
@@ -123,8 +131,7 @@ const run = async () => {
   pressEnter(); // Run now
 
   await waitForText("═══ RUN ═══");
-  await delay(400);
-  saveSnapshot("stage2-run");
+  saveSnapshot("stage2-run", { endBeforeText: "═══ RECEIPT ═══" });
 
   await waitForText("═══ RECEIPT ═══", 45000);
   await delay(200);
