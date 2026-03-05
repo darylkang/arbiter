@@ -59,10 +59,10 @@ const buildColorCodes = (enabled: boolean, extended: boolean) => {
   if (extended) {
     return {
       brand: "\x1b[38;5;214m", // gruvbox dark bright yellow
-      accent: "\x1b[38;5;208m", // gruvbox orange
+      accent: "\x1b[38;5;109m", // gruvbox blue-teal
       success: "\x1b[38;5;142m", // gruvbox green
       error: "\x1b[38;5;167m", // gruvbox red
-      warn: "\x1b[38;5;214m",
+      warn: "\x1b[38;5;172m",
       info: "\x1b[38;5;109m", // gruvbox blue
       muted: "\x1b[38;5;245m", // gruvbox gray
       text: "\x1b[38;5;223m", // gruvbox light fg
@@ -72,7 +72,7 @@ const buildColorCodes = (enabled: boolean, extended: boolean) => {
 
   return {
     brand: "\x1b[33m",
-    accent: "\x1b[33m",
+    accent: "\x1b[36m",
     success: "\x1b[32m",
     error: "\x1b[31m",
     warn: "\x1b[33m",

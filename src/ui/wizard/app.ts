@@ -14,7 +14,16 @@ import { listModels } from "../../openrouter/client.js";
 import { createConsoleWarningSink } from "../../utils/warnings.js";
 import { createUiRunLifecycleHooks } from "../run-lifecycle-hooks.js";
 import { UI_COPY, toRunModeLabel, type UiRunMode } from "../copy.js";
-import { renderCard, renderMasthead, renderProgressSpine, truncate } from "../wizard-theme.js";
+import { createStdoutFormatter } from "../fmt.js";
+import {
+  renderBrandBlock,
+  renderRailContent,
+  renderRailStep,
+  renderSeparator,
+  renderStatusStrip,
+  truncate,
+  type RailStep
+} from "../wizard-theme.js";
 import {
   listConfigFiles,
   nextCollisionSafeConfigPath,
@@ -93,25 +102,31 @@ type StepIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 type StepFrame = {
   version: string;
-  currentStepIndex: StepIndex;
-  completedUntilIndex: number;
+  currentRailIndex: number;
+  completedUntilRailIndex: number;
   runMode: RunMode | null;
   apiKeyPresent: boolean;
   configCount: number;
-  title: string;
-  hint?: string;
-  stepSummaries?: Partial<Record<number, string>>;
+  contextLabel: string;
+  showRunMode: boolean;
+  showBrandBlock: boolean;
+  activeLabel: string;
+  activeLines: string[];
+  footerText: string;
+  stepSummaries: Partial<Record<number, string>>;
+  dimmedRail?: boolean;
 };
 
-const WIZARD_STEP_LABELS = [
-  "0 Welcome",
-  "1 Question",
-  "2 Protocol",
-  "3 Models",
-  "4 Personas",
-  "5 Decode",
-  "6 Advanced",
-  "7 Review"
+const RAIL_ITEMS = [
+  { label: "Entry Path", railIndex: 0 },
+  { label: "Run Mode", railIndex: 1 },
+  { label: "Research Question", railIndex: 2 },
+  { label: "Protocol", railIndex: 3 },
+  { label: "Models", railIndex: 4 },
+  { label: "Personas", railIndex: 5 },
+  { label: "Decode Params", railIndex: 6 },
+  { label: "Advanced Settings", railIndex: 7 },
+  { label: "Review and Confirm", railIndex: 8 }
 ];
 
 const ALT_SCREEN_ENABLE = "\x1b[?1049h";
@@ -121,49 +136,66 @@ const clearScreen = (): void => {
   output.write("\x1b[2J\x1b[H");
 };
 
-const countRenderedLines = (value: string): number => value.split("\n").length;
+const splitLines = (value: string): string[] => value.split("\n").filter((line) => line.length > 0);
 
-const toProgressSteps = (input: {
-  currentStepIndex: StepIndex;
-  completedUntilIndex: number;
-  stepSummaries?: Partial<Record<number, string>>;
-}) =>
-  WIZARD_STEP_LABELS.map((label, index) => ({
-    label,
-    status:
-      index === input.currentStepIndex
-        ? ("current" as const)
-        : index <= input.completedUntilIndex
-          ? ("completed" as const)
-          : ("pending" as const),
-    summary: input.stepSummaries?.[index]
+const toRailSteps = (input: {
+  currentRailIndex: number;
+  completedUntilRailIndex: number;
+  showRunMode: boolean;
+  stepSummaries: Partial<Record<number, string>>;
+}): RailStep[] =>
+  RAIL_ITEMS.filter((item) => input.showRunMode || item.railIndex !== 1).map((item) => ({
+    label: item.label,
+    state:
+      item.railIndex === input.currentRailIndex
+        ? "active"
+        : item.railIndex <= input.completedUntilRailIndex
+          ? "completed"
+          : "pending",
+    summary: input.stepSummaries[item.railIndex]
   }));
 
 const renderStepFrame = (input: StepFrame): void => {
+  const fmt = createStdoutFormatter();
+  const width = fmt.termWidth();
+  const parts: string[] = [];
+  const railSteps = toRailSteps({
+    currentRailIndex: input.currentRailIndex,
+    completedUntilRailIndex: input.completedUntilRailIndex,
+    showRunMode: input.showRunMode,
+    stepSummaries: input.stepSummaries
+  });
+
   clearScreen();
-  output.write(
-    `${renderMasthead({
-      version: input.version,
-      apiKeyPresent: input.apiKeyPresent,
-      runMode: input.runMode as UiRunMode,
-      configCount: input.configCount
-    })}\n\n`
-  );
-  output.write(
-    `${renderProgressSpine({
-      steps: toProgressSteps({
-        currentStepIndex: input.currentStepIndex,
-        completedUntilIndex: input.completedUntilIndex,
-        stepSummaries: input.stepSummaries
-      })
-    })}\n\n`
-  );
-  output.write(
-    `${renderCard({
-      title: input.title,
-      lines: input.hint ? [input.hint] : []
-    })}\n\n`
-  );
+
+  parts.push(renderStatusStrip(input.contextLabel, 0, width, fmt));
+  parts.push(renderSeparator(width, fmt));
+  parts.push("");
+  if (input.showBrandBlock) {
+    parts.push(
+      renderBrandBlock(
+        input.version,
+        input.apiKeyPresent,
+        input.runMode as UiRunMode,
+        input.configCount,
+        fmt
+      )
+    );
+    parts.push("");
+  }
+
+  for (const step of railSteps) {
+    const isActiveStep = step.state === "active";
+    parts.push(renderRailStep(step, fmt, input.dimmedRail === true));
+    if (isActiveStep) {
+      parts.push(renderRailContent([input.activeLabel, "", ...input.activeLines], fmt));
+    }
+  }
+
+  parts.push("");
+  parts.push(renderSeparator(width, fmt));
+  parts.push(input.footerText);
+  output.write(`${parts.join("\n")}\n`);
 };
 
 const firstEnabledIndex = (choices: Choice[], fallbackIndex: number): number => {
@@ -192,8 +224,7 @@ const nextSelectableIndex = (choices: Choice[], currentIndex: number, delta: num
 };
 
 const withRawKeyCapture = async <T>(inputControl: {
-  beforeRender: () => void;
-  renderBody: (errorLine?: string) => string;
+  render: (errorLine?: string) => void;
   onKey: (str: string, key: RawKey) => { done: true; value: T } | { done: false; error?: string };
 }): Promise<T> => {
   const stdin = process.stdin;
@@ -208,19 +239,9 @@ const withRawKeyCapture = async <T>(inputControl: {
     stdin.resume();
 
     let currentError = "";
-    let hasRenderedFrame = false;
-    let bodyLineCount = 0;
 
     const render = (): void => {
-      if (!hasRenderedFrame) {
-        inputControl.beforeRender();
-        hasRenderedFrame = true;
-      } else if (bodyLineCount > 0) {
-        output.write(`\x1b[${bodyLineCount}A\x1b[J`);
-      }
-      const body = inputControl.renderBody(currentError || undefined);
-      output.write(body);
-      bodyLineCount = countRenderedLines(body.trimEnd());
+      inputControl.render(currentError || undefined);
     };
 
     const cleanup = (): void => {
@@ -306,63 +327,82 @@ const summarizeSelection = (values: string[]): string => {
   return `${visible.join(", ")} +${hidden} more`;
 };
 
-const toStepSummaries = (input: {
+const toRailSummaries = (input: {
   draft: WizardDraft;
   currentStep: StepIndex | number;
+  entryPath: EntryPath | null;
+  selectedConfigPath: string | null;
+  runMode: RunMode | null;
 }): Partial<Record<number, string>> => {
   const summaries: Partial<Record<number, string>> = {};
   const { draft } = input;
 
+  if (input.entryPath) {
+    if (input.entryPath === "existing") {
+      const filename = input.selectedConfigPath
+        ? input.selectedConfigPath.split("/").at(-1) ?? "config"
+        : "config";
+      summaries[0] = `Run existing config (${filename})`;
+    } else {
+      summaries[0] = "Create new study";
+    }
+  }
+  if (input.runMode) {
+    summaries[1] = toRunModeLabel(input.runMode);
+  }
   if (input.currentStep >= 1) {
     const trimmed = draft.question.trim();
     if (trimmed.length > 0) {
-      summaries[1] = `✔ Question: "${truncate(trimmed, 42)}" (${trimmed.length} chars)`;
+      summaries[2] = `"${truncate(trimmed, 42)}" (${trimmed.length} chars)`;
     }
   }
   if (input.currentStep >= 2) {
-    summaries[2] =
+    summaries[3] =
       draft.protocolType === "debate_v1"
-        ? `✔ Protocol: Debate (${draft.participants} participants, ${draft.rounds} rounds)`
-        : "✔ Protocol: Independent";
+        ? `Debate (${draft.participants}P, ${draft.rounds}R)`
+        : "Independent";
   }
   if (input.currentStep >= 3 && draft.modelSlugs.length > 0) {
-    summaries[3] = `✔ Models: ${summarizeSelection(draft.modelSlugs)} (${draft.modelSlugs.length} selected)`;
+    summaries[4] = `${summarizeSelection(draft.modelSlugs)} (${draft.modelSlugs.length} selected)`;
   }
   if (input.currentStep >= 4 && draft.personaIds.length > 0) {
-    summaries[4] = `✔ Personas: ${summarizeSelection(draft.personaIds)} (${draft.personaIds.length} selected)`;
+    summaries[5] = `${summarizeSelection(draft.personaIds)} (${draft.personaIds.length} selected)`;
   }
   if (input.currentStep >= 5) {
-    summaries[5] = `✔ Decode: ${toDecodeSummary(draft)}`;
+    summaries[6] = toDecodeSummary(draft);
   }
   if (input.currentStep >= 6) {
-    summaries[6] = draft.useAdvancedDefaults
-      ? "✔ Advanced: defaults"
-      : `✔ Advanced: workers=${draft.workers}, K_max=${draft.kMax}, batch=${draft.batchSize}`;
+    summaries[7] = draft.useAdvancedDefaults
+      ? "defaults"
+      : `workers ${draft.workers}, K_max ${draft.kMax}, batch ${draft.batchSize}`;
   }
   return summaries;
 };
 
-const buildFrozenStudySummary = (input: {
+const buildFrozenRailSummary = (input: {
   draft: WizardDraft;
   selectedConfigPath: string | null;
   entryPath: EntryPath;
+  runMode: RunMode;
 }): string => {
-  const lines = [
-    `Question: ${truncate(input.draft.question.trim(), 80)}`,
-    `Protocol: ${formatProtocol(input.draft)}`,
-    `Models: ${input.draft.modelSlugs.length} selected`,
-    `Personas: ${input.draft.personaIds.length} selected`,
-    `Decode: ${toDecodeSummary(input.draft)}`,
-    `Execution: workers ${input.draft.workers}, batch ${input.draft.batchSize}, K_max ${input.draft.kMax}`,
-    `Output dir: ${input.draft.outputDir}`
-  ];
-  if (input.entryPath === "existing" && input.selectedConfigPath) {
-    lines.push(`Source config: ${input.selectedConfigPath}`);
-  }
-  return renderCard({
-    title: "Study Summary",
-    lines
+  const fmt = createStdoutFormatter();
+  const summaries = toRailSummaries({
+    draft: input.draft,
+    currentStep: 7,
+    entryPath: input.entryPath,
+    selectedConfigPath: input.selectedConfigPath,
+    runMode: input.runMode
   });
+  const lines: string[] = [];
+  const frozenSteps: RailStep[] = RAIL_ITEMS.filter((item) => item.railIndex <= 7).map((item) => ({
+    label: item.label,
+    state: "completed",
+    summary: summaries[item.railIndex]
+  }));
+  for (const step of frozenSteps) {
+    lines.push(renderRailStep(step, fmt, true));
+  }
+  return lines.join("\n");
 };
 
 const buildDraftFromConfig = (
@@ -503,18 +543,12 @@ const selectOne = async (
   rl.pause();
   let selectedIndex = firstEnabledIndex(choices, defaultIndex);
   const selected = await withRawKeyCapture<SelectOneResult>({
-    beforeRender: () => {
-      if (frame) {
-        renderStepFrame(frame);
-      } else {
-        clearScreen();
-      }
-    },
-    renderBody: (errorLine) => {
-      const lines: string[] = [];
+    render: (errorLine) => {
+      const lines: string[] = [prompt, ""];
       choices.forEach((choice, index) => {
-        const marker = index === selectedIndex ? "▸" : " ";
-        lines.push(`${marker} ${choice.label}`);
+        const marker = index === selectedIndex ? "▸ " : "  ";
+        const selectedGlyph = index === selectedIndex ? "●" : "○";
+        lines.push(`${marker}${selectedGlyph} ${choice.label}`);
       });
       const disabledReasons = choices
         .filter((choice) => choice.disabled && typeof choice.disabledReason === "string")
@@ -523,16 +557,20 @@ const selectOne = async (
         lines.push("");
         lines.push(...disabledReasons);
       }
-      lines.push("");
-      lines.push("Controls: ↑/↓ move · Enter confirm · Esc back");
       if (errorLine) {
         lines.push("");
         lines.push(errorLine);
       }
-      return `${renderCard({
-        title: prompt,
-        lines
-      })}\n`;
+      if (frame) {
+        renderStepFrame({
+          ...frame,
+          activeLines: [...frame.activeLines, ...lines],
+          footerText: "↑/↓ move · Enter select · Esc back"
+        });
+      } else {
+        clearScreen();
+        output.write(`${lines.join("\n")}\n`);
+      }
     },
     onKey: (_str, key) => {
       if (key.ctrl && key.name === "c") {
@@ -578,30 +616,27 @@ const selectMany = async (
   const selectedIds = new Set(defaults);
   let selectedIndex = firstEnabledIndex(choices, 0);
   const resolved = await withRawKeyCapture<SelectManyResult>({
-    beforeRender: () => {
-      if (frame) {
-        renderStepFrame(frame);
-      } else {
-        clearScreen();
-      }
-    },
-    renderBody: (errorLine) => {
-      const lines: string[] = [];
+    render: (errorLine) => {
+      const lines: string[] = [prompt, ""];
       choices.forEach((choice, index) => {
-        const cursor = index === selectedIndex ? "▸" : " ";
-        const checked = selectedIds.has(choice.id) ? "x" : " ";
-        lines.push(`${cursor} [${checked}] ${choice.label}`);
+        const cursor = index === selectedIndex ? "▸ " : "  ";
+        const checked = selectedIds.has(choice.id) ? "■" : "□";
+        lines.push(`${cursor}${checked} ${choice.label}`);
       });
-      lines.push("");
-      lines.push("Controls: ↑/↓ move · Space toggle · Enter confirm · Esc back");
       if (errorLine) {
         lines.push("");
         lines.push(errorLine);
       }
-      return `${renderCard({
-        title: prompt,
-        lines
-      })}\n`;
+      if (frame) {
+        renderStepFrame({
+          ...frame,
+          activeLines: [...frame.activeLines, ...lines],
+          footerText: "↑/↓ move · Space toggle · Enter confirm · Esc back"
+        });
+      } else {
+        clearScreen();
+        output.write(`${lines.join("\n")}\n`);
+      }
     },
     onKey: (_str, key) => {
       if (key.ctrl && key.name === "c") {
@@ -650,15 +685,11 @@ const askMultilineQuestion = async (
   rl.pause();
   let buffer = initial;
   const resolved = await withRawKeyCapture<string | NavigationSignal>({
-    beforeRender: () => {
-      renderStepFrame(frame);
-    },
-    renderBody: (errorLine) => {
+    render: (errorLine) => {
       const lines = [
         "Include all relevant context. Arbiter samples responses to characterize distributional behavior.",
         "Question",
         "Type your question and press Enter to continue.",
-        "Controls: Enter continue · Esc back · Ctrl+C exit",
         "",
         buffer.length === 0 ? "(start typing)" : buffer,
         "",
@@ -668,10 +699,11 @@ const askMultilineQuestion = async (
         lines.push("");
         lines.push(errorLine);
       }
-      return `${renderCard({
-        title: "Research Question",
-        lines
-      })}\n`;
+      renderStepFrame({
+        ...frame,
+        activeLines: [...frame.activeLines, ...lines],
+        footerText: "Enter continue · Esc back"
+      });
     },
     onKey: (str, key) => {
       if (key.ctrl && key.name === "c") {
@@ -771,27 +803,34 @@ const runPreflight = async (input: {
   return warnings;
 };
 
-const renderReview = (input: {
+const buildReviewLines = (input: {
   draft: WizardDraft;
   runMode: RunMode;
   selectedConfigPath: string | null;
   isExistingPath: boolean;
-}): void => {
+}): string[] => {
   const { draft, runMode, selectedConfigPath, isExistingPath } = input;
   const lines = [
+    "Review settings, run checks, and choose how to proceed.",
+    "",
+    "Preflight",
+    "✓ Schema validation",
+    "✓ Output path writable",
+    runMode === "mock" ? "⚠ Live connectivity check (skipped in Mock mode)" : "✓ Live connectivity check",
+    "",
+    "Config Summary",
     `Question: ${truncate(draft.question.trim(), 80)}`,
     `Protocol: ${formatProtocol(draft)}`,
     `Models: ${draft.modelSlugs.length} selected`,
     `Personas: ${draft.personaIds.length} selected`,
-    `Decode: ${toDecodeSummary(draft)}`,
-    `Execution: workers ${draft.workers}, batch ${draft.batchSize}, K_max ${draft.kMax}`,
+    `Decode Params: ${toDecodeSummary(draft)}`,
     `Run mode: ${toRunModeLabel(runMode)}`,
     `Output dir: ${draft.outputDir}`
   ];
   if (isExistingPath && selectedConfigPath) {
     lines.push(`Source config: ${selectedConfigPath}`);
   }
-  output.write(`${renderCard({ title: "Review", lines })}\n`);
+  return lines;
 };
 
 const runStudy = async (input: {
@@ -876,13 +915,18 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
     enterInteractiveScreen();
     renderStepFrame({
       version,
-      currentStepIndex: 0,
-      completedUntilIndex: -1,
+      currentRailIndex: 0,
+      completedUntilRailIndex: -1,
       runMode: null,
       apiKeyPresent,
       configCount: configFiles.length,
-      title: "Step 0 Welcome and Entry",
-      hint: "Choose how to start and choose run mode."
+      contextLabel: "onboarding",
+      showRunMode: false,
+      showBrandBlock: true,
+      activeLabel: "Entry Path",
+      activeLines: ["Choose how to start"],
+      footerText: "↑/↓ move · Enter select · Esc back",
+      stepSummaries: {}
     });
 
     let entryPath: EntryPath | null = null;
@@ -890,13 +934,18 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
     while (!entryPath || !runMode) {
       const step0Frame: StepFrame = {
         version,
-        currentStepIndex: 0,
-        completedUntilIndex: -1,
+        currentRailIndex: 0,
+        completedUntilRailIndex: -1,
         runMode: null,
         apiKeyPresent,
         configCount: configFiles.length,
-        title: "Step 0 Welcome and Entry",
-        hint: "Choose how to start and choose run mode."
+        contextLabel: "onboarding",
+        showRunMode: false,
+        showBrandBlock: true,
+        activeLabel: "Entry Path",
+        activeLines: [],
+        footerText: "↑/↓ move · Enter select · Esc back",
+        stepSummaries: {}
       };
       const entryChoice = await selectOne(
         rl,
@@ -925,6 +974,11 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       }
       entryPath = entryChoice as EntryPath;
 
+      const entrySummary =
+        entryPath === "existing"
+          ? `Run existing config${configFiles.length > 0 ? "" : " (unavailable)"}`
+          : "Create new study";
+
       const runChoice = await selectOne(
         rl,
         "Choose run mode",
@@ -940,7 +994,13 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         apiKeyPresent ? 0 : 1,
         {
           ...step0Frame,
-          runMode: null
+          currentRailIndex: 1,
+          completedUntilRailIndex: 0,
+          contextLabel: "onboarding / mode",
+          showRunMode: true,
+          showBrandBlock: false,
+          activeLabel: "Run Mode",
+          stepSummaries: { 0: entrySummary }
         }
       );
       if (runChoice === SELECT_EXIT) {
@@ -970,25 +1030,73 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       completedUntilIndex: number,
       title: string,
       hint?: string
-    ): StepFrame => ({
-      version,
-      currentStepIndex,
-      completedUntilIndex,
-      runMode,
-      apiKeyPresent,
-      configCount: configFiles.length,
-      title,
-      hint,
-      stepSummaries: toStepSummaries({
-        draft,
-        currentStep: currentStepIndex
-      })
-    });
+    ): StepFrame => {
+      const showRunMode = Boolean(runMode);
+      const toRailIndex = (stepIndex: number): number => {
+        if (stepIndex === 0) {
+          return showRunMode ? 1 : 0;
+        }
+        return stepIndex + 1;
+      };
+      const contextLabel = (() => {
+        if (currentStepIndex === 0 && !showRunMode) {
+          return "onboarding";
+        }
+        if (currentStepIndex === 0 && showRunMode) {
+          return "onboarding / mode";
+        }
+        if (currentStepIndex === 1) {
+          return "setup / question";
+        }
+        if (currentStepIndex === 2) {
+          return "setup / protocol";
+        }
+        if (currentStepIndex === 3) {
+          return "setup / models";
+        }
+        if (currentStepIndex === 4) {
+          return "setup / personas";
+        }
+        if (currentStepIndex === 5) {
+          return "setup / decode";
+        }
+        if (currentStepIndex === 6) {
+          return "setup / advanced";
+        }
+        return "setup / review";
+      })();
+      return {
+        version,
+        currentRailIndex: toRailIndex(currentStepIndex),
+        completedUntilRailIndex: completedUntilIndex < 0 ? -1 : toRailIndex(completedUntilIndex),
+        runMode,
+        apiKeyPresent,
+        configCount: configFiles.length,
+        contextLabel,
+        showRunMode,
+        showBrandBlock: currentStepIndex === 0 && !showRunMode,
+        activeLabel: title,
+        activeLines: hint ? splitLines(hint) : [],
+        footerText: "↑/↓ move · Enter select · Esc back",
+        stepSummaries: toRailSummaries({
+          draft,
+          currentStep: currentStepIndex,
+          entryPath,
+          selectedConfigPath,
+          runMode
+        })
+      };
+    };
 
     if (entryPath === "existing") {
       selectedConfigPath = await chooseConfigFile(rl, configFiles, {
-        ...buildStepFrame(0, 0, "Step 0 Welcome and Entry", "Select a config file"),
-        stepSummaries: undefined
+        ...buildStepFrame(0, 0, "Run Mode", "Select a config file"),
+        currentRailIndex: 1,
+        completedUntilRailIndex: 1,
+        contextLabel: "onboarding / mode",
+        showRunMode: true,
+        showBrandBlock: false,
+        activeLabel: "Run Mode"
       });
       if (!selectedConfigPath) {
         exitWizard("Wizard exited.");
@@ -1245,15 +1353,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
       const baseConfig = sourceConfig ?? baseTemplate;
       const configForReview = buildConfigFromDraft({ baseConfig, draft });
-      renderStepFrame({
-        ...buildStepFrame(
-          7,
-          6,
-          "Review and Confirm",
-          "Review settings, run checks, and choose how to proceed."
-        )
-      });
-      renderReview({
+      const reviewLines = buildReviewLines({
         draft,
         runMode,
         selectedConfigPath,
@@ -1270,12 +1370,10 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           { id: "quit", label: "Quit without saving" }
         ],
         0,
-        buildStepFrame(
-          7,
-          6,
-          "Review and Confirm",
-          "Review settings, run checks, and choose how to proceed."
-        )
+        {
+          ...buildStepFrame(7, 6, "Review and Confirm"),
+          activeLines: reviewLines
+        }
       );
 
       if (actionSelection === SELECT_EXIT) {
@@ -1328,17 +1426,11 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       }
 
       const stackPrefixText = [
-        renderMasthead({
-          version,
-          apiKeyPresent,
-          runMode,
-          configCount: configFiles.length
-        }),
-        "",
-        buildFrozenStudySummary({
+        buildFrozenRailSummary({
           draft,
           selectedConfigPath,
-          entryPath
+          entryPath,
+          runMode
         }),
         "",
         UI_COPY.startingRun,

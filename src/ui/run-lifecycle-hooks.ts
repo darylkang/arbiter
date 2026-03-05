@@ -5,8 +5,18 @@ import type { EventBus } from "../events/event-bus.js";
 import type { EventPayloadMap } from "../events/types.js";
 import type { RunLifecycleContext, RunLifecycleHooks } from "../run/lifecycle-hooks.js";
 import { UI_COPY } from "./copy.js";
-import { renderCard } from "./wizard-theme.js";
+import { toStopBanner } from "./copy.js";
+import { buildReceiptModel } from "./receipt-model.js";
 import { createStdoutFormatter } from "./fmt.js";
+import {
+  renderKV,
+  renderProgressBar,
+  renderRuledSection,
+  renderSeparator,
+  renderStatusStrip,
+  renderWorkerRow,
+  type WorkerRow
+} from "./wizard-theme.js";
 
 type WorkerViewStatus = "idle" | "running" | "finishing" | "error";
 
@@ -42,7 +52,7 @@ type DashboardSnapshot = {
 };
 
 const MAX_DASHBOARD_QUESTION_CHARS = 88;
-const SPINNER_FRAMES = ["-", "\\", "|", "/"];
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 const shouldRenderDashboard = (enabled: boolean): boolean =>
   enabled && Boolean(process.stdout.isTTY);
@@ -65,19 +75,20 @@ const formatProtocolLabel = (payload: EventPayloadMap["run.started"]): string =>
   return "Independent";
 };
 
-const formatDuration = (inputMs: number): string => {
+const formatClockHMS = (inputMs: number): string => {
   const totalSeconds = Math.max(0, Math.floor(inputMs / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor(totalSeconds / 60) % 60;
   const seconds = totalSeconds % 60;
-  if (minutes === 0) {
-    return `${seconds}s`;
-  }
-  return `${minutes}m ${seconds}s`;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
+    2,
+    "0"
+  )}`;
 };
 
-const formatEta = (snapshot: DashboardSnapshot): string => {
+const formatEtaHMS = (snapshot: DashboardSnapshot): string => {
   if (snapshot.attempted <= 0 || snapshot.planned <= snapshot.attempted) {
-    return snapshot.planned <= snapshot.attempted ? "0s" : "—";
+    return snapshot.planned <= snapshot.attempted ? "00:00:00" : "—";
   }
   const elapsedMs = Math.max(0, Date.now() - snapshot.startedAtMs);
   if (elapsedMs <= 0) {
@@ -87,16 +98,7 @@ const formatEta = (snapshot: DashboardSnapshot): string => {
   if (!Number.isFinite(avgMsPerTrial) || avgMsPerTrial <= 0) {
     return "—";
   }
-  return formatDuration(avgMsPerTrial * (snapshot.planned - snapshot.attempted));
-};
-
-const formatProgressBar = (completed: number, planned: number, width = 28): string => {
-  const safePlanned = Math.max(1, planned);
-  const ratio = Math.max(0, Math.min(1, completed / safePlanned));
-  const filled = Math.round(ratio * width);
-  const left = "#".repeat(filled);
-  const right = "-".repeat(Math.max(0, width - filled));
-  return `[${left}${right}]`;
+  return formatClockHMS(avgMsPerTrial * (snapshot.planned - snapshot.attempted));
 };
 
 const mapStopStateFromMonitoring = (
@@ -130,43 +132,35 @@ const spinnerFrame = (tick: number): string =>
   SPINNER_FRAMES[Math.max(0, tick) % SPINNER_FRAMES.length];
 
 const countRenderedLines = (value: string): number => value.split("\n").length;
-const createStyledRunHeader = (value: string): string => {
-  const formatter = createStdoutFormatter();
-  return formatter.bold(formatter.brand(value));
-};
+const toPercent = (attempted: number, planned: number): number =>
+  planned <= 0 ? 0 : Math.max(0, Math.min(100, (attempted / planned) * 100));
+
+const toUsageSummary = (snapshot: DashboardSnapshot): string =>
+  `${snapshot.usage.total} tokens (in ${snapshot.usage.prompt}, out ${snapshot.usage.completion})`;
 
 export const buildRunDashboardText = (
   snapshot: DashboardSnapshot,
   nowMs = Date.now()
 ): string => {
-  const elapsed = formatDuration(Math.max(0, nowMs - snapshot.startedAtMs));
-  const eta = formatEta(snapshot);
-  const shouldAnimateProgress =
-    snapshot.attempted < snapshot.planned &&
-    snapshot.stopState !== "sampling complete" &&
-    snapshot.stopState !== "run failed" &&
-    snapshot.stopState !== "user requested graceful stop";
-  const progressBar = formatProgressBar(snapshot.attempted, snapshot.planned);
-
-  const sections: string[] = [];
-  sections.push(
-    renderCard({
-      title: "Run",
-      lines: [`Trials: ${snapshot.attempted}/${snapshot.planned} | Workers: ${snapshot.workers}`],
-      lineStyler: (line, _index, fmt) => fmt.bold(fmt.accent(line))
-    })
-  );
-  sections.push(
-    renderCard({
-      title: "Master progress",
-      lines: [
-        `${shouldAnimateProgress ? `${spinnerFrame(snapshot.renderTick)} ` : ""}${progressBar} ${snapshot.attempted}/${snapshot.planned}`,
-        `Elapsed: ${elapsed}`,
-        `ETA: ${eta}`
-      ],
-      lineStyler: (line, index, fmt) => (index === 0 ? fmt.bold(fmt.info(line)) : fmt.text(line))
-    })
-  );
+  const fmt = createStdoutFormatter();
+  const width = fmt.termWidth();
+  const elapsedMs = Math.max(0, nowMs - snapshot.startedAtMs);
+  const elapsed = formatClockHMS(elapsedMs);
+  const eta = formatEtaHMS(snapshot);
+  const pct = toPercent(snapshot.attempted, snapshot.planned);
+  const masterBar = renderProgressBar(pct, Math.min(30, Math.max(6, width - 40)), fmt.brand, fmt);
+  const sections: string[] = [
+    renderStatusStrip("run / monitoring", elapsedMs, width, fmt),
+    renderSeparator(width, fmt),
+    "",
+    renderRuledSection("PROGRESS", width, fmt),
+    "",
+    `Trials: ${snapshot.attempted}/${snapshot.planned} · Workers: ${snapshot.workers}`,
+    `${masterBar}  ${String(Math.round(pct)).padStart(3, " ")}%    ${elapsed}  ETA ${eta}`,
+    "",
+    renderRuledSection("MONITORING", width, fmt),
+    ""
+  ];
 
   const novelty = snapshot.noveltyRate === null ? "—" : snapshot.noveltyRate.toFixed(3);
   const noveltyThreshold =
@@ -176,89 +170,43 @@ export const buildRunDashboardText = (
   const similarityThreshold =
     snapshot.similarityThreshold === null ? "—" : snapshot.similarityThreshold.toFixed(3);
 
-  const monitoringLines = [
-    `Novelty rate: ${novelty} (threshold ${noveltyThreshold})`,
-    `Patience: ${snapshot.lowNoveltyStreak}/${snapshot.patience}`,
-    `Status: ${snapshot.stopState}`
-  ];
-  if (snapshot.stopState === "user requested graceful stop") {
-    monitoringLines.push(UI_COPY.gracefulStopRequested);
+  sections.push(renderKV("Novelty rate", `${novelty} (threshold ${noveltyThreshold})`, fmt));
+  sections.push(renderKV("Patience", `${snapshot.lowNoveltyStreak}/${snapshot.patience}`, fmt));
+  sections.push(renderKV("Status", snapshot.stopState, fmt));
+  if (snapshot.groupingEnabled) {
+    sections.push(
+      renderKV("Embedding groups", snapshot.groupCount === null ? "—" : String(snapshot.groupCount), fmt)
+    );
   }
   if (snapshot.similarityThreshold !== null) {
-    monitoringLines.splice(
-      1,
-      0,
-      `Similarity advisory: ${meanMaxSimilarity} (threshold ${similarityThreshold})`
-    );
+    sections.push(renderKV("Similarity", `${meanMaxSimilarity} (threshold ${similarityThreshold})`, fmt));
   }
+  sections.push("");
+  sections.push(fmt.muted(UI_COPY.stoppingCaveat));
   if (snapshot.groupingEnabled) {
-    monitoringLines.push(
-      `Embedding groups: ${snapshot.groupCount === null ? "—" : snapshot.groupCount}`
-    );
+    sections.push(fmt.muted(UI_COPY.groupingCaveat));
   }
-  monitoringLines.push(UI_COPY.stoppingCaveat);
-  if (snapshot.groupingEnabled) {
-    monitoringLines.push(UI_COPY.groupingCaveat);
+  if (snapshot.stopState === "user requested graceful stop") {
+    sections.push("");
+    sections.push(fmt.warn(UI_COPY.gracefulStopRequested));
   }
-  const monitoringCard = renderCard({
-    title: "Monitoring",
-    lines: monitoringLines,
-    lineStyler: (line, _index, fmt) => {
-      if (line.includes(UI_COPY.stoppingCaveat) || line.includes(UI_COPY.groupingCaveat)) {
-        return fmt.muted(line);
-      }
-      if (line.startsWith("Status:")) {
-        if (line.includes("threshold met")) {
-          return fmt.warn(line);
-        }
-        if (line.includes("run failed")) {
-          return fmt.error(line);
-        }
-        if (line.includes("sampling complete")) {
-          return fmt.success(line);
-        }
-        return fmt.info(line);
-      }
-      return fmt.text(line);
-    }
-  });
-
+  sections.push("");
+  sections.push(renderRuledSection("USAGE", width, fmt));
+  sections.push("");
   if (snapshot.mode === "mock") {
-    sections.push(monitoringCard);
-    sections.push(
-      renderCard({
-        title: "Usage",
-        lines: ["Usage not applicable"],
-        lineStyler: (line, _index, fmt) => fmt.muted(line)
-      })
-    );
+    sections.push(fmt.muted("Usage not applicable"));
   } else {
-    const usageLines = [
-      `Usage so far: ${snapshot.usage.total} tokens (in ${snapshot.usage.prompt}, out ${snapshot.usage.completion})`
-    ];
+    sections.push(`Usage so far: ${toUsageSummary(snapshot)}`);
     if (snapshot.usage.cost !== undefined) {
-      usageLines.push(`Cost: ${snapshot.usage.cost.toFixed(6)} (estimate)`);
+      sections.push(fmt.warn(`Cost: ${snapshot.usage.cost.toFixed(6)} (estimate)`));
     }
-    sections.push(monitoringCard);
-    sections.push(
-      renderCard({
-        title: "Usage",
-        lines: usageLines,
-        lineStyler: (line, _index, fmt) =>
-          line.startsWith("Cost:") ? fmt.warn(line) : fmt.info(line)
-      })
-    );
   }
 
   if (snapshot.workers > 1) {
     const rows = process.stdout.rows ?? 24;
     const maxFrameLines = Math.max(10, rows - 1);
-    const baseLineCount =
-      sections.reduce((total, section) => total + countRenderedLines(section), 0) +
-      Math.max(0, sections.length - 1);
-    const availableForWorkerCard = Math.max(0, maxFrameLines - baseLineCount - 1);
-    const availableWorkerRows = Math.max(0, availableForWorkerCard - 2);
-
+    const baseLineCount = sections.reduce((total, section) => total + countRenderedLines(section), 0);
+    const availableWorkerRows = Math.max(0, maxFrameLines - baseLineCount - 8);
     if (availableWorkerRows > 0) {
       const sorted = Array.from(snapshot.workerStatus.entries()).sort((a, b) => a[0] - b[0]);
       const needsOverflow = sorted.length > availableWorkerRows;
@@ -266,53 +214,31 @@ export const buildRunDashboardText = (
         ? Math.max(0, availableWorkerRows - 1)
         : availableWorkerRows;
       const visible = sorted.slice(0, visibleTarget);
-      const workerLines: string[] = [];
+      sections.push("");
+      sections.push(renderRuledSection("WORKERS", width, fmt));
+      sections.push("");
       for (const [workerId, state] of visible) {
-        if (state.status === "running") {
-          workerLines.push(
-            `W${workerId} | running | trial ${state.trialId ?? "-"} | ${spinnerFrame(snapshot.renderTick)} calling model`
-          );
-        } else if (state.status === "finishing") {
-          workerLines.push(
-            `W${workerId} | finishing | trial ${state.trialId ?? "-"} | ${spinnerFrame(snapshot.renderTick)} finishing`
-          );
-        } else if (state.status === "error") {
-          workerLines.push(`W${workerId} | error | trial ${state.trialId ?? "-"} | error`);
-        } else {
-          workerLines.push(`W${workerId} | idle | trial ${state.trialId ?? "-"} | idle`);
-        }
+        const workerRow: WorkerRow = {
+          id: workerId,
+          pct,
+          state: state.status,
+          trialId: state.trialId,
+          model: snapshot.mode === "mock" ? "mock" : "live",
+          spinner: state.status === "idle" ? spinnerFrame(snapshot.renderTick) : undefined
+        };
+        sections.push(renderWorkerRow(workerRow, fmt));
       }
       const hidden = sorted.length - visible.length;
       if (hidden > 0) {
-        workerLines.push(`(+${hidden} more workers)`);
+        sections.push(fmt.muted(`(+${hidden} more workers)`));
       }
-      sections.splice(
-        3,
-        0,
-        renderCard({
-          title: "Workers",
-          lines: workerLines,
-          lineStyler: (line, _index, fmt) => {
-            if (line.includes("| error |")) {
-              return fmt.error(line);
-            }
-            if (line.includes("| running |")) {
-              return fmt.info(line);
-            }
-            if (line.includes("| finishing |")) {
-              return fmt.warn(line);
-            }
-            if (line.startsWith("(+")) {
-              return fmt.muted(line);
-            }
-            return fmt.text(line);
-          }
-        })
-      );
     }
   }
 
-  return `${createStyledRunHeader(UI_COPY.runHeader)}\n${sections.join("\n")}\n`;
+  sections.push("");
+  sections.push(renderSeparator(width, fmt));
+  sections.push(fmt.muted("Ctrl+C graceful stop"));
+  return `${sections.join("\n")}\n`;
 };
 
 class RunDashboardMonitor {
@@ -528,6 +454,80 @@ const readReceiptText = (runDir: string): string | null => {
   return readFileSync(receiptPath, "utf8");
 };
 
+const buildReceiptDisplayText = (runDir: string): string | null => {
+  try {
+    const model = buildReceiptModel(runDir);
+    const fmt = createStdoutFormatter();
+    const width = fmt.termWidth();
+    const lines: string[] = [
+      renderStatusStrip("run / receipt", 0, width, fmt),
+      renderSeparator(width, fmt),
+      "",
+      renderRuledSection("RECEIPT", width, fmt),
+      "",
+      toStopBanner(model.stop_reason),
+      fmt.muted(UI_COPY.stoppingCaveat),
+      "",
+      renderRuledSection("SUMMARY", width, fmt),
+      "",
+      renderKV("Stop reason", model.stop_reason ?? "unknown", fmt),
+      renderKV(
+        "Trials",
+        `${model.counts.k_planned ?? "-"} / ${model.counts.k_attempted ?? "-"} / ${model.counts.k_eligible ?? "-"} (planned / completed / eligible)`,
+        fmt
+      ),
+      renderKV("Duration", `${model.started_at ?? "-"} -> ${model.completed_at ?? "-"}`, fmt),
+      renderKV(
+        "Usage",
+        model.usage
+          ? `${model.usage.totals.total_tokens} tokens (in ${model.usage.totals.prompt_tokens}, out ${model.usage.totals.completion_tokens})`
+          : "not available",
+        fmt
+      ),
+      renderKV("Protocol", model.protocol ?? "-", fmt),
+      renderKV("Models", String(model.model_count), fmt),
+      renderKV("Personas", String(model.persona_count), fmt)
+    ];
+
+    if (model.grouping?.enabled) {
+      lines.push("");
+      lines.push(renderRuledSection("GROUPS", width, fmt));
+      lines.push("");
+      lines.push("Top group sizes");
+      lines.push(model.grouping.group_count !== undefined ? String(model.grouping.group_count) : "—");
+      lines.push("");
+      lines.push(fmt.muted(UI_COPY.groupingCaveat));
+    }
+
+    lines.push("");
+    lines.push(renderRuledSection("ARTIFACTS", width, fmt));
+    lines.push("");
+    if ((model.artifacts?.length ?? 0) === 0) {
+      lines.push("(no artifacts listed)");
+    } else {
+      const paths = model.artifacts?.map((artifact) => artifact.path) ?? [];
+      for (let index = 0; index < paths.length; index += 3) {
+        lines.push(paths.slice(index, index + 3).join("    "));
+      }
+    }
+
+    if ((model.counts.k_eligible ?? 0) === 0) {
+      lines.push("No embeddings were generated because there were zero eligible trials.");
+    }
+
+    lines.push("");
+    lines.push(renderRuledSection("REPRODUCE", width, fmt));
+    lines.push("");
+    lines.push(`arbiter run --config ${runDir}/config.resolved.json`);
+    lines.push("");
+    lines.push(renderSeparator(width, fmt));
+    lines.push(fmt.muted("Run complete."));
+    return `${lines.join("\n")}\n`;
+  } catch {
+    return null;
+  }
+};
+
 export const createUiRunLifecycleHooks = (input?: {
   dashboard?: boolean;
   stackPrefixText?: string;
@@ -558,12 +558,18 @@ export const createUiRunLifecycleHooks = (input?: {
       }
 
       const receiptText = readReceiptText(context.runDir);
+      const receiptDisplayText = buildReceiptDisplayText(context.runDir);
+      if (receiptDisplayText) {
+        process.stdout.write(receiptDisplayText);
+        return;
+      }
+
       if (!receiptText) {
         context.warningSink.warn("receipt.txt missing after run completion", "receipt");
         return;
       }
 
-      process.stdout.write(`${createStyledRunHeader(UI_COPY.receiptHeader)}\n`);
+      process.stdout.write(`${UI_COPY.receiptHeader}\n`);
       process.stdout.write(receiptText);
     }
   };

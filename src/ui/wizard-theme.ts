@@ -1,48 +1,31 @@
 import { UI_COPY, toApiKeyPresenceLabel, toRunModeLabel, type UiRunMode } from "./copy.js";
-import { createStdoutFormatter, type Formatter } from "./fmt.js";
+import { type Formatter } from "./fmt.js";
 
-type BoxChars = {
-  topLeft: string;
-  topRight: string;
-  bottomLeft: string;
-  bottomRight: string;
-  horizontal: string;
-  vertical: string;
-};
+export type RailStepState = "completed" | "active" | "pending";
 
-export type ProgressStep = {
+export type RailStep = {
   label: string;
-  status: "current" | "completed" | "pending";
+  state: RailStepState;
   summary?: string;
+  contentLines?: string[];
 };
 
-export type CardLineStyler = (
-  line: string,
-  index: number,
-  formatter: Formatter
-) => string;
+export type WorkerRow = {
+  id: number;
+  pct: number;
+  state: "running" | "idle" | "finishing" | "error";
+  trialId?: number;
+  model?: string;
+  spinner?: string;
+};
 
-const toBoxChars = (unicode: boolean): BoxChars =>
-  unicode
-    ? {
-        topLeft: "╭",
-        topRight: "╮",
-        bottomLeft: "╰",
-        bottomRight: "╯",
-        horizontal: "─",
-        vertical: "│"
-      }
-    : {
-        topLeft: "+",
-        topRight: "+",
-        bottomLeft: "+",
-        bottomRight: "+",
-        horizontal: "-",
-        vertical: "|"
-      };
+export const SUMMARY_COLUMN = 22;
+export const CONTENT_INDENT = 4;
+export const KV_KEY_WIDTH = 16;
+export const MASTER_BAR_MAX = 30;
+export const WORKER_BAR_WIDTH = 10;
 
-const stripAnsi = (value: string): string =>
-  value.replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, "");
+const stripAnsi = (value: string): string => value.replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, "");
 
 const visibleLength = (value: string): number => stripAnsi(value).length;
 
@@ -54,160 +37,180 @@ const padRight = (value: string, width: number): string => {
   return `${value}${" ".repeat(width - len)}`;
 };
 
-const clampCardWidth = (columns: number, requested?: number): number => {
-  const maxWidth = Math.max(44, columns - 2);
-  const target = requested ?? Math.min(108, Math.max(72, columns - 2));
-  return Math.max(44, Math.min(maxWidth, target));
+const formatClock = (elapsedMs: number): string => {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const seconds = totalSeconds % 60;
+  const minutes = Math.floor(totalSeconds / 60) % 60;
+  const hours = Math.floor(totalSeconds / 3600);
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+  if (hours > 0) {
+    return `${String(hours).padStart(2, "0")}:${mm}:${ss}`;
+  }
+  return `${mm}:${ss}`;
 };
 
-const splitLine = (line: string, width: number): string[] => {
-  if (line.length <= width) {
-    return [line];
+const toRatio = (pct: number): number => {
+  if (!Number.isFinite(pct)) {
+    return 0;
   }
-  const words = line.split(/\s+/).filter(Boolean);
-  if (words.length <= 1) {
-    const chunks: string[] = [];
-    for (let cursor = 0; cursor < line.length; cursor += width) {
-      chunks.push(line.slice(cursor, cursor + width));
-    }
-    return chunks;
+  if (pct <= 1) {
+    return Math.max(0, Math.min(1, pct));
   }
-  const wrapped: string[] = [];
-  let current = "";
-  for (const word of words) {
-    const next = current.length === 0 ? word : `${current} ${word}`;
-    if (next.length > width) {
-      if (current.length > 0) {
-        wrapped.push(current);
-      }
-      if (word.length > width) {
-        wrapped.push(...splitLine(word, width));
-        current = "";
-      } else {
-        current = word;
-      }
-    } else {
-      current = next;
-    }
-  }
-  if (current.length > 0) {
-    wrapped.push(current);
-  }
-  return wrapped;
+  return Math.max(0, Math.min(1, pct / 100));
 };
 
-export const renderCard = (input: {
-  title?: string;
-  lines: string[];
-  columns?: number;
-  width?: number;
-  unicode?: boolean;
-  lineStyler?: CardLineStyler;
-}): string => {
-  const formatter = createStdoutFormatter();
-  const columns = input.columns ?? process.stdout.columns ?? 100;
-  const unicode = input.unicode ?? Boolean(process.stdout.isTTY);
-  const box = toBoxChars(unicode);
-  const width = clampCardWidth(columns, input.width);
-  const inner = Math.max(10, width - 4);
+export const renderRailStep = (step: RailStep, fmt: Formatter, dimmed = false): string => {
+  const glyph =
+    step.state === "completed"
+      ? "✔"
+      : step.state === "active"
+        ? "◆"
+        : "◇";
+  const basePlain = `${glyph}  ${step.label}`;
 
-  const bodyLines = input.lines.flatMap((line) => splitLine(line, inner));
-  const styleBorder = (value: string): string => formatter.muted(value);
-  const top = (() => {
-    if (!input.title || input.title.trim().length === 0) {
-      return styleBorder(`${box.topLeft}${box.horizontal.repeat(width - 2)}${box.topRight}`);
+  if (dimmed) {
+    const gap = step.summary ? Math.max(1, SUMMARY_COLUMN - visibleLength(basePlain)) : 0;
+    const suffix = step.summary ? `${" ".repeat(gap)}${step.summary}` : "";
+    return fmt.muted(`${basePlain}${suffix}`);
+  }
+
+  if (step.state === "active") {
+    return `${fmt.brand(glyph)}  ${fmt.bold(fmt.brand(step.label))}`;
+  }
+  if (step.state === "pending") {
+    return `${fmt.accent(glyph)}  ${fmt.muted(step.label)}`;
+  }
+
+  const gap = step.summary ? Math.max(1, SUMMARY_COLUMN - visibleLength(basePlain)) : 0;
+  const summaryPart = step.summary ? `${" ".repeat(gap)}${fmt.muted(step.summary)}` : "";
+  return `${fmt.brand(glyph)}  ${fmt.text(step.label)}${summaryPart}`;
+};
+
+export const renderRailContent = (lines: string[], fmt: Formatter): string => {
+  const out: string[] = [fmt.accent("│")];
+  for (const rawLine of lines) {
+    if (rawLine.length === 0) {
+      out.push(fmt.accent("│"));
+      continue;
     }
-    const title = ` ${input.title.trim()} `;
-    const titleLen = Math.min(title.length, width - 4);
-    const clipped = title.slice(0, titleLen);
-    const remaining = Math.max(0, width - 2 - titleLen);
-    return `${styleBorder(box.topLeft)}${formatter.bold(formatter.accent(clipped))}${styleBorder(
-      `${box.horizontal.repeat(remaining)}${box.topRight}`
-    )}`;
+    out.push(`${fmt.accent("│")}   ${rawLine}`);
+  }
+  out.push(fmt.accent("│"));
+  return out.join("\n");
+};
+
+export const renderRuledSection = (label: string, width: number, fmt: Formatter): string => {
+  const resolvedWidth = Math.max(24, Math.min(width, 78));
+  const upper = label.toUpperCase();
+  const prefix = "── ";
+  const spacer = " ";
+  const baseLen = prefix.length + upper.length + spacer.length;
+  const remaining = Math.max(0, resolvedWidth - baseLen);
+  return `${fmt.accent(prefix)}${fmt.bold(fmt.brand(upper))}${fmt.accent(
+    `${spacer}${"─".repeat(remaining)}`
+  )}`;
+};
+
+export const renderProgressBar = (
+  pct: number,
+  width: number,
+  fillColor: (value: string) => string,
+  fmt: Formatter
+): string => {
+  const resolvedWidth = Math.max(6, width);
+  const ratio = toRatio(pct);
+  const filled = Math.round(ratio * resolvedWidth);
+  const empty = Math.max(0, resolvedWidth - filled);
+  const fill = filled > 0 ? fillColor("█".repeat(filled)) : "";
+  const rest = empty > 0 ? fmt.muted("░".repeat(empty)) : "";
+  return `${fill}${rest}`;
+};
+
+export const renderBrandBlock = (
+  version: string,
+  apiKeyPresent: boolean,
+  runMode: UiRunMode,
+  configCount: number,
+  fmt: Formatter
+): string => {
+  const width = Math.max(60, Math.min(process.stdout.columns ?? 80, 120));
+  const versionText = `v${version}`;
+  const pad = Math.max(2, width - UI_COPY.brand.length - versionText.length);
+  const apiKeyLabel = toApiKeyPresenceLabel(apiKeyPresent);
+  const apiKeyValue = apiKeyPresent ? fmt.text(apiKeyLabel) : fmt.warn(apiKeyLabel);
+  const modeValue = fmt.text(toRunModeLabel(runMode));
+  const configsValue = fmt.text(`${configCount} in current directory`);
+
+  return [
+    `${fmt.bold(fmt.brand(UI_COPY.brand))}${" ".repeat(pad)}${fmt.muted(versionText)}`,
+    fmt.muted(UI_COPY.tagline),
+    "",
+    `${fmt.muted(padRight("API key:", 11))}${apiKeyValue}`,
+    `${fmt.muted(padRight("Run mode:", 11))}${modeValue}`,
+    `${fmt.muted(padRight("Configs:", 11))}${configsValue}`
+  ].join("\n");
+};
+
+export const renderStatusStrip = (
+  context: string,
+  elapsedMs: number,
+  width: number,
+  fmt: Formatter
+): string => {
+  const clock = formatClock(elapsedMs);
+  const left = `${fmt.brand("›")} ${fmt.bold(fmt.brand("arbiter"))}  ${fmt.muted(context)}`;
+  const gap = Math.max(1, width - visibleLength(left) - clock.length);
+  return `${left}${" ".repeat(gap)}${fmt.muted(clock)}`;
+};
+
+export const renderKV = (key: string, value: string, fmt: Formatter, keyWidth = KV_KEY_WIDTH): string =>
+  `${fmt.muted(padRight(key, keyWidth))}${fmt.text(value)}`;
+
+export const renderWorkerRow = (worker: WorkerRow, fmt: Formatter): string => {
+  const stateColor = (() => {
+    if (worker.state === "error") {
+      return fmt.error;
+    }
+    if (worker.state === "finishing") {
+      return fmt.accent;
+    }
+    if (worker.state === "running") {
+      return fmt.brand;
+    }
+    return fmt.muted;
   })();
 
-  const middle = bodyLines.map((line, index) => {
-    const padded = padRight(line, inner);
-    const content = input.lineStyler
-      ? input.lineStyler(padded, index, formatter)
-      : formatter.text(padded);
-    return `${styleBorder(box.vertical)} ${content} ${styleBorder(box.vertical)}`;
-  });
-  const bottom = styleBorder(`${box.bottomLeft}${box.horizontal.repeat(width - 2)}${box.bottomRight}`);
-  return [top, ...middle, bottom].join("\n");
-};
-
-export const renderMasthead = (input: {
-  version: string;
-  apiKeyPresent: boolean;
-  runMode: UiRunMode;
-  configCount: number;
-  columns?: number;
-  unicode?: boolean;
-}): string => {
-  const lines = [
-    UI_COPY.tagline,
-    `Version ${input.version}`,
-    "",
-    "Environment",
-    `OpenRouter API key: ${toApiKeyPresenceLabel(input.apiKeyPresent)}`,
-    `Run mode: ${toRunModeLabel(input.runMode)}`,
-    `Configs in current directory: ${input.configCount}`
-  ];
-  return renderCard({
-    title: UI_COPY.brand,
-    lines,
-    columns: input.columns,
-    unicode: input.unicode
-  });
-};
-
-const toProgressMarker = (status: ProgressStep["status"], unicode: boolean): string => {
-  if (status === "current") {
-    return unicode ? "▸" : ">";
-  }
-  if (status === "completed") {
-    return unicode ? "◆" : "*";
-  }
-  return unicode ? "·" : ".";
-};
-
-export const renderProgressSpine = (input: {
-  steps: ProgressStep[];
-  columns?: number;
-  unicode?: boolean;
-}): string => {
-  const unicode = input.unicode ?? Boolean(process.stdout.isTTY);
-  const lines: string[] = [];
-  for (const step of input.steps) {
-    lines.push(`${toProgressMarker(step.status, unicode)} ${step.label}`);
-    if (step.summary) {
-      lines.push(`  ${step.summary}`);
+  const fillColor = (() => {
+    if (worker.state === "error") {
+      return fmt.error;
     }
-  }
-  return renderCard({
-    title: "Progress",
-    lines,
-    columns: input.columns,
-    unicode,
-    lineStyler: (line, _index, formatter) => {
-      const trimmed = line.trimStart();
-      if (trimmed.startsWith("▸") || trimmed.startsWith(">")) {
-        return formatter.bold(formatter.accent(line));
-      }
-      if (trimmed.startsWith("◆") || trimmed.startsWith("*")) {
-        return formatter.success(line);
-      }
-      if (trimmed.startsWith("·") || trimmed.startsWith(".")) {
-        return formatter.muted(line);
-      }
-      if (trimmed.startsWith("✔")) {
-        return formatter.success(line);
-      }
-      return formatter.text(line);
+    if (worker.state === "finishing") {
+      return fmt.accent;
     }
-  });
+    if (worker.state === "running") {
+      return fmt.brand;
+    }
+    return fmt.muted;
+  })();
+
+  const bar =
+    worker.state === "idle" && worker.spinner
+      ? fmt.muted(padRight(worker.spinner, WORKER_BAR_WIDTH))
+      : renderProgressBar(worker.pct, WORKER_BAR_WIDTH, fillColor, fmt);
+
+  const pct = `${Math.round(toRatio(worker.pct) * 100)}%`.padStart(4, " ");
+  const state = padRight(worker.state, 8);
+  const trial = `trial ${worker.trialId ?? "-"}`;
+  const model = worker.model ?? "—";
+
+  return `${fmt.text(padRight(`W${worker.id}`, 4))}${bar}  ${fmt.text(pct)}  ${stateColor(state)}  ${fmt.text(
+    trial
+  )}  ${fmt.text(model)}`;
 };
+
+export const renderSeparator = (width: number, fmt: Formatter): string =>
+  fmt.accent("─".repeat(Math.max(24, width)));
 
 export const truncate = (value: string, max: number): string => {
   if (value.length <= max) {

@@ -176,7 +176,7 @@ test("pty: wizard launches in TTY and exits cleanly from Step 0", { concurrency:
   const session = createPtySession({ cwd });
 
   try {
-    await session.waitForText("ARBITER", 25000);
+    await session.waitForText("A R B I T E R", 25000);
     await session.waitForText("Choose how to start", 25000);
     await session.waitForText("Run existing config", 25000);
     await session.waitForText("Create new study (guided wizard)", 25000);
@@ -206,10 +206,11 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
     await session.waitForText("Review and Confirm", 25000);
     session.pressEnter();
 
-    await session.waitForText("Study Summary", 45000);
-    await session.waitForText("═══ RUN ═══", 45000);
+    await session.waitForText("✔  Entry Path", 45000);
+    await session.waitForText("── PROGRESS", 45000);
     await session.waitForText("Usage not applicable", 45000);
-    await session.waitForText("═══ RECEIPT ═══", 45000);
+    await session.waitForText("── RECEIPT", 45000);
+    await session.waitForText("Stopped:", 45000);
 
     const exit = await session.waitForExit(45000);
     assert.equal(exit.exitCode, 0);
@@ -224,12 +225,12 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
     assertRunArtifacts(cwd, latestRunDir);
 
     const output = session.getOutput();
-    const mastheadIndex = output.indexOf("ARBITER");
-    const summaryIndex = output.indexOf("Study Summary");
-    const runIndex = output.indexOf("═══ RUN ═══");
-    const receiptIndex = output.indexOf("═══ RECEIPT ═══");
+    const mastheadIndex = output.indexOf("A R B I T E R");
+    const summaryIndex = output.indexOf("✔  Entry Path");
+    const runIndex = output.indexOf("── PROGRESS");
+    const receiptIndex = output.indexOf("── RECEIPT");
     assert.ok(mastheadIndex >= 0, "expected Stage 0 masthead in output");
-    assert.ok(summaryIndex > mastheadIndex, "expected Stage 1 summary after masthead");
+    assert.ok(summaryIndex > mastheadIndex, "expected Stage 1 frozen rail after masthead");
     assert.ok(runIndex > summaryIndex, "expected Stage 2 run dashboard after Stage 1 summary");
     assert.ok(receiptIndex > runIndex, "expected Stage 3 receipt after Stage 2 output");
     assert.equal(
@@ -261,7 +262,7 @@ test("pty: create-new path submits Step 1 question with Enter", { concurrency: f
     session.typeText("Question submit fallback test");
     session.pressEnter();
 
-    await session.waitForText("Protocol", 25000);
+    await session.waitForText("◆  Protocol", 25000);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });

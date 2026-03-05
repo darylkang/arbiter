@@ -27,6 +27,13 @@ const session = pty.spawn("node", [CLI_ENTRY], {
 let rawOutput = "";
 let checkpointIndex = 0;
 const checkpoints = [];
+const ANSI_CSI_REGEX = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
+const ANSI_OSC_REGEX = /\u001b\][^\u0007]*\u0007/g;
+const stripAnsi = (value) =>
+  value
+    .replace(ANSI_OSC_REGEX, "")
+    .replace(ANSI_CSI_REGEX, "")
+    .replace(/\r/g, "");
 const exitPromise = new Promise((resolveExit) => {
   session.onExit(resolveExit);
 });
@@ -39,14 +46,15 @@ const waitForText = (text, timeoutMs = 25000) =>
   new Promise((resolveWait, rejectWait) => {
     const deadline = Date.now() + timeoutMs;
     const poll = setInterval(() => {
-      if (rawOutput.includes(text)) {
+      const current = stripAnsi(rawOutput);
+      if (current.includes(text)) {
         clearInterval(poll);
         resolveWait(true);
         return;
       }
       if (Date.now() >= deadline) {
         clearInterval(poll);
-        const tail = rawOutput.slice(-1200);
+        const tail = current.slice(-1200);
         rejectWait(
           new Error(
             `waitForText(${text}) timed out after ${timeoutMs}ms\n--- raw tail ---\n${tail}\n--- end tail ---`
@@ -85,6 +93,7 @@ const arrowDown = (count = 1) => {
 };
 
 const run = async () => {
+  await waitForText("A R B I T E R");
   await waitForText("Choose how to start");
   saveSnapshot("step0-entry");
   arrowDown(1);
@@ -95,22 +104,24 @@ const run = async () => {
   arrowDown(1);
   pressEnter();
 
+  await waitForText("◆  Research Question");
   await waitForText("Type your question and press Enter to continue");
   saveSnapshot("step1-question");
   session.write("What are the tradeoffs of event sourcing?\r");
 
-  await waitForText("Step 2 Protocol");
+  await waitForText("◆  Protocol");
   saveSnapshot("step2-protocol");
   pressEnter();
 
-  await waitForText("Step 3 Models");
+  await waitForText("◆  Models");
   saveSnapshot("step3-models");
   pressEnter();
 
-  await waitForText("Step 4 Personas");
+  await waitForText("◆  Personas");
   saveSnapshot("step4-personas");
   pressEnter();
 
+  await waitForText("◆  Decode Params");
   await waitForText("Temperature mode");
   saveSnapshot("step5-decode-mode");
   pressEnter();
@@ -121,19 +132,19 @@ const run = async () => {
   await waitForText("Seed mode");
   session.write("\u001b[A\r"); // pick random seed
 
-  await waitForText("Advanced settings");
+  await waitForText("◆  Advanced Settings");
   saveSnapshot("step6-advanced");
   // choose defaults
   session.write("\u001b[A\r");
 
-  await waitForText("Review action");
+  await waitForText("◆  Review and Confirm");
   saveSnapshot("step7-review");
   pressEnter(); // Run now
 
-  await waitForText("═══ RUN ═══");
-  saveSnapshot("stage2-run", { endBeforeText: "═══ RECEIPT ═══" });
+  await waitForText("── PROGRESS");
+  saveSnapshot("stage2-run");
 
-  await waitForText("═══ RECEIPT ═══", 45000);
+  await waitForText("── RECEIPT", 45000);
   await delay(200);
   saveSnapshot("stage3-receipt");
 
