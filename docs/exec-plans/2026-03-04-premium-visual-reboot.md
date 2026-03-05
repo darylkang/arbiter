@@ -122,7 +122,9 @@ Design constraints for this reboot:
 4. clearly distinctive brand character at first glance,
 5. stable readability in long sessions and narrow terminal widths,
 6. border-integrated navigation rail/timeline treatment (not separate utility spine card),
-7. glyph-native selectors for prompt options (`○/●`, `◇/◆`) instead of bracket checkboxes.
+7. glyph-native selectors for prompt options (`○/●`, `◇/◆`) instead of bracket checkboxes,
+8. app-shell composition with top status strip, primary content region, and command footer,
+9. split-pane information architecture on wide terminals where it improves scan speed.
 
 Concrete visual targets (frozen in M0 before implementation):
 
@@ -134,45 +136,54 @@ Source of truth:
 1. Stage 0 + Step 0 composition target:
 
 ```text
-╭─ ARBITER ───────────────────────────────────────────────────────────────╮
-│ Distributional reasoning harness                                         │
-│ Version x.y.z                                                            │
-│ Environment  API key: detected  Mode: Mock  Configs in CWD: 3            │
-╰───────────────────────────────────────────────────────────────────────────╯
+› arbiter  onboarding                                                      00:09
+───────────────────────────────────────────────────────────────────────────────
+╭─────────────────────────────╮╭─────────────────────────────────────────────╮
+│ █████╗ ██████╗ ██████╗      ││  Distributional reasoning harness            │
+│ ██╔══██╗██╔══██╗██╔══██╗    ││  Version x.y.z                               │
+│ ███████║██████╔╝██████╔╝    ││  API key: detected                           │
+│ ██╔══██║██╔══██╗██╔══██╗    ││  Run mode: Mock                              │
+│ ██║  ██║██║  ██║██████╔╝    ││  Configs in CWD: 3                           │
+╰─────────────────────────────╯╰─────────────────────────────────────────────╯
 
-╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
-│ ◆ Research Question                                                      │
-│ · Protocol                                                               │
-│ · Models                                                                 │
-│ · Personas                                                               │
-│ · Decode Parameters                                                      │
-│ · Advanced Settings                                                      │
-│ · Review and Confirm                                                     │
-╰───────────────────────────────────────────────────────────────────────────╯
-
-╭─ Entry Path ─────────────────────────────────────────────────────────────╮
-│ ▸ Create new study                                                       │
-│   Run existing config (unavailable)                                      │
-╰───────────────────────────────────────────────────────────────────────────╯
+╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+│ ◆ Entry Path            │  ▸ ● Create new study (guided wizard)            │
+│ │ Choose how to start   │    ○ Run existing config (unavailable)            │
+│ ◇ Research Question     │                                                     │
+│ ◇ Protocol              │  Run existing config is unavailable: no config     │
+│ ◇ Models                │  files found in this directory.                    │
+│ ◇ Personas              │                                                     │
+│ ◇ Decode Params         │                                                     │
+│ ◇ Advanced Settings     │                                                     │
+│ ◇ Review and Confirm    │                                                     │
+╰───────────────────────────────────────────────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+↑/↓ move · Enter select · Esc back
 ```
 
 2. Stage 2 dashboard composition target:
 
 ```text
+› arbiter  run / monitoring                                                00:19
+───────────────────────────────────────────────────────────────────────────────
 [frozen masthead]
 [frozen study summary card]
 
 ═══ RUN ═══
-
 ╭─ Master progress ─────────────────────────────────────────────────────────╮
-│ Progress  28/80  [███████████░░░░░░░░░░░░░░] 35%                        │
-│ Elapsed 00:02:12  ETA 00:04:03                                           │
+│ Trials: 28/80 | Workers: 3                                                │
+│ [███████████░░░░░░░░░░░░░] 35%    Elapsed 00:02:12    ETA 00:04:03       │
 ╰───────────────────────────────────────────────────────────────────────────╯
 
-╭─ Monitoring ─────────────────────────────────────────────────────────────╮
-│ Novelty rate: 0.18     Patience: 2/4     Stop signal: continue           │
-│ Stopping indicates diminishing novelty, not correctness.                 │
-╰───────────────────────────────────────────────────────────────────────────╯
+╭─ Monitoring ─────────────────────────╮╭─ Workers ─────────────────────────╮
+│ Novelty rate: 0.18                  ││ W1  running  trial 28             │
+│ Patience: 2/4                       ││ W2  idle     trial 19             │
+│ Status: sampling continues          ││ W3  running  trial 27             │
+│ Stopping indicates diminishing      ││ (+2 more workers)                  │
+│ novelty, not correctness.           │╰────────────────────────────────────╯
+╰──────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+Ctrl+C graceful stop · q ignore updates
 ```
 
 3. Stage 3 receipt composition target:
@@ -184,13 +195,17 @@ Source of truth:
 
 ═══ RECEIPT ═══
 
-╭─ Receipt Summary ─────────────────────────────────────────────────────────╮
-│ Stopped: novelty saturation                                               │
-│ Trials completed: 64 / 80                                                 │
-│ Eligible: 60  Failed: 4                                                   │
-│ Artifacts written: manifest.json, trials.jsonl, monitoring.jsonl, ...    │
-│ Stopping indicates diminishing novelty, not correctness.                  │
-╰───────────────────────────────────────────────────────────────────────────╯
+╭─ Completion ─────────────────────────╮╭─ Artifacts ───────────────────────╮
+│ Stopped: novelty saturation          ││ config.source.json                │
+│ Trials: 80 / 80 / 76                ││ config.resolved.json              │
+│ Duration: 00:05:47                  ││ manifest.json                     │
+│ Usage: 122k tokens (estimate)       ││ trials.jsonl                      │
+│                                      ││ monitoring.jsonl                  │
+│ Stopping indicates diminishing       ││ receipt.txt                       │
+│ novelty, not correctness.            │╰────────────────────────────────────╯
+╰──────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+Run complete.
 ```
 
 M0 freeze deliverables:
@@ -365,6 +380,8 @@ Premium visual acceptance (must all pass):
 8. Copy+visual cohesion test: tone and visual prominence align (no severe mismatch between “premium look” and flat wording).
 9. Integrated-rail test: Stage 1 uses a border-integrated timeline rail, not a detached utility list card.
 10. Selector-glyph test: binary and multi-select prompts use glyph-native controls (no `[ ]` or `[x]`).
+11. App-shell test: each major surface includes top status strip + primary region + command footer.
+12. Split-pane test: wide-mode screens use at least one deliberate split-pane region where it improves scanability.
 
 Required visual evidence pack:
 
@@ -471,3 +488,4 @@ Reference-derived avoid patterns:
 - 2026-03-04 12:20Z: expanded to full review-cycle workflow with explicit pre-implementation two-round critique requirement and cross-links to canonical visual screen deck.
 - 2026-03-04 13:52Z: completed two doc hardening rounds, added score calibration anchors, and promoted full-stage visual deck to canonical layout source.
 - 2026-03-05 00:13Z: incorporated premium motif constraints from rendered benchmark review (border-integrated rail, timeline markers, glyph-native selectors) and elevated them to acceptance gates.
+- 2026-03-05 00:21Z: escalated visual contract toward Claude Code/OpenClaw parity with app-shell framing, split-pane emphasis, and upgraded ASCII targets for Step 0 run mode, Step 4 personas, and narrow-mode shells.

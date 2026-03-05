@@ -46,6 +46,8 @@ Global rules:
 8. Card title style is consistent across all stages.
 9. Status colors are semantic only (not decorative).
 10. Motion is functional only (spinner + progress updates).
+11. Every major screen uses app-shell composition: top status strip, primary content region, command footer.
+12. Where tabbed subviews exist, tab chrome is rendered in-line and keyboard discoverability is always shown.
 
 ## Premium Signature Contract
 
@@ -62,6 +64,41 @@ These motifs are required for the premium reboot and supersede plain utility sty
 4. Primary focus cursor uses `▸` only for current actionable row.
 5. Bracket checkbox styling (`[ ]`, `[x]`) is not used in premium mode.
 6. Hero lockup must read as deliberate brand treatment (block/glyph title or compact premium caps), not plain one-line label text.
+7. Split-pane composition is preferred over stacked utility blocks on wide terminals.
+8. Focus regions must be visually explicit (accent edge, active tab, or focused selector row).
+9. Command footer must summarize active controls using concise glyph-first hints.
+10. Visual language must feel like an application surface, not a raw questionnaire.
+
+## Benchmark Parity Cues (Claude Code / OpenClaw)
+
+These cues are mandatory calibration references for premium quality:
+
+1. left rail is structural, not decorative; it communicates progression and focus.
+2. major screens expose clear region boundaries (header block, content block, footer controls).
+3. list interactions read like native app controls (radio/toggle glyphs, focus marker, hint footer).
+4. dense information is grouped by pane, not dumped as undifferentiated text blocks.
+5. keyboard affordances are discoverable at the point of use.
+
+## App-Shell Composition Contract
+
+All stages inherit this shell pattern.
+
+```text
+› arbiter  {context}                                                     {time}
+───────────────────────────────────────────────────────────────────────────────
+[optional hero / identity block]
+[optional tabs row]
+[primary content region with integrated rail]
+───────────────────────────────────────────────────────────────────────────────
+{command footer / key hints}
+```
+
+Shell rules:
+
+1. top strip is single-line and high-contrast, used for identity + runtime context.
+2. middle region owns visual weight: panes, cards, rails, and data blocks.
+3. bottom strip is always present and never visually noisy.
+4. shell separators use consistent border weight across all stages.
 
 ## Stage 1 Panel Template (Border-Integrated Rail)
 
@@ -107,161 +144,192 @@ Tier behavior:
 ### Step 0: Entry Path
 
 ```text
-╭─ ARBITER ───────────────────────────────────────────────────────────────╮
-│  Distributional reasoning harness                                       │
-│  Version {version}                                                      │
-│  Environment  API key: {detected|not detected}  Mode: {—|Mock|Live}     │
-│  Configs in CWD: {count}                                                │
-╰──────────────────────────────────────────────────────────────────────────╯
+› arbiter  onboarding                                                      00:09
+───────────────────────────────────────────────────────────────────────────────
+╭─────────────────────────────╮╭─────────────────────────────────────────────╮
+│ █████╗ ██████╗ ██████╗      ││  Distributional reasoning harness            │
+│ ██╔══██╗██╔══██╗██╔══██╗    ││  Version {version}                           │
+│ ███████║██████╔╝██████╔╝    ││  API key: {detected|not detected}            │
+│ ██╔══██║██╔══██╗██╔══██╗    ││  Run mode: {—|Mock|Live}                     │
+│ ██║  ██║██║  ██║██████╔╝    ││  Configs in CWD: {count}                     │
+╰─────────────────────────────╯╰─────────────────────────────────────────────╯
 
-╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
-│ ◆ Entry Path                                                              │
-│ │ Choose how to start                                                     │
-│ │                                                                         │
-│ │ ▸ ● Create new study (guided wizard)                                    │
-│ │   ○ Run existing config (unavailable)                                   │
-│ ◇ Research Question                                                       │
-│ ◇ Protocol                                                                │
-│ ◇ Models                                                                  │
-│ ◇ Personas                                                                │
-│ ◇ Decode Params                                                           │
-│ ◇ Advanced Settings                                                       │
-│ ◇ Review and Confirm                                                      │
-╰───────────────────────────────────────────────────────────────────────────╯
+╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+│ ◆ Entry Path            │  ▸ ● Create new study (guided wizard)            │
+│ │ Choose how to start   │    ○ Run existing config (unavailable)            │
+│ ◇ Research Question     │                                                     │
+│ ◇ Protocol              │  Run existing config is unavailable: no config     │
+│ ◇ Models                │  files found in this directory.                    │
+│ ◇ Personas              │                                                     │
+│ ◇ Decode Params         │                                                     │
+│ ◇ Advanced Settings     │                                                     │
+│ ◇ Review and Confirm    │                                                     │
+╰───────────────────────────────────────────────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+↑/↓ move · Enter select · Esc back
 ```
 
 ### Step 0: Run Mode
 
 ```text
-╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
-│ ◆ Run Mode                                                                │
-│ │ Choose run mode                                                         │
-│ │                                                                         │
-│ │ ▸ ● Mock (no API calls)                                                 │
-│ │   ○ Live (OpenRouter)                                                   │
-│ │ Live mode is unavailable: OPENROUTER_API_KEY not detected.             │
-│ ◇ Research Question                                                       │
-│ ◇ Protocol                                                                │
-│ ◇ Models                                                                  │
-│ ◇ Personas                                                                │
-│ ◇ Decode Params                                                           │
-│ ◇ Advanced Settings                                                       │
-│ ◇ Review and Confirm                                                      │
-╰───────────────────────────────────────────────────────────────────────────╯
+› arbiter  onboarding / mode                                               00:10
+───────────────────────────────────────────────────────────────────────────────
+╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+│ ◆ Run Mode              │  Choose run mode                                 │
+│ │                       │                                                   │
+│ │ ▸ ● Mock (no API calls)│                                                  │
+│ │   ○ Live (OpenRouter) │                                                  │
+│ ◇ Research Question     │                                                   │
+│ ◇ Protocol              │  Live mode is unavailable:                        │
+│ ◇ Models                │  OPENROUTER_API_KEY not detected.                │
+│ ◇ Personas              │                                                   │
+│ ◇ Decode Params         │                                                   │
+│ ◇ Advanced Settings     │                                                   │
+│ ◇ Review and Confirm    │                                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+↑/↓ move · Enter select · Esc back
 ```
 
 ### Step 1: Research Question
 
 ```text
-╭─ Stage 1 / Setup ─────────────────╮  ╭─ Research Question ──────────────╮
-│  ◆ Research Question              │  │  Include all relevant context.   │
-│  · Protocol                       │  │  Arbiter samples responses to    │
-│  · Models                         │  │  characterize distributional      │
-│  · Personas                       │  │  behavior.                        │
-│  · Decode Params                  │  │                                   │
-│  · Advanced Settings              │  │  Question                         │
-│  · Review and Confirm             │  │  {multiline input}                │
-│                                   │  │                                   │
-│  ✔ Run mode: Mock                 │  │  Controls: Enter continue · Esc   │
-╰───────────────────────────────────╯  ╰───────────────────────────────────╯
+› arbiter  setup / question                                                00:11
+───────────────────────────────────────────────────────────────────────────────
+╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+│ ◆ Research Question    │  Question                                          │
+│ │ Include all relevant │  {multiline input}                                 │
+│ │ context. Arbiter     │                                                    │
+│ │ samples responses... │                                                    │
+│ ◇ Protocol             │                                                    │
+│ ◇ Models               │                                                    │
+│ ◇ Personas             │                                                    │
+│ ◇ Decode Params        │                                                    │
+│ ◇ Advanced Settings    │                                                    │
+│ ◇ Review and Confirm   │                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+Enter continue · Esc back
 ```
 
 ### Step 2: Protocol
 
 ```text
-╭─ Stage 1 / Setup ─────────────────╮  ╭─ Protocol ───────────────────────╮
-│  ✔ Research Question              │  │  Select how each trial is        │
-│  ◆ Protocol                       │  │  structured.                      │
-│  · Models                         │  │                                   │
-│  · Personas                       │  │  ▸ Independent                    │
-│  · Decode Params                  │  │    Debate                         │
-│  · Advanced Settings              │  │                                   │
-│  · Review and Confirm             │  │  Controls: ↑/↓ move · Enter      │
-╰───────────────────────────────────╯  ╰───────────────────────────────────╯
+› arbiter  setup / protocol                                                00:12
+───────────────────────────────────────────────────────────────────────────────
+╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+│ ◆ Protocol              │  Select how each trial is structured.            │
+│ │                       │                                                   │
+│ │ ▸ ● Independent       │                                                   │
+│ │   ○ Debate            │                                                   │
+│ ◇ Models                │                                                   │
+│ ◇ Personas              │                                                   │
+│ ◇ Decode Params         │                                                   │
+│ ◇ Advanced Settings     │                                                   │
+│ ◇ Review and Confirm    │                                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+↑/↓ move · Enter select · Esc back
 ```
 
 ### Step 3: Models
 
 ```text
-╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
-│ ◆ Models                                                                  │
-│ │ Select one or more models for sampling.                                 │
-│ │                                                                         │
-│ │ ▸ ◆ openai/gpt-5                                                        │
-│ │   ◇ anthropic/claude-sonnet-4                                           │
-│ │   ◆ openai/gpt-4.1-mini                                                 │
-│ │                                                                         │
-│ │ Warning: free-tier models selected...                                   │
-│ ◇ Personas                                                                │
-│ ◇ Decode Params                                                           │
-│ ◇ Advanced Settings                                                       │
-│ ◇ Review and Confirm                                                      │
-╰───────────────────────────────────────────────────────────────────────────╯
+› arbiter  setup / models                                                  00:13
+───────────────────────────────────────────────────────────────────────────────
+Plugins  Discover  Installed   (←/→ cycle)
+───────────────────────────────────────────────────────────────────────────────
+╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+│ ◆ Models                │  Search models...                                │
+│ │ Select one or more    │  ──────────────────────────────────────────────  │
+│ │ models for sampling.  │  ▸ ◆ openai/gpt-5 · stable · paid               │
+│ ◇ Personas              │    ◇ anthropic/claude-sonnet-4 · premium         │
+│ ◇ Decode Params         │    ◆ openai/gpt-4.1-mini · fast                  │
+│ ◇ Advanced Settings     │    ◇ google/gemini-2.0-flash · free              │
+│ ◇ Review and Confirm    │                                                   │
+│                         │  Warning: free-tier models selected.             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+↑/↓ move · Space toggle · Enter confirm · Esc back
 ```
 
 ### Step 4: Personas
 
 ```text
-╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
-│ ◆ Personas                                                                │
-│ │ Select one or more personas for sampling.                               │
-│ │                                                                         │
-│ │ ▸ ◆ neutral_analyst                                                     │
-│ │   ◆ skeptical_reviewer                                                  │
-│ │   ◇ policy_formalist                                                    │
-│ │                                                                         │
-│ │ Controls: ↑/↓ move · Space toggle · Enter confirm                      │
-│ ◇ Decode Params                                                           │
-│ ◇ Advanced Settings                                                       │
-│ ◇ Review and Confirm                                                      │
-╰───────────────────────────────────────────────────────────────────────────╯
+› arbiter  setup / personas                                                00:13
+───────────────────────────────────────────────────────────────────────────────
+╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+│ ◆ Personas              │  Select one or more personas for sampling.       │
+│ │                       │                                                   │
+│ │ ▸ ◆ neutral_analyst   │                                                   │
+│ │   ◆ skeptical_reviewer│                                                   │
+│ │   ◇ policy_formalist  │                                                   │
+│ ◇ Decode Params         │                                                   │
+│ ◇ Advanced Settings     │                                                   │
+│ ◇ Review and Confirm    │                                                   │
+│                         │                                                   │
+│                         │                                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+↑/↓ move · Space toggle · Enter confirm · Esc back
 ```
 
 ### Step 5: Decode Params
 
 ```text
-╭─ Stage 1 / Setup ─────────────────╮  ╭─ Decode Params ──────────────────╮
-│  ✔ Research Question              │  │  Set temperature and seed        │
-│  ✔ Protocol                       │  │  behavior for trial sampling.     │
-│  ✔ Models                         │  │                                   │
-│  ✔ Personas                       │  │  Temperature mode: ▸ Single value │
-│  ◆ Decode Params                  │  │  Temperature: 0.70                │
-│  · Advanced Settings              │  │  Seed mode: ▸ Random              │
-│  · Review and Confirm             │  │                                   │
-│                                   │  │  Controls: Enter confirm · Esc    │
-╰───────────────────────────────────╯  ╰───────────────────────────────────╯
+› arbiter  setup / decode                                                  00:14
+───────────────────────────────────────────────────────────────────────────────
+╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+│ ◆ Decode Params         │  Temperature mode                                │
+│ │ Set temperature and   │  ▸ ● Single value                                │
+│ │ seed behavior for     │    ○ Range (uniform)                             │
+│ │ trial sampling.       │                                                   │
+│ ◇ Advanced Settings     │  Temperature: 0.70                               │
+│ ◇ Review and Confirm    │  Seed mode: ● Random  ○ Fixed seed              │
+│                         │                                                   │
+│                         │                                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+↑/↓ move · Enter confirm · Esc back
 ```
 
 ### Step 6: Advanced Settings
 
 ```text
-╭─ Stage 1 / Setup ─────────────────╮  ╭─ Advanced Settings ──────────────╮
-│  ✔ Research Question              │  │  Use defaults or customize        │
-│  ✔ Protocol                       │  │  execution and stopping settings. │
-│  ✔ Models                         │  │                                   │
-│  ✔ Personas                       │  │  ▸ Use defaults (recommended)     │
-│  ✔ Decode Params                  │  │    Customize                      │
-│  ◆ Advanced Settings              │  │                                   │
-│  · Review and Confirm             │  │  Controls: ↑/↓ move · Enter      │
-╰───────────────────────────────────╯  ╰───────────────────────────────────╯
+› arbiter  setup / advanced                                                00:15
+───────────────────────────────────────────────────────────────────────────────
+╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+│ ◆ Advanced Settings     │  Use defaults or customize execution and         │
+│ │                       │  stopping settings.                              │
+│ │ ▸ ● Use defaults      │                                                  │
+│ │   ○ Customize         │                                                  │
+│ ◇ Review and Confirm    │                                                  │
+│                         │                                                  │
+│                         │                                                  │
+│                         │                                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+↑/↓ move · Enter select · Esc back
 ```
 
 ### Step 7: Review and Confirm
 
 ```text
-╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
-│ ◆ Review and Confirm                                                      │
-│ │ Preflight                                                               │
-│ │ ◆ Schema validation                                                     │
-│ │ ◆ Output path writable                                                  │
-│ │ ◇ Live connectivity check                                               │
-│ │                                                                         │
-│ │ ▸ ● Run now                                                             │
-│ │   ○ Save config and exit                                                │
-│ │   ○ Revise                                                              │
-│ │   ○ Quit without saving                                                 │
-│ ◇ Completed setup summary                                                 │
-╰───────────────────────────────────────────────────────────────────────────╯
+› arbiter  setup / review                                                  00:16
+───────────────────────────────────────────────────────────────────────────────
+╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+│ ◆ Review and Confirm    │  Preflight                                       │
+│ │ Verify settings and   │  ◆ Schema validation                             │
+│ │ choose execution path │  ◆ Output path writable                          │
+│ ◇ Summary               │  ◇ Live connectivity check                       │
+│                         │                                                   │
+│                         │  ▸ ● Run now                                     │
+│                         │    ○ Save config and exit                        │
+│                         │    ○ Revise                                      │
+│                         │    ○ Quit without saving                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+↑/↓ move · Enter select · Esc back
 ```
 
 ## Run-Path Stack Deck (Wide)
@@ -269,31 +337,26 @@ Tier behavior:
 ### Frozen Summary + Stage 2 Mid-Run
 
 ```text
+› arbiter  run / monitoring                                                00:19
+───────────────────────────────────────────────────────────────────────────────
 [persistent masthead]
-
-╭─ Study Summary ──────────────────────────────────────────────────────────╮
-│  Question: {question_excerpt}                                            │
-│  Protocol: {protocol_summary}                                            │
-│  Models: {models_summary}                                                │
-│  Personas: {personas_summary}                                            │
-│  Decode: {decode_summary}                                                │
-│  Execution: workers {workers}, batch {batch}, K_max {k_max}             │
-│  Output dir: {out_dir}                                                   │
-╰───────────────────────────────────────────────────────────────────────────╯
+[frozen study summary card]
 
 ═══ RUN ═══
-
 ╭─ Master progress ─────────────────────────────────────────────────────────╮
 │  Trials: {completed}/{planned} | Workers: {workers}                      │
-│  Master progress [███████████░░░░░░░░░░░░░] {pct}%                       │
-│  Elapsed: {elapsed}   ETA: {eta_or_dash}                                 │
+│  [{bar}] {pct}%      Elapsed: {elapsed}      ETA: {eta_or_dash}          │
 ╰───────────────────────────────────────────────────────────────────────────╯
 
-╭─ Monitoring ──────────────────────────────────────────────────────────────╮
-│  Novelty rate: {value} (threshold {threshold})                           │
-│  Patience: {current}/{target}   Status: {sampling_status}                │
-│  Stopping indicates diminishing novelty, not correctness.                │
-╰───────────────────────────────────────────────────────────────────────────╯
+╭─ Monitoring ─────────────────────────╮╭─ Workers ─────────────────────────╮
+│ Novelty rate: {value}               ││ W1  running  trial {id}           │
+│ Patience: {current}/{target}        ││ W2  idle     trial {id}           │
+│ Status: {sampling_status}           ││ W3  running  trial {id}           │
+│ Stopping indicates diminishing      ││ (+{hidden_count} more workers)    │
+│ novelty, not correctness.           │╰────────────────────────────────────╯
+╰──────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+Ctrl+C graceful stop · q ignore updates
 ```
 
 ### Final Stage 3 Receipt
@@ -305,16 +368,17 @@ Tier behavior:
 
 ═══ RECEIPT ═══
 
-╭─ Receipt Summary ─────────────────────────────────────────────────────────╮
-│  Stopped: {stop_reason_label}                                            │
-│  Summary                                                                  │
-│  Stop reason: {stop_reason_label}                                        │
-│  Trials (planned/completed/eligible): {planned}/{completed}/{eligible}   │
-│  Duration: {duration}                                                     │
-│  Usage: {usage_summary}                                                   │
-│  Artifacts: {artifact_summary}                                            │
-│  Stopping indicates diminishing novelty, not correctness.                 │
-╰───────────────────────────────────────────────────────────────────────────╯
+╭─ Completion ─────────────────────────╮╭─ Artifacts ───────────────────────╮
+│ Stopped: {stop_reason_label}         ││ config.source.json                │
+│ Trials: {planned}/{completed}/{eligible}│ config.resolved.json            │
+│ Duration: {duration}                 ││ manifest.json                     │
+│ Usage: {usage_summary}               ││ trials.jsonl                      │
+│                                      ││ monitoring.jsonl                  │
+│ Stopping indicates diminishing       ││ receipt.txt                       │
+│ novelty, not correctness.            │╰────────────────────────────────────╯
+╰──────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+Run complete.
 ```
 
 ## Narrow Tier Overrides (`COLUMNS < 100`)
@@ -329,30 +393,36 @@ Narrow rules:
 Narrow Step 3 shape:
 
 ```text
-╭─ Stage 1 / Setup ────────────────────────────────────────────────────────╮
-│  ◆ Models  ◇ Personas  ◇ Decode Params  ◇ Advanced  ◇ Review             │
-╰───────────────────────────────────────────────────────────────────────────╯
-
-╭─ Models ──────────────────────────────────────────────────────────────────╮
-│  ▸ ◆ openai/gpt-5                                                         │
-│    ◇ anthropic/claude-sonnet-4                                            │
-│    ◆ openai/gpt-4.1-mini                                                  │
-╰───────────────────────────────────────────────────────────────────────────╯
+› arbiter  setup / models (narrow)                                         00:13
+───────────────────────────────────────────────────────────────────────────────
+╭─ Stage 1 / Setup ───────────────────────────────────────────────────────────╮
+│ ◆ Models                │  ▸ ◆ openai/gpt-5                               │
+│ │                       │    ◇ anthropic/claude-sonnet-4                  │
+│ ◇ Personas              │    ◆ openai/gpt-4.1-mini                        │
+│ ◇ Decode Params         │                                                  │
+│ ◇ Advanced Settings     │                                                  │
+│ ◇ Review and Confirm    │                                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+↑/↓ move · Space toggle · Enter confirm · Esc back
 ```
 
 Narrow Stage 2 shape:
 
 ```text
+› arbiter  run / monitoring (narrow)                                       00:19
+───────────────────────────────────────────────────────────────────────────────
 [masthead]
 [frozen summary (truncated)]
 
 ═══ RUN ═══
-
 ╭─ Master progress ─────────────────────────────────────────────────────────╮
-│  {completed}/{planned}  [{bar}] {pct}%                                   │
-│  elapsed {elapsed}  eta {eta_or_dash}                                    │
-│  novelty {value}  patience {current}/{target}                            │
+│ {completed}/{planned}  [{bar}] {pct}%                                    │
+│ Elapsed: {elapsed}  ETA: {eta_or_dash}                                   │
+│ Novelty: {value}  Patience: {current}/{target}                           │
 ╰───────────────────────────────────────────────────────────────────────────╯
+───────────────────────────────────────────────────────────────────────────────
+Ctrl+C graceful stop · q ignore updates
 ```
 
 ## Sentinels

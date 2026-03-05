@@ -42,6 +42,12 @@ Formatting markers:
 5. `LOCKED`: The run-path stack is preserved in terminal scrollback on exit.
 6. `LOCKED`: `arbiter run --dashboard` renders Stage 2 and Stage 3 without Stage 0 masthead or frozen Stage 1 Study Summary.
 
+## App-Shell Copy Contract
+
+1. `FLEX`: top status strip uses compact context format (`arbiter  {stage_context}`).
+2. `LOCKED`: command footer is always present and control-first.
+3. `LOCKED`: tab hints, when shown, use `←/→ cycle tabs`.
+
 ## Voice System
 
 Arbiter copy should read as a high-confidence research instrument.
@@ -100,6 +106,17 @@ Selection glyph pattern:
 1. `LOCKED` single-choice structure: `○ {option}` (unselected), `● {option}` (selected).
 2. `LOCKED` multi-choice structure: `◇ {option}` (unselected), `◆ {option}` (selected).
 3. `LOCKED`: do not use `[ ]` or `[x]` in premium-mode selectors.
+
+Navigation hint pattern:
+
+1. `LOCKED` structure: `↑/↓ move · Enter select · Esc back`
+2. `LOCKED` structure (tabs): `←/→ cycle tabs · Enter select · Esc back`
+3. `FLEX`: include `Space toggle` when multi-select behavior is active.
+
+App-shell chrome pattern:
+
+1. `FLEX`: top status strip should use compact context labels (`setup / models`, `run / monitoring`).
+2. `LOCKED`: command footer copy must be concise and control-first.
 
 Disabled option interaction pattern:
 
