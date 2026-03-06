@@ -62,7 +62,8 @@ Temporary coexistence rules:
 
 ## Progress
 - [x] (2026-03-06 16:55Z) initial testing-system redesign plan drafted (`proposed`)
-- [ ] testing charter, lane taxonomy, and invariant-owner matrix checked in
+- [x] (2026-03-06 23:40Z) M0 testing charter, lane taxonomy, and invariant-owner matrix checked in (`in_progress`)
+- [x] (2026-03-06 23:40Z) transitional named lane aliases landed in `package.json` without deleting the legacy command surface
 - [ ] fast source-level lane established and build-coupled unit tests reduced
 - [ ] integration, CLI, release, and canary lanes rationalized
 - [ ] TUI render lane formalized and PTY coverage narrowed to terminal-behavior ownership
@@ -80,6 +81,8 @@ Temporary coexistence rules:
   Evidence: `test/unit/tui-runtime-fixtures.test.mjs`, `src/ui/runtime-view-models.ts`, `docs/TUI-RUNTIME.md`.
 - Observation: the visual-capture pipeline is already the right backbone for end-user TUI review; the gap is its integration into a broader lane model, not the absence of a visual tool.
   Evidence: `scripts/tui-visual-capture.mjs`, `test/e2e/tui-visual-capture.test.mjs`, `README.md`.
+- Observation: `scripts/tui-headless.mjs` tests a strict subset of what `scripts/cli-output-contracts.mjs` already covers.
+  Evidence: both assert on no-arg help and root help output, while `scripts/cli-output-contracts.mjs` additionally covers `init`, version, non-TTY routing, and missing-config failure paths.
 
 ## Decision Log
 - Decision: keep `node:test` and `node:assert/strict` as Arbiter's primary test runner and assertion framework.
@@ -157,6 +160,21 @@ The target testing architecture is:
 
 `capture:tui` remains outside the numbered lanes as a review-artifact workflow used for TUI changes and failure inspection.
 
+Target composed lanes:
+
+1. `test:fast` = `test:static` + source-level `test:unit`
+   - no full build step,
+   - target local duration under 10 seconds on a warm workspace,
+   - purpose: default developer confidence lane during active implementation.
+2. `test:merge` = `test:static` + `test:unit` + `test:integration` + `test:cli` + `test:tui:render` + `test:tui:e2e` + `test:release`
+   - excludes `test:canary`,
+   - purpose: canonical non-live pre-merge gate.
+
+Current M0 note:
+
+1. `test:static`, `test:integration`, `test:cli`, `test:tui:render`, `test:tui:e2e`, `test:release`, `test:canary`, and `test:merge` may land first as non-destructive aliases over the current script surface.
+2. `test:fast` should not be added until it is genuinely source-level and mostly no-build.
+
 This plan should leave Arbiter with one unifying framework:
 
 1. one primary runner family (`node:test`),
@@ -184,7 +202,8 @@ Exit evidence:
 1. `docs/TESTING.md` (or an equivalent canonical testing charter) exists and defines lane semantics, scenario matrix, invariant ownership, and command taxonomy,
 2. current commands in `package.json` are mapped to the target lanes,
 3. candidate redundant tests and scripts are listed with the invariant they currently own,
-4. `AGENTS.md` and `README.md` point to the canonical testing doc rather than carrying partial testing doctrine alone.
+4. the exact intended composition of `test:fast` and `test:merge` is documented,
+5. `AGENTS.md` and `README.md` point to the canonical testing doc rather than carrying partial testing doctrine alone.
 
 Rollback boundary:
 
@@ -292,12 +311,14 @@ M0:
 
 1. create `docs/TESTING.md` describing the lane model, scenario matrix, invariant-owner map, and the role of `capture:tui`,
 2. inventory current commands in `package.json` and map each to `test:static`, `test:unit`, `test:integration`, `test:cli`, `test:tui:render`, `test:tui:e2e`, `test:release`, or `test:canary`,
-3. list current `scripts/*.mjs` files as one of:
+3. define the exact intended composition of `test:fast` and `test:merge`,
+4. list current `scripts/*.mjs` files as one of:
    - developer utility,
    - review artifact tool,
    - test-only smoke to migrate,
    - guard utility,
-4. update `AGENTS.md` and `README.md` so they point to the new testing charter and lane names.
+5. identify concrete pruning candidates where current scripts overlap materially,
+6. update `AGENTS.md` and `README.md` so they point to the new testing charter and lane names.
 
 M1:
 
@@ -452,16 +473,40 @@ Initial migration map for current script surfaces:
    - `scripts/tui-terminal-viewer.html`
 2. likely retain as guard or support utilities:
    - `scripts/architecture-guard.mjs`
-3. likely migrate into explicit integration, CLI, release, or canary tests:
+3. likely migrate to `test/unit/`:
+   - `scripts/tui-intent.mjs`
+   - `scripts/event-bus-safety.mjs`
+4. likely migrate to `test/cli/`:
+   - `scripts/cli-output-contracts.mjs`
+   - `scripts/tui-command-smoke.mjs`
+5. likely migrate to `test/integration/`:
    - `scripts/mock-run-smoke.mjs`
    - `scripts/verify-smoke.mjs`
    - `scripts/report-smoke.mjs`
    - `scripts/template-smoke.mjs`
-   - `scripts/cli-output-contracts.mjs`
-   - `scripts/tui-intent.mjs`
-   - `scripts/tui-headless.mjs`
-   - `scripts/openrouter-provenance.mjs`
+   - `scripts/contract-fallback.mjs`
+   - `scripts/contract-policy.mjs`
+   - `scripts/clustering-determinism.mjs`
+   - `scripts/clustering-limit.mjs`
+   - `scripts/mock-run-interrupt.mjs`
+   - `scripts/mock-run-debate.mjs`
+   - `scripts/debate-empty.mjs`
+   - `scripts/validate-embeddings-arrow.mjs`
+   - `scripts/resolve-only.mjs`
+   - `scripts/tui-warning-sink.mjs`
+   - `scripts/signal-handlers.mjs`
+   - `scripts/status-mapping.mjs`
+   - `scripts/receipt-failure.mjs`
+   - `scripts/zero-eligible.mjs`
+   - `scripts/error-code-null.mjs`
+   - `scripts/relative-config-path.mjs`
+6. likely migrate to `test:release` ownership:
    - `scripts/test-pack-install.mjs`
+7. likely migrate to `test:canary` ownership:
+   - `scripts/openrouter-provenance.mjs`
+   - `scripts/live-smoke.mjs`
+8. concrete pruning candidate once lane parity is established:
+   - `scripts/tui-headless.mjs` because `scripts/cli-output-contracts.mjs` already covers the same help-surface assertions more completely.
 
 Candidate invariant-owner model to prove or revise in M0:
 
@@ -475,3 +520,5 @@ Candidate invariant-owner model to prove or revise in M0:
 
 ## Plan Change Notes
 - 2026-03-06 16:55Z: initial testing-system architecture plan drafted after a first-principles review of the current suite and its gaps.
+- 2026-03-06 23:40Z: incorporated Opus review feedback by making `test:fast` and `test:merge` compositions explicit, correcting script-classification guidance, and recording the concrete `tui-headless` redundancy.
+- 2026-03-06 23:40Z: M0 implementation added `docs/TESTING.md`, updated contributor docs, and introduced non-destructive lane aliases in `package.json` while intentionally deferring `test:fast`.

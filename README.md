@@ -178,6 +178,25 @@ Scope note:
 
 ---
 
+## Testing Architecture
+
+Arbiter's canonical testing charter lives in `/Users/darylkang/Developer/arbiter/docs/TESTING.md`.
+
+Use that document for:
+
+- the target lane model,
+- invariant ownership,
+- the TUI render versus PTY split,
+- script-migration and redundancy guidance,
+- the long-term shape of `test:fast` and `test:merge`.
+
+Current note:
+
+- named lane aliases now exist in `package.json` for most of the target testing architecture,
+- `test:fast` is intentionally not added yet because the fast source-level lane still needs to be built.
+
+---
+
 ## CLI Contract (v1)
 
 Arbiter exposes exactly three primary entry points:

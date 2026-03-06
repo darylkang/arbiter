@@ -31,8 +31,9 @@ For implementation truth, use this order:
    - `docs/product-specs/tui-copy-deck.md` for locked and flexible copy,
    - `docs/product-specs/tui-visual-screen-deck.md` for visual layout and QA targets.
 4. `docs/TUI-RUNTIME.md` for internal TUI runtime architecture, renderer ownership, and migration rules.
-5. `README.md` for operator and developer workflow.
-6. `docs/PLANS.md` for ExecPlan requirements and execution behavior.
+5. `docs/TESTING.md` for testing architecture, lane ownership, and migration rules.
+6. `README.md` for operator and developer workflow.
+7. `docs/PLANS.md` for ExecPlan requirements and execution behavior.
 
 Precedence within the TUI product-spec set:
 
@@ -61,6 +62,7 @@ Read `docs/PLANS.md` when the work is non-trivial: complex features, significant
 Read these before editing the corresponding areas:
 
 - `schemas/` before schema, artifact, config-shape, provenance, contract, or verification work.
+- `docs/TESTING.md` before changing test taxonomy, validation commands, test ownership, TUI testing infrastructure, or the structure of the test suite itself.
 - `docs/TUI-RUNTIME.md` before changing TUI renderer architecture, frame ownership, layout primitives, or TUI testing infrastructure.
 - `docs/product-specs/tui-wizard.md`, `docs/product-specs/tui-copy-deck.md`, and `docs/product-specs/tui-visual-screen-deck.md` before changing wizard, dashboard, receipt, terminal rendering, or TUI copy.
 - touched modules and their existing tests before making behavioral changes.
@@ -161,6 +163,10 @@ Keep this workflow lightweight:
 - prefer a few stable checkpoint assertions over full golden snapshot lock-in.
 
 ## Validation Policy
+
+Canonical testing architecture, lane ownership, and the migration path from the current script surface live in `docs/TESTING.md`.
+
+The commands below are the current operational gates until that migration is fully landed in `package.json`.
 
 There are two validation levels: scope gate and merge gate.
 
