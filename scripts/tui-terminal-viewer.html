@@ -6,7 +6,7 @@
     <title>Arbiter TUI Visual Viewer</title>
     <link
       rel="stylesheet"
-      href="https://unpkg.com/@xterm/xterm@5.5.0/css/xterm.css"
+      href="https://unpkg.com/@xterm/xterm@6.0.0/css/xterm.css"
     />
     <style>
       html,
@@ -15,19 +15,52 @@
         padding: 0;
         background: #1d2021;
         height: 100%;
+        color: #ebdbb2;
+        font-family: Menlo, Monaco, Consolas, monospace;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+      #toolbar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid #3c3836;
+        background: #282828;
+      }
+      #toolbar label {
+        font-size: 13px;
+      }
+      #toolbar input {
+        color: inherit;
+      }
+      #status {
+        color: #a89984;
+        font-size: 12px;
       }
       #terminal {
         width: 100%;
-        height: 100%;
+        flex: 1;
         padding: 16px;
         box-sizing: border-box;
       }
     </style>
   </head>
   <body>
+    <div id="toolbar">
+      <label>
+        Load snapshot
+        <input id="snapshot-file" type="file" accept=".ansi,text/plain" />
+      </label>
+      <span id="status">Choose a captured <code>.ansi</code> snapshot to render.</span>
+    </div>
     <div id="terminal"></div>
-    <script src="https://unpkg.com/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+    <script src="https://unpkg.com/@xterm/xterm@6.0.0/lib/xterm.js"></script>
     <script>
+      const status = document.getElementById("status");
+      const input = document.getElementById("snapshot-file");
       const term = new Terminal({
         cols: 120,
         rows: 40,
@@ -50,6 +83,22 @@
         term.write(ansiData);
         await new Promise((resolve) => setTimeout(resolve, 120));
       };
+
+      input.addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+          status.textContent = "Choose a captured .ansi snapshot to render.";
+          return;
+        }
+        status.textContent = `Rendering ${file.name}...`;
+        try {
+          const ansiData = await file.text();
+          await window.renderSnapshot(ansiData);
+          status.textContent = `Rendered ${file.name}`;
+        } catch (error) {
+          status.textContent = `Failed to render ${file.name}: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      });
     </script>
   </body>
 </html>

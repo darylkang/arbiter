@@ -132,6 +132,46 @@ If stdout is not TTY, Arbiter prints a warning to stderr and continues headless.
 
 ---
 
+## Visual TUI Capture (Development)
+
+Arbiter includes a PTY-based visual capture workflow for the wizard, runtime dashboard, and receipt.
+
+Generate a full capture pack:
+
+```bash
+npm run capture:tui
+```
+
+This writes a timestamped directory under `output/playwright/tui-visual/` with paired files for each checkpoint:
+
+- `*.ansi`: raw terminal output for human visual review
+- `*.txt`: rendered screen text produced by replaying the ANSI stream through xterm headless
+
+Recommended review split:
+
+- Human review: open `/Users/darylkang/Developer/arbiter/scripts/tui-terminal-viewer.html` in a browser and load one of the captured `*.ansi` files.
+- Agent review: inspect the generated `*.txt` files directly. They reflect terminal screen state rather than raw escape sequences.
+
+Automated coverage:
+
+```bash
+npm run test:e2e:tui
+```
+
+That suite includes curated rendered-snapshot assertions for high-value checkpoints:
+
+- Step 0 entry
+- Step 7 review
+- Stage 2 progress
+- Stage 3 receipt
+
+Scope note:
+
+- rendered `*.txt` snapshots are for layout and content verification,
+- color and composition review still belongs in the HTML xterm viewer.
+
+---
+
 ## CLI Contract (v1)
 
 Arbiter exposes exactly three primary entry points:

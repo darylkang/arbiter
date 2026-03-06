@@ -94,6 +94,20 @@ If OpenRouter integration or live behavior changed, also run:
 - `npm run test:provenance`
 - `npm run test:live-smoke` (when API key is present)
 
+## TUI Visual Validation
+
+When changing wizard, dashboard, receipt, or terminal rendering behavior:
+
+- run `npm run capture:tui` to generate a timestamped capture pack under `output/playwright/tui-visual/`,
+- use the generated `*.txt` files for agent review of rendered terminal state,
+- use `scripts/tui-terminal-viewer.html` with the paired `*.ansi` files for human color/composition review,
+- run `npm run test:e2e:tui` to exercise the curated rendered-snapshot assertions.
+
+Keep this workflow lightweight:
+
+- `*.txt` snapshots are for layout/content verification, not color truth,
+- prefer a few stable checkpoint assertions over full golden snapshot lock-in.
+
 ## Common Footguns
 
 - `Math.random` in core execution paths (use seeded RNG utilities).

@@ -1,0 +1,54 @@
+import assert from "node:assert/strict";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+
+import { captureVisualJourney } from "../../scripts/tui-visual-capture.mjs";
+
+const getCheckpoint = (checkpoints, slug) => {
+  const checkpoint = checkpoints.find((item) => item.slug === slug);
+  assert.ok(checkpoint, `expected checkpoint ${slug}`);
+  return checkpoint;
+};
+
+const assertRenderedSnapshotIncludes = (checkpoint, snippets) => {
+  assert.equal(existsSync(checkpoint.ansiPath), true, `expected raw snapshot ${checkpoint.ansiPath}`);
+  assert.equal(existsSync(checkpoint.textPath), true, `expected rendered snapshot ${checkpoint.textPath}`);
+  const rendered = readFileSync(checkpoint.textPath, "utf8");
+  for (const snippet of snippets) {
+    assert.equal(rendered.includes(snippet), true, `expected ${checkpoint.slug} to include ${snippet}`);
+  }
+};
+
+test("pty capture emits rendered snapshots for key journey checkpoints", { concurrency: false }, async () => {
+  const outputDir = mkdtempSync(join(tmpdir(), "arbiter-tui-rendered-"));
+
+  try {
+    const { checkpoints } = await captureVisualJourney({
+      outputDir,
+      quiet: true
+    });
+
+    assert.equal(existsSync(join(outputDir, "index.txt")), true, "expected capture index");
+
+    assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step0-entry"), [
+      "A R B I T E R",
+      "Choose how to start"
+    ]);
+    assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step7-review"), [
+      "Review and Confirm",
+      "Run now"
+    ]);
+    assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "stage2-run"), [
+      "── PROGRESS",
+      "Trials:"
+    ]);
+    assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "stage3-receipt"), [
+      "── RECEIPT",
+      "Run complete."
+    ]);
+  } finally {
+    rmSync(outputDir, { recursive: true, force: true });
+  }
+});
