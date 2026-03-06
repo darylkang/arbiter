@@ -1,7 +1,8 @@
 import { stdout as output } from "node:process";
 
-import { createStdoutFormatter } from "../fmt.js";
+import { createStdoutFormatter, type Formatter } from "../fmt.js";
 import {
+  truncate,
   renderBrandBlock,
   renderRailContent,
   renderRailStep,
@@ -9,6 +10,7 @@ import {
   renderStatusStrip,
   type RailStep
 } from "../wizard-theme.js";
+import { toApiKeyPresenceLabel, toRunModeLabel } from "../copy.js";
 import { RAIL_ITEMS, type StepFrame } from "./types.js";
 
 const ALT_SCREEN_ENABLE = "\x1b[?1049h";
@@ -37,6 +39,22 @@ const toRailSteps = (input: {
     summary: input.stepSummaries[item.railIndex]
   }));
 
+const renderCompactBrandBlock = (input: StepFrame, width: number, fmt: Formatter): string => {
+  const versionText = `v${input.version}`;
+  const left = `${fmt.bold(fmt.brand(input.version ? "A R B I T E R" : "Arbiter"))}`;
+  const gap = Math.max(1, width - "A R B I T E R".length - versionText.length);
+  const summary = truncate(
+    `API ${toApiKeyPresenceLabel(input.apiKeyPresent)} · Mode ${toRunModeLabel(input.runMode)} · ${input.configCount} configs`,
+    width
+  );
+  return [`${left}${" ".repeat(gap)}${fmt.muted(versionText)}`, fmt.muted(summary)].join("\n");
+};
+
+const renderCompactRailContent = (lines: string[], fmt: Formatter): string =>
+  lines
+    .map((rawLine) => (rawLine.length === 0 ? fmt.accent("│") : `${fmt.accent("│")}   ${rawLine}`))
+    .join("\n");
+
 export const createWizardFrameManager = () => {
   let interactiveScreenEnabled = false;
 
@@ -61,21 +79,53 @@ export const createWizardFrameManager = () => {
     output.write(`${message}\n`);
   };
 
+  const printLine = (message: string): void => {
+    leave();
+    output.write(`${message}\n`);
+  };
+
+  const printLines = (lines: string[]): void => {
+    leave();
+    for (const line of lines) {
+      output.write(`${line}\n`);
+    }
+  };
+
   const render = (input: StepFrame): void => {
     const fmt = createStdoutFormatter();
-    const width = fmt.termWidth();
-    const parts: string[] = [];
-    const railSteps = toRailSteps({
-      currentRailIndex: input.currentRailIndex,
-      completedUntilRailIndex: input.completedUntilRailIndex,
-      showRunMode: input.showRunMode,
-      stepSummaries: input.stepSummaries
-    });
-
     clearScreen();
+    output.write(`${buildWizardFrameText(input, fmt, fmt.termWidth(), output.rows ?? 24)}\n`);
+  };
 
-    parts.push(renderStatusStrip(input.contextLabel, 0, width, fmt));
-    parts.push(renderSeparator(width, fmt));
+  return {
+    enter,
+    leave,
+    exit,
+    printLine,
+    printLines,
+    clearScreen,
+    render
+  };
+};
+
+export const buildWizardFrameText = (
+  input: StepFrame,
+  fmt: Formatter,
+  width = fmt.termWidth(),
+  rows = 24
+): string => {
+  const parts: string[] = [];
+  const compactHeight = rows <= 18;
+  const railSteps = toRailSteps({
+    currentRailIndex: input.currentRailIndex,
+    completedUntilRailIndex: input.completedUntilRailIndex,
+    showRunMode: input.showRunMode,
+    stepSummaries: input.stepSummaries
+  });
+
+  parts.push(renderStatusStrip(input.contextLabel, 0, width, fmt));
+  parts.push(renderSeparator(width, fmt));
+  if (!compactHeight) {
     parts.push("");
     parts.push(
       renderBrandBlock(
@@ -83,30 +133,31 @@ export const createWizardFrameManager = () => {
         input.apiKeyPresent,
         input.runMode,
         input.configCount,
+        width,
         fmt
       )
     );
     parts.push("");
+  } else {
+    parts.push(renderCompactBrandBlock(input, width, fmt));
+  }
 
-    for (const step of railSteps) {
-      const isActiveStep = step.state === "active";
-      parts.push(renderRailStep(step, fmt, input.dimmedRail === true));
-      if (isActiveStep) {
-        parts.push(renderRailContent(input.activeLines, fmt));
-      }
+  for (const step of railSteps) {
+    const isActiveStep = step.state === "active";
+    parts.push(renderRailStep(step, fmt, input.dimmedRail === true));
+    if (isActiveStep) {
+      parts.push(
+        compactHeight
+          ? renderCompactRailContent(input.activeLines, fmt)
+          : renderRailContent(input.activeLines, fmt)
+      );
     }
+  }
 
+  if (!compactHeight) {
     parts.push("");
-    parts.push(renderSeparator(width, fmt));
-    parts.push(input.footerText);
-    output.write(`${parts.join("\n")}\n`);
-  };
-
-  return {
-    enter,
-    leave,
-    exit,
-    clearScreen,
-    render
-  };
+  }
+  parts.push(renderSeparator(width, fmt));
+  parts.push(input.footerText);
+  return parts.join("\n");
 };

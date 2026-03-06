@@ -8,6 +8,11 @@ export type FormatterOptions = {
   env?: NodeJS.ProcessEnv;
 };
 
+export type PlainFormatterOptions = {
+  columns?: number;
+  unicode?: boolean;
+};
+
 export type StatusLevel = "success" | "warn" | "error" | "info";
 
 const RESET = "\x1b[0m";
@@ -254,3 +259,12 @@ export const createStdoutFormatter = (): Formatter =>
 
 export const createStderrFormatter = (): Formatter =>
   createFormatter({ stream: process.stderr, env: process.env });
+
+export const createPlainFormatter = (options?: PlainFormatterOptions): Formatter =>
+  createFormatter({
+    stream: {
+      isTTY: options?.unicode !== false,
+      columns: options?.columns ?? 80
+    },
+    env: { NO_COLOR: "1" }
+  });

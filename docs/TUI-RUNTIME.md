@@ -301,7 +301,7 @@ Deterministic review model:
 
 1. live runtime emits ANSI through the real renderer,
 2. `@xterm/headless` converts captured ANSI into deterministic rendered text,
-3. rendered text snapshots are treated as structural truth for agent review,
+3. rendered text snapshots are treated as structural truth for agent review, and Stage 2 / Stage 3 snapshot text may include scrollback so the full run-path stack is inspectable,
 4. no separate text renderer backend should exist unless a future need proves the current approach insufficient.
 
 The formatter should support a plain or no-color mode so render primitives can be unit-tested without ANSI noise.

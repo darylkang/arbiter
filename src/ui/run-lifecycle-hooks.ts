@@ -7,7 +7,8 @@ import type { RunLifecycleContext, RunLifecycleHooks } from "../run/lifecycle-ho
 import { UI_COPY } from "./copy.js";
 import { toStopBanner } from "./copy.js";
 import { buildReceiptModel } from "./receipt-model.js";
-import { createStdoutFormatter } from "./fmt.js";
+import { createStdoutFormatter, type Formatter } from "./fmt.js";
+import type { DashboardVM, ReceiptVM, RenderLine } from "./runtime-view-models.js";
 import {
   MIN_DASHBOARD_ROWS,
   getDashboardTerminalSupport
@@ -25,7 +26,7 @@ import {
 
 type WorkerViewStatus = "idle" | "running" | "finishing" | "error";
 
-type DashboardSnapshot = {
+type DashboardState = {
   runId: string;
   questionExcerpt: string;
   mode: "mock" | "live";
@@ -55,6 +56,17 @@ type DashboardSnapshot = {
   };
   trialModelById: Map<number, string>;
   workerStatus: Map<number, { status: WorkerViewStatus; trialId?: number }>;
+};
+
+type DashboardRenderOptions = {
+  width?: number;
+  maxRows?: number;
+  fmt?: Formatter;
+};
+
+type ReceiptRenderOptions = {
+  width?: number;
+  fmt?: Formatter;
 };
 
 const MAX_DASHBOARD_QUESTION_CHARS = 88;
@@ -95,19 +107,19 @@ const formatClockHMS = (inputMs: number): string => {
   )}`;
 };
 
-const formatEtaHMS = (snapshot: DashboardSnapshot): string => {
-  if (snapshot.attempted <= 0 || snapshot.planned <= snapshot.attempted) {
-    return snapshot.planned <= snapshot.attempted ? "00:00:00" : "—";
+const formatEtaHMS = (state: DashboardState): string => {
+  if (state.attempted <= 0 || state.planned <= state.attempted) {
+    return state.planned <= state.attempted ? "00:00:00" : "—";
   }
-  const elapsedMs = Math.max(0, Date.now() - snapshot.startedAtMs);
+  const elapsedMs = Math.max(0, Date.now() - state.startedAtMs);
   if (elapsedMs <= 0) {
     return "—";
   }
-  const avgMsPerTrial = elapsedMs / snapshot.attempted;
+  const avgMsPerTrial = elapsedMs / state.attempted;
   if (!Number.isFinite(avgMsPerTrial) || avgMsPerTrial <= 0) {
     return "—";
   }
-  return formatClockHMS(avgMsPerTrial * (snapshot.planned - snapshot.attempted));
+  return formatClockHMS(avgMsPerTrial * (state.planned - state.attempted));
 };
 
 const mapStopStateFromMonitoring = (
@@ -155,8 +167,8 @@ const countRenderedRows = (value: string, columns: number): number => {
 const toPercent = (attempted: number, planned: number): number =>
   planned <= 0 ? 0 : Math.max(0, Math.min(100, (attempted / planned) * 100));
 
-const toUsageSummary = (snapshot: DashboardSnapshot): string =>
-  `${snapshot.usage.total} tokens (in ${snapshot.usage.prompt}, out ${snapshot.usage.completion})`;
+const toUsageSummary = (state: DashboardState): string =>
+  `${state.usage.total} tokens (in ${state.usage.prompt}, out ${state.usage.completion})`;
 
 const toDurationFromIso = (startedAt?: string, completedAt?: string): string => {
   if (!startedAt || !completedAt) {
@@ -170,26 +182,39 @@ const toDurationFromIso = (startedAt?: string, completedAt?: string): string => 
   return formatClockHMS(completed - started);
 };
 
-type DashboardRenderOptions = {
-  width?: number;
-  maxRows?: number;
-};
-
 const countRowsForLines = (lines: string[], columns: number): number =>
   lines.reduce((total, line) => total + countRenderedRows(line, columns), 0);
 
+const renderToneLine = (line: RenderLine, fmt: Formatter): string => {
+  if (line.tone === "warn") {
+    return fmt.warn(line.text);
+  }
+  if (line.tone === "error") {
+    return fmt.error(line.text);
+  }
+  if (line.tone === "success") {
+    return fmt.success(line.text);
+  }
+  if (line.tone === "info") {
+    return fmt.info(line.text);
+  }
+  if (line.tone === "text") {
+    return fmt.text(line.text);
+  }
+  return fmt.muted(line.text);
+};
+
 const buildWorkerSection = (
-  snapshot: DashboardSnapshot,
-  fmt: ReturnType<typeof createStdoutFormatter>,
+  workerRows: WorkerRow[],
+  fmt: Formatter,
   width: number,
   compact: boolean,
   remainingRows: number
 ): string[] => {
-  if (snapshot.workers <= 1 || remainingRows <= 0) {
+  if (workerRows.length <= 1 || remainingRows <= 0) {
     return [];
   }
 
-  const sorted = Array.from(snapshot.workerStatus.entries()).sort((a, b) => a[0] - b[0]);
   const sectionPrefix = [renderRuledSection("WORKERS", width, fmt), ...(compact ? [] : [""]), fmt.muted("ID  Activity      State     Trial     Model")];
   const prefixRows = countRowsForLines(sectionPrefix, width);
   const overflowRows = countRowsForLines([fmt.muted("(+0 more workers)")], width);
@@ -200,26 +225,15 @@ const buildWorkerSection = (
 
   let visibleCount = 0;
   let usedRows = prefixRows;
-  while (visibleCount < sorted.length) {
-    const [workerId, state] = sorted[visibleCount]!;
-    const workerLine = renderWorkerRow(
-      {
-        id: workerId,
-        state: state.status,
-        trialId: state.trialId,
-        model: state.trialId !== undefined ? snapshot.trialModelById.get(state.trialId) ?? "—" : "—",
-        tick: snapshot.renderTick
-      },
-      fmt,
-      width
-    );
-    const workerRows = countRenderedRows(workerLine, width);
-    const remainingWorkers = sorted.length - (visibleCount + 1);
+  while (visibleCount < workerRows.length) {
+    const workerLine = renderWorkerRow(workerRows[visibleCount]!, fmt, width);
+    const workerLineRows = countRenderedRows(workerLine, width);
+    const remainingWorkers = workerRows.length - (visibleCount + 1);
     const requiredOverflowRows = remainingWorkers > 0 ? overflowRows : 0;
-    if (usedRows + workerRows + requiredOverflowRows > remainingRows) {
+    if (usedRows + workerLineRows + requiredOverflowRows > remainingRows) {
       break;
     }
-    usedRows += workerRows;
+    usedRows += workerLineRows;
     visibleCount += 1;
   }
 
@@ -229,42 +243,101 @@ const buildWorkerSection = (
 
   const lines = [...sectionPrefix];
   for (let index = 0; index < visibleCount; index += 1) {
-    const [workerId, state] = sorted[index]!;
-    lines.push(
-      renderWorkerRow(
-        {
-          id: workerId,
-          state: state.status,
-          trialId: state.trialId,
-          model: state.trialId !== undefined ? snapshot.trialModelById.get(state.trialId) ?? "—" : "—",
-          tick: snapshot.renderTick
-        },
-        fmt,
-        width
-      )
-    );
+    lines.push(renderWorkerRow(workerRows[index]!, fmt, width));
   }
-  const hidden = sorted.length - visibleCount;
+  const hidden = workerRows.length - visibleCount;
   if (hidden > 0) {
     lines.push(fmt.muted(`(+${hidden} more workers)`));
   }
   return lines;
 };
 
-export const buildRunDashboardText = (
-  snapshot: DashboardSnapshot,
-  nowMs = Date.now(),
-  options: DashboardRenderOptions = {}
-): string => {
-  const fmt = createStdoutFormatter();
+export const buildDashboardViewModel = (
+  state: DashboardState,
+  nowMs = Date.now()
+): DashboardVM => {
+  const elapsedMs = Math.max(0, nowMs - state.startedAtMs);
+  const novelty = state.noveltyRate === null ? "—" : state.noveltyRate.toFixed(3);
+  const noveltyThreshold =
+    state.noveltyThreshold === null ? "—" : state.noveltyThreshold.toFixed(3);
+  const meanMaxSimilarity =
+    state.meanMaxSimilarity === null ? "—" : state.meanMaxSimilarity.toFixed(3);
+  const similarityThreshold =
+    state.similarityThreshold === null ? "—" : state.similarityThreshold.toFixed(3);
+
+  const monitoringRows = [
+    { key: "Novelty rate", value: `${novelty} (threshold ${noveltyThreshold})` },
+    { key: "Patience", value: `${state.lowNoveltyStreak}/${state.patience}` },
+    { key: "Status", value: state.stopState }
+  ];
+
+  if (state.groupingEnabled) {
+    monitoringRows.push({
+      key: "Embedding groups",
+      value: state.groupCount === null ? "—" : String(state.groupCount)
+    });
+  }
+  if (state.similarityThreshold !== null) {
+    monitoringRows.push({
+      key: "Similarity",
+      value: `${meanMaxSimilarity} (threshold ${similarityThreshold})`
+    });
+  }
+
+  const caveatLines: RenderLine[] = [{ text: UI_COPY.stoppingCaveat, tone: "muted" }];
+  if (state.groupingEnabled) {
+    caveatLines.push({ text: UI_COPY.groupingCaveat, tone: "muted" });
+  }
+  if (state.stopState === "user requested graceful stop") {
+    caveatLines.push({ text: UI_COPY.gracefulStopRequested, tone: "warn" });
+  }
+
+  const workerRows: WorkerRow[] = Array.from(state.workerStatus.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([workerId, workerState]) => ({
+      id: workerId,
+      state: workerState.status,
+      trialId: workerState.trialId,
+      model: workerState.trialId !== undefined ? state.trialModelById.get(workerState.trialId) ?? "—" : "—",
+      tick: state.renderTick
+    }));
+
+  const usageLines: RenderLine[] =
+    state.mode === "mock"
+      ? [{ text: "Usage not applicable", tone: "muted" }]
+      : [
+          { text: `Usage so far: ${toUsageSummary(state)}`, tone: "text" },
+          ...(state.usage.cost !== undefined
+            ? [{ text: `Cost: ${state.usage.cost.toFixed(6)} (estimate)`, tone: "warn" as const }]
+            : [])
+        ];
+
+  return {
+    statusContext: "run / monitoring",
+    elapsedMs,
+    progressLabel: `Trials: ${state.attempted}/${state.planned} · Workers: ${state.workers}`,
+    progressPct: toPercent(state.attempted, state.planned),
+    eta: formatEtaHMS(state),
+    monitoringRows,
+    caveatLines,
+    workerRows,
+    usageLines,
+    footerText: "Ctrl+C graceful stop"
+  };
+};
+
+export const buildRunDashboardText = (vm: DashboardVM, options: DashboardRenderOptions = {}): string => {
+  const fmt = options.fmt ?? createStdoutFormatter();
   const width = options.width ?? fmt.termWidth();
   const maxRows = options.maxRows;
   const compact = maxRows !== undefined && maxRows <= 18;
-  const elapsedMs = Math.max(0, nowMs - snapshot.startedAtMs);
-  const elapsed = formatClockHMS(elapsedMs);
-  const eta = formatEtaHMS(snapshot);
-  const pct = toPercent(snapshot.attempted, snapshot.planned);
-  const masterBar = renderProgressBar(pct, Math.min(MASTER_BAR_MAX, Math.max(10, width - 34)), fmt.brand, fmt);
+  const elapsed = formatClockHMS(vm.elapsedMs);
+  const masterBar = renderProgressBar(
+    vm.progressPct,
+    Math.min(MASTER_BAR_MAX, Math.max(10, width - 34)),
+    fmt.brand,
+    fmt
+  );
   const sections: string[] = [];
   let usedRows = 0;
   const pushBlock = (block: string[], required = false): boolean => {
@@ -280,7 +353,7 @@ export const buildRunDashboardText = (
     return true;
   };
 
-  pushBlock([renderStatusStrip("run / monitoring", elapsedMs, width, fmt), renderSeparator(width, fmt)], true);
+  pushBlock([renderStatusStrip(vm.statusContext, vm.elapsedMs, width, fmt), renderSeparator(width, fmt)], true);
   if (!compact) {
     pushBlock([""]);
   }
@@ -288,8 +361,8 @@ export const buildRunDashboardText = (
     [
       renderRuledSection("PROGRESS", width, fmt),
       ...(compact ? [] : [""]),
-      `Trials: ${snapshot.attempted}/${snapshot.planned} · Workers: ${snapshot.workers}`,
-      `${masterBar}  ${String(Math.round(pct)).padStart(3, " ")}%    ${elapsed}  ETA ${eta}`
+      vm.progressLabel,
+      `${masterBar}  ${String(Math.round(vm.progressPct)).padStart(3, " ")}%    ${elapsed}  ETA ${vm.eta}`
     ],
     true
   );
@@ -297,47 +370,23 @@ export const buildRunDashboardText = (
     pushBlock([""]);
   }
 
-  const novelty = snapshot.noveltyRate === null ? "—" : snapshot.noveltyRate.toFixed(3);
-  const noveltyThreshold =
-    snapshot.noveltyThreshold === null ? "—" : snapshot.noveltyThreshold.toFixed(3);
-  const meanMaxSimilarity =
-    snapshot.meanMaxSimilarity === null ? "—" : snapshot.meanMaxSimilarity.toFixed(3);
-  const similarityThreshold =
-    snapshot.similarityThreshold === null ? "—" : snapshot.similarityThreshold.toFixed(3);
-
   const monitoringBlock = [
     renderRuledSection("MONITORING", width, fmt),
     ...(compact ? [] : [""]),
-    renderKV("Novelty rate", `${novelty} (threshold ${noveltyThreshold})`, fmt),
-    renderKV("Patience", `${snapshot.lowNoveltyStreak}/${snapshot.patience}`, fmt),
-    renderKV("Status", snapshot.stopState, fmt)
+    ...vm.monitoringRows.map((row) => renderKV(row.key, row.value, fmt))
   ];
-  if (snapshot.groupingEnabled) {
-    monitoringBlock.push(
-      renderKV("Embedding groups", snapshot.groupCount === null ? "—" : String(snapshot.groupCount), fmt)
-    );
-  }
-  if (snapshot.similarityThreshold !== null) {
-    monitoringBlock.push(renderKV("Similarity", `${meanMaxSimilarity} (threshold ${similarityThreshold})`, fmt));
-  }
   pushBlock(monitoringBlock, true);
 
-  const caveatBlock = [fmt.muted(UI_COPY.stoppingCaveat)];
-  if (snapshot.groupingEnabled) {
-    caveatBlock.push(fmt.muted(UI_COPY.groupingCaveat));
-  }
-  if (snapshot.stopState === "user requested graceful stop") {
-    caveatBlock.push(fmt.warn(UI_COPY.gracefulStopRequested));
-  }
+  const caveatBlock = vm.caveatLines.map((line) => renderToneLine(line, fmt));
   pushBlock(compact ? caveatBlock : ["", ...caveatBlock], true);
 
   const footerBlock = compact
-    ? [renderSeparator(width, fmt), fmt.muted("Ctrl+C graceful stop")]
-    : ["", renderSeparator(width, fmt), fmt.muted("Ctrl+C graceful stop")];
+    ? [renderSeparator(width, fmt), fmt.muted(vm.footerText)]
+    : ["", renderSeparator(width, fmt), fmt.muted(vm.footerText)];
   const footerRows = countRowsForLines(footerBlock, width);
 
   const remainingBeforeFooter = maxRows === undefined ? Number.POSITIVE_INFINITY : Math.max(0, maxRows - usedRows - footerRows);
-  const workerBlock = buildWorkerSection(snapshot, fmt, width, compact, remainingBeforeFooter);
+  const workerBlock = buildWorkerSection(vm.workerRows, fmt, width, compact, remainingBeforeFooter);
   if (workerBlock.length > 0) {
     pushBlock(compact ? workerBlock : ["", ...workerBlock]);
   }
@@ -345,25 +394,18 @@ export const buildRunDashboardText = (
   const usageBlock = [
     renderRuledSection("USAGE", width, fmt),
     ...(compact ? [] : [""]),
-    ...(snapshot.mode === "mock"
-      ? [fmt.muted("Usage not applicable")]
-      : [
-          `Usage so far: ${toUsageSummary(snapshot)}`,
-          ...(snapshot.usage.cost !== undefined
-            ? [fmt.warn(`Cost: ${snapshot.usage.cost.toFixed(6)} (estimate)`)]
-            : [])
-        ])
+    ...vm.usageLines.map((line) => renderToneLine(line, fmt))
   ];
   pushBlock(compact ? usageBlock : ["", ...usageBlock]);
 
-  pushBlock(footerBlock, true);
+  pushBlock(compact ? [renderSeparator(width, fmt), fmt.muted(vm.footerText)] : ["", renderSeparator(width, fmt), fmt.muted(vm.footerText)], true);
 
   return `${sections.join("\n")}\n`;
 };
 
 class RunDashboardMonitor {
   private readonly bus: EventBus;
-  private readonly snapshot: DashboardSnapshot;
+  private readonly snapshot: DashboardState;
   private readonly unsubs: Array<() => void> = [];
   private readonly prefixRows: number;
   private lastTopRow = 1;
@@ -581,7 +623,7 @@ class RunDashboardMonitor {
     );
     const topRow = Math.min(Math.max(1, visiblePrefixRows + 1), terminalRows);
     const liveRows = Math.max(1, terminalRows - visiblePrefixRows);
-    const frameText = buildRunDashboardText(this.snapshot, Date.now(), {
+    const frameText = buildRunDashboardText(buildDashboardViewModel(this.snapshot, Date.now()), {
       width: terminalColumns,
       maxRows: liveRows
     }).replace(/\n+$/, "");
@@ -603,80 +645,105 @@ const readReceiptText = (runDir: string): string | null => {
   return readFileSync(receiptPath, "utf8");
 };
 
-const buildReceiptDisplayText = (runDir: string): string | null => {
+export const buildReceiptViewModel = (runDir: string): ReceiptVM => {
+  const model = buildReceiptModel(runDir);
+  const stopBanner = toStopBanner(model.stop_reason);
+  const stopReasonLabel = stopBanner.replace(/^Stopped:\s*/i, "").trim() || "unknown";
+  const summaryRows = [
+    { key: "Stop reason", value: stopReasonLabel },
+    {
+      key: "Trials",
+      value: `${model.counts.k_planned ?? "-"} / ${model.counts.k_attempted ?? "-"} / ${model.counts.k_eligible ?? "-"} (planned / completed / eligible)`
+    },
+    { key: "Duration", value: toDurationFromIso(model.started_at, model.completed_at) },
+    {
+      key: "Usage",
+      value: model.usage
+        ? `${model.usage.totals.total_tokens} tokens (in ${model.usage.totals.prompt_tokens}, out ${model.usage.totals.completion_tokens})`
+        : "not available"
+    },
+    { key: "Protocol", value: model.protocol ?? "-" },
+    { key: "Models", value: `${model.model_count}` },
+    { key: "Personas", value: `${model.persona_count}` }
+  ];
+
+  const groupLines: RenderLine[] = [];
+  if (model.grouping?.enabled) {
+    groupLines.push({ text: `Embedding groups: ${model.grouping.group_count ?? "—"}`, tone: "text" });
+    groupLines.push({ text: "Top group sizes", tone: "text" });
+    groupLines.push({
+      text: model.grouping.group_count !== undefined ? String(model.grouping.group_count) : "—",
+      tone: "text"
+    });
+    groupLines.push({ text: UI_COPY.groupingCaveat, tone: "muted" });
+  }
+
+  const artifactRows: string[] = [ "Only generated files are listed." ];
+  if ((model.artifacts?.length ?? 0) === 0) {
+    artifactRows.push("—");
+  } else {
+    const paths = model.artifacts?.map((artifact) => artifact.path) ?? [];
+    for (let index = 0; index < paths.length; index += 3) {
+      artifactRows.push(paths.slice(index, index + 3).join("    "));
+    }
+  }
+  if ((model.counts.k_eligible ?? 0) === 0) {
+    artifactRows.push("No embeddings were generated because there were zero eligible trials.");
+  }
+
+  return {
+    statusContext: "run / receipt",
+    stopBanner,
+    caveatLines: [{ text: UI_COPY.stoppingCaveat, tone: "muted" }],
+    summaryRows,
+    groupLines,
+    artifactRows,
+    reproduceCommand: `arbiter run --config ${runDir}/config.resolved.json`,
+    footerText: "Run complete."
+  };
+};
+
+export const buildReceiptDisplayText = (vm: ReceiptVM, options: ReceiptRenderOptions = {}): string => {
+  const fmt = options.fmt ?? createStdoutFormatter();
+  const width = options.width ?? fmt.termWidth();
+  const lines: string[] = [
+    renderStatusStrip(vm.statusContext, 0, width, fmt),
+    renderSeparator(width, fmt),
+    "",
+    renderRuledSection("RECEIPT", width, fmt),
+    "",
+    vm.stopBanner,
+    ...vm.caveatLines.map((line) => renderToneLine(line, fmt)),
+    "",
+    renderRuledSection("SUMMARY", width, fmt),
+    "",
+    ...vm.summaryRows.map((row) => renderKV(row.key, row.value, fmt))
+  ];
+
+  if (vm.groupLines.length > 0) {
+    lines.push("");
+    lines.push(renderRuledSection("GROUPS", width, fmt));
+    lines.push("");
+    lines.push(...vm.groupLines.map((line) => renderToneLine(line, fmt)));
+  }
+
+  lines.push("");
+  lines.push(renderRuledSection("ARTIFACTS", width, fmt));
+  lines.push("");
+  lines.push(...vm.artifactRows.map((line) => fmt.muted(line)));
+  lines.push("");
+  lines.push(renderRuledSection("REPRODUCE", width, fmt));
+  lines.push("");
+  lines.push(vm.reproduceCommand);
+  lines.push("");
+  lines.push(renderSeparator(width, fmt));
+  lines.push(fmt.muted(vm.footerText));
+  return `${lines.join("\n")}\n`;
+};
+
+const buildReceiptDisplayTextFromRunDir = (runDir: string): string | null => {
   try {
-    const model = buildReceiptModel(runDir);
-    const fmt = createStdoutFormatter();
-    const width = fmt.termWidth();
-    const stopBanner = toStopBanner(model.stop_reason);
-    const stopReasonLabel = stopBanner.replace(/^Stopped:\s*/i, "").trim();
-    const lines: string[] = [
-      renderStatusStrip("run / receipt", 0, width, fmt),
-      renderSeparator(width, fmt),
-      "",
-      renderRuledSection("RECEIPT", width, fmt),
-      "",
-      stopBanner,
-      fmt.muted(UI_COPY.stoppingCaveat),
-      "",
-      renderRuledSection("SUMMARY", width, fmt),
-      "",
-      renderKV("Stop reason", stopReasonLabel || "unknown", fmt),
-      renderKV(
-        "Trials",
-        `${model.counts.k_planned ?? "-"} / ${model.counts.k_attempted ?? "-"} / ${model.counts.k_eligible ?? "-"} (planned / completed / eligible)`,
-        fmt
-      ),
-      renderKV("Duration", toDurationFromIso(model.started_at, model.completed_at), fmt),
-      renderKV(
-        "Usage",
-        model.usage
-          ? `${model.usage.totals.total_tokens} tokens (in ${model.usage.totals.prompt_tokens}, out ${model.usage.totals.completion_tokens})`
-          : "not available",
-        fmt
-      ),
-      renderKV("Protocol", model.protocol ?? "-", fmt),
-      renderKV("Models", `${model.model_count}`, fmt),
-      renderKV("Personas", `${model.persona_count}`, fmt)
-    ];
-
-    if (model.grouping?.enabled) {
-      lines.push("");
-      lines.push(renderRuledSection("GROUPS", width, fmt));
-      lines.push("");
-      lines.push(`Embedding groups: ${model.grouping.group_count ?? "—"}`);
-      lines.push("");
-      lines.push("Top group sizes");
-      lines.push(model.grouping.group_count !== undefined ? String(model.grouping.group_count) : "—");
-      lines.push("");
-      lines.push(fmt.muted(UI_COPY.groupingCaveat));
-    }
-
-    lines.push("");
-    lines.push(renderRuledSection("ARTIFACTS", width, fmt));
-    lines.push("");
-    lines.push(fmt.muted("Only generated files are listed."));
-    if ((model.artifacts?.length ?? 0) === 0) {
-      lines.push("—");
-    } else {
-      const paths = model.artifacts?.map((artifact) => artifact.path) ?? [];
-      for (let index = 0; index < paths.length; index += 3) {
-        lines.push(paths.slice(index, index + 3).join("    "));
-      }
-    }
-
-    if ((model.counts.k_eligible ?? 0) === 0) {
-      lines.push("No embeddings were generated because there were zero eligible trials.");
-    }
-
-    lines.push("");
-    lines.push(renderRuledSection("REPRODUCE", width, fmt));
-    lines.push("");
-    lines.push(`arbiter run --config ${runDir}/config.resolved.json`);
-    lines.push("");
-    lines.push(renderSeparator(width, fmt));
-    lines.push(fmt.muted("Run complete."));
-    return `${lines.join("\n")}\n`;
+    return buildReceiptDisplayText(buildReceiptViewModel(runDir));
   } catch {
     return null;
   }
@@ -734,7 +801,7 @@ export const createUiRunLifecycleHooks = (input?: {
         context.warningSink.warn("receipt.txt missing after run completion", "receipt");
         return;
       }
-      const receiptDisplayText = buildReceiptDisplayText(context.runDir);
+      const receiptDisplayText = buildReceiptDisplayTextFromRunDir(context.runDir);
       if (receiptDisplayText) {
         process.stdout.write(receiptDisplayText);
         return;

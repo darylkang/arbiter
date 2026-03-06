@@ -1,6 +1,5 @@
 import { resolve } from "node:path";
 import { emitKeypressEvents } from "node:readline";
-import { stdout as output } from "node:process";
 
 import { UI_COPY } from "../copy.js";
 import type {
@@ -13,10 +12,6 @@ import type {
   StepFrame
 } from "./types.js";
 import { SELECT_BACK, SELECT_EXIT } from "./types.js";
-
-const clearScreen = (): void => {
-  output.write("\x1b[H\x1b[J");
-};
 
 const firstEnabledIndex = (choices: Choice[], fallbackIndex: number): number => {
   if (choices.length === 0) {
@@ -267,14 +262,13 @@ export const selectOne = async (inputControl: {
   prompt: string;
   choices: Choice[];
   defaultIndex?: number;
-  frame?: StepFrame;
+  frame: StepFrame;
   renderStepFrame: (frame: StepFrame) => void;
 }): Promise<SelectOneResult> => {
   let selectedIndex = firstEnabledIndex(inputControl.choices, inputControl.defaultIndex ?? 0);
   return withRawKeyCapture<SelectOneResult>({
     render: (errorLine) => {
       const includePrompt =
-        !inputControl.frame ||
         inputControl.prompt.trim().toLowerCase() !== inputControl.frame.activeLabel.trim().toLowerCase();
       const lines: string[] = includePrompt ? [inputControl.prompt, ""] : [""];
       inputControl.choices.forEach((choice, index) => {
@@ -293,16 +287,11 @@ export const selectOne = async (inputControl: {
         lines.push("");
         lines.push(errorLine);
       }
-      if (inputControl.frame) {
-        inputControl.renderStepFrame({
-          ...inputControl.frame,
-          activeLines: [...inputControl.frame.activeLines, ...lines],
-          footerText: "↑/↓ move · Enter select · Esc back"
-        });
-      } else {
-        clearScreen();
-        output.write(`${lines.join("\n")}\n`);
-      }
+      inputControl.renderStepFrame({
+        ...inputControl.frame,
+        activeLines: [...inputControl.frame.activeLines, ...lines],
+        footerText: "↑/↓ move · Enter select · Esc back"
+      });
     },
     onKey: (_str, key) => {
       if (key.ctrl && key.name === "c") {
@@ -339,7 +328,7 @@ export const selectMany = async (inputControl: {
   choices: Choice[];
   defaults: string[];
   emptySelectionError?: string;
-  frame?: StepFrame;
+  frame: StepFrame;
   extraLines?: (selected: ReadonlySet<string>) => string[];
   renderStepFrame: (frame: StepFrame) => void;
 }): Promise<SelectManyResult> => {
@@ -348,7 +337,6 @@ export const selectMany = async (inputControl: {
   return withRawKeyCapture<SelectManyResult>({
     render: (errorLine) => {
       const includePrompt =
-        !inputControl.frame ||
         inputControl.prompt.trim().toLowerCase() !== inputControl.frame.activeLabel.trim().toLowerCase();
       const lines: string[] = includePrompt ? [inputControl.prompt, ""] : [""];
       inputControl.choices.forEach((choice, index) => {
@@ -367,16 +355,11 @@ export const selectMany = async (inputControl: {
         lines.push("");
         lines.push(errorLine);
       }
-      if (inputControl.frame) {
-        inputControl.renderStepFrame({
-          ...inputControl.frame,
-          activeLines: [...inputControl.frame.activeLines, ...lines],
-          footerText: "↑/↓ move · Space toggle · Enter confirm · Esc back"
-        });
-      } else {
-        clearScreen();
-        output.write(`${lines.join("\n")}\n`);
-      }
+      inputControl.renderStepFrame({
+        ...inputControl.frame,
+        activeLines: [...inputControl.frame.activeLines, ...lines],
+        footerText: "↑/↓ move · Space toggle · Enter confirm · Esc back"
+      });
     },
     onKey: (_str, key) => {
       if (key.ctrl && key.name === "c") {

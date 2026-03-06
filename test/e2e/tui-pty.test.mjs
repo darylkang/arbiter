@@ -246,6 +246,9 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
     const latestRunDir = runDirs.at(-1);
     assert.ok(latestRunDir);
     assertRunArtifacts(cwd, latestRunDir);
+    const receiptArtifact = readFileSync(join(cwd, "runs", latestRunDir, "receipt.txt"), "utf8");
+    assert.equal(ANSI_CSI_REGEX.test(receiptArtifact), false, "receipt.txt must remain ANSI-free");
+    assert.equal(ANSI_OSC_REGEX.test(receiptArtifact), false, "receipt.txt must remain ANSI-free");
 
     const output = session.getOutput();
     const mastheadIndex = output.indexOf("A R B I T E R");
@@ -261,6 +264,28 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
       false,
       "stage 3 should auto-exit with no next-action menu"
     );
+  } finally {
+    await session.stop();
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("pty: wizard remains usable at the minimum supported terminal size", { concurrency: false }, async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-min-size-"));
+  const session = createPtySession({ cwd, cols: 60, rows: 18 });
+
+  try {
+    await session.waitForText("Choose how to start", 25000);
+    session.pressEnter();
+
+    await session.waitForText("Choose run mode", 25000);
+    session.pressEnter();
+
+    await session.waitForText("Research Question", 25000);
+    session.typeText("Minimum size path");
+    session.pressEnter();
+
+    await session.waitForText("◆  Protocol", 25000);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });

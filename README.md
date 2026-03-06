@@ -150,7 +150,7 @@ This writes a timestamped directory under `output/playwright/tui-visual/` with p
 Recommended review split:
 
 - Human review: open `/Users/darylkang/Developer/arbiter/scripts/tui-terminal-viewer.html` in a browser and load one of the captured `*.ansi` files.
-- Agent review: inspect the generated `*.txt` files directly. They reflect terminal screen state rather than raw escape sequences.
+- Agent review: inspect the generated `*.txt` files directly. They reflect rendered terminal state rather than raw escape sequences. Stage 2 and Stage 3 checkpoint text includes rendered scrollback so the full run-path stack remains inspectable in one artifact.
 
 Execution note:
 
@@ -161,6 +161,7 @@ Automated coverage:
 
 ```bash
 npm run test:e2e:tui
+npm run test:guards
 ```
 
 That suite includes curated rendered-snapshot assertions for high-value checkpoints:

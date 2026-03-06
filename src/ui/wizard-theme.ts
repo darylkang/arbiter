@@ -132,9 +132,9 @@ export const renderBrandBlock = (
   apiKeyPresent: boolean,
   runMode: UiRunMode,
   configCount: number,
+  width: number,
   fmt: Formatter
 ): string => {
-  const width = Math.max(60, Math.min(process.stdout.columns ?? 80, 120));
   const versionText = `v${version}`;
   const pad = Math.max(2, width - UI_COPY.brand.length - versionText.length);
   const apiKeyLabel = toApiKeyPresenceLabel(apiKeyPresent);
@@ -174,7 +174,7 @@ const truncatePlain = (value: string, max: number): string => {
   return `${value.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 };
 
-export const renderWorkerRow = (worker: WorkerRow, fmt: Formatter, width = fmt.termWidth()): string => {
+export const renderWorkerRow = (worker: WorkerRow, fmt: Formatter, width: number): string => {
   const stateColor = (() => {
     if (worker.state === "error") {
       return fmt.error;

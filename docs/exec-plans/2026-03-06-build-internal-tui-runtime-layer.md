@@ -58,11 +58,11 @@ Temporary coexistence rules:
 - [x] (2026-03-06 15:05Z) initial plan drafted around a larger runtime-layer migration (`proposed`)
 - [x] (2026-03-06 15:24Z) durable runtime contract landed in docs and canonical references (`in_progress`)
 - [x] (2026-03-06 16:12Z) runtime contract revised to match the existing pure-render-function architecture
-- [ ] Stage 1, Stage 2, and Stage 3 view-model contracts formalized and reconciled
-- [ ] formatter, primitive, and fixture-test hardening landed
-- [ ] architecture guard and terminal-edge-case coverage landed
-- [ ] runtime ownership seams tightened and remaining implementation guidance drift removed
-- [ ] validation matrix expanded and completion evidence captured
+- [x] (2026-03-06 23:31Z) Stage 1, Stage 2, and Stage 3 view-model contracts formalized and reconciled
+- [x] (2026-03-06 23:31Z) formatter, primitive, and fixture-test hardening landed
+- [x] (2026-03-06 23:31Z) architecture guard and terminal-edge-case coverage landed
+- [x] (2026-03-06 23:31Z) runtime ownership seams tightened and remaining implementation guidance drift removed
+- [x] (2026-03-06 23:31Z) validation matrix expanded and completion evidence captured
 
 ## Surprises & Discoveries
 - Observation: Arbiter's current TUI stack is already structured enough that a disciplined internal runtime layer is cheaper than an Ink rewrite.
@@ -411,8 +411,27 @@ Expected disposable artifacts during execution:
 1. timestamped capture output under `output/playwright/tui-visual/`
 2. local inspection notes produced while comparing fixture output and xterm-replayed snapshots
 
+## Outcomes & Retrospective
+Delivered in this hardening pass:
+
+1. `StepFrame`, `DashboardVM`, and `ReceiptVM` now define explicit renderer-facing contracts for the three main TUI stages.
+2. `createPlainFormatter()` enables deterministic primitive and full-screen fixture tests without a second renderer implementation.
+3. `renderBrandBlock()` and `renderWorkerRow()` now rely on explicit width input rather than terminal globals.
+4. Stage 1 full-screen composition, Stage 2 dashboard composition, and Stage 3 receipt composition all have deterministic fixture coverage.
+5. Direct stdout and raw ANSI ownership is now enforced by architecture guards with a narrow approved seam whitelist.
+6. Widget fallback writes in `controls.ts` were removed so Stage 1 rendering now routes through the frame manager consistently.
+7. The validation matrix now includes minimum-supported and short-terminal regressions (`60x18`, `60x24`, `120x24`) plus ANSI-free `receipt.txt` assertions.
+8. Captured Stage 2 and Stage 3 text artifacts now replay rendered scrollback so agent review sees the full run-path stack.
+
+Residual risks intentionally left out of scope:
+
+1. Stage 2 row budgeting still uses heuristic rendered-width counting rather than a full terminal cell-width engine.
+2. Human visual polish review still depends on `scripts/tui-terminal-viewer.html`; there is no screenshot-grade automated reviewer in this plan.
+3. This runtime remains intentionally Arbiter-specific and is not intended to generalize to arbitrary multi-pane or chat-style terminal products.
+
 ## Plan Change Notes
 - 2026-03-06 15:05Z: initial plan drafted to build an Arbiter-specific internal TUI runtime layer with view models, layout nodes, dual render backends, and centralized runtime ownership.
 - 2026-03-06 15:24Z: M0 durable docs landed in `docs/TUI-RUNTIME.md` and canonical references were updated in `docs/DESIGN.md`, `README.md`, and `AGENTS.md`.
 - 2026-03-06 16:03Z: plan revised after architecture review to keep pure render functions, drop layout-tree and dual-backend migration, and focus on view-model, formatter, and guard hardening.
 - 2026-03-06 16:12Z: reconciled `tui-copy-deck.md` and `tui-visual-screen-deck.md` with the revised runtime contract and removed stale implementation-guide contradictions.
+- 2026-03-06 23:31Z: implementation completed for M1-M4 with plain-formatter fixtures, runtime ownership guards, expanded terminal regressions, receipt artifact safety checks, and steady-state contributor workflow updates.

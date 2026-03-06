@@ -1,5 +1,3 @@
-import { stdout as output } from "node:process";
-
 import type { ArbiterResolvedConfig } from "../../generated/config.types.js";
 import { runLiveService, runMockService } from "../../run/run-service.js";
 import { createConsoleWarningSink } from "../../utils/warnings.js";
@@ -64,15 +62,15 @@ const runStudy = async (input: {
 
 export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise<void> => {
   const assetRoot = options?.assetRoot ?? process.cwd();
+  const frameManager = createWizardFrameManager();
   const terminalSupport = getWizardTerminalSupport(process.stdout);
   if (process.stdout.isTTY && !terminalSupport.ok) {
-    output.write(`${UI_COPY.wizardTerminalTooSmall}\n`);
+    frameManager.exit(UI_COPY.wizardTerminalTooSmall);
     return;
   }
   const { version, modelOptions, personaOptions } = loadWizardOptions(assetRoot);
   const modelLabelBySlug = new Map(modelOptions.map((model) => [model.slug, model.display]));
   const personaLabelById = new Map(personaOptions.map((persona) => [persona.id, persona.display]));
-  const frameManager = createWizardFrameManager();
   const configFilesResolved = listConfigFiles();
   const apiKeyPresent = Boolean(process.env.OPENROUTER_API_KEY);
 
@@ -188,13 +186,12 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         continue;
       }
 
-      result.warnings.forEach((warning: string) => output.write(`${warning}\n`));
+      frameManager.printLines(result.warnings);
 
       if (result.kind === "save") {
         const saveTarget = nextCollisionSafeConfigPath();
         writeJsonFile(saveTarget, result.config);
-        frameManager.leave();
-        output.write(`Config saved: ${saveTarget}\n`);
+        frameManager.printLine(`Config saved: ${saveTarget}`);
         return;
       }
 
@@ -208,7 +205,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       } else {
         const saveTarget = nextCollisionSafeConfigPath();
         writeJsonFile(saveTarget, result.config);
-        output.write(`Config saved: ${saveTarget}\n`);
+        frameManager.printLine(`Config saved: ${saveTarget}`);
         configPathToRun = saveTarget;
       }
 

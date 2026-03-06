@@ -136,7 +136,7 @@ When changing wizard, dashboard, receipt, TTY routing, terminal rendering, or TU
 2. run `npm run capture:tui` and inspect the generated artifacts,
 3. use the generated `*.txt` files for agent review of rendered terminal state,
 4. use `scripts/tui-terminal-viewer.html` with the paired `*.ansi` files for human color and composition review,
-5. run `npm run test:ui`, `npm run test:e2e:tui`, and `npm run test:unit`.
+5. run `npm run test:ui`, `npm run test:e2e:tui`, `npm run test:unit`, and `npm run test:guards`.
 
 Operational rule:
 
@@ -157,6 +157,7 @@ When sentinel strings, stage headers, or TUI copy/layout contracts change, updat
 Keep this workflow lightweight:
 
 - `*.txt` snapshots are for layout and content verification, not color truth,
+- Stage 2 and Stage 3 `*.txt` snapshots are rendered with scrollback included so agent review sees the full run-path stack rather than only the visible viewport,
 - prefer a few stable checkpoint assertions over full golden snapshot lock-in.
 
 ## Validation Policy
@@ -173,6 +174,7 @@ Minimum by change type:
   - `npm run test:ui`
   - `npm run test:e2e:tui`
   - `npm run test:unit`
+  - `npm run test:guards`
   - `npm run capture:tui`
 - **Schema / config / artifact shape changes**:
   - `npm run check:types`
@@ -218,6 +220,7 @@ Before merging implementation changes, run the standard suite:
 - `npm run test:e2e:tui`
 - `npm run test:cli-contracts`
 - `npm run test:unit`
+- `npm run test:guards`
 
 Also run these when relevant:
 

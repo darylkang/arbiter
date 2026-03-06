@@ -43,9 +43,10 @@ Scrollback after exit shows: frozen rail → Stage 2 final → Stage 3 receipt. 
 
 **Stage 1**: Full-frame clear-and-redraw on each interaction.
 
-1. Clear: `\x1b[2J\x1b[H` (clear all + cursor home).
+1. Clear: `\x1b[H\x1b[J` (cursor home + clear from cursor).
 2. Render: status strip → separator → content (brand block or rail) → separator → footer.
 3. Triggered by: each keypress that changes state.
+4. At the minimum supported wizard height (`18` rows), Stage 1 compacts vertically: brand identity collapses to a 2-line block and rail content omits decorative spacer rows so the active step remains visible without scrolling the alternate screen viewport.
 
 **Stage 2**: In-place update via cursor movement.
 
@@ -60,7 +61,7 @@ Scrollback after exit shows: frozen rail → Stage 2 final → Stage 3 receipt. 
 
 ### Resize
 
-Terminal resize triggers re-render at new dimensions. No special handling — rail is width-agnostic, progress bars scale via formula, separators refill to terminal width. Minimum supported width: 60 columns. Minimum supported height for the live Stage 2 dashboard: 15 rows; below that threshold, the premium dashboard is disabled and receipt falls back to plain text.
+Terminal resize triggers re-render at new dimensions. The rail is width-agnostic, progress bars scale via formula, separators refill to terminal width, and the Stage 1 shell compacts at the minimum supported wizard height. Minimum supported width: 60 columns. Minimum supported height for the wizard: 18 rows. Minimum supported height for the live Stage 2 dashboard: 15 rows; below that threshold, the premium dashboard is disabled and receipt falls back to plain text.
 
 ## Visual Grammar
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createFormatter } from "../../dist/ui/fmt.js";
+import { createFormatter, createPlainFormatter } from "../../dist/ui/fmt.js";
 
 const ANSI_REGEX = /\u001b\[[0-9;]*m/g;
 
@@ -83,4 +83,15 @@ test("formatter treats NO_COLOR=0 as disabled color", () => {
 
   assert.equal(fmt.isColorEnabled, false);
   assert.equal(fmt.success("ok").includes("\u001b["), false);
+});
+
+test("plain formatter preserves structure without ANSI noise", () => {
+  const fmt = createPlainFormatter({ columns: 72 });
+
+  assert.equal(fmt.isTTY, true);
+  assert.equal(fmt.isColorEnabled, false);
+  assert.equal(fmt.termWidth(), 72);
+  assert.equal(fmt.brand("Arbiter"), "Arbiter");
+  assert.equal(fmt.warn("warning"), "warning");
+  assert.equal(fmt.divider(10), "─".repeat(60));
 });

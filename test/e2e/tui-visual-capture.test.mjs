@@ -95,3 +95,63 @@ test("pty capture preserves the Stage 2 status strip on a 24-row terminal", { co
     rmSync(outputDir, { recursive: true, force: true });
   }
 });
+
+test("pty capture preserves the Stage 2 status strip on a 60x24 terminal", { concurrency: false }, async () => {
+  const outputDir = mkdtempSync(join(tmpdir(), "arbiter-tui-rendered-60x24-"));
+
+  try {
+    const { checkpoints } = await captureVisualJourney({
+      outputDir,
+      cols: 60,
+      rows: 24,
+      quiet: true
+    });
+
+    const runRendered = readFileSync(getCheckpoint(checkpoints, "stage2-run").textPath, "utf8");
+    assert.equal(runRendered.includes("run / monitoring"), true);
+
+    const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
+    const fullScrollback = await renderAnsiToText(receiptAnsi, {
+      cols: 60,
+      rows: 24,
+      includeScrollback: true
+    });
+    assert.equal((fullScrollback.match(/── PROGRESS/g) || []).length, 1);
+    assert.equal((fullScrollback.match(/run \/ monitoring/g) || []).length, 1);
+    assert.equal((fullScrollback.match(/── RECEIPT/g) || []).length, 1);
+  } finally {
+    rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test("pty capture completes at the minimum supported 60x18 size", { concurrency: false }, async () => {
+  const outputDir = mkdtempSync(join(tmpdir(), "arbiter-tui-rendered-60x18-"));
+
+  try {
+    const { checkpoints } = await captureVisualJourney({
+      outputDir,
+      cols: 60,
+      rows: 18,
+      quiet: true
+    });
+
+    assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step0-entry"), [
+      "A R B I T E R",
+      "Choose how to start"
+    ]);
+    assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "stage2-run"), [
+      "── PROGRESS",
+      "Trials:"
+    ]);
+    const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
+    const fullScrollback = await renderAnsiToText(receiptAnsi, {
+      cols: 60,
+      rows: 18,
+      includeScrollback: true
+    });
+    assert.equal(fullScrollback.includes("── RECEIPT"), true);
+    assert.equal(fullScrollback.includes("Run complete."), true);
+  } finally {
+    rmSync(outputDir, { recursive: true, force: true });
+  }
+});

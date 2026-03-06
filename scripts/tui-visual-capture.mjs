@@ -153,7 +153,11 @@ export const captureVisualJourney = async (options = {}) => {
     const ansiPath = resolve(outputDir, `${prefix}.ansi`);
     const textPath = resolve(outputDir, `${prefix}.txt`);
     writeFileSync(ansiPath, snapshotAnsi, "utf8");
-    const renderedText = await renderAnsiToText(snapshotAnsi, { cols, rows });
+    const renderedText = await renderAnsiToText(snapshotAnsi, {
+      cols,
+      rows,
+      includeScrollback: slug.startsWith("stage")
+    });
     writeFileSync(textPath, renderedText.length > 0 ? `${renderedText}\n` : "", "utf8");
     checkpoints.push({
       slug,
@@ -221,7 +225,8 @@ export const captureVisualJourney = async (options = {}) => {
     pressEnter();
 
     await waitForText("── PROGRESS");
-    await saveSnapshot("stage2-run");
+    await delay(200);
+    await saveSnapshot("stage2-run", { endBeforeText: "── RECEIPT" });
 
     await waitForText("── RECEIPT", 45000);
     await delay(200);
