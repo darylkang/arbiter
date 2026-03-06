@@ -66,6 +66,9 @@ web_modules/
 
 # Arbiter run outputs
 runs/
+output/
+/arbiter.config.json
+/arbiter.config.*.json
 
 # Yarn Integrity file
 .yarn-integrity
