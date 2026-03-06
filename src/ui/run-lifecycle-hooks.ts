@@ -9,6 +9,10 @@ import { toStopBanner } from "./copy.js";
 import { buildReceiptModel } from "./receipt-model.js";
 import { createStdoutFormatter } from "./fmt.js";
 import {
+  MIN_DASHBOARD_ROWS,
+  getDashboardTerminalSupport
+} from "./tui-constraints.js";
+import {
   MASTER_BAR_MAX,
   renderKV,
   renderProgressBar,
@@ -362,6 +366,8 @@ class RunDashboardMonitor {
   private readonly snapshot: DashboardSnapshot;
   private readonly unsubs: Array<() => void> = [];
   private readonly prefixRows: number;
+  private lastTopRow = 1;
+  private lastLiveRows = MIN_DASHBOARD_ROWS;
   private animationTimer: NodeJS.Timeout | null = null;
   private hasRendered = false;
 
@@ -425,7 +431,8 @@ class RunDashboardMonitor {
     process.stdout.write(RESET_SCROLL_REGION);
     if (this.hasRendered) {
       const terminalRows = Math.max(1, process.stdout.rows ?? 24);
-      process.stdout.write(`\x1b[${terminalRows};1H\n`);
+      const nextRow = Math.min(terminalRows, this.lastTopRow + this.lastLiveRows);
+      process.stdout.write(`\x1b[${nextRow};1H\n`);
     }
     process.stdout.write(CURSOR_SHOW);
   }
@@ -568,8 +575,12 @@ class RunDashboardMonitor {
     this.snapshot.renderTick += 1;
     const terminalColumns = Math.max(1, process.stdout.columns ?? 80);
     const terminalRows = Math.max(2, process.stdout.rows ?? 24);
-    const topRow = Math.min(Math.max(1, this.prefixRows + 1), terminalRows);
-    const liveRows = Math.max(1, terminalRows - topRow + 1);
+    const visiblePrefixRows = Math.min(
+      this.prefixRows,
+      Math.max(0, terminalRows - MIN_DASHBOARD_ROWS)
+    );
+    const topRow = Math.min(Math.max(1, visiblePrefixRows + 1), terminalRows);
+    const liveRows = Math.max(1, terminalRows - visiblePrefixRows);
     const frameText = buildRunDashboardText(this.snapshot, Date.now(), {
       width: terminalColumns,
       maxRows: liveRows
@@ -578,6 +589,8 @@ class RunDashboardMonitor {
     process.stdout.write(`\x1b[${topRow};${terminalRows}r`);
     process.stdout.write(`\x1b[${topRow};1H\x1b[J`);
     process.stdout.write(frameText);
+    this.lastTopRow = topRow;
+    this.lastLiveRows = liveRows;
     this.hasRendered = true;
   }
 }
@@ -676,12 +689,22 @@ export const createUiRunLifecycleHooks = (input?: {
   const dashboardEnabled = shouldRenderDashboard(Boolean(input?.dashboard));
   const stackPrefixText = input?.stackPrefixText;
   let monitor: RunDashboardMonitor | null = null;
+  let dashboardActive = false;
+  let usePlainReceipt = false;
 
   return {
     onRunSetup: (context): void => {
       if (!dashboardEnabled) {
         return;
       }
+      const terminalSupport = getDashboardTerminalSupport(process.stdout);
+      if (!terminalSupport.ok) {
+        usePlainReceipt = true;
+        process.stdout.write(`${UI_COPY.dashboardTerminalTooSmall}\n`);
+        dashboardActive = false;
+        return;
+      }
+      usePlainReceipt = false;
       let prefixRows = 0;
       if (stackPrefixText && stackPrefixText.trim().length > 0) {
         const prefixText = stackPrefixText.replace(/\n+$/, "");
@@ -690,6 +713,7 @@ export const createUiRunLifecycleHooks = (input?: {
       }
       monitor = new RunDashboardMonitor(context, prefixRows);
       monitor.attach();
+      dashboardActive = true;
     },
     onRunFinally: async (context): Promise<void> => {
       if (monitor) {
@@ -697,11 +721,19 @@ export const createUiRunLifecycleHooks = (input?: {
         monitor = null;
       }
 
-      if (!dashboardEnabled || context.receiptMode === "skip") {
+      if ((!dashboardEnabled && !dashboardActive) || context.receiptMode === "skip") {
         return;
       }
 
       const receiptText = readReceiptText(context.runDir);
+      if (usePlainReceipt) {
+        if (receiptText) {
+          process.stdout.write(receiptText);
+          return;
+        }
+        context.warningSink.warn("receipt.txt missing after run completion", "receipt");
+        return;
+      }
       const receiptDisplayText = buildReceiptDisplayText(context.runDir);
       if (receiptDisplayText) {
         process.stdout.write(receiptDisplayText);

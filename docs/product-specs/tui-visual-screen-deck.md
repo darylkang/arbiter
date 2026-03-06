@@ -59,7 +59,7 @@ Scrollback after exit shows: frozen rail → Stage 2 final → Stage 3 receipt. 
 
 ### Resize
 
-Terminal resize triggers re-render at new dimensions. No special handling — rail is width-agnostic, progress bars scale via formula, separators refill to terminal width. Minimum supported width: 60 columns.
+Terminal resize triggers re-render at new dimensions. No special handling — rail is width-agnostic, progress bars scale via formula, separators refill to terminal width. Minimum supported width: 60 columns. Minimum supported height for the live Stage 2 dashboard: 15 rows; below that threshold, the premium dashboard is disabled and receipt falls back to plain text.
 
 ## Visual Grammar
 
@@ -643,7 +643,7 @@ When the user chose `Run existing config` at Step 0, intermediate steps are comp
 │   Preflight
 │   ✓ Schema validation
 │   ✓ Output path writable
-│   ✓ Live connectivity check
+│   ⚠ Live connectivity check occurs at run start
 │
 │   ▸ ● Run now
 │     ○ Save config and exit

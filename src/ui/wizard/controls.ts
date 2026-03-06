@@ -52,17 +52,14 @@ const withRawKeyCapture = async <T>(inputControl: {
     throw new Error("Wizard key-driven input requires a TTY.");
   }
 
-  return new Promise<T>((resolvePromise) => {
+  return new Promise<T>((resolvePromise, rejectPromise) => {
     emitKeypressEvents(stdin);
     const wasRaw = Boolean(stdin.isRaw);
     stdin.setRawMode(true);
     stdin.resume();
 
     let currentError = "";
-
-    const render = (): void => {
-      inputControl.render(currentError || undefined);
-    };
+    let settled = false;
 
     const cleanup = (): void => {
       stdin.removeListener("keypress", onKeyPress);
@@ -72,11 +69,42 @@ const withRawKeyCapture = async <T>(inputControl: {
       }
     };
 
+    const finish = (callback: (value: T) => void, value: T): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      callback(value);
+    };
+
+    const fail = (error: unknown): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      rejectPromise(error);
+    };
+
+    const render = (): void => {
+      try {
+        inputControl.render(currentError || undefined);
+      } catch (error) {
+        fail(error);
+      }
+    };
+
     const onKeyPress = (str: string, key: RawKey): void => {
-      const result = inputControl.onKey(str, key);
+      let result: { done: true; value: T } | { done: false; error?: string };
+      try {
+        result = inputControl.onKey(str, key);
+      } catch (error) {
+        fail(error);
+        return;
+      }
       if (result.done) {
-        cleanup();
-        resolvePromise(result.value);
+        finish(resolvePromise, result.value);
         return;
       }
       currentError = result.error ?? "";

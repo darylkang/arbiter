@@ -67,3 +67,31 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
     rmSync(outputDir, { recursive: true, force: true });
   }
 });
+
+test("pty capture preserves the Stage 2 status strip on a 24-row terminal", { concurrency: false }, async () => {
+  const outputDir = mkdtempSync(join(tmpdir(), "arbiter-tui-rendered-24rows-"));
+
+  try {
+    const { checkpoints } = await captureVisualJourney({
+      outputDir,
+      cols: 120,
+      rows: 24,
+      quiet: true
+    });
+
+    const runRendered = readFileSync(getCheckpoint(checkpoints, "stage2-run").textPath, "utf8");
+    assert.equal(runRendered.includes("run / monitoring"), true);
+
+    const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
+    const fullScrollback = await renderAnsiToText(receiptAnsi, {
+      cols: 120,
+      rows: 24,
+      includeScrollback: true
+    });
+    assert.equal((fullScrollback.match(/── PROGRESS/g) || []).length, 1);
+    assert.equal((fullScrollback.match(/run \/ monitoring/g) || []).length, 1);
+    assert.equal((fullScrollback.match(/── RECEIPT/g) || []).length, 1);
+  } finally {
+    rmSync(outputDir, { recursive: true, force: true });
+  }
+});

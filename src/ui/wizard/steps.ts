@@ -130,13 +130,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
       prompt: "Models",
       choices: context.modelOptions.map((model) => ({
         id: model.slug,
-        label: `${model.display} ${model.slug.endsWith(":free") ? "[free]" : "[paid]"}${
-          model.display.includes("Mini") || model.display.includes("Flash")
-            ? " [fast]"
-            : !model.slug.endsWith(":free")
-              ? " [stable]"
-              : ""
-        }`
+        label: `${model.display}${model.badges.length > 0 ? ` ${model.badges.map((badge) => `[${badge}]`).join(" ")}` : ""}`
       })),
       defaults: state.draft.modelSlugs,
       emptySelectionError: "Fix required: select at least one model.",
@@ -162,7 +156,10 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
   4: async (state) => {
     const selectedPersonas = await selectMany({
       prompt: "Personas",
-      choices: context.personaOptions.map((persona) => ({ id: persona.id, label: persona.display })),
+      choices: context.personaOptions.map((persona) => ({
+        id: persona.id,
+        label: persona.description.length > 0 ? `${persona.display} — ${persona.description}` : persona.display
+      })),
       defaults: state.draft.personaIds,
       emptySelectionError: "Fix required: select at least one persona.",
       frame: context.buildStepFrame(4, 3, "Personas", "Select one or more personas for sampling."),

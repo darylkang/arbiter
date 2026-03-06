@@ -326,7 +326,8 @@ Summary should list changed values only.
 2. Preflight checks:
    - schema valid for both `Run now` and `Save config and exit`
    - output path writable for both `Run now` and `Save config and exit`
-   - live-mode API key and connectivity probe only when run mode is Live and action is `Run now`
+   - live-mode API key presence only when run mode is Live and action is `Run now`
+   - live connectivity is verified at run start after the wizard hands off to Stage 2; it is not a blocking network probe inside the review screen
    - if run mode is Live and action is `Save config and exit`, show warning: `Live mode requires OPENROUTER_API_KEY to run; config saved but not executed.`
    - warnings for risky settings
 3. Actions:

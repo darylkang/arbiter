@@ -14,6 +14,14 @@ const titleCase = (value: string): string =>
 
 const toPersonaDisplay = (id: string): string => titleCase(id.replace(/^persona_/, ""));
 
+const toModelBadges = (input: { provider: string; tier: string; isAliased: boolean }): string[] => {
+  const badges = [titleCase(input.provider), input.tier === "free" ? "free" : "paid"];
+  if (input.isAliased) {
+    badges.push("alias");
+  }
+  return badges;
+};
+
 export const loadWizardVersion = (assetRoot: string): string => {
   const pkg = readJsonFile<{ version?: string }>(resolve(assetRoot, "package.json"));
   return pkg.version ?? "0.0.0";
@@ -28,7 +36,12 @@ export const loadCatalogModels = (assetRoot: string): CatalogModel[] => {
     display: model.display_name,
     provider: model.provider,
     tier: model.tier,
-    isAliased: model.is_aliased === true
+    isAliased: model.is_aliased === true,
+    badges: toModelBadges({
+      provider: model.provider,
+      tier: model.tier,
+      isAliased: model.is_aliased === true
+    })
   }));
 };
 

@@ -363,6 +363,7 @@ Preflight labels:
 5. `LOCKED` structure: `✓ {check_name}`
 6. `LOCKED` structure: `⚠ {check_name}`
 7. `LOCKED` structure: `✗ {check_name}`
+8. `LOCKED`: live-mode review uses `⚠ Live connectivity check occurs at run start` rather than a blocking in-wizard network probe.
 
 Live save warning:
 

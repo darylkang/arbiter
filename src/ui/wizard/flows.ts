@@ -1,10 +1,9 @@
-import { accessSync, constants, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { accessSync, constants, existsSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 import type { ArbiterResolvedConfig } from "../../generated/config.types.js";
 import { resolveConfig } from "../../config/resolve-config.js";
-import { listModels } from "../../openrouter/client.js";
 import { writeJsonFile } from "../../cli/commands.js";
 import {
   askFloatInput,
@@ -31,10 +30,31 @@ type StepFrameBuilder = (
   hint?: string
 ) => StepFrame;
 
-const ensureOutputDirWritable = (runsDir: string): void => {
+const assertOutputDirWritable = (runsDir: string): void => {
   const absolute = resolve(process.cwd(), runsDir);
-  mkdirSync(absolute, { recursive: true });
-  accessSync(absolute, constants.W_OK);
+  if (existsSync(absolute)) {
+    const stat = statSync(absolute);
+    if (!stat.isDirectory()) {
+      throw new Error(`Output path exists and is not a directory: ${runsDir}`);
+    }
+    accessSync(absolute, constants.W_OK | constants.X_OK);
+    return;
+  }
+
+  let candidate = dirname(absolute);
+  while (!existsSync(candidate)) {
+    const parent = dirname(candidate);
+    if (parent === candidate) {
+      throw new Error(`Unable to validate output path: ${runsDir}`);
+    }
+    candidate = parent;
+  }
+
+  const parentStat = statSync(candidate);
+  if (!parentStat.isDirectory()) {
+    throw new Error(`Output parent exists and is not a directory: ${candidate}`);
+  }
+  accessSync(candidate, constants.W_OK | constants.X_OK);
 };
 
 const validateConfigResolvable = (input: {
@@ -68,7 +88,7 @@ export const runPreflight = async (input: {
     assetRoot: input.assetRoot
   });
 
-  ensureOutputDirWritable(input.config.output.runs_dir);
+  assertOutputDirWritable(input.config.output.runs_dir);
 
   const selectedModels = input.config.sampling.models.map((model) => model.model);
   if (selectedModels.some((model) => model.endsWith(":free"))) {
@@ -81,7 +101,6 @@ export const runPreflight = async (input: {
     if (!process.env.OPENROUTER_API_KEY) {
       throw new Error("Live mode requires OPENROUTER_API_KEY.");
     }
-    await listModels();
   }
 
   if (input.action === "save" && input.runMode === "live" && !process.env.OPENROUTER_API_KEY) {

@@ -13,16 +13,11 @@ const CLI_ENTRY = resolve(REPO_ROOT, "dist/cli/index.js");
 const ANSI_CSI_REGEX = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 const ANSI_OSC_REGEX = /\u001b\][^\u0007]*\u0007/g;
 
-const ensureBuilt = () => {
-  const build = spawnSync("npm", ["run", "build"], {
-    cwd: REPO_ROOT,
-    stdio: "inherit",
-    env: { ...process.env }
-  });
-  assert.equal(build.status, 0, "expected npm run build to succeed before PTY tests");
-};
-
-ensureBuilt();
+assert.equal(
+  existsSync(CLI_ENTRY),
+  true,
+  "expected dist/cli/index.js to exist; run npm run build before PTY tests"
+);
 
 const stripAnsi = (value) =>
   value
@@ -195,6 +190,23 @@ test("pty: wizard launches in TTY and exits cleanly from Step 0", { concurrency:
     const exit = await session.waitForExit(25000);
     assert.equal(exit.exitCode, 0);
     assert.ok(session.getOutput().includes("Wizard exited."));
+  } finally {
+    await session.stop();
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("pty: wizard exits early with a clear resize message on undersized terminals", { concurrency: false }, async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-small-"));
+  const session = createPtySession({ cwd, cols: 50, rows: 24 });
+
+  try {
+    await session.waitForText(
+      "Interactive wizard requires at least 60 columns x 18 rows. Resize the terminal and try again.",
+      25000
+    );
+    const exit = await session.waitForExit(25000);
+    assert.equal(exit.exitCode, 0);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });

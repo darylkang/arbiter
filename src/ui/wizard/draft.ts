@@ -240,7 +240,9 @@ export const buildReviewLines = (input: {
     "Preflight",
     "✓ Schema validation",
     "✓ Output path writable",
-    runMode === "mock" ? "⚠ Live connectivity check (skipped in Mock mode)" : "✓ Live connectivity check",
+    runMode === "mock"
+      ? "⚠ Live connectivity check (skipped in Mock mode)"
+      : "⚠ Live connectivity check occurs at run start",
     "",
     "Config Summary",
     `Question: "${truncate(draft.question.trim(), 72)}"`,

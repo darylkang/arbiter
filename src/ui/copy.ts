@@ -12,6 +12,10 @@ export const UI_COPY = {
     "Run existing config is unavailable: no config files found in this directory.",
   liveModeUnavailable:
     "Live mode is unavailable: OPENROUTER_API_KEY not detected.",
+  wizardTerminalTooSmall:
+    "Interactive wizard requires at least 60 columns x 18 rows. Resize the terminal and try again.",
+  dashboardTerminalTooSmall:
+    "Dashboard requires at least 60 columns x 15 rows; continuing without live dashboard.",
   gracefulStopRequested:
     "Graceful stop requested. Finishing in-flight trials and writing partial artifacts.",
   startingRun: "Starting run",

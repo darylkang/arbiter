@@ -18,6 +18,7 @@ import {
 } from "./draft.js";
 import { createWizardFrameManager } from "./frame-manager.js";
 import { loadWizardOptions } from "./resources.js";
+import { getWizardTerminalSupport } from "../tui-constraints.js";
 import {
   createWizardControllers,
   type WizardFlowState,
@@ -63,6 +64,11 @@ const runStudy = async (input: {
 
 export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise<void> => {
   const assetRoot = options?.assetRoot ?? process.cwd();
+  const terminalSupport = getWizardTerminalSupport(process.stdout);
+  if (process.stdout.isTTY && !terminalSupport.ok) {
+    output.write(`${UI_COPY.wizardTerminalTooSmall}\n`);
+    return;
+  }
   const { version, modelOptions, personaOptions } = loadWizardOptions(assetRoot);
   const modelLabelBySlug = new Map(modelOptions.map((model) => [model.slug, model.display]));
   const personaLabelById = new Map(personaOptions.map((persona) => [persona.id, persona.display]));
