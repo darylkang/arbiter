@@ -56,6 +56,7 @@ type DashboardSnapshot = {
 const MAX_DASHBOARD_QUESTION_CHARS = 88;
 const CURSOR_HIDE = "\x1b[?25l";
 const CURSOR_SHOW = "\x1b[?25h";
+const RESET_SCROLL_REGION = "\x1b[r";
 const ANSI_CSI_REGEX = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 
 const shouldRenderDashboard = (enabled: boolean): boolean =>
@@ -165,29 +166,132 @@ const toDurationFromIso = (startedAt?: string, completedAt?: string): string => 
   return formatClockHMS(completed - started);
 };
 
+type DashboardRenderOptions = {
+  width?: number;
+  maxRows?: number;
+};
+
+const countRowsForLines = (lines: string[], columns: number): number =>
+  lines.reduce((total, line) => total + countRenderedRows(line, columns), 0);
+
+const buildWorkerSection = (
+  snapshot: DashboardSnapshot,
+  fmt: ReturnType<typeof createStdoutFormatter>,
+  width: number,
+  compact: boolean,
+  remainingRows: number
+): string[] => {
+  if (snapshot.workers <= 1 || remainingRows <= 0) {
+    return [];
+  }
+
+  const sorted = Array.from(snapshot.workerStatus.entries()).sort((a, b) => a[0] - b[0]);
+  const sectionPrefix = [renderRuledSection("WORKERS", width, fmt), ...(compact ? [] : [""]), fmt.muted("ID  Activity      State     Trial     Model")];
+  const prefixRows = countRowsForLines(sectionPrefix, width);
+  const overflowRows = countRowsForLines([fmt.muted("(+0 more workers)")], width);
+  const minVisibleRows = prefixRows + 1;
+  if (remainingRows < minVisibleRows) {
+    return [];
+  }
+
+  let visibleCount = 0;
+  let usedRows = prefixRows;
+  while (visibleCount < sorted.length) {
+    const [workerId, state] = sorted[visibleCount]!;
+    const workerLine = renderWorkerRow(
+      {
+        id: workerId,
+        state: state.status,
+        trialId: state.trialId,
+        model: state.trialId !== undefined ? snapshot.trialModelById.get(state.trialId) ?? "—" : "—",
+        tick: snapshot.renderTick
+      },
+      fmt,
+      width
+    );
+    const workerRows = countRenderedRows(workerLine, width);
+    const remainingWorkers = sorted.length - (visibleCount + 1);
+    const requiredOverflowRows = remainingWorkers > 0 ? overflowRows : 0;
+    if (usedRows + workerRows + requiredOverflowRows > remainingRows) {
+      break;
+    }
+    usedRows += workerRows;
+    visibleCount += 1;
+  }
+
+  if (visibleCount === 0) {
+    return [];
+  }
+
+  const lines = [...sectionPrefix];
+  for (let index = 0; index < visibleCount; index += 1) {
+    const [workerId, state] = sorted[index]!;
+    lines.push(
+      renderWorkerRow(
+        {
+          id: workerId,
+          state: state.status,
+          trialId: state.trialId,
+          model: state.trialId !== undefined ? snapshot.trialModelById.get(state.trialId) ?? "—" : "—",
+          tick: snapshot.renderTick
+        },
+        fmt,
+        width
+      )
+    );
+  }
+  const hidden = sorted.length - visibleCount;
+  if (hidden > 0) {
+    lines.push(fmt.muted(`(+${hidden} more workers)`));
+  }
+  return lines;
+};
+
 export const buildRunDashboardText = (
   snapshot: DashboardSnapshot,
-  nowMs = Date.now()
+  nowMs = Date.now(),
+  options: DashboardRenderOptions = {}
 ): string => {
   const fmt = createStdoutFormatter();
-  const width = fmt.termWidth();
+  const width = options.width ?? fmt.termWidth();
+  const maxRows = options.maxRows;
+  const compact = maxRows !== undefined && maxRows <= 18;
   const elapsedMs = Math.max(0, nowMs - snapshot.startedAtMs);
   const elapsed = formatClockHMS(elapsedMs);
   const eta = formatEtaHMS(snapshot);
   const pct = toPercent(snapshot.attempted, snapshot.planned);
   const masterBar = renderProgressBar(pct, Math.min(MASTER_BAR_MAX, Math.max(10, width - 34)), fmt.brand, fmt);
-  const sections: string[] = [
-    renderStatusStrip("run / monitoring", elapsedMs, width, fmt),
-    renderSeparator(width, fmt),
-    "",
-    renderRuledSection("PROGRESS", width, fmt),
-    "",
-    `Trials: ${snapshot.attempted}/${snapshot.planned} · Workers: ${snapshot.workers}`,
-    `${masterBar}  ${String(Math.round(pct)).padStart(3, " ")}%    ${elapsed}  ETA ${eta}`,
-    "",
-    renderRuledSection("MONITORING", width, fmt),
-    ""
-  ];
+  const sections: string[] = [];
+  let usedRows = 0;
+  const pushBlock = (block: string[], required = false): boolean => {
+    if (block.length === 0) {
+      return true;
+    }
+    const blockRows = countRowsForLines(block, width);
+    if (!required && maxRows !== undefined && usedRows + blockRows > maxRows) {
+      return false;
+    }
+    sections.push(...block);
+    usedRows += blockRows;
+    return true;
+  };
+
+  pushBlock([renderStatusStrip("run / monitoring", elapsedMs, width, fmt), renderSeparator(width, fmt)], true);
+  if (!compact) {
+    pushBlock([""]);
+  }
+  pushBlock(
+    [
+      renderRuledSection("PROGRESS", width, fmt),
+      ...(compact ? [] : [""]),
+      `Trials: ${snapshot.attempted}/${snapshot.planned} · Workers: ${snapshot.workers}`,
+      `${masterBar}  ${String(Math.round(pct)).padStart(3, " ")}%    ${elapsed}  ETA ${eta}`
+    ],
+    true
+  );
+  if (!compact) {
+    pushBlock([""]);
+  }
 
   const novelty = snapshot.noveltyRate === null ? "—" : snapshot.noveltyRate.toFixed(3);
   const noveltyThreshold =
@@ -197,78 +301,59 @@ export const buildRunDashboardText = (
   const similarityThreshold =
     snapshot.similarityThreshold === null ? "—" : snapshot.similarityThreshold.toFixed(3);
 
-  sections.push(renderKV("Novelty rate", `${novelty} (threshold ${noveltyThreshold})`, fmt));
-  sections.push(renderKV("Patience", `${snapshot.lowNoveltyStreak}/${snapshot.patience}`, fmt));
-  sections.push(renderKV("Status", snapshot.stopState, fmt));
+  const monitoringBlock = [
+    renderRuledSection("MONITORING", width, fmt),
+    ...(compact ? [] : [""]),
+    renderKV("Novelty rate", `${novelty} (threshold ${noveltyThreshold})`, fmt),
+    renderKV("Patience", `${snapshot.lowNoveltyStreak}/${snapshot.patience}`, fmt),
+    renderKV("Status", snapshot.stopState, fmt)
+  ];
   if (snapshot.groupingEnabled) {
-    sections.push(
+    monitoringBlock.push(
       renderKV("Embedding groups", snapshot.groupCount === null ? "—" : String(snapshot.groupCount), fmt)
     );
   }
   if (snapshot.similarityThreshold !== null) {
-    sections.push(renderKV("Similarity", `${meanMaxSimilarity} (threshold ${similarityThreshold})`, fmt));
+    monitoringBlock.push(renderKV("Similarity", `${meanMaxSimilarity} (threshold ${similarityThreshold})`, fmt));
   }
-  sections.push("");
-  sections.push(fmt.muted(UI_COPY.stoppingCaveat));
+  pushBlock(monitoringBlock, true);
+
+  const caveatBlock = [fmt.muted(UI_COPY.stoppingCaveat)];
   if (snapshot.groupingEnabled) {
-    sections.push(fmt.muted(UI_COPY.groupingCaveat));
+    caveatBlock.push(fmt.muted(UI_COPY.groupingCaveat));
   }
   if (snapshot.stopState === "user requested graceful stop") {
-    sections.push("");
-    sections.push(fmt.warn(UI_COPY.gracefulStopRequested));
+    caveatBlock.push(fmt.warn(UI_COPY.gracefulStopRequested));
   }
-  sections.push("");
-  sections.push(renderRuledSection("USAGE", width, fmt));
-  sections.push("");
-  if (snapshot.mode === "mock") {
-    sections.push(fmt.muted("Usage not applicable"));
-  } else {
-    sections.push(`Usage so far: ${toUsageSummary(snapshot)}`);
-    if (snapshot.usage.cost !== undefined) {
-      sections.push(fmt.warn(`Cost: ${snapshot.usage.cost.toFixed(6)} (estimate)`));
-    }
+  pushBlock(compact ? caveatBlock : ["", ...caveatBlock], true);
+
+  const footerBlock = compact
+    ? [renderSeparator(width, fmt), fmt.muted("Ctrl+C graceful stop")]
+    : ["", renderSeparator(width, fmt), fmt.muted("Ctrl+C graceful stop")];
+  const footerRows = countRowsForLines(footerBlock, width);
+
+  const remainingBeforeFooter = maxRows === undefined ? Number.POSITIVE_INFINITY : Math.max(0, maxRows - usedRows - footerRows);
+  const workerBlock = buildWorkerSection(snapshot, fmt, width, compact, remainingBeforeFooter);
+  if (workerBlock.length > 0) {
+    pushBlock(compact ? workerBlock : ["", ...workerBlock]);
   }
 
-  if (snapshot.workers > 1) {
-    const rows = process.stdout.rows ?? 24;
-    const maxFrameLines = Math.max(10, rows - 1);
-    const terminalWidth = Math.max(1, process.stdout.columns ?? width);
-    const baseLineCount = sections.reduce(
-      (total, section) => total + countRenderedRows(section, terminalWidth),
-      0
-    );
-    const availableWorkerRows = Math.max(0, maxFrameLines - baseLineCount - 9);
-    if (availableWorkerRows > 0) {
-      const sorted = Array.from(snapshot.workerStatus.entries()).sort((a, b) => a[0] - b[0]);
-      const needsOverflow = sorted.length > availableWorkerRows;
-      const visibleTarget = needsOverflow
-        ? Math.max(0, availableWorkerRows - 1)
-        : availableWorkerRows;
-      const visible = sorted.slice(0, visibleTarget);
-      sections.push("");
-      sections.push(renderRuledSection("WORKERS", width, fmt));
-      sections.push("");
-      sections.push(fmt.muted("ID  Activity      State     Trial     Model"));
-      for (const [workerId, state] of visible) {
-        const workerRow: WorkerRow = {
-          id: workerId,
-          state: state.status,
-          trialId: state.trialId,
-          model: state.trialId !== undefined ? snapshot.trialModelById.get(state.trialId) ?? "—" : "—",
-          tick: snapshot.renderTick
-        };
-        sections.push(renderWorkerRow(workerRow, fmt, width));
-      }
-      const hidden = sorted.length - visible.length;
-      if (hidden > 0) {
-        sections.push(fmt.muted(`(+${hidden} more workers)`));
-      }
-    }
-  }
+  const usageBlock = [
+    renderRuledSection("USAGE", width, fmt),
+    ...(compact ? [] : [""]),
+    ...(snapshot.mode === "mock"
+      ? [fmt.muted("Usage not applicable")]
+      : [
+          `Usage so far: ${toUsageSummary(snapshot)}`,
+          ...(snapshot.usage.cost !== undefined
+            ? [fmt.warn(`Cost: ${snapshot.usage.cost.toFixed(6)} (estimate)`)]
+            : [])
+        ])
+  ];
+  pushBlock(compact ? usageBlock : ["", ...usageBlock]);
 
-  sections.push("");
-  sections.push(renderSeparator(width, fmt));
-  sections.push(fmt.muted("Ctrl+C graceful stop"));
+  pushBlock(footerBlock, true);
+
   return `${sections.join("\n")}\n`;
 };
 
@@ -276,11 +361,13 @@ class RunDashboardMonitor {
   private readonly bus: EventBus;
   private readonly snapshot: DashboardSnapshot;
   private readonly unsubs: Array<() => void> = [];
-  private lastRenderedLineCount = 0;
+  private readonly prefixRows: number;
   private animationTimer: NodeJS.Timeout | null = null;
+  private hasRendered = false;
 
-  constructor(context: RunLifecycleContext) {
+  constructor(context: RunLifecycleContext, prefixRows = 0) {
     this.bus = context.bus;
+    this.prefixRows = prefixRows;
     const stopPolicy = context.resolvedConfig.execution.stop_policy;
     this.snapshot = {
       runId: context.runId,
@@ -335,6 +422,11 @@ class RunDashboardMonitor {
   detach(): void {
     this.stopAnimationLoop();
     this.unsubs.splice(0).forEach((unsubscribe) => unsubscribe());
+    process.stdout.write(RESET_SCROLL_REGION);
+    if (this.hasRendered) {
+      const terminalRows = Math.max(1, process.stdout.rows ?? 24);
+      process.stdout.write(`\x1b[${terminalRows};1H\n`);
+    }
     process.stdout.write(CURSOR_SHOW);
   }
 
@@ -474,14 +566,19 @@ class RunDashboardMonitor {
 
   private render(): void {
     this.snapshot.renderTick += 1;
-    const frameText = buildRunDashboardText(this.snapshot);
-    const frameLineCount = countRenderedRows(frameText, Math.max(1, process.stdout.columns ?? 80));
+    const terminalColumns = Math.max(1, process.stdout.columns ?? 80);
+    const terminalRows = Math.max(2, process.stdout.rows ?? 24);
+    const topRow = Math.min(Math.max(1, this.prefixRows + 1), terminalRows);
+    const liveRows = Math.max(1, terminalRows - topRow + 1);
+    const frameText = buildRunDashboardText(this.snapshot, Date.now(), {
+      width: terminalColumns,
+      maxRows: liveRows
+    }).replace(/\n+$/, "");
 
-    if (this.lastRenderedLineCount > 0) {
-      process.stdout.write(`\x1b[${this.lastRenderedLineCount}A\x1b[J`);
-    }
+    process.stdout.write(`\x1b[${topRow};${terminalRows}r`);
+    process.stdout.write(`\x1b[${topRow};1H\x1b[J`);
     process.stdout.write(frameText);
-    this.lastRenderedLineCount = frameLineCount;
+    this.hasRendered = true;
   }
 }
 
@@ -585,10 +682,13 @@ export const createUiRunLifecycleHooks = (input?: {
       if (!dashboardEnabled) {
         return;
       }
+      let prefixRows = 0;
       if (stackPrefixText && stackPrefixText.trim().length > 0) {
-        process.stdout.write(`${stackPrefixText.replace(/\n+$/, "")}\n`);
+        const prefixText = stackPrefixText.replace(/\n+$/, "");
+        prefixRows = countRenderedRows(prefixText, Math.max(1, process.stdout.columns ?? 80));
+        process.stdout.write(`${prefixText}\n`);
       }
-      monitor = new RunDashboardMonitor(context);
+      monitor = new RunDashboardMonitor(context, prefixRows);
       monitor.attach();
     },
     onRunFinally: async (context): Promise<void> => {

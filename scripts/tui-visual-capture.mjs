@@ -38,6 +38,7 @@ export const renderAnsiToText = async (
 ) => {
   const cols = options.cols ?? DEFAULT_COLS;
   const rows = options.rows ?? DEFAULT_ROWS;
+  const includeScrollback = options.includeScrollback ?? false;
   const term = new Terminal({
     allowProposedApi: true,
     cols,
@@ -48,8 +49,8 @@ export const renderAnsiToText = async (
   try {
     await writeTerminal(term, ansiData);
     const buffer = term.buffer.active;
-    const startRow = buffer.viewportY;
-    const endRow = Math.min(buffer.length, startRow + rows);
+    const startRow = includeScrollback ? 0 : buffer.viewportY;
+    const endRow = includeScrollback ? buffer.length : Math.min(buffer.length, startRow + rows);
     const lines = [];
     for (let row = startRow; row < endRow; row += 1) {
       lines.push(buffer.getLine(row)?.translateToString(true) ?? "");

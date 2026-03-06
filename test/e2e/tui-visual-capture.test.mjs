@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { captureVisualJourney } from "../../scripts/tui-visual-capture.mjs";
+import { captureVisualJourney, renderAnsiToText } from "../../scripts/tui-visual-capture.mjs";
 
 const getCheckpoint = (checkpoints, slug) => {
   const checkpoint = checkpoints.find((item) => item.slug === slug);
@@ -55,6 +55,14 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
 
     const reviewRendered = readFileSync(getCheckpoint(checkpoints, "step7-review").textPath, "utf8");
     assert.equal(reviewRendered.includes("event sourcing?What are"), false);
+
+    const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
+    const fullScrollback = await renderAnsiToText(receiptAnsi, {
+      includeScrollback: true
+    });
+    assert.equal((fullScrollback.match(/── PROGRESS/g) || []).length, 1);
+    assert.equal((fullScrollback.match(/run \/ monitoring/g) || []).length, 1);
+    assert.equal((fullScrollback.match(/── RECEIPT/g) || []).length, 1);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
   }
