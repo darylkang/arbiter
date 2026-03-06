@@ -1,5 +1,7 @@
 import type { ArbiterResolvedConfig } from "../../generated/config.types.js";
-import { askMultilineQuestion, selectMany, selectOne } from "./controls.js";
+import { readJsonFile } from "../../cli/commands.js";
+import { UI_COPY } from "../copy.js";
+import { askMultilineQuestion, chooseConfigFile, selectMany, selectOne } from "./controls.js";
 import {
   buildConfigFromDraft,
   buildDraftFromConfig,
@@ -32,11 +34,12 @@ type StepFrameBuilder = (
 ) => StepFrame;
 
 type EditableStepIndex = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export type WizardStage = "entry" | "mode" | "configSelect" | EditableStepIndex;
 
-type WizardStepState = {
+export type WizardFlowState = {
   draft: WizardDraft;
-  runMode: RunMode;
-  entryPath: EntryPath;
+  runMode: RunMode | null;
+  entryPath: EntryPath | null;
   selectedConfigPath: string | null;
   revised: boolean;
   baseTemplate: ArbiterResolvedConfig;
@@ -45,6 +48,10 @@ type WizardStepState = {
 
 type WizardStepContext = {
   assetRoot: string;
+  version: string;
+  apiKeyPresent: boolean;
+  configFiles: string[];
+  configCount: number;
   modelOptions: CatalogModel[];
   personaOptions: PersonaOption[];
   buildStepFrame: StepFrameBuilder;
@@ -52,12 +59,18 @@ type WizardStepContext = {
 };
 
 export type WizardStepResult =
-  | { kind: "goto"; step: EditableStepIndex; revised?: boolean }
+  | { kind: "goto"; step: WizardStage; revised?: boolean }
   | { kind: "exit"; message: string }
   | { kind: "save"; config: ArbiterResolvedConfig; warnings: string[] }
   | { kind: "run"; config: ArbiterResolvedConfig; warnings: string[]; revised: boolean };
 
 type WizardStepController = (state: WizardStepState) => Promise<WizardStepResult>;
+type WizardController = (state: WizardFlowState) => Promise<WizardStepResult>;
+
+type WizardStepState = WizardFlowState & {
+  runMode: RunMode;
+  entryPath: EntryPath;
+};
 
 export const createWizardStepControllers = (context: WizardStepContext): Record<EditableStepIndex, WizardStepController> => ({
   1: async (state) => {
@@ -257,3 +270,147 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
     };
   }
 });
+
+const assertEditableState = (state: WizardFlowState): WizardStepState => {
+  if (!state.entryPath || !state.runMode) {
+    throw new Error("Editable wizard steps require entryPath and runMode.");
+  }
+  return {
+    ...state,
+    entryPath: state.entryPath,
+    runMode: state.runMode
+  };
+};
+
+export const createWizardControllers = (context: WizardStepContext): Record<WizardStage, WizardController> => {
+  const stepControllers = createWizardStepControllers(context);
+
+  return {
+    entry: async (state) => {
+      const entryChoice = await selectOne({
+        prompt: "Choose how to start",
+        choices: [
+          {
+            id: "existing",
+            label:
+              context.configFiles.length === 0
+                ? "Run existing config (unavailable)"
+                : "Run existing config",
+            disabled: context.configFiles.length === 0,
+            disabledReason: UI_COPY.runExistingUnavailable
+          },
+          {
+            id: "new",
+            label: "Create new study (guided wizard)"
+          }
+        ],
+        defaultIndex: context.configFiles.length === 0 ? 1 : 0,
+        frame: {
+          version: context.version,
+          currentRailIndex: 0,
+          completedUntilRailIndex: -1,
+          runMode: null,
+          apiKeyPresent: context.apiKeyPresent,
+          configCount: context.configCount,
+          contextLabel: "onboarding",
+          showRunMode: false,
+          activeLabel: "Entry Path",
+          activeLines: [],
+          footerText: "↑/↓ move · Enter select · Esc back",
+          stepSummaries: {}
+        },
+        renderStepFrame: context.renderStepFrame
+      });
+      if (entryChoice === SELECT_EXIT || entryChoice === SELECT_BACK) {
+        return { kind: "exit", message: "Wizard exited." };
+      }
+      state.entryPath = entryChoice as EntryPath;
+      state.runMode = null;
+      state.selectedConfigPath = null;
+      state.sourceConfig = null;
+      state.revised = state.entryPath === "new";
+      return { kind: "goto", step: "mode" };
+    },
+
+    mode: async (state) => {
+      if (!state.entryPath) {
+        return { kind: "goto", step: "entry" };
+      }
+
+      const entrySummary = state.entryPath === "existing" ? "Run existing config" : "Create new study";
+      const runChoice = await selectOne({
+        prompt: "Choose run mode",
+        choices: [
+          {
+            id: "live",
+            label: !context.apiKeyPresent ? "Live (OpenRouter) (unavailable)" : "Live (OpenRouter)",
+            disabled: !context.apiKeyPresent,
+            disabledReason: UI_COPY.liveModeUnavailable
+          },
+          { id: "mock", label: "Mock (no API calls)" }
+        ],
+        defaultIndex: context.apiKeyPresent ? 0 : 1,
+        frame: {
+          version: context.version,
+          currentRailIndex: 1,
+          completedUntilRailIndex: 0,
+          runMode: null,
+          apiKeyPresent: context.apiKeyPresent,
+          configCount: context.configCount,
+          contextLabel: "onboarding / mode",
+          showRunMode: true,
+          activeLabel: "Run Mode",
+          activeLines: [],
+          footerText: "↑/↓ move · Enter select · Esc back",
+          stepSummaries: { 0: entrySummary }
+        },
+        renderStepFrame: context.renderStepFrame
+      });
+      if (runChoice === SELECT_EXIT) {
+        return { kind: "exit", message: "Wizard exited." };
+      }
+      if (runChoice === SELECT_BACK) {
+        state.entryPath = null;
+        state.runMode = null;
+        return { kind: "goto", step: "entry" };
+      }
+
+      state.runMode = runChoice as RunMode;
+      return { kind: "goto", step: state.entryPath === "existing" ? "configSelect" : 1 };
+    },
+
+    configSelect: async (state) => {
+      const selectedConfigPath = await chooseConfigFile({
+        configs: context.configFiles,
+        frame: {
+          ...context.buildStepFrame(0, 0, "Run Mode", "Select a config file"),
+          currentRailIndex: 1,
+          completedUntilRailIndex: 1,
+          contextLabel: "onboarding / mode",
+          showRunMode: true,
+          activeLabel: "Run Mode"
+        },
+        renderStepFrame: context.renderStepFrame
+      });
+      if (!selectedConfigPath) {
+        return { kind: "exit", message: "Wizard exited." };
+      }
+
+      state.selectedConfigPath = selectedConfigPath;
+      state.sourceConfig = readJsonFile<ArbiterResolvedConfig>(selectedConfigPath);
+      state.draft = buildDraftFromConfig(state.sourceConfig, {
+        modelSlugs: context.modelOptions.length > 0 ? [context.modelOptions[0].slug] : [],
+        personaIds: context.personaOptions.length > 0 ? [context.personaOptions[0].id] : []
+      });
+      return { kind: "goto", step: 7 };
+    },
+
+    1: async (state) => stepControllers[1](assertEditableState(state)),
+    2: async (state) => stepControllers[2](assertEditableState(state)),
+    3: async (state) => stepControllers[3](assertEditableState(state)),
+    4: async (state) => stepControllers[4](assertEditableState(state)),
+    5: async (state) => stepControllers[5](assertEditableState(state)),
+    6: async (state) => stepControllers[6](assertEditableState(state)),
+    7: async (state) => stepControllers[7](assertEditableState(state))
+  };
+};
