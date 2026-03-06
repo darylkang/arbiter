@@ -9,7 +9,7 @@ Use this document when changing:
 1. wizard screen architecture,
 2. dashboard or receipt rendering architecture,
 3. terminal lifecycle ownership,
-4. render primitives and layout nodes,
+4. render primitives, view models, and formatter behavior,
 5. TUI testing and validation infrastructure.
 
 For product truth, use this order:
@@ -50,10 +50,11 @@ Out of scope:
 
 1. a reusable npm package for arbitrary terminal apps,
 2. React-style component trees or hooks,
-3. mouse support as a primary interaction model,
+3. a declarative layout tree or virtual DOM unless future product shape proves the current model insufficient,
 4. transcript or chat UX,
 5. plugin surfaces or arbitrary third-party widgets,
-6. UI-driven scheduling, stop decisions, or trial planning.
+6. mouse support as a primary interaction model,
+7. UI-driven scheduling, stop decisions, or trial planning.
 
 If Arbiter grows into a concurrent multi-pane application with nested focus and arbitrary component composition, reevaluate this architecture deliberately instead of stretching it ad hoc.
 
@@ -65,26 +66,26 @@ The runtime follows these principles.
    Screen controllers produce typed screen state and view models. Renderers do not infer business logic.
 
 2. One terminal owner.
-   Terminal mode, cursor visibility, alternate-screen entry, scroll regions, and teardown are owned by runtime seams, not by feature code.
+   Terminal mode, cursor visibility, alternate-screen entry, scroll regions, redraw policy, and teardown are owned by runtime seams, not by feature code.
 
-3. Declarative screen composition.
-   Screens are expressed as layout nodes and view models, not assembled as ad hoc arrays of strings.
+3. Pure render functions.
+   Screens are rendered through pure functions that accept typed view data plus formatter/runtime context and return strings with no hidden side effects.
 
 4. Renderer monopoly.
-   Only renderer/runtime seams may emit ANSI control sequences or write directly to stdout.
+   Only approved runtime seams may emit ANSI control sequences or write directly to stdout.
 
 5. Truthful presentation.
    The UI may summarize or format data, but must not invent semantics the engine does not emit.
 
 6. Deterministic validation.
-   The runtime must support deterministic text rendering for snapshot tests in addition to interactive ANSI rendering.
+   The runtime must support deterministic fixture tests and rendered snapshot validation against the real ANSI output.
 
 7. Explicit constraints.
    Supported terminal widths, heights, and fallback behavior are part of the contract, not hidden assumptions.
 
 ## 4) Layer Model
 
-Arbiter's TUI runtime is a six-layer stack.
+Arbiter's TUI runtime is a five-layer stack.
 
 ### 4.1) Domain and Engine Events
 
@@ -105,11 +106,11 @@ engine code must not import renderer, frame, or view-model code.
 
 ### 4.2) Screen State Machine
 
-Primary files:
+Primary files today:
 
 1. `src/ui/wizard/steps.ts`
 2. `src/ui/wizard/app.ts`
-3. future `src/ui/runtime/screen-machine.ts` if extracted
+3. `src/ui/wizard/flows.ts`
 
 Responsibilities:
 
@@ -129,87 +130,55 @@ Rules:
 
 A view model is the renderer-facing shape of one screen or region.
 
-Examples:
+Current or target examples:
 
-1. `StatusStripVM`
-2. `BrandBlockVM`
-3. `RailVM`
-4. `ChoiceListVM`
-5. `ReviewVM`
-6. `DashboardVM`
-7. `ReceiptVM`
+1. `StepFrame` for Stage 1 shell composition,
+2. `DashboardVM` for Stage 2 monitor composition,
+3. `ReceiptVM` for Stage 3 receipt composition,
+4. `WorkerRow`, `RailStep`, and related leaf display structures.
 
 Responsibilities:
 
 1. convert domain objects into display-ready values,
 2. carry already-decided labels, summaries, and emphasis states,
-3. isolate formatting decisions from business logic.
+3. isolate formatting decisions from business logic,
+4. make fixture-driven rendering tests possible.
 
 Rules:
 
-1. view models may contain strings and flags, but not terminal escape codes,
-2. view models may contain presentation metadata such as `muted`, `accent`, or `warning`,
-3. view models may not call stdout or own terminal dimensions.
+1. view models may contain strings, numbers, and display metadata, but not terminal escape codes,
+2. view models may not call stdout or own terminal dimensions,
+3. view models should prefer semantic display fields over renderer-time inference.
 
-### 4.4) Layout Tree
+### 4.4) Render Primitives and Formatter
 
-The layout tree is Arbiter's internal declarative render structure.
+Primary files today:
 
-It is intentionally smaller than a general-purpose component framework.
+1. `src/ui/wizard-theme.ts`
+2. `src/ui/fmt.ts`
+3. future small helper modules if the primitive surface grows
 
-Initial node families should include only what Arbiter needs:
+Responsibilities:
 
-1. `screen`
-2. `stack`
-3. `line`
-4. `text`
-5. `separator`
-6. `brandBlock`
-7. `rail`
-8. `choiceList`
-9. `kvList`
-10. `ruledSection`
-11. `progressBar`
-12. `workerTable`
-13. `footer`
-14. `receiptArtifacts`
+1. provide pure render primitives such as rail steps, ruled sections, progress bars, key-value rows, worker rows, separators, and status strips,
+2. centralize glyph, spacing, and style-token usage,
+3. keep rendering composable without forcing a more abstract tree than Arbiter currently needs.
 
 Rules:
 
-1. layout nodes describe intent, not ANSI,
-2. layout nodes may carry style tokens and width policies,
-3. layout nodes must be serializable enough for deterministic test fixtures,
-4. ad hoc string concatenation in controllers is forbidden once a screen is migrated.
+1. render primitives are pure functions: input data in, string out,
+2. style is expressed through semantic formatter methods, not hardcoded raw ANSI in feature code,
+3. full-screen composition should remain a composition of pure render functions over typed view models,
+4. ad hoc string assembly in controllers is forbidden once equivalent render primitives exist,
+5. render primitives must accept explicit width/context parameters rather than reading terminal globals directly.
 
-### 4.5) Renderer Backends
+### 4.5) Terminal Runtime and Frame Ownership
 
-Arbiter needs two renderer backends.
-
-1. ANSI runtime backend
-2. deterministic text backend
-
-The ANSI backend is the user-facing terminal renderer.
-The text backend exists for snapshot tests and agent-readable rendered output.
-
-Shared obligations:
-
-1. consume the same layout tree,
-2. honor the same width and height constraints,
-3. use the same glyph and token vocabulary,
-4. produce equivalent structural output.
-
-Backend-specific obligations:
-
-1. ANSI backend owns color, cursor, alt-screen, and scroll-region behavior,
-2. text backend emits plain rendered text without ANSI sequences.
-
-### 4.6) Terminal Runtime and Frame Ownership
-
-Primary files:
+Primary files today:
 
 1. `src/ui/wizard/frame-manager.ts`
 2. `src/ui/run-lifecycle-hooks.ts`
-3. future shared runtime module if Stage 1 and Stage 2 ownership is unified further
+3. `src/ui/tui-constraints.ts`
 
 Responsibilities:
 
@@ -220,7 +189,13 @@ Responsibilities:
 5. contain all direct terminal control sequences.
 
 Non-negotiable rule:
-all direct `process.stdout.write(...)` for TUI rendering must route through this layer or an approved renderer seam.
+all direct TUI `process.stdout.write(...)` calls must route through approved runtime seams or a narrowly approved fallback path documented in this file.
+
+Approved write ownership should converge toward:
+
+1. `src/ui/wizard/frame-manager.ts` for Stage 1 runtime writes,
+2. `src/ui/run-lifecycle-hooks.ts` for Stage 2 and Stage 3 runtime writes,
+3. widget-local fallback writes only where no frame-manager path is yet available and while tracked explicitly in tests.
 
 ## 5) Screen Contracts
 
@@ -231,7 +206,7 @@ Minimum required fields:
 1. purpose,
 2. state input shape,
 3. view-model shape,
-4. layout root node,
+4. render function entrypoint,
 5. accepted user inputs,
 6. transition outcomes,
 7. validation hooks,
@@ -258,11 +233,12 @@ Primary file today:
 
 Rules:
 
-1. widgets accept view-model input and return typed outcomes,
+1. widgets accept typed inputs and return typed outcomes,
 2. widgets do not own global terminal lifecycle,
 3. widgets must clean up raw mode and listeners on both success and exception paths,
 4. widgets must not perform blocking network or filesystem side effects except through explicit controller calls,
-5. widgets may render only through renderer-approved primitives.
+5. widgets render through injected render callbacks or approved runtime seams,
+6. widget APIs should not leak screen-wide string ownership back into controllers.
 
 Allowed widget families:
 
@@ -289,7 +265,7 @@ Rules:
 
 1. glyph roles are semantic and exclusive,
 2. style tokens are named semantically, not by raw ANSI codes,
-3. layout primitives must consume tokens rather than hardcoding colors or glyphs,
+3. render primitives must consume formatter tokens rather than hardcoding colors in feature code,
 4. product-spec changes to copy or visual grammar must map cleanly through these tokens, not bypass them.
 
 ## 8) Terminal Constraints and Failure Modes
@@ -311,15 +287,24 @@ Rules:
 
 ## 9) Testing and Validation Model
 
-The internal runtime must support framework-grade validation discipline.
+The internal runtime must support framework-grade validation discipline without introducing a second full rendering implementation.
 
 Required validation layers:
 
-1. unit tests for view-model builders and primitive renderers,
-2. fixture tests for layout-tree to text rendering,
+1. unit tests for formatter behavior and individual render primitives,
+2. fixture tests for full-screen composition using the real render functions with a plain or no-color formatter,
 3. PTY end-to-end tests for interactive flows,
 4. rendered snapshot capture via `npm run capture:tui`,
 5. human ANSI review through `scripts/tui-terminal-viewer.html` when visual polish is being judged.
+
+Deterministic review model:
+
+1. live runtime emits ANSI through the real renderer,
+2. `@xterm/headless` converts captured ANSI into deterministic rendered text,
+3. rendered text snapshots are treated as structural truth for agent review,
+4. no separate text renderer backend should exist unless a future need proves the current approach insufficient.
+
+The formatter should support a plain or no-color mode so render primitives can be unit-tested without ANSI noise.
 
 Required invariant tests:
 
@@ -327,7 +312,7 @@ Required invariant tests:
 2. terminal cleanup on thrown widget errors,
 3. supported and unsupported dimension behavior,
 4. scrollback preservation at Stage 2 to Stage 3 handoff,
-5. consistency between text-render backend and ANSI backend structure.
+5. receipt artifact remains ANSI-free and structurally correct.
 
 ## 10) Architecture Guards
 
@@ -335,38 +320,40 @@ The runtime layer is only credible if it is enforced.
 
 Guards to add or preserve:
 
-1. a repository test that forbids direct `process.stdout.write` in feature modules outside approved renderer/runtime seams,
-2. a repository test that forbids raw ANSI control sequences outside approved renderer/runtime seams,
+1. a repository test that forbids direct `process.stdout.write` in feature modules outside approved seams,
+2. a repository test that forbids raw ANSI control sequences outside approved seams,
 3. fixture-based regression tests for canonical screens,
-4. capture-based regression tests for key checkpoint screens.
+4. capture-based regression tests for key checkpoint screens,
+5. width and height matrix tests for minimum-supported and standard terminal sizes.
 
 Approved direct-write seams should remain narrow and explicit.
 
 ## 11) Migration Rules
 
-The runtime may be migrated incrementally, but coexistence must be explicit.
+The runtime may be hardened incrementally, but coexistence must be explicit.
 
 Allowed during migration:
 
-1. legacy string-based screens living beside new layout-tree screens,
-2. adapters that convert old view data into new layout nodes,
-3. temporary dual rendering paths guarded by milestone boundaries.
+1. current string-returning render primitives remaining in place,
+2. new view models for Stage 2 and Stage 3 being introduced before broader cleanup,
+3. temporary widget fallback paths while runtime ownership is consolidated,
+4. stale implementation guidance in product specs being updated in lockstep with runtime decisions.
 
 Not allowed during migration:
 
-1. mixing direct ANSI writes into newly migrated screens,
-2. leaving migrated screens without fixture coverage,
-3. leaving product-spec truth only in an ExecPlan after migration is complete.
+1. introducing a second competing rendering architecture,
+2. adding new direct ANSI writes in feature modules,
+3. leaving runtime-visible truth only in an ExecPlan after migration is complete.
 
 ## 12) Definition of Done for the Internal Runtime Layer
 
 Arbiter's TUI runtime is considered framework-grade for its intended scope when all of the following are true:
 
-1. every user-facing TUI screen is expressed via typed view models and layout nodes,
-2. ANSI emission is centralized in renderer/runtime seams,
-3. Stage 1, Stage 2, and Stage 3 share one renderer vocabulary and one terminal lifecycle model,
-4. scrollback, resize, and unsupported-terminal behavior are explicitly tested,
-5. contributors can add or modify a screen by following documented contracts rather than reverse-engineering imperative string assembly,
+1. every user-facing TUI screen is expressed through typed view models and pure render primitives,
+2. ANSI emission is centralized in runtime seams,
+3. Stage 1, Stage 2, and Stage 3 share one formatter vocabulary and one terminal lifecycle model,
+4. scrollback, resize, unsupported-terminal behavior, and receipt artifact behavior are explicitly tested,
+5. contributors can add or modify a screen by following documented contracts rather than reverse-engineering imperative terminal behavior,
 6. rendered text snapshots and PTY flows provide deterministic review evidence for every TUI round.
 
 ## 13) Revisit Trigger
@@ -376,7 +363,7 @@ Reevaluate this architecture if Arbiter's product shape crosses these thresholds
 1. multiple concurrently focusable panes,
 2. nested modal layering over live dashboards,
 3. transcript or chat-style streaming content mixed with interactive controls,
-4. rich dynamic composition that exceeds the current primitive set,
+4. richer dynamic composition that no longer maps cleanly to pure string-returning primitives,
 5. mouse-driven interaction becoming a primary UX requirement.
 
 If those conditions become central to the product, perform an explicit framework reassessment rather than stretching this runtime indefinitely.

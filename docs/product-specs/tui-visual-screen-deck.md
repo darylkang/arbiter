@@ -2,7 +2,7 @@
 
 Status: accepted implementation target
 Owner: Arbiter
-Last updated: 2026-03-05
+Last updated: 2026-03-06
 
 ## Scope and Precedence
 
@@ -11,7 +11,8 @@ Precedence order for TUI implementation:
 1. `docs/product-specs/tui-wizard.md` (behavior and interaction semantics),
 2. `docs/product-specs/tui-copy-deck.md` (LOCKED/FLEX copy contract),
 3. this visual screen deck (visual layout contract),
-4. `docs/exec-plans/2026-03-04-premium-visual-reboot.md` (execution and validation workflow).
+4. `docs/TUI-RUNTIME.md` (internal runtime architecture and renderer ownership).
+5. `docs/exec-plans/2026-03-06-build-internal-tui-runtime-layer.md` (current hardening and migration workflow).
 
 When this visual deck conflicts with behavior semantics, behavior semantics win.
 When this visual deck conflicts with LOCKED copy, LOCKED copy wins.
@@ -831,7 +832,7 @@ The inline rail is width-agnostic. One rendering path for all widths.
 1. Rail, labels, and content flow as a single column.
 2. Long text wraps at word boundaries within content region.
 3. Status strip context labels may truncate at narrow widths.
-4. Master progress bar scales: `min(30, termWidth - 40)`.
+4. Master progress bar scales: `min(42, termWidth - 34)`.
 5. Worker bars: fixed 10 chars.
 6. Key-value alignment: fixed 16-char key width.
 7. LOCKED copy wraps, never clips.
@@ -886,6 +887,8 @@ Scrollback ordering (assert indexOf A < indexOf B):
 
 ## Implementation Guide
 
+This section describes the current runtime model for Arbiter: typed view models plus pure render functions returning strings. It is not a separate layout-tree architecture. If the internal runtime architecture changes materially, update this section and `docs/TUI-RUNTIME.md` in the same change.
+
 ### Rendering Primitives
 
 Add to `src/ui/wizard-theme.ts` (or new `src/ui/rail-renderer.ts`):
@@ -906,10 +909,10 @@ type RailStep = {
 
 type WorkerRow = {
   id: number;
-  pct: number;
   state: "running" | "idle" | "finishing" | "error";
-  trialId: number;
-  model: string;
+  trialId?: number;
+  model?: string;
+  tick?: number;
 };
 
 // --- Constants ---
@@ -917,7 +920,7 @@ type WorkerRow = {
 const SUMMARY_COLUMN = 22;
 const CONTENT_INDENT = 4;    // "│   "
 const KV_KEY_WIDTH = 16;
-const MASTER_BAR_MAX = 30;
+const MASTER_BAR_MAX = 42;
 const WORKER_BAR_WIDTH = 10;
 
 // --- Functions ---
@@ -953,6 +956,7 @@ function renderBrandBlock(
   apiKeyPresent: boolean,
   runMode: string | null,
   configCount: number,
+  width: number,
   fmt: Formatter
 ): string;
 
@@ -984,16 +988,16 @@ function renderSeparator(width: number, fmt: Formatter): string;
 Convert existing `StepFrame` data to `RailStep[]`:
 
 ```typescript
-const RAIL_ITEMS: Array<{ label: string; stepIndex: number }> = [
-  { label: "Entry Path",        stepIndex: 0 },
-  { label: "Run Mode",          stepIndex: 0 },  // Step 0 phase 2
-  { label: "Research Question", stepIndex: 1 },
-  { label: "Protocol",          stepIndex: 2 },
-  { label: "Models",            stepIndex: 3 },
-  { label: "Personas",          stepIndex: 4 },
-  { label: "Decode Params",     stepIndex: 5 },
-  { label: "Advanced Settings", stepIndex: 6 },
-  { label: "Review and Confirm",stepIndex: 7 },
+const RAIL_ITEMS: Array<{ label: string; railIndex: number }> = [
+  { label: "Entry Path",         railIndex: 0 },
+  { label: "Run Mode",           railIndex: 1 },
+  { label: "Research Question",  railIndex: 2 },
+  { label: "Protocol",           railIndex: 3 },
+  { label: "Models",             railIndex: 4 },
+  { label: "Personas",           railIndex: 5 },
+  { label: "Decode Params",      railIndex: 6 },
+  { label: "Advanced Settings",  railIndex: 7 },
+  { label: "Review and Confirm", railIndex: 8 },
 ];
 
 // Rail item indices (not step indices) for the two Step 0 phases.
@@ -1043,7 +1047,7 @@ const parts: string[] = [];
 parts.push(renderStatusStrip(context, elapsed, width, fmt));
 parts.push(renderSeparator(width, fmt));
 if (isStep0EntryPath) {
-  parts.push(renderBrandBlock(version, apiKey, runMode, configCount, fmt));
+  parts.push(renderBrandBlock(version, apiKey, runMode, configCount, width, fmt));
 }
 for (const step of railSteps) {
   parts.push(renderRailStep(step, fmt));
@@ -1058,7 +1062,7 @@ process.stdout.write(parts.join("\n") + "\n");
 
 ### Stage 2 Composition
 
-`buildRunDashboardText(snapshot, width, fmt)` returns a string containing only the Stage 2 content region — everything between (and including) `── PROGRESS ──` and the footer. It does **not** include the frozen rail or the status strip.
+`buildRunDashboardText(snapshot, width, fmt)` returns the full Stage 2 runtime surface for dashboard-only mode and the live dashboard region for the stacked run path. It includes the status strip and separator, but never includes the frozen rail summary.
 
 ```typescript
 function buildRunDashboardText(
@@ -1076,7 +1080,7 @@ function buildRunDashboardText(
   parts.push(renderRuledSection("PROGRESS", width, fmt));
   parts.push("");  // blank line after rule
   parts.push(`Trials: ${snapshot.completed}/${snapshot.planned} · Workers: ${snapshot.workerCount}`);
-  parts.push(renderProgressBar(snapshot.pct, Math.min(30, width - 40), fmt.brand, fmt)
+  parts.push(renderProgressBar(snapshot.pct, Math.min(42, width - 34), fmt.brand, fmt)
     + `    ${formatElapsed(snapshot.elapsedMs)}  ETA ${formatEta(snapshot.eta)}`);
 
   // MONITORING section
@@ -1095,7 +1099,7 @@ function buildRunDashboardText(
     parts.push(renderRuledSection("WORKERS", width, fmt));
     parts.push("");
     for (const worker of snapshot.workers) {
-      parts.push(renderWorkerRow(worker, fmt));
+      parts.push(renderWorkerRow(worker, fmt, width));
     }
   }
 
