@@ -54,6 +54,8 @@ type WizardStepContext = {
   configCount: number;
   modelOptions: CatalogModel[];
   personaOptions: PersonaOption[];
+  modelLabels: Map<string, string>;
+  personaLabels: Map<string, string>;
   buildStepFrame: StepFrameBuilder;
   renderStepFrame: (frame: StepFrame) => void;
 };
@@ -128,8 +130,8 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
       prompt: "Models",
       choices: context.modelOptions.map((model) => ({
         id: model.slug,
-        label: `${model.slug} ${model.slug.endsWith(":free") ? "[free]" : "[paid]"}${
-          model.slug.includes("mini") || model.slug.includes("flash")
+        label: `${model.display} ${model.slug.endsWith(":free") ? "[free]" : "[paid]"}${
+          model.display.includes("Mini") || model.display.includes("Flash")
             ? " [fast]"
             : !model.slug.endsWith(":free")
               ? " [stable]"
@@ -160,7 +162,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
   4: async (state) => {
     const selectedPersonas = await selectMany({
       prompt: "Personas",
-      choices: context.personaOptions.map((persona) => ({ id: persona.id, label: `${persona.id} - ${persona.description}` })),
+      choices: context.personaOptions.map((persona) => ({ id: persona.id, label: persona.display })),
       defaults: state.draft.personaIds,
       emptySelectionError: "Fix required: select at least one persona.",
       frame: context.buildStepFrame(4, 3, "Personas", "Select one or more personas for sampling."),
@@ -218,7 +220,9 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
       draft: state.draft,
       runMode: state.runMode,
       selectedConfigPath: state.selectedConfigPath,
-      isExistingPath: state.entryPath === "existing"
+      isExistingPath: state.entryPath === "existing",
+      modelLabels: context.modelLabels,
+      personaLabels: context.personaLabels
     });
 
     const actionSelection = await selectOne({

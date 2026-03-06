@@ -21,7 +21,7 @@ export type WorkerRow = {
 export const SUMMARY_COLUMN = 22;
 export const CONTENT_INDENT = 4;
 export const KV_KEY_WIDTH = 16;
-export const MASTER_BAR_MAX = 30;
+export const MASTER_BAR_MAX = 42;
 export const WORKER_BAR_WIDTH = 10;
 const WORKER_ACTIVITY_PULSE = 3;
 
@@ -101,7 +101,7 @@ export const renderRailContent = (lines: string[], fmt: Formatter): string => {
 };
 
 export const renderRuledSection = (label: string, width: number, fmt: Formatter): string => {
-  const resolvedWidth = Math.max(24, Math.min(width, 78));
+  const resolvedWidth = Math.max(24, width);
   const upper = label.toUpperCase();
   const prefix = "── ";
   const spacer = " ";

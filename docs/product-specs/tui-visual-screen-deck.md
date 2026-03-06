@@ -122,7 +122,7 @@ Bracketless — no `[` or `]` wrapping.
 ```
 
 1. Fill (`█`): `accent.primary`. Empty (`░`): `fg.muted`.
-2. Width: `min(30, termWidth - 40)` characters.
+2. Width: `min(42, termWidth - 34)` characters.
 3. Percentage: `fg.primary`, 4-char gap after bar.
 4. Elapsed: `fg.primary`, format `HH:MM:SS`.
 5. ETA: label in `fg.muted`, value in `fg.primary`, format `HH:MM:SS` or `—` when unknown.
@@ -154,7 +154,7 @@ Stage 2 and Stage 3 use ruled section headers:
 
 1. Label: ALL-CAPS, `accent.primary` + bold.
 2. Rule chars (`─`): `accent.secondary`.
-3. Fill to `min(termWidth, 78)`.
+3. Fill to full terminal width.
 
 Key-value rows below headers:
 

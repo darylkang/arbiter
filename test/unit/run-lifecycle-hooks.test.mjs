@@ -30,6 +30,7 @@ const buildSnapshot = (overrides = {}) => ({
     completion: 0,
     total: 0
   },
+  trialModelById: new Map([[4, "openai/gpt-4o-mini-2024-07-18"]]),
   workerStatus: new Map([
     [1, { status: "idle" }],
     [2, { status: "running", trialId: 4 }]
@@ -63,4 +64,22 @@ test("dashboard uses best-effort ETA and shows unknown when insufficient data", 
 test("dashboard marks usage as not applicable in mock mode", () => {
   const text = buildRunDashboardText(buildSnapshot({ mode: "mock" }));
   assert.equal(text.includes("Usage not applicable"), true);
+});
+
+test("dashboard worker rows show assigned model slugs for active trials", () => {
+  const originalRows = process.stdout.rows;
+  Object.defineProperty(process.stdout, "rows", {
+    configurable: true,
+    value: 40
+  });
+  try {
+    const text = buildRunDashboardText(buildSnapshot());
+    assert.equal(text.includes("openai/gpt-4o-mini-2024-07-18"), true);
+    assert.equal(text.includes("trial 4"), true);
+  } finally {
+    Object.defineProperty(process.stdout, "rows", {
+      configurable: true,
+      value: originalRows
+    });
+  }
 });

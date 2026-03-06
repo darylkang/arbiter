@@ -64,6 +64,8 @@ const runStudy = async (input: {
 export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise<void> => {
   const assetRoot = options?.assetRoot ?? process.cwd();
   const { version, modelOptions, personaOptions } = loadWizardOptions(assetRoot);
+  const modelLabelBySlug = new Map(modelOptions.map((model) => [model.slug, model.display]));
+  const personaLabelById = new Map(personaOptions.map((persona) => [persona.id, persona.display]));
   const frameManager = createWizardFrameManager();
   const configFilesResolved = listConfigFiles();
   const apiKeyPresent = Boolean(process.env.OPENROUTER_API_KEY);
@@ -73,10 +75,13 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
     const baseTemplate = loadTemplateConfig(assetRoot, "default") as ArbiterResolvedConfig;
     const state: WizardFlowState = {
-      draft: buildDraftFromConfig(baseTemplate, {
-        modelSlugs: modelOptions.length > 0 ? [modelOptions[0].slug] : [],
-        personaIds: personaOptions.length > 0 ? [personaOptions[0].id] : []
-      }),
+      draft: {
+        ...buildDraftFromConfig(baseTemplate, {
+          modelSlugs: modelOptions.length > 0 ? [modelOptions[0].slug] : [],
+          personaIds: personaOptions.length > 0 ? [personaOptions[0].id] : []
+        }),
+        question: ""
+      },
       runMode: null,
       entryPath: null,
       selectedConfigPath: null,
@@ -143,7 +148,9 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           currentStep: currentStepIndex,
           entryPath: state.entryPath,
           selectedConfigPath: state.selectedConfigPath,
-          runMode: state.runMode
+          runMode: state.runMode,
+          modelLabels: modelLabelBySlug,
+          personaLabels: personaLabelById
         })
       };
     };
@@ -155,6 +162,8 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       configCount: configFilesResolved.length,
       modelOptions,
       personaOptions,
+      modelLabels: modelLabelBySlug,
+      personaLabels: personaLabelById,
       buildStepFrame,
       renderStepFrame: frameManager.render
     });
@@ -202,7 +211,9 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           draft: state.draft,
           selectedConfigPath: state.selectedConfigPath,
           entryPath: state.entryPath,
-          runMode: state.runMode
+          runMode: state.runMode,
+          modelLabels: modelLabelBySlug,
+          personaLabels: personaLabelById
         }),
         "",
         UI_COPY.startingRun,

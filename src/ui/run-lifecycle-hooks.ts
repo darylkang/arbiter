@@ -9,6 +9,7 @@ import { toStopBanner } from "./copy.js";
 import { buildReceiptModel } from "./receipt-model.js";
 import { createStdoutFormatter } from "./fmt.js";
 import {
+  MASTER_BAR_MAX,
   renderKV,
   renderProgressBar,
   renderRuledSection,
@@ -48,6 +49,7 @@ type DashboardSnapshot = {
     total: number;
     cost?: number;
   };
+  trialModelById: Map<number, string>;
   workerStatus: Map<number, { status: WorkerViewStatus; trialId?: number }>;
 };
 
@@ -173,7 +175,7 @@ export const buildRunDashboardText = (
   const elapsed = formatClockHMS(elapsedMs);
   const eta = formatEtaHMS(snapshot);
   const pct = toPercent(snapshot.attempted, snapshot.planned);
-  const masterBar = renderProgressBar(pct, Math.min(30, Math.max(6, width - 40)), fmt.brand, fmt);
+  const masterBar = renderProgressBar(pct, Math.min(MASTER_BAR_MAX, Math.max(10, width - 34)), fmt.brand, fmt);
   const sections: string[] = [
     renderStatusStrip("run / monitoring", elapsedMs, width, fmt),
     renderSeparator(width, fmt),
@@ -252,7 +254,7 @@ export const buildRunDashboardText = (
           id: workerId,
           state: state.status,
           trialId: state.trialId,
-          model: snapshot.mode === "mock" ? "mock" : "live",
+          model: state.trialId !== undefined ? snapshot.trialModelById.get(state.trialId) ?? "—" : "—",
           tick: snapshot.renderTick
         };
         sections.push(renderWorkerRow(workerRow, fmt, width));
@@ -309,6 +311,7 @@ class RunDashboardMonitor {
         completion: 0,
         total: 0
       },
+      trialModelById: new Map(),
       workerStatus: new Map()
     };
   }
@@ -317,6 +320,7 @@ class RunDashboardMonitor {
     process.stdout.write(CURSOR_HIDE);
     this.unsubs.push(
       this.bus.subscribeSafe("run.started", (payload) => this.onRunStarted(payload)),
+      this.bus.subscribeSafe("trial.planned", (payload) => this.onTrialPlanned(payload)),
       this.bus.subscribeSafe("trial.completed", (payload) => this.onTrialCompleted(payload)),
       this.bus.subscribeSafe("embedding.recorded", (payload) => this.onEmbeddingRecorded(payload)),
       this.bus.subscribeSafe("worker.status", (payload) => this.onWorkerStatus(payload)),
@@ -402,6 +406,10 @@ class RunDashboardMonitor {
         this.snapshot.usage.cost = (this.snapshot.usage.cost ?? 0) + usage.cost;
       }
     }
+  }
+
+  private onTrialPlanned(payload: EventPayloadMap["trial.planned"]): void {
+    this.snapshot.trialModelById.set(payload.trial_id, payload.assigned_config.model);
   }
 
   private onEmbeddingRecorded(payload: EventPayloadMap["embedding.recorded"]): void {

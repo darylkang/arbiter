@@ -39,12 +39,20 @@ export const summarizeSelection = (values: string[]): string => {
   return `${visible.join(", ")} +${hidden} more`;
 };
 
+const summarizeDisplaySelection = (
+  values: string[],
+  labels?: Map<string, string>
+): string =>
+  summarizeSelection(values.map((value) => labels?.get(value) ?? value));
+
 export const toRailSummaries = (input: {
   draft: WizardDraft;
   currentStep: number;
   entryPath: EntryPath | null;
   selectedConfigPath: string | null;
   runMode: RunMode | null;
+  modelLabels?: Map<string, string>;
+  personaLabels?: Map<string, string>;
 }): Partial<Record<number, string>> => {
   const summaries: Partial<Record<number, string>> = {};
   const { draft } = input;
@@ -75,10 +83,10 @@ export const toRailSummaries = (input: {
         : "Independent";
   }
   if (input.currentStep >= 3 && draft.modelSlugs.length > 0) {
-    summaries[4] = `${summarizeSelection(draft.modelSlugs)} (${draft.modelSlugs.length} selected)`;
+    summaries[4] = `${summarizeDisplaySelection(draft.modelSlugs, input.modelLabels)} (${draft.modelSlugs.length} selected)`;
   }
   if (input.currentStep >= 4 && draft.personaIds.length > 0) {
-    summaries[5] = `${summarizeSelection(draft.personaIds)} (${draft.personaIds.length} selected)`;
+    summaries[5] = `${summarizeDisplaySelection(draft.personaIds, input.personaLabels)} (${draft.personaIds.length} selected)`;
   }
   if (input.currentStep >= 5) {
     summaries[6] = toDecodeSummary(draft);
@@ -96,6 +104,8 @@ export const buildFrozenRailSummary = (input: {
   selectedConfigPath: string | null;
   entryPath: EntryPath;
   runMode: RunMode;
+  modelLabels?: Map<string, string>;
+  personaLabels?: Map<string, string>;
 }): string => {
   const fmt = createStdoutFormatter();
   const summaries = toRailSummaries({
@@ -103,7 +113,9 @@ export const buildFrozenRailSummary = (input: {
     currentStep: 7,
     entryPath: input.entryPath,
     selectedConfigPath: input.selectedConfigPath,
-    runMode: input.runMode
+    runMode: input.runMode,
+    modelLabels: input.modelLabels,
+    personaLabels: input.personaLabels
   });
   const lines: string[] = [];
   const frozenSteps: RailStep[] = RAIL_ITEMS.filter((item) => item.railIndex <= 7).map((item) => ({
@@ -218,8 +230,10 @@ export const buildReviewLines = (input: {
   runMode: RunMode;
   selectedConfigPath: string | null;
   isExistingPath: boolean;
+  modelLabels?: Map<string, string>;
+  personaLabels?: Map<string, string>;
 }): string[] => {
-  const { draft, runMode, selectedConfigPath, isExistingPath } = input;
+  const { draft, runMode, selectedConfigPath, isExistingPath, modelLabels, personaLabels } = input;
   const lines = [
     "Review settings, run checks, and choose how to proceed.",
     "",
@@ -229,10 +243,10 @@ export const buildReviewLines = (input: {
     runMode === "mock" ? "⚠ Live connectivity check (skipped in Mock mode)" : "✓ Live connectivity check",
     "",
     "Config Summary",
-    `Question: ${truncate(draft.question.trim(), 80)}`,
+    `Question: "${truncate(draft.question.trim(), 72)}"`,
     `Protocol: ${formatProtocol(draft)}`,
-    `Models: ${draft.modelSlugs.length} selected`,
-    `Personas: ${draft.personaIds.length} selected`,
+    `Models: ${summarizeDisplaySelection(draft.modelSlugs, modelLabels)} (${draft.modelSlugs.length} selected)`,
+    `Personas: ${summarizeDisplaySelection(draft.personaIds, personaLabels)} (${draft.personaIds.length} selected)`,
     `Decode Params: ${toDecodeSummary(draft)}`,
     `Run mode: ${toRunModeLabel(runMode as UiRunMode)}`,
     `Output dir: ${draft.outputDir}`

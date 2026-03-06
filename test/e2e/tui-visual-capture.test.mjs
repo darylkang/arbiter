@@ -36,6 +36,10 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
       "A R B I T E R",
       "Choose how to start"
     ]);
+    assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step1-question"), [
+      "Research Question",
+      "(start typing)"
+    ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step7-review"), [
       "Review and Confirm",
       "Run now"
@@ -48,6 +52,9 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
       "── RECEIPT",
       "Run complete."
     ]);
+
+    const reviewRendered = readFileSync(getCheckpoint(checkpoints, "step7-review").textPath, "utf8");
+    assert.equal(reviewRendered.includes("event sourcing?What are"), false);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
   }

@@ -5,6 +5,15 @@ import type { ArbiterPromptManifest } from "../../generated/prompt-manifest.type
 import { readJsonFile } from "../../cli/commands.js";
 import type { CatalogModel, PersonaOption } from "./types.js";
 
+const titleCase = (value: string): string =>
+  value
+    .split(/[\s_-]+/)
+    .filter((part) => part.length > 0)
+    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+
+const toPersonaDisplay = (id: string): string => titleCase(id.replace(/^persona_/, ""));
+
 export const loadWizardVersion = (assetRoot: string): string => {
   const pkg = readJsonFile<{ version?: string }>(resolve(assetRoot, "package.json"));
   return pkg.version ?? "0.0.0";
@@ -29,7 +38,11 @@ export const loadPersonaOptions = (assetRoot: string): PersonaOption[] => {
   );
   return manifest.entries
     .filter((entry) => entry.type === "participant_persona")
-    .map((entry) => ({ id: entry.id, description: entry.description ?? "" }));
+    .map((entry) => ({
+      id: entry.id,
+      display: toPersonaDisplay(entry.id),
+      description: entry.description ?? ""
+    }));
 };
 
 export const loadWizardOptions = (assetRoot: string): {

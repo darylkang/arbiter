@@ -48,6 +48,7 @@ export type CatalogModel = {
 
 export type PersonaOption = {
   id: string;
+  display: string;
   description: string;
 };
 
