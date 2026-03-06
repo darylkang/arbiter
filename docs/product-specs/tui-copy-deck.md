@@ -35,7 +35,7 @@ Formatting markers:
 
 ## Stage Composition Copy Contract
 
-1. `LOCKED`: Stage 0 brand identity block is rendered only on Step 0 entry path. Subsequent steps and stages use the status strip for context.
+1. `LOCKED`: Stage 0 brand identity block remains visible throughout Stage 1. Stage 2 and Stage 3 use the status strip plus frozen Stage 1 summary for context.
 2. `LOCKED`: Stage 1 uses an inline rail where content expands under the active step marker. Completed steps show `✔` with inline summaries.
 3. `LOCKED`: When `Run now` is chosen, the inline rail freezes into a completed-step summary (all steps show `✔` with summaries). This frozen rail summary remains visible in scrollback.
 4. `LOCKED`: Stage 2 is rendered below the frozen Stage 1 rail summary and updates in place.
@@ -156,7 +156,7 @@ Disabled option interaction pattern:
 
 ## Stage 0 Brand Identity Block
 
-The brand identity block renders only on Step 0 (entry path). Subsequent steps use the app-shell status strip for context.
+The brand identity block remains visible throughout Stage 1. Stage 2 and Stage 3 use the app-shell status strip and frozen Stage 1 summary for context.
 
 Brand lines:
 
@@ -189,7 +189,7 @@ Status rows (key-value pairs below brand):
 
 Header and status strip:
 
-1. `LOCKED`: Step 0 renders the Stage 0 brand identity block above the rail. Subsequent steps use the status strip for context.
+1. `LOCKED`: Step 0 renders the Stage 0 brand identity block above the rail, and the same brand block remains visible throughout Stage 1.
 2. `LOCKED`: Step 0 does not duplicate brand identity lines in the step content area.
 
 Entry path prompt:
@@ -417,14 +417,14 @@ Worker block:
 
 1. `LOCKED`: `Workers`
 2. `LOCKED`: `ID`
-3. `LOCKED`: `Progress`
+3. `LOCKED`: `Activity`
 4. `LOCKED`: `State`
 5. `LOCKED`: `Trial`
 6. `LOCKED`: `Model`
-7. `LOCKED` structure: `W{worker_index} {worker_bar} {worker_pct}% {worker_state} trial {worker_trial} {worker_model}` (bracketless bar, tab-aligned columns)
+7. `LOCKED` structure: `W{worker_index} {worker_bar} {worker_state} trial {worker_trial} {worker_model}` (bracketless bar, tab-aligned columns)
 8. `LOCKED`: `(+{hidden_count} more workers)`
-9. `LOCKED`: `one worker progress row is rendered per visible async worker.`
-10. `LOCKED`: `stage dashboard includes one master progress bar plus per-worker progress bars.`
+9. `LOCKED`: `one worker activity row is rendered per visible async worker.`
+10. `LOCKED`: `stage dashboard includes one master progress bar plus per-worker activity bars.`
 
 Monitoring block:
 
@@ -514,5 +514,5 @@ Exit line:
 4. Stop-reason labels are consistent across Stage 2 and Stage 3.
 5. Validation and warning messages follow the required patterns.
 6. Long lines in narrow terminals remain readable without semantic truncation.
-7. Brand identity block renders only on Step 0 entry path; subsequent stages use status strip.
+7. Brand identity block remains visible throughout Stage 1; subsequent stages use status strip plus frozen Stage 1 summary.
 8. Frozen Stage 1 rail summary (all steps showing `✔`) remains visible above Stage 2 and Stage 3 in run-path scrollback.

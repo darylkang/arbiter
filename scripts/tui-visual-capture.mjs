@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,19 +11,6 @@ const REPO_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const CLI_ENTRY = resolve(REPO_ROOT, "dist/cli/index.js");
 const DEFAULT_COLS = 120;
 const DEFAULT_ROWS = 40;
-
-const ensureBuilt = () => {
-  const build = spawnSync("npm", ["run", "build"], {
-    cwd: REPO_ROOT,
-    stdio: "inherit",
-    env: { ...process.env }
-  });
-  if (build.status !== 0) {
-    throw new Error(`npm run build failed with status ${build.status ?? "unknown"}`);
-  }
-};
-
-ensureBuilt();
 
 const ANSI_CSI_REGEX = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 const ANSI_OSC_REGEX = /\u001b\][^\u0007]*\u0007/g;

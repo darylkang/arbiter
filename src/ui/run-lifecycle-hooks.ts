@@ -52,7 +52,6 @@ type DashboardSnapshot = {
 };
 
 const MAX_DASHBOARD_QUESTION_CHARS = 88;
-const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const CURSOR_HIDE = "\x1b[?25l";
 const CURSOR_SHOW = "\x1b[?25h";
 const ANSI_CSI_REGEX = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
@@ -134,9 +133,6 @@ const mapStopStateFromCompletion = (
   return "run failed";
 };
 
-const spinnerFrame = (tick: number): string =>
-  SPINNER_FRAMES[Math.max(0, tick) % SPINNER_FRAMES.length];
-
 const stripAnsi = (value: string): string =>
   value.replace(ANSI_CSI_REGEX, "").replace(/\r/g, "");
 
@@ -154,13 +150,6 @@ const toPercent = (attempted: number, planned: number): number =>
 
 const toUsageSummary = (snapshot: DashboardSnapshot): string =>
   `${snapshot.usage.total} tokens (in ${snapshot.usage.prompt}, out ${snapshot.usage.completion})`;
-
-const toWorkerPercent = (trialId: number | undefined, planned: number): number => {
-  if (!trialId || planned <= 0) {
-    return 0;
-  }
-  return Math.max(0, Math.min(100, (trialId / planned) * 100));
-};
 
 const toDurationFromIso = (startedAt?: string, completedAt?: string): string => {
   if (!startedAt || !completedAt) {
@@ -257,15 +246,14 @@ export const buildRunDashboardText = (
       sections.push("");
       sections.push(renderRuledSection("WORKERS", width, fmt));
       sections.push("");
-      sections.push(fmt.muted("ID  Progress      State     Trial     Model"));
+      sections.push(fmt.muted("ID  Activity      State     Trial     Model"));
       for (const [workerId, state] of visible) {
         const workerRow: WorkerRow = {
           id: workerId,
-          pct: toWorkerPercent(state.trialId, snapshot.planned),
           state: state.status,
           trialId: state.trialId,
           model: snapshot.mode === "mock" ? "mock" : "live",
-          spinner: state.status === "idle" ? spinnerFrame(snapshot.renderTick) : undefined
+          tick: snapshot.renderTick
         };
         sections.push(renderWorkerRow(workerRow, fmt, width));
       }

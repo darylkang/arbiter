@@ -175,7 +175,7 @@ No Stage 4 next-action menu.
 
 ### Stage Composition Contract
 
-1. Stage 0 status strip remains visible for all interactive stages in the run path. Brand identity block renders only on Step 0 entry.
+1. Stage 0 status strip remains visible for all interactive stages in the run path. Brand identity block remains visible throughout Stage 1 and is not repeated in Stage 2 or Stage 3.
 2. During editable Stage 1, only one wizard step is active at a time.
 3. On `Run now`, Stage 1 transitions from editable form to a frozen Stage 1 summary.
 4. Stage 2 renders below the frozen Stage 1 summary and updates in place.
@@ -199,7 +199,7 @@ Global behavior:
 
 Header:
 
-1. Stage 0 brand identity block (rendered on Step 0 entry) and status strip (persistent on all steps) are the source for title, tagline, version, and environment indicators.
+1. Stage 0 brand identity block and status strip are the source for title, tagline, version, and environment indicators throughout Stage 1.
 2. Step 0 does not duplicate brand identity lines in the step content area.
 
 Two sequential selections:

@@ -127,20 +127,21 @@ Bracketless — no `[` or `]` wrapping.
 4. Elapsed: `fg.primary`, format `HH:MM:SS`.
 5. ETA: label in `fg.muted`, value in `fg.primary`, format `HH:MM:SS` or `—` when unknown.
 
-**Worker bar:**
+**Worker activity bar:**
 
 ```text
-W1  ████████░░  42%  running  trial 28  gpt-5
+W1  ░███░░░░░  running  trial 28  gpt-5
 ```
 
 1. ID (`W{n}`): `fg.primary`, 4-char width.
-2. Fill color by state: `running` → `accent.primary`, `finishing` → `accent.secondary`, `idle` → `fg.muted`, `error` → `status.error`.
-3. Bar width: 10 chars (fixed).
-4. Column layout:
+2. Worker rows are activity indicators, not determinate completion percentages.
+3. Fill behavior by state: `running` → animated `accent.primary` pulse, `finishing` → full `accent.secondary` bar, `idle` → muted spinner + `░`, `error` → `status.error`.
+4. Bar width: 10 chars (fixed).
+5. Column layout:
 
 ```text
-Col 0    Col 4       Col 16  Col 22        Col 36    Col 42
-W{n}     {bar 10ch}  {pct}%  {state 8ch}   trial {n} {model}
+Col 0    Col 4       Col 16        Col 28    Col 40
+W{n}     {bar 10ch}  {state 8ch}   trial {n} {model}
 ```
 
 ### Ruled Sections
@@ -196,7 +197,7 @@ Key names in `fg.primary`. Actions and `·` separators in `fg.muted`. Footer ada
 
 ### Brand Block
 
-Rendered **only on Step 0 entry path**. Not repeated on subsequent steps or stages.
+Rendered on **all Stage 1 steps**. Not repeated on Stage 2 or Stage 3.
 
 ```text
 A R B I T E R                                          v0.1.0
@@ -392,7 +393,7 @@ Configs:    0 in current directory
 ↑/↓ move · Enter select · Esc back
 ```
 
-Brand block is NOT repeated after Step 0 entry path.
+Brand block remains visible throughout Stage 1 and is not repeated in Stage 2 or Stage 3.
 
 ### Step 1: Research Question
 
@@ -666,7 +667,7 @@ Three ruled sections:
 
 1. `── PROGRESS ──` — trial counts, master progress bar.
 2. `── MONITORING ──` — novelty rate, patience, status, caveat.
-3. `── WORKERS ──` — per-worker progress rows. Omitted when workers == 1.
+3. `── WORKERS ──` — per-worker activity rows. Omitted when workers == 1.
 
 ### In-Place Update
 
@@ -709,9 +710,9 @@ Stopping indicates diminishing novelty, not correctness.
 
 ── WORKERS ─────────────────────────────────────────────────────────────────
 
-W1  ████████░░  42%  running  trial 28  gpt-5
-W2  ██████████  58%  idle     trial 19  gpt-4.1-mini
-W3  ███████░░░  21%  running  trial 27  gpt-5
+W1  ░███░░░░░  running   trial 28  gpt-5
+W2  ⠋░░░░░░░░░  idle      trial 19  gpt-4.1-mini
+W3  ░░███░░░░  running   trial 27  gpt-5
 
 ───────────────────────────────────────────────────────────────────────────────
 Ctrl+C graceful stop
@@ -971,7 +972,7 @@ function renderKV(
   keyWidth?: number
 ): string;
 
-/** One worker progress row. Returns string. */
+/** One worker activity row. Returns string. */
 function renderWorkerRow(worker: WorkerRow, fmt: Formatter): string;
 
 /** Full-width separator line. Returns string. */
@@ -1234,9 +1235,9 @@ Stopping indicates diminishing novelty, not correctness.
 
 ── WORKERS ─────────────────────────────────────────────────────────────────
 
-W1  ████████░░  42%  running  trial 28  gpt-5
-W2  ██████████  58%  idle     trial 19  gpt-4.1-mini
-W3  ███████░░░  21%  running  trial 27  gpt-5
+W1  ░███░░░░░  running   trial 28  gpt-5
+W2  ⠋░░░░░░░░░  idle      trial 19  gpt-4.1-mini
+W3  ░░███░░░░  running   trial 27  gpt-5
 
 ───────────────────────────────────────────────────────────────────────────────
 Ctrl+C graceful stop
@@ -1253,7 +1254,7 @@ Receipt renders identically in dashboard-only mode. The receipt composition func
 | `src/ui/fmt.ts` | Change `accent` 256→109, 16→cyan. Change `warn` 256→172. |
 | `src/ui/copy.ts` | Letter-space brand: `"A R B I T E R"`. Update sentinels: `runHeader` → `"── PROGRESS ──"`, `receiptHeader` → `"── RECEIPT ──"`. |
 | `src/ui/wizard-theme.ts` | Delete `renderCard()`, `renderMasthead()`, `renderProgressSpine()`. Add primitives above. |
-| `src/ui/wizard/app.ts` | Rewrite `renderStepFrame()` to: clearScreen → renderStatusStrip → renderSeparator → brand block (Step 0 only) → rail loop → renderSeparator → footer. Remove three-block stacking. |
+| `src/ui/wizard/app.ts` | Rewrite `renderStepFrame()` to: clearScreen → renderStatusStrip → renderSeparator → persistent Stage 1 brand block → rail loop → renderSeparator → footer. Remove three-block stacking. |
 | `src/ui/run-lifecycle-hooks.ts` | Rewrite `buildRunDashboardText()` to use `renderRuledSection()` + `renderKV()`. Bracketless bars. New sentinels. |
 | `scripts/tui-visual-capture.mjs` | Update wait strings: `═══ RUN ═══` → `── PROGRESS`, `═══ RECEIPT ═══` → `── RECEIPT`. Update step detection strings. |
 | `test/e2e/tui-pty.test.mjs` | Update assertions per Testable Assertions section. |
@@ -1265,7 +1266,7 @@ Receipt renders identically in dashboard-only mode. The receipt composition func
 | `renderCard(input)` | `wizard-theme.ts` | Delete. Replace call sites with rail content or ruled sections. |
 | `renderMasthead(input)` | `wizard-theme.ts` | Delete. Replace with `renderBrandBlock()` (Step 0) + `renderStatusStrip()` (all). |
 | `renderProgressSpine(input)` | `wizard-theme.ts` | Delete. Replace with rail loop using `renderRailStep()`. |
-| `renderStepFrame(input)` | `wizard/app.ts` | Rewrite. New composition: clearScreen → status strip → separator → brand block (if Step 0) → rail loop (with inline content at active step) → separator → footer. |
+| `renderStepFrame(input)` | `wizard/app.ts` | Rewrite. New composition: clearScreen → status strip → separator → persistent Stage 1 brand block → rail loop (with inline content at active step) → separator → footer. |
 | `buildRunDashboardText(snapshot)` | `run-lifecycle-hooks.ts` | Rewrite. New: renderRuledSection("PROGRESS") → trial line + master bar → renderRuledSection("MONITORING") → KV rows + caveat → renderRuledSection("WORKERS") → worker rows. |
 | receipt builder | `run-lifecycle-hooks.ts` | Rewrite. New: renderRuledSection("RECEIPT") → banner + hint → renderRuledSection("SUMMARY") → KV rows → renderRuledSection("ARTIFACTS") → file list → renderRuledSection("REPRODUCE") → command → `Run complete.` |
 

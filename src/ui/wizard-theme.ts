@@ -12,11 +12,10 @@ export type RailStep = {
 
 export type WorkerRow = {
   id: number;
-  pct: number;
   state: "running" | "idle" | "finishing" | "error";
   trialId?: number;
   model?: string;
-  spinner?: string;
+  tick?: number;
 };
 
 export const SUMMARY_COLUMN = 22;
@@ -24,6 +23,7 @@ export const CONTENT_INDENT = 4;
 export const KV_KEY_WIDTH = 16;
 export const MASTER_BAR_MAX = 30;
 export const WORKER_BAR_WIDTH = 10;
+const WORKER_ACTIVITY_PULSE = 3;
 
 const stripAnsi = (value: string): string => value.replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, "");
 
@@ -201,21 +201,36 @@ export const renderWorkerRow = (worker: WorkerRow, fmt: Formatter, width = fmt.t
     return fmt.muted;
   })();
 
-  const bar =
-    worker.state === "idle" && worker.spinner
-      ? `${fmt.muted(worker.spinner)}${fmt.muted("░".repeat(Math.max(0, WORKER_BAR_WIDTH - 1)))}`
-      : renderProgressBar(worker.pct, WORKER_BAR_WIDTH, fillColor, fmt);
+  const bar = (() => {
+    if (worker.state === "finishing") {
+      return renderProgressBar(100, WORKER_BAR_WIDTH, fillColor, fmt);
+    }
+    if (worker.state === "error") {
+      return fillColor("█".repeat(WORKER_BAR_WIDTH));
+    }
+    if (worker.state === "idle") {
+      const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+      const spinner = spinnerFrames[Math.max(0, worker.tick ?? 0) % spinnerFrames.length];
+      return `${fmt.muted(spinner)}${fmt.muted("░".repeat(Math.max(0, WORKER_BAR_WIDTH - 1)))}`;
+    }
+    const tick = Math.max(0, worker.tick ?? 0) % WORKER_BAR_WIDTH;
+    const cells = Array.from({ length: WORKER_BAR_WIDTH }, (_, index) =>
+      index >= tick && index < tick + WORKER_ACTIVITY_PULSE ? "█" : "░"
+    );
+    return cells
+      .map((cell) => (cell === "█" ? fillColor(cell) : fmt.muted(cell)))
+      .join("");
+  })();
 
-  const pct = `${Math.round(toRatio(worker.pct) * 100)}%`.padStart(4, " ");
   const state = padRight(worker.state, 8);
   const trial = padRight(`trial ${worker.trialId ?? "—"}`, 9);
-  const reserved = 4 + WORKER_BAR_WIDTH + 2 + 4 + 2 + 8 + 2 + 9 + 2;
+  const reserved = 4 + WORKER_BAR_WIDTH + 2 + 8 + 2 + 9 + 2;
   const modelWidth = Math.max(4, width - reserved);
   const model = truncatePlain(worker.model ?? "—", modelWidth);
 
-  return `${fmt.text(padRight(`W${worker.id}`, 4))}${bar}  ${fmt.text(pct)}  ${stateColor(state)}  ${fmt.text(
-    trial
-  )}  ${fmt.text(model)}`;
+  return `${fmt.text(padRight(`W${worker.id}`, 4))}${bar}  ${stateColor(state)}  ${fmt.text(trial)}  ${fmt.text(
+    model
+  )}`;
 };
 
 export const renderSeparator = (width: number, fmt: Formatter): string =>

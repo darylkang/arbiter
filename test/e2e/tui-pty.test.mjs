@@ -13,6 +13,17 @@ const CLI_ENTRY = resolve(REPO_ROOT, "dist/cli/index.js");
 const ANSI_CSI_REGEX = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 const ANSI_OSC_REGEX = /\u001b\][^\u0007]*\u0007/g;
 
+const ensureBuilt = () => {
+  const build = spawnSync("npm", ["run", "build"], {
+    cwd: REPO_ROOT,
+    stdio: "inherit",
+    env: { ...process.env }
+  });
+  assert.equal(build.status, 0, "expected npm run build to succeed before PTY tests");
+};
+
+ensureBuilt();
+
 const stripAnsi = (value) =>
   value
     .replace(ANSI_OSC_REGEX, "")
@@ -263,6 +274,47 @@ test("pty: create-new path submits Step 1 question with Enter", { concurrency: f
     session.pressEnter();
 
     await session.waitForText("◆  Protocol", 25000);
+  } finally {
+    await session.stop();
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("pty: decode numeric input stays inside the Stage 1 TUI renderer", { concurrency: false }, async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-decode-inline-"));
+  const session = createPtySession({ cwd });
+
+  try {
+    await session.waitForText("Choose how to start", 25000);
+    session.pressEnter();
+
+    await session.waitForText("Choose run mode", 25000);
+    session.pressEnter();
+
+    await session.waitForText("Research Question", 25000);
+    session.typeText("Inline decode prompt test");
+    session.pressEnter();
+
+    await session.waitForText("◆  Protocol", 25000);
+    session.pressEnter();
+
+    await session.waitForText("◆  Models", 25000);
+    session.pressEnter();
+
+    await session.waitForText("◆  Personas", 25000);
+    session.pressEnter();
+
+    await session.waitForText("◆  Decode Params", 25000);
+    await session.waitForText("Temperature mode", 25000);
+    session.pressEnter();
+
+    await session.waitForText("Enter a value within [0.0, 2.0].", 25000);
+    const output = session.getOutput();
+    assert.equal(
+      output.includes("Temperature [0.7]:"),
+      false,
+      "decode step should not fall back to readline-style prompts"
+    );
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });

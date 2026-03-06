@@ -2,8 +2,7 @@ import { accessSync, constants, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { emitKeypressEvents } from "node:readline";
-import { createInterface } from "node:readline/promises";
-import { stdin as input, stdout as output } from "node:process";
+import { stdout as output } from "node:process";
 
 import type { ArbiterModelCatalog } from "../../generated/catalog.types.js";
 import type { ArbiterPromptManifest } from "../../generated/prompt-manifest.types.js";
@@ -109,13 +108,14 @@ type StepFrame = {
   configCount: number;
   contextLabel: string;
   showRunMode: boolean;
-  showBrandBlock: boolean;
   activeLabel: string;
   activeLines: string[];
   footerText: string;
   stepSummaries: Partial<Record<number, string>>;
   dimmedRail?: boolean;
 };
+
+type PromptResult<T> = T | NavigationSignal;
 
 const RAIL_ITEMS = [
   { label: "Entry Path", railIndex: 0 },
@@ -173,18 +173,16 @@ const renderStepFrame = (input: StepFrame): void => {
   parts.push(renderStatusStrip(input.contextLabel, 0, width, fmt));
   parts.push(renderSeparator(width, fmt));
   parts.push("");
-  if (input.showBrandBlock) {
-    parts.push(
-      renderBrandBlock(
-        input.version,
-        input.apiKeyPresent,
-        input.runMode as UiRunMode,
-        input.configCount,
-        fmt
-      )
-    );
-    parts.push("");
-  }
+  parts.push(
+    renderBrandBlock(
+      input.version,
+      input.apiKeyPresent,
+      input.runMode as UiRunMode,
+      input.configCount,
+      fmt
+    )
+  );
+  parts.push("");
 
   for (const step of railSteps) {
     const isActiveStep = step.state === "active";
@@ -249,6 +247,9 @@ const withRawKeyCapture = async <T>(inputControl: {
     const cleanup = (): void => {
       stdin.removeListener("keypress", onKeyPress);
       stdin.setRawMode(wasRaw);
+      if (!wasRaw) {
+        stdin.pause();
+      }
     };
 
     const onKeyPress = (str: string, key: RawKey): void => {
@@ -501,55 +502,152 @@ const buildConfigFromDraft = (input: {
   return config;
 };
 
-const askInteger = async (
-  rl: ReturnType<typeof createInterface>,
-  prompt: string,
-  defaultValue: number,
-  min: number,
-  onInvalid?: () => string
-): Promise<number> => {
-  while (true) {
-    const answer = (await rl.question(`${prompt} [${defaultValue}]: `)).trim();
-    if (answer.length === 0) {
-      return defaultValue;
+const askInlineValue = async <T>(inputControl: {
+  frame: StepFrame;
+  title: string;
+  helperLines?: string[];
+  initialValue: string;
+  footerText?: string;
+  emptyHint?: string;
+  parse: (value: string) => { ok: true; value: T } | { ok: false; error: string };
+}): Promise<PromptResult<T>> => {
+  let buffer = inputControl.initialValue;
+  return withRawKeyCapture<PromptResult<T>>({
+    render: (errorLine) => {
+      const lines = [inputControl.title];
+      if (inputControl.helperLines && inputControl.helperLines.length > 0) {
+        lines.push(...inputControl.helperLines);
+      }
+      lines.push("");
+      lines.push(buffer.length > 0 ? `▸ ${buffer}` : "▸ ");
+      if (buffer.length === 0 && inputControl.emptyHint) {
+        lines.push(inputControl.emptyHint);
+      }
+      if (errorLine) {
+        lines.push("");
+        lines.push(errorLine);
+      }
+      renderStepFrame({
+        ...inputControl.frame,
+        activeLines: [...inputControl.frame.activeLines, ...lines],
+        footerText: inputControl.footerText ?? "Enter confirm · Esc back"
+      });
+    },
+    onKey: (str, key) => {
+      if (key.ctrl && key.name === "c") {
+        return { done: true, value: SELECT_EXIT };
+      }
+      if (key.name === "escape") {
+        return { done: true, value: SELECT_BACK };
+      }
+      if (key.name === "return" || key.sequence === "\r" || key.sequence === "\n") {
+        const parsed = inputControl.parse(buffer);
+        if (!parsed.ok) {
+          return { done: false, error: parsed.error };
+        }
+        return { done: true, value: parsed.value };
+      }
+      if (key.name === "backspace" || key.sequence === "\x7f") {
+        if (buffer.length > 0) {
+          buffer = buffer.slice(0, -1);
+        }
+        return { done: false };
+      }
+      if (str && !key.ctrl && str >= " " && str !== "\x7f") {
+        buffer += str;
+        return { done: false };
+      }
+      return { done: false };
     }
-    const parsed = Number(answer);
-    if (Number.isInteger(parsed) && parsed >= min) {
-      return parsed;
-    }
-    output.write(`${onInvalid ? onInvalid() : `Fix required: ${prompt} must be an integer greater than or equal to ${min}.`}\n`);
-  }
+  });
 };
 
-const askFloat = async (
-  rl: ReturnType<typeof createInterface>,
-  prompt: string,
-  defaultValue: number,
-  min: number,
-  max: number,
-  onInvalid?: () => string
-): Promise<number> => {
-  while (true) {
-    const answer = (await rl.question(`${prompt} [${defaultValue}]: `)).trim();
-    if (answer.length === 0) {
-      return defaultValue;
+const askIntegerInput = async (inputControl: {
+  frame: StepFrame;
+  title: string;
+  helperLines?: string[];
+  defaultValue: number;
+  min: number;
+  onInvalid?: () => string;
+}): Promise<PromptResult<number>> =>
+  askInlineValue<number>({
+    frame: inputControl.frame,
+    title: inputControl.title,
+    helperLines: inputControl.helperLines,
+    initialValue: String(inputControl.defaultValue),
+    parse: (raw) => {
+      const value = raw.trim().length === 0 ? String(inputControl.defaultValue) : raw.trim();
+      const parsed = Number(value);
+      if (Number.isInteger(parsed) && parsed >= inputControl.min) {
+        return { ok: true, value: parsed };
+      }
+      return {
+        ok: false,
+        error:
+          inputControl.onInvalid?.() ??
+          `Fix required: ${inputControl.title.toLowerCase()} must be an integer greater than or equal to ${inputControl.min}.`
+      };
     }
-    const parsed = Number(answer);
-    if (Number.isFinite(parsed) && parsed >= min && parsed <= max) {
-      return parsed;
+  });
+
+const askFloatInput = async (inputControl: {
+  frame: StepFrame;
+  title: string;
+  helperLines?: string[];
+  defaultValue: number;
+  min: number;
+  max: number;
+  onInvalid?: () => string;
+}): Promise<PromptResult<number>> =>
+  askInlineValue<number>({
+    frame: inputControl.frame,
+    title: inputControl.title,
+    helperLines: inputControl.helperLines,
+    initialValue: String(inputControl.defaultValue),
+    parse: (raw) => {
+      const value = raw.trim().length === 0 ? String(inputControl.defaultValue) : raw.trim();
+      const parsed = Number(value);
+      if (Number.isFinite(parsed) && parsed >= inputControl.min && parsed <= inputControl.max) {
+        return { ok: true, value: parsed };
+      }
+      return {
+        ok: false,
+        error:
+          inputControl.onInvalid?.() ??
+          `Fix required: ${inputControl.title.toLowerCase()} must be within [${inputControl.min}, ${inputControl.max}].`
+      };
     }
-    output.write(`${onInvalid ? onInvalid() : `Fix required: ${prompt} must be within [${min}, ${max}].`}\n`);
-  }
-};
+  });
+
+const askTextInput = async (inputControl: {
+  frame: StepFrame;
+  title: string;
+  helperLines?: string[];
+  defaultValue: string;
+  onInvalid?: (value: string) => string | undefined;
+}): Promise<PromptResult<string>> =>
+  askInlineValue<string>({
+    frame: inputControl.frame,
+    title: inputControl.title,
+    helperLines: inputControl.helperLines,
+    initialValue: inputControl.defaultValue,
+    emptyHint: "(empty uses the current value)",
+    parse: (raw) => {
+      const value = raw.trim().length === 0 ? inputControl.defaultValue : raw.trim();
+      const error = inputControl.onInvalid?.(value);
+      if (error) {
+        return { ok: false, error };
+      }
+      return { ok: true, value };
+    }
+  });
 
 const selectOne = async (
-  rl: ReturnType<typeof createInterface>,
   prompt: string,
   choices: Choice[],
   defaultIndex = 0,
   frame?: StepFrame
 ): Promise<SelectOneResult> => {
-  rl.pause();
   let selectedIndex = firstEnabledIndex(choices, defaultIndex);
   const selected = await withRawKeyCapture<SelectOneResult>({
     render: (errorLine) => {
@@ -611,12 +709,10 @@ const selectOne = async (
       return { done: false };
     }
   });
-  rl.resume();
   return selected;
 };
 
 const selectMany = async (
-  rl: ReturnType<typeof createInterface>,
   prompt: string,
   choices: Choice[],
   defaults: string[],
@@ -624,7 +720,6 @@ const selectMany = async (
   frame?: StepFrame,
   extraLines?: (selected: ReadonlySet<string>) => string[]
 ): Promise<SelectManyResult> => {
-  rl.pause();
   const selectedIds = new Set(defaults);
   let selectedIndex = firstEnabledIndex(choices, 0);
   const resolved = await withRawKeyCapture<SelectManyResult>({
@@ -694,16 +789,13 @@ const selectMany = async (
       return { done: false };
     }
   });
-  rl.resume();
   return resolved;
 };
 
 const askMultilineQuestion = async (
-  rl: ReturnType<typeof createInterface>,
   initial: string,
   frame: StepFrame
 ): Promise<string | NavigationSignal> => {
-  rl.pause();
   let buffer = initial;
   const resolved = await withRawKeyCapture<string | NavigationSignal>({
     render: (errorLine) => {
@@ -761,7 +853,6 @@ const askMultilineQuestion = async (
       return { done: false };
     }
   });
-  rl.resume();
   return resolved;
 };
 
@@ -855,6 +946,371 @@ const buildReviewLines = (input: {
   return lines;
 };
 
+const configureDebateProtocol = async (input: {
+  draft: WizardDraft;
+  buildStepFrame: (currentStepIndex: StepIndex, completedUntilIndex: number, title: string, hint?: string) => StepFrame;
+}): Promise<"done" | NavigationSignal> => {
+  while (true) {
+    const participants = await askIntegerInput({
+      frame: input.buildStepFrame(
+        2,
+        1,
+        "Protocol",
+        "Each round: all participants speak in order; after R rounds, participant A gives the final response."
+      ),
+      title: "Participants (P)",
+      helperLines: ["Enter the number of participants in the debate."],
+      defaultValue: input.draft.participants,
+      min: 2
+    });
+    if (participants === SELECT_EXIT || participants === SELECT_BACK) {
+      return participants;
+    }
+    input.draft.participants = participants;
+
+    const rounds = await askIntegerInput({
+      frame: input.buildStepFrame(
+        2,
+        1,
+        "Protocol",
+        "Each round: all participants speak in order; after R rounds, participant A gives the final response."
+      ),
+      title: "Rounds (R)",
+      helperLines: ["Enter the number of debate rounds."],
+      defaultValue: input.draft.rounds,
+      min: 1
+    });
+    if (rounds === SELECT_EXIT) {
+      return rounds;
+    }
+    if (rounds === SELECT_BACK) {
+      continue;
+    }
+    input.draft.rounds = rounds;
+    return "done";
+  }
+};
+
+const configureDecodeParams = async (input: {
+  draft: WizardDraft;
+  buildStepFrame: (currentStepIndex: StepIndex, completedUntilIndex: number, title: string, hint?: string) => StepFrame;
+}): Promise<"done" | NavigationSignal> => {
+  while (true) {
+    const temperatureModeSelection = await selectOne(
+      "Temperature mode",
+      [
+        { id: "single", label: "Single value" },
+        { id: "range", label: "Range (uniform)" }
+      ],
+      input.draft.temperatureMode === "range" ? 1 : 0,
+      input.buildStepFrame(5, 4, "Decode Params", "Set temperature and seed behavior for trial sampling.")
+    );
+    if (temperatureModeSelection === SELECT_EXIT || temperatureModeSelection === SELECT_BACK) {
+      return temperatureModeSelection;
+    }
+
+    input.draft.temperatureMode = temperatureModeSelection as TemperatureMode;
+    if (input.draft.temperatureMode === "single") {
+      const temperature = await askFloatInput({
+        frame: input.buildStepFrame(5, 4, "Decode Params", "Set numeric decode values."),
+        title: "Temperature",
+        helperLines: ["Enter a value within [0.0, 2.0]."],
+        defaultValue: input.draft.temperatureSingle,
+        min: 0,
+        max: 2,
+        onInvalid: () => "Fix required: temperature must be within [0.0, 2.0]."
+      });
+      if (temperature === SELECT_EXIT) {
+        return temperature;
+      }
+      if (temperature === SELECT_BACK) {
+        continue;
+      }
+      input.draft.temperatureSingle = temperature;
+    } else {
+      while (true) {
+        const minimum = await askFloatInput({
+          frame: input.buildStepFrame(5, 4, "Decode Params", "Set numeric decode values."),
+          title: "Temperature min",
+          helperLines: ["Enter the lower bound within [0.0, 2.0]."],
+          defaultValue: input.draft.temperatureMin,
+          min: 0,
+          max: 2,
+          onInvalid: () => "Fix required: temperature must be within [0.0, 2.0]."
+        });
+        if (minimum === SELECT_EXIT) {
+          return minimum;
+        }
+        if (minimum === SELECT_BACK) {
+          break;
+        }
+        input.draft.temperatureMin = minimum;
+
+        const maximum = await askFloatInput({
+          frame: input.buildStepFrame(5, 4, "Decode Params", "Set numeric decode values."),
+          title: "Temperature max",
+          helperLines: ["Enter the upper bound within [0.0, 2.0]."],
+          defaultValue: input.draft.temperatureMax,
+          min: 0,
+          max: 2,
+          onInvalid: () => "Fix required: temperature must be within [0.0, 2.0]."
+        });
+        if (maximum === SELECT_EXIT) {
+          return maximum;
+        }
+        if (maximum === SELECT_BACK) {
+          continue;
+        }
+        input.draft.temperatureMax = maximum;
+        if (input.draft.temperatureMin > input.draft.temperatureMax) {
+          renderStepFrame({
+            ...input.buildStepFrame(5, 4, "Decode Params", "Set numeric decode values."),
+            activeLines: [
+              "Temperature max",
+              "Enter the upper bound within [0.0, 2.0].",
+              "",
+              `▸ ${input.draft.temperatureMax}`,
+              "",
+              "Fix required: range min must be less than or equal to max."
+            ],
+            footerText: "Enter confirm · Esc back"
+          });
+          continue;
+        }
+        break;
+      }
+      if (input.draft.temperatureMin > input.draft.temperatureMax) {
+        continue;
+      }
+    }
+
+    while (true) {
+      const seedModeSelection = await selectOne(
+        "Seed mode",
+        [
+          { id: "random", label: "Random" },
+          { id: "fixed", label: "Fixed seed" }
+        ],
+        input.draft.seedMode === "fixed" ? 1 : 0,
+        input.buildStepFrame(5, 4, "Decode Params", "Set temperature and seed behavior for trial sampling.")
+      );
+      if (seedModeSelection === SELECT_EXIT) {
+        return seedModeSelection;
+      }
+      if (seedModeSelection === SELECT_BACK) {
+        break;
+      }
+      input.draft.seedMode = seedModeSelection as SeedMode;
+      if (input.draft.seedMode === "fixed") {
+        const seed = await askIntegerInput({
+          frame: input.buildStepFrame(5, 4, "Decode Params", "Set fixed seed."),
+          title: "Fixed seed",
+          helperLines: ["Enter a non-negative integer."],
+          defaultValue: input.draft.fixedSeed,
+          min: 0,
+          onInvalid: () => "Fix required: seed must be a non-negative integer."
+        });
+        if (seed === SELECT_EXIT) {
+          return seed;
+        }
+        if (seed === SELECT_BACK) {
+          continue;
+        }
+        input.draft.fixedSeed = seed;
+      }
+      return "done";
+    }
+  }
+};
+
+const configureAdvancedSettings = async (input: {
+  draft: WizardDraft;
+  defaults: WizardDraft;
+  buildStepFrame: (currentStepIndex: StepIndex, completedUntilIndex: number, title: string, hint?: string) => StepFrame;
+}): Promise<"done" | NavigationSignal> => {
+  const advancedSelection = await selectOne(
+    "Advanced Settings",
+    [
+      { id: "defaults", label: "Use defaults (recommended)" },
+      { id: "custom", label: "Customize" }
+    ],
+    input.draft.useAdvancedDefaults ? 0 : 1,
+    input.buildStepFrame(
+      6,
+      5,
+      "Advanced Settings",
+      "Use defaults or customize execution and stopping settings."
+    )
+  );
+  if (advancedSelection === SELECT_EXIT || advancedSelection === SELECT_BACK) {
+    return advancedSelection;
+  }
+
+  input.draft.useAdvancedDefaults = advancedSelection === "defaults";
+  if (input.draft.useAdvancedDefaults) {
+    input.draft.workers = input.defaults.workers;
+    input.draft.batchSize = input.defaults.batchSize;
+    input.draft.kMax = input.defaults.kMax;
+    input.draft.maxTokens = input.defaults.maxTokens;
+    input.draft.noveltyThreshold = input.defaults.noveltyThreshold;
+    input.draft.noveltyPatience = input.defaults.noveltyPatience;
+    input.draft.kMin = input.defaults.kMin;
+    input.draft.similarityAdvisoryThreshold = input.defaults.similarityAdvisoryThreshold;
+    input.draft.outputDir = input.defaults.outputDir;
+    return "done";
+  }
+
+  const fields = [
+    {
+      key: "workers",
+      ask: () =>
+        askIntegerInput({
+          frame: input.buildStepFrame(6, 5, "Advanced Settings", "Customize execution and stopping settings."),
+          title: "Workers",
+          helperLines: ["Set concurrent worker count."],
+          defaultValue: input.draft.workers,
+          min: 1
+        }),
+      apply: (value: number) => {
+        input.draft.workers = value;
+      }
+    },
+    {
+      key: "batchSize",
+      ask: () =>
+        askIntegerInput({
+          frame: input.buildStepFrame(6, 5, "Advanced Settings", "Customize execution and stopping settings."),
+          title: "Batch size",
+          helperLines: ["Set trials per monitoring batch."],
+          defaultValue: input.draft.batchSize,
+          min: 1
+        }),
+      apply: (value: number) => {
+        input.draft.batchSize = value;
+      }
+    },
+    {
+      key: "kMax",
+      ask: () =>
+        askIntegerInput({
+          frame: input.buildStepFrame(6, 5, "Advanced Settings", "Customize execution and stopping settings."),
+          title: "K_max",
+          helperLines: ["Set the maximum planned trials."],
+          defaultValue: input.draft.kMax,
+          min: 1
+        }),
+      apply: (value: number) => {
+        input.draft.kMax = value;
+      }
+    },
+    {
+      key: "maxTokens",
+      ask: () =>
+        askIntegerInput({
+          frame: input.buildStepFrame(6, 5, "Advanced Settings", "Customize execution and stopping settings."),
+          title: "Max tokens per call",
+          helperLines: ["Set the generation cap per call."],
+          defaultValue: input.draft.maxTokens,
+          min: 1
+        }),
+      apply: (value: number) => {
+        input.draft.maxTokens = value;
+      }
+    },
+    {
+      key: "noveltyThreshold",
+      ask: () =>
+        askFloatInput({
+          frame: input.buildStepFrame(6, 5, "Advanced Settings", "Customize execution and stopping settings."),
+          title: "Novelty threshold",
+          helperLines: ["Enter a value within [0.0, 1.0]."],
+          defaultValue: input.draft.noveltyThreshold,
+          min: 0,
+          max: 1
+        }),
+      apply: (value: number) => {
+        input.draft.noveltyThreshold = value;
+      }
+    },
+    {
+      key: "noveltyPatience",
+      ask: () =>
+        askIntegerInput({
+          frame: input.buildStepFrame(6, 5, "Advanced Settings", "Customize execution and stopping settings."),
+          title: "Patience",
+          helperLines: ["Set consecutive low-novelty batches before stopping."],
+          defaultValue: input.draft.noveltyPatience,
+          min: 1
+        }),
+      apply: (value: number) => {
+        input.draft.noveltyPatience = value;
+      }
+    },
+    {
+      key: "kMin",
+      ask: () =>
+        askIntegerInput({
+          frame: input.buildStepFrame(6, 5, "Advanced Settings", "Customize execution and stopping settings."),
+          title: "K_min eligible trials",
+          helperLines: ["Set the minimum eligible trials before stop checks activate."],
+          defaultValue: input.draft.kMin,
+          min: 0
+        }),
+      apply: (value: number) => {
+        input.draft.kMin = value;
+      }
+    },
+    {
+      key: "similarityAdvisoryThreshold",
+      ask: () =>
+        askFloatInput({
+          frame: input.buildStepFrame(6, 5, "Advanced Settings", "Customize execution and stopping settings."),
+          title: "Similarity advisory threshold",
+          helperLines: ["Enter a value within [0.0, 1.0]."],
+          defaultValue: input.draft.similarityAdvisoryThreshold,
+          min: 0,
+          max: 1
+        }),
+      apply: (value: number) => {
+        input.draft.similarityAdvisoryThreshold = value;
+      }
+    },
+    {
+      key: "outputDir",
+      ask: () =>
+        askTextInput({
+          frame: input.buildStepFrame(6, 5, "Advanced Settings", "Customize execution and stopping settings."),
+          title: "Output dir",
+          helperLines: ["Enter the runs directory path."],
+          defaultValue: input.draft.outputDir
+        }),
+      apply: (value: string) => {
+        input.draft.outputDir = value;
+      }
+    }
+  ] as const;
+
+  let fieldIndex = 0;
+  while (fieldIndex < fields.length) {
+    const field = fields[fieldIndex];
+    const result = await field.ask();
+    if (result === SELECT_EXIT) {
+      return result;
+    }
+    if (result === SELECT_BACK) {
+      if (fieldIndex === 0) {
+        return SELECT_BACK;
+      }
+      fieldIndex -= 1;
+      continue;
+    }
+    field.apply(result as never);
+    fieldIndex += 1;
+  }
+
+  return "done";
+};
+
 const runStudy = async (input: {
   runMode: RunMode;
   configPath: string;
@@ -885,7 +1341,6 @@ const runStudy = async (input: {
 };
 
 const chooseConfigFile = async (
-  rl: ReturnType<typeof createInterface>,
   configs: string[],
   frame: StepFrame
 ): Promise<string | null> => {
@@ -894,7 +1349,6 @@ const chooseConfigFile = async (
   }
 
   const selected = await selectOne(
-    rl,
     "Select a config file",
     configs.map((name) => ({ id: name, label: name })),
     0,
@@ -914,7 +1368,6 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
   const configFiles = listConfigFiles();
   const apiKeyPresent = Boolean(process.env.OPENROUTER_API_KEY);
 
-  const rl = createInterface({ input, output });
   let interactiveScreenEnabled = false;
   const enterInteractiveScreen = (): void => {
     if (output.isTTY && !interactiveScreenEnabled) {
@@ -946,7 +1399,6 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       configCount: configFiles.length,
       contextLabel: "onboarding",
       showRunMode: false,
-      showBrandBlock: true,
       activeLabel: "Entry Path",
       activeLines: ["Choose how to start"],
       footerText: "↑/↓ move · Enter select · Esc back",
@@ -965,14 +1417,12 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         configCount: configFiles.length,
         contextLabel: "onboarding",
         showRunMode: false,
-        showBrandBlock: true,
         activeLabel: "Entry Path",
         activeLines: [],
         footerText: "↑/↓ move · Enter select · Esc back",
         stepSummaries: {}
       };
       const entryChoice = await selectOne(
-        rl,
         "Choose how to start",
         [
           {
@@ -1004,7 +1454,6 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           : "Create new study";
 
       const runChoice = await selectOne(
-        rl,
         "Choose run mode",
         [
           {
@@ -1022,7 +1471,6 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           completedUntilRailIndex: 0,
           contextLabel: "onboarding / mode",
           showRunMode: true,
-          showBrandBlock: true,
           activeLabel: "Run Mode",
           stepSummaries: { 0: entrySummary }
         }
@@ -1098,7 +1546,6 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         configCount: configFiles.length,
         contextLabel,
         showRunMode,
-        showBrandBlock: true,
         activeLabel: title,
         activeLines: hint ? splitLines(hint) : [],
         footerText: "↑/↓ move · Enter select · Esc back",
@@ -1113,13 +1560,12 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
     };
 
     if (entryPath === "existing") {
-      selectedConfigPath = await chooseConfigFile(rl, configFiles, {
+      selectedConfigPath = await chooseConfigFile(configFiles, {
         ...buildStepFrame(0, 0, "Run Mode", "Select a config file"),
         currentRailIndex: 1,
         completedUntilRailIndex: 1,
         contextLabel: "onboarding / mode",
         showRunMode: true,
-        showBrandBlock: true,
         activeLabel: "Run Mode"
       });
       if (!selectedConfigPath) {
@@ -1136,7 +1582,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
     while (true) {
       if (currentStep === 1) {
-        const questionInput = await askMultilineQuestion(rl, draft.question, {
+        const questionInput = await askMultilineQuestion(draft.question, {
           ...buildStepFrame(
             1,
             0,
@@ -1158,7 +1604,6 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
       if (currentStep === 2) {
         const protocolSelection = await selectOne(
-          rl,
           "Protocol",
           [
             { id: "independent", label: "Independent" },
@@ -1177,16 +1622,17 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         }
         draft.protocolType = protocolSelection as ProtocolType;
         if (draft.protocolType === "debate_v1") {
-          renderStepFrame({
-            ...buildStepFrame(
-              2,
-              1,
-              "Protocol",
-              "Each round: all participants speak in order; after R rounds, participant A gives the final response."
-            )
+          const debateConfigResult = await configureDebateProtocol({
+            draft,
+            buildStepFrame
           });
-          draft.participants = await askInteger(rl, "Participants (P)", draft.participants, 2);
-          draft.rounds = await askInteger(rl, "Rounds (R)", draft.rounds, 1);
+          if (debateConfigResult === SELECT_EXIT) {
+            exitWizard("Wizard exited.");
+            return;
+          }
+          if (debateConfigResult === SELECT_BACK) {
+            continue;
+          }
         }
         currentStep = 3;
         continue;
@@ -1194,7 +1640,6 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
       if (currentStep === 3) {
         const selectedModels = await selectMany(
-          rl,
           "Models",
           modelOptions.map((model) => ({
             id: model.slug,
@@ -1236,7 +1681,6 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
 
       if (currentStep === 4) {
         const selectedPersonas = await selectMany(
-          rl,
           "Personas",
           personaOptions.map((persona) => ({ id: persona.id, label: `${persona.id} - ${persona.description}` })),
           draft.personaIds,
@@ -1257,161 +1701,36 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       }
 
       if (currentStep === 5) {
-        while (true) {
-          const temperatureModeSelection = await selectOne(
-            rl,
-            "Temperature mode",
-            [
-              { id: "single", label: "Single value" },
-              { id: "range", label: "Range (uniform)" }
-            ],
-            draft.temperatureMode === "range" ? 1 : 0,
-            buildStepFrame(5, 4, "Decode Params", "Set temperature and seed behavior for trial sampling.")
-          );
-          if (temperatureModeSelection === SELECT_EXIT) {
-            exitWizard("Wizard exited.");
-            return;
-          }
-          if (temperatureModeSelection === SELECT_BACK) {
-            currentStep = 4;
-            break;
-          }
-
-          draft.temperatureMode = temperatureModeSelection as TemperatureMode;
-          renderStepFrame({
-            ...buildStepFrame(
-              5,
-              4,
-              "Decode Params",
-              "Set numeric decode values."
-            )
-          });
-          if (draft.temperatureMode === "single") {
-            draft.temperatureSingle = await askFloat(
-              rl,
-              "Temperature",
-              draft.temperatureSingle,
-              0,
-              2,
-              () => "Fix required: temperature must be within [0.0, 2.0]."
-            );
-          } else {
-            draft.temperatureMin = await askFloat(
-              rl,
-              "Temperature min",
-              draft.temperatureMin,
-              0,
-              2,
-              () => "Fix required: temperature must be within [0.0, 2.0]."
-            );
-            draft.temperatureMax = await askFloat(
-              rl,
-              "Temperature max",
-              draft.temperatureMax,
-              0,
-              2,
-              () => "Fix required: temperature must be within [0.0, 2.0]."
-            );
-            if (draft.temperatureMin > draft.temperatureMax) {
-              output.write("Fix required: range min must be less than or equal to max.\n");
-              continue;
-            }
-          }
-
-          const seedModeSelection = await selectOne(
-            rl,
-            "Seed mode",
-            [
-              { id: "random", label: "Random" },
-              { id: "fixed", label: "Fixed seed" }
-            ],
-            draft.seedMode === "fixed" ? 1 : 0,
-            buildStepFrame(5, 4, "Decode Params", "Set temperature and seed behavior for trial sampling.")
-          );
-          if (seedModeSelection === SELECT_EXIT) {
-            exitWizard("Wizard exited.");
-            return;
-          }
-          if (seedModeSelection === SELECT_BACK) {
-            continue;
-          }
-          draft.seedMode = seedModeSelection as SeedMode;
-          if (draft.seedMode === "fixed") {
-            renderStepFrame({
-              ...buildStepFrame(5, 4, "Decode Params", "Set fixed seed.")
-            });
-            draft.fixedSeed = await askInteger(
-              rl,
-              "Fixed seed",
-              draft.fixedSeed,
-              0,
-              () => "Fix required: seed must be a non-negative integer."
-            );
-          }
-          currentStep = 6;
-          break;
+        const decodeResult = await configureDecodeParams({ draft, buildStepFrame });
+        if (decodeResult === SELECT_EXIT) {
+          exitWizard("Wizard exited.");
+          return;
         }
+        if (decodeResult === SELECT_BACK) {
+          currentStep = 4;
+          continue;
+        }
+        currentStep = 6;
         continue;
       }
 
       if (currentStep === 6) {
-        const advancedSelection = await selectOne(
-          rl,
-          "Advanced Settings",
-          [
-            { id: "defaults", label: "Use defaults (recommended)" },
-            { id: "custom", label: "Customize" }
-          ],
-          draft.useAdvancedDefaults ? 0 : 1,
-          buildStepFrame(
-            6,
-            5,
-            "Advanced Settings",
-            "Use defaults or customize execution and stopping settings."
-          )
-        );
-        if (advancedSelection === SELECT_EXIT) {
+        const defaults = buildDraftFromConfig(baseTemplate, {
+          modelSlugs: draft.modelSlugs,
+          personaIds: draft.personaIds
+        });
+        const advancedResult = await configureAdvancedSettings({
+          draft,
+          defaults,
+          buildStepFrame
+        });
+        if (advancedResult === SELECT_EXIT) {
           exitWizard("Wizard exited.");
           return;
         }
-        if (advancedSelection === SELECT_BACK) {
+        if (advancedResult === SELECT_BACK) {
           currentStep = 5;
           continue;
-        }
-        draft.useAdvancedDefaults = advancedSelection === "defaults";
-        if (draft.useAdvancedDefaults) {
-          const defaults = buildDraftFromConfig(baseTemplate, {
-            modelSlugs: draft.modelSlugs,
-            personaIds: draft.personaIds
-          });
-          draft.workers = defaults.workers;
-          draft.batchSize = defaults.batchSize;
-          draft.kMax = defaults.kMax;
-          draft.maxTokens = defaults.maxTokens;
-          draft.noveltyThreshold = defaults.noveltyThreshold;
-          draft.noveltyPatience = defaults.noveltyPatience;
-          draft.kMin = defaults.kMin;
-          draft.similarityAdvisoryThreshold = defaults.similarityAdvisoryThreshold;
-          draft.outputDir = defaults.outputDir;
-        } else {
-          draft.workers = await askInteger(rl, "Workers", draft.workers, 1);
-          draft.batchSize = await askInteger(rl, "Batch size", draft.batchSize, 1);
-          draft.kMax = await askInteger(rl, "K_max", draft.kMax, 1);
-          draft.maxTokens = await askInteger(rl, "Max tokens per call", draft.maxTokens, 1);
-          draft.noveltyThreshold = await askFloat(rl, "Novelty threshold", draft.noveltyThreshold, 0, 1);
-          draft.noveltyPatience = await askInteger(rl, "Patience", draft.noveltyPatience, 1);
-          draft.kMin = await askInteger(rl, "K_min eligible trials", draft.kMin, 0);
-          draft.similarityAdvisoryThreshold = await askFloat(
-            rl,
-            "Similarity advisory threshold",
-            draft.similarityAdvisoryThreshold,
-            0,
-            1
-          );
-          const outputDirAnswer = (await rl.question(`Output dir [${draft.outputDir}]: `)).trim();
-          if (outputDirAnswer.length > 0) {
-            draft.outputDir = outputDirAnswer;
-          }
         }
         currentStep = 7;
         continue;
@@ -1427,7 +1746,6 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       });
 
       const actionSelection = await selectOne(
-        rl,
         "Review action",
         [
           { id: "run", label: "Run now" },
@@ -1515,6 +1833,5 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
     }
   } finally {
     leaveInteractiveScreen();
-    rl.close();
   }
 };
