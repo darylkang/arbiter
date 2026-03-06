@@ -152,6 +152,11 @@ Recommended review split:
 - Human review: open `/Users/darylkang/Developer/arbiter/scripts/tui-terminal-viewer.html` in a browser and load one of the captured `*.ansi` files.
 - Agent review: inspect the generated `*.txt` files directly. They reflect terminal screen state rather than raw escape sequences.
 
+Execution note:
+
+- Run `npm run test:e2e:tui` and `npm run capture:tui` serially, not in parallel.
+- Both commands rebuild `dist/`, so overlapping runs can produce flaky PTY/capture failures.
+
 Automated coverage:
 
 ```bash

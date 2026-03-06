@@ -136,6 +136,12 @@ When changing wizard, dashboard, receipt, TTY routing, terminal rendering, or TU
 4. use `scripts/tui-terminal-viewer.html` with the paired `*.ansi` files for human color and composition review,
 5. run `npm run test:ui`, `npm run test:e2e:tui`, and `npm run test:unit`.
 
+Operational rule:
+
+- run build-backed TUI commands serially, not in parallel,
+- specifically: do not overlap `npm run build`, `npm run capture:tui`, or `npm run test:e2e:tui`,
+- these commands rebuild `dist/`, and concurrent runs can create false negatives or inconsistent PTY/capture results.
+
 When sentinel strings, stage headers, or TUI copy/layout contracts change, update all dependent docs/tests/scripts in the same change. At minimum, check:
 
 - `docs/product-specs/tui-copy-deck.md`
