@@ -53,6 +53,9 @@ type DashboardSnapshot = {
 
 const MAX_DASHBOARD_QUESTION_CHARS = 88;
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const CURSOR_HIDE = "\x1b[?25l";
+const CURSOR_SHOW = "\x1b[?25h";
+const ANSI_CSI_REGEX = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 
 const shouldRenderDashboard = (enabled: boolean): boolean =>
   enabled && Boolean(process.stdout.isTTY);
@@ -134,7 +137,18 @@ const mapStopStateFromCompletion = (
 const spinnerFrame = (tick: number): string =>
   SPINNER_FRAMES[Math.max(0, tick) % SPINNER_FRAMES.length];
 
-const countRenderedLines = (value: string): number => value.split("\n").length;
+const stripAnsi = (value: string): string =>
+  value.replace(ANSI_CSI_REGEX, "").replace(/\r/g, "");
+
+const countRenderedRows = (value: string, columns: number): number => {
+  const width = Math.max(1, columns);
+  const lines = stripAnsi(value).replace(/\n+$/, "").split("\n");
+  let total = 0;
+  for (const line of lines) {
+    total += Math.max(1, Math.ceil(line.length / width));
+  }
+  return total;
+};
 const toPercent = (attempted: number, planned: number): number =>
   planned <= 0 ? 0 : Math.max(0, Math.min(100, (attempted / planned) * 100));
 
@@ -227,7 +241,11 @@ export const buildRunDashboardText = (
   if (snapshot.workers > 1) {
     const rows = process.stdout.rows ?? 24;
     const maxFrameLines = Math.max(10, rows - 1);
-    const baseLineCount = sections.reduce((total, section) => total + countRenderedLines(section), 0);
+    const terminalWidth = Math.max(1, process.stdout.columns ?? width);
+    const baseLineCount = sections.reduce(
+      (total, section) => total + countRenderedRows(section, terminalWidth),
+      0
+    );
     const availableWorkerRows = Math.max(0, maxFrameLines - baseLineCount - 9);
     if (availableWorkerRows > 0) {
       const sorted = Array.from(snapshot.workerStatus.entries()).sort((a, b) => a[0] - b[0]);
@@ -308,6 +326,7 @@ class RunDashboardMonitor {
   }
 
   attach(): void {
+    process.stdout.write(CURSOR_HIDE);
     this.unsubs.push(
       this.bus.subscribeSafe("run.started", (payload) => this.onRunStarted(payload)),
       this.bus.subscribeSafe("trial.completed", (payload) => this.onTrialCompleted(payload)),
@@ -324,6 +343,7 @@ class RunDashboardMonitor {
   detach(): void {
     this.stopAnimationLoop();
     this.unsubs.splice(0).forEach((unsubscribe) => unsubscribe());
+    process.stdout.write(CURSOR_SHOW);
   }
 
   private startAnimationLoop(): void {
@@ -459,7 +479,7 @@ class RunDashboardMonitor {
   private render(): void {
     this.snapshot.renderTick += 1;
     const frameText = buildRunDashboardText(this.snapshot);
-    const frameLineCount = frameText.trimEnd().split("\n").length;
+    const frameLineCount = countRenderedRows(frameText, Math.max(1, process.stdout.columns ?? 80));
 
     if (this.lastRenderedLineCount > 0) {
       process.stdout.write(`\x1b[${this.lastRenderedLineCount}A\x1b[J`);

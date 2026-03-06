@@ -131,9 +131,11 @@ const RAIL_ITEMS = [
 
 const ALT_SCREEN_ENABLE = "\x1b[?1049h";
 const ALT_SCREEN_DISABLE = "\x1b[?1049l";
+const CURSOR_HIDE = "\x1b[?25l";
+const CURSOR_SHOW = "\x1b[?25h";
 
 const clearScreen = (): void => {
-  output.write("\x1b[2J\x1b[H");
+  output.write("\x1b[H\x1b[J");
 };
 
 const splitLines = (value: string): string[] => value.split("\n").filter((line) => line.length > 0);
@@ -917,11 +919,13 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
   const enterInteractiveScreen = (): void => {
     if (output.isTTY && !interactiveScreenEnabled) {
       output.write(ALT_SCREEN_ENABLE);
+      output.write(CURSOR_HIDE);
       interactiveScreenEnabled = true;
     }
   };
   const leaveInteractiveScreen = (): void => {
     if (interactiveScreenEnabled) {
+      output.write(CURSOR_SHOW);
       output.write(ALT_SCREEN_DISABLE);
       interactiveScreenEnabled = false;
     }
@@ -1018,7 +1022,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           completedUntilRailIndex: 0,
           contextLabel: "onboarding / mode",
           showRunMode: true,
-          showBrandBlock: false,
+          showBrandBlock: true,
           activeLabel: "Run Mode",
           stepSummaries: { 0: entrySummary }
         }
@@ -1094,7 +1098,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         configCount: configFiles.length,
         contextLabel,
         showRunMode,
-        showBrandBlock: currentStepIndex === 0 && !showRunMode,
+        showBrandBlock: true,
         activeLabel: title,
         activeLines: hint ? splitLines(hint) : [],
         footerText: "↑/↓ move · Enter select · Esc back",
@@ -1115,7 +1119,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         completedUntilRailIndex: 1,
         contextLabel: "onboarding / mode",
         showRunMode: true,
-        showBrandBlock: false,
+        showBrandBlock: true,
         activeLabel: "Run Mode"
       });
       if (!selectedConfigPath) {
