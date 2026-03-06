@@ -21,28 +21,19 @@ import {
   readJsonFile,
   writeJsonFile
 } from "../../cli/commands.js";
-import { askMultilineQuestion, chooseConfigFile, selectMany, selectOne } from "./controls.js";
+import { chooseConfigFile, selectOne } from "./controls.js";
 import {
-  buildConfigFromDraft,
   buildDraftFromConfig,
   buildFrozenRailSummary,
-  buildReviewLines,
   toRailSummaries
 } from "./draft.js";
-import {
-  configureAdvancedSettings,
-  configureDebateProtocol,
-  configureDecodeParams,
-  runPreflight
-} from "./flows.js";
 import { loadWizardOptions } from "./resources.js";
+import { createWizardStepControllers, type WizardStepResult } from "./steps.js";
 import {
   RAIL_ITEMS,
   SELECT_BACK,
   SELECT_EXIT,
   type EntryPath,
-  type ProtocolType,
-  type ReviewAction,
   type RunMode,
   type StepFrame,
   type StepIndex
@@ -342,6 +333,13 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         })
       };
     };
+    const stepControllers = createWizardStepControllers({
+      assetRoot,
+      modelOptions,
+      personaOptions,
+      buildStepFrame,
+      renderStepFrame
+    });
 
     if (entryPath === "existing") {
       selectedConfigPath = await chooseConfigFile({
@@ -369,231 +367,43 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
     }
 
     while (true) {
-      if (currentStep === 1) {
-        const questionInput = await askMultilineQuestion({
-          initial: draft.question,
-          frame: buildStepFrame(1, 0, "Research Question"),
-          renderStepFrame
-        });
-        if (questionInput === SELECT_EXIT) {
-          exitWizard("Wizard exited.");
-          return;
-        }
-        if (questionInput === SELECT_BACK) {
-          continue;
-        }
-        draft.question = questionInput;
-        currentStep = 2;
-        continue;
-      }
-
-      if (currentStep === 2) {
-        const protocolSelection = await selectOne({
-          prompt: "Protocol",
-          choices: [
-            { id: "independent", label: "Independent" },
-            { id: "debate_v1", label: "Debate" }
-          ],
-          defaultIndex: draft.protocolType === "debate_v1" ? 1 : 0,
-          frame: buildStepFrame(2, 1, "Protocol", "Select how each trial is structured."),
-          renderStepFrame
-        });
-        if (protocolSelection === SELECT_EXIT) {
-          exitWizard("Wizard exited.");
-          return;
-        }
-        if (protocolSelection === SELECT_BACK) {
-          currentStep = 1;
-          continue;
-        }
-        draft.protocolType = protocolSelection as ProtocolType;
-        if (draft.protocolType === "debate_v1") {
-          const debateConfigResult = await configureDebateProtocol({
-            draft,
-            buildStepFrame,
-            renderStepFrame
-          });
-          if (debateConfigResult === SELECT_EXIT) {
-            exitWizard("Wizard exited.");
-            return;
-          }
-          if (debateConfigResult === SELECT_BACK) {
-            continue;
-          }
-        }
-        currentStep = 3;
-        continue;
-      }
-
-      if (currentStep === 3) {
-        const selectedModels = await selectMany({
-          prompt: "Models",
-          choices: modelOptions.map((model) => ({
-            id: model.slug,
-            label: `${model.slug} ${model.slug.endsWith(":free") ? "[free]" : "[paid]"}${
-              model.slug.includes("mini") || model.slug.includes("flash")
-                ? " [fast]"
-                : !model.slug.endsWith(":free")
-                  ? " [stable]"
-                  : ""
-            }`
-          })),
-          defaults: draft.modelSlugs,
-          emptySelectionError: "Fix required: select at least one model.",
-          frame: buildStepFrame(3, 2, "Models", "Select one or more models for sampling."),
-          extraLines: (selected) =>
-            Array.from(selected).some((slug) => slug.endsWith(":free"))
-              ? [
-                  "Warning: free-tier models selected. Availability may be limited. Use paid models for publishable research."
-                ]
-              : [],
-          renderStepFrame
-        });
-        if (selectedModels === SELECT_EXIT) {
-          exitWizard("Wizard exited.");
-          return;
-        }
-        if (selectedModels === SELECT_BACK) {
-          currentStep = 2;
-          continue;
-        }
-        draft.modelSlugs = selectedModels;
-        currentStep = 4;
-        continue;
-      }
-
-      if (currentStep === 4) {
-        const selectedPersonas = await selectMany({
-          prompt: "Personas",
-          choices: personaOptions.map((persona) => ({ id: persona.id, label: `${persona.id} - ${persona.description}` })),
-          defaults: draft.personaIds,
-          emptySelectionError: "Fix required: select at least one persona.",
-          frame: buildStepFrame(4, 3, "Personas", "Select one or more personas for sampling."),
-          renderStepFrame
-        });
-        if (selectedPersonas === SELECT_EXIT) {
-          exitWizard("Wizard exited.");
-          return;
-        }
-        if (selectedPersonas === SELECT_BACK) {
-          currentStep = 3;
-          continue;
-        }
-        draft.personaIds = selectedPersonas;
-        currentStep = 5;
-        continue;
-      }
-
-      if (currentStep === 5) {
-        const decodeResult = await configureDecodeParams({
-          draft,
-          buildStepFrame,
-          renderStepFrame
-        });
-        if (decodeResult === SELECT_EXIT) {
-          exitWizard("Wizard exited.");
-          return;
-        }
-        if (decodeResult === SELECT_BACK) {
-          currentStep = 4;
-          continue;
-        }
-        currentStep = 6;
-        continue;
-      }
-
-      if (currentStep === 6) {
-        const defaults = buildDraftFromConfig(baseTemplate, {
-          modelSlugs: draft.modelSlugs,
-          personaIds: draft.personaIds
-        });
-        const advancedResult = await configureAdvancedSettings({
-          draft,
-          defaults,
-          buildStepFrame,
-          renderStepFrame
-        });
-        if (advancedResult === SELECT_EXIT) {
-          exitWizard("Wizard exited.");
-          return;
-        }
-        if (advancedResult === SELECT_BACK) {
-          currentStep = 5;
-          continue;
-        }
-        currentStep = 7;
-        continue;
-      }
-
-      const baseConfig = sourceConfig ?? baseTemplate;
-      const configForReview = buildConfigFromDraft({ baseConfig, draft });
-      const reviewLines = buildReviewLines({
+      const result: WizardStepResult = await stepControllers[currentStep]({
         draft,
         runMode,
+        entryPath,
         selectedConfigPath,
-        isExistingPath: entryPath === "existing"
+        revised,
+        baseTemplate,
+        sourceConfig
       });
 
-      const actionSelection = await selectOne({
-        prompt: "Review action",
-        choices: [
-          { id: "run", label: "Run now" },
-          { id: "save", label: "Save config and exit" },
-          { id: "revise", label: "Revise" },
-          { id: "quit", label: "Quit without saving" }
-        ],
-        defaultIndex: 0,
-        frame: {
-          ...buildStepFrame(7, 6, "Review and Confirm"),
-          activeLines: reviewLines
-        },
-        renderStepFrame
-      });
-
-      if (actionSelection === SELECT_EXIT) {
-        exitWizard("Wizard exited.");
-        return;
-      }
-      if (actionSelection === SELECT_BACK) {
-        revised = true;
-        currentStep = 6;
-        continue;
-      }
-
-      const action = actionSelection as ReviewAction;
-      if (action === "quit") {
-        exitWizard("Wizard exited without saving.");
+      if (result.kind === "exit") {
+        exitWizard(result.message);
         return;
       }
 
-      if (action === "revise") {
-        revised = true;
-        currentStep = 1;
+      if (result.kind === "goto") {
+        revised = result.revised ?? revised;
+        currentStep = result.step;
         continue;
       }
 
-      const warnings = await runPreflight({
-        config: configForReview,
-        assetRoot,
-        runMode,
-        action
-      });
-      warnings.forEach((warning) => output.write(`${warning}\n`));
+      result.warnings.forEach((warning: string) => output.write(`${warning}\n`));
 
-      if (action === "save") {
+      if (result.kind === "save") {
         const saveTarget = nextCollisionSafeConfigPath();
-        writeJsonFile(saveTarget, configForReview);
+        writeJsonFile(saveTarget, result.config);
         leaveInteractiveScreen();
         output.write(`Config saved: ${saveTarget}\n`);
         return;
       }
 
       let configPathToRun: string;
-      if (entryPath === "existing" && selectedConfigPath && !revised) {
+      if (entryPath === "existing" && selectedConfigPath && !result.revised) {
         configPathToRun = selectedConfigPath;
       } else {
         const saveTarget = nextCollisionSafeConfigPath();
-        writeJsonFile(saveTarget, configForReview);
+        writeJsonFile(saveTarget, result.config);
         output.write(`Config saved: ${saveTarget}\n`);
         configPathToRun = saveTarget;
       }
