@@ -279,7 +279,7 @@ M1:
 
 M2:
 
-1. add guard tests for direct stdout writes outside approved seams,
+1. add guard tests for direct stdout writes outside approved seams; explicitly whitelist `src/ui/wizard/frame-manager.ts` for Stage 1, `src/ui/run-lifecycle-hooks.ts` for Stage 2 and Stage 3, and any temporary fallback paths in `src/ui/wizard/controls.ts` while they remain tracked,
 2. add guard tests for raw ANSI sequences outside approved seams,
 3. narrow or document widget fallback paths in `controls.ts`,
 4. consolidate any remaining render ownership leaks into frame/runtime seams,
