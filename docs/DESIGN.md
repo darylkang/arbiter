@@ -215,6 +215,7 @@ Durable stage behavior:
 8. graceful user stop still produces a truthful Stage 3 receipt and partial artifacts.
 
 Exact stage layout, copy, glyphs, and visual composition belong in `docs/product-specs/`.
+Detailed internal TUI runtime architecture, render ownership, and migration constraints belong in `docs/TUI-RUNTIME.md`.
 
 ### 3.5) Study Definition vs Run Control
 

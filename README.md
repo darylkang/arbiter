@@ -337,6 +337,7 @@ Arbiter warns to stderr and continues headless by contract.
 ## Documentation
 
 - Design reference: `docs/DESIGN.md`
+- TUI runtime architecture: `docs/TUI-RUNTIME.md`
 - Wizard UX spec: `docs/product-specs/tui-wizard.md`
 - ExecPlan contract: `docs/PLANS.md`
 - Contributor/agent rules: `AGENTS.md`
