@@ -1,28 +1,14 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import test from "node:test";
 
 import { loadTemplateConfig } from "../../src/cli/commands.ts";
 import { runPreflight } from "../../src/ui/wizard/flows.ts";
-
-const REPO_ROOT = resolve(new URL("../../", import.meta.url).pathname);
-
-const withTempCwd = async (fn) => {
-  const previous = process.cwd();
-  const cwd = mkdtempSync(join(tmpdir(), "arbiter-wizard-flows-"));
-  process.chdir(cwd);
-  try {
-    await fn(cwd);
-  } finally {
-    process.chdir(previous);
-    rmSync(cwd, { recursive: true, force: true });
-  }
-};
+import { REPO_ROOT, withTempWorkspace } from "../helpers/workspace.mjs";
 
 test("runPreflight does not create the output directory during review", async () => {
-  await withTempCwd(async (cwd) => {
+  await withTempWorkspace("arbiter-wizard-flows-", async (cwd) => {
     const config = loadTemplateConfig(REPO_ROOT, "default");
     config.output.runs_dir = "runs/review-only/output";
 
@@ -39,7 +25,7 @@ test("runPreflight does not create the output directory during review", async ()
 });
 
 test("runPreflight does not probe OpenRouter connectivity during review", async () => {
-  await withTempCwd(async () => {
+  await withTempWorkspace("arbiter-wizard-flows-", async () => {
     const config = loadTemplateConfig(REPO_ROOT, "default");
     config.output.runs_dir = ".";
 

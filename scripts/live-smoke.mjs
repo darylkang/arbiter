@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
@@ -10,19 +10,30 @@ if (!process.env.OPENROUTER_API_KEY) {
 
 const tempRoot = mkdtempSync(resolve(tmpdir(), "arbiter-live-smoke-"));
 const runsDir = resolve(tempRoot, "runs");
+const configPath = resolve(tempRoot, "arbiter.config.json");
+
+const template = JSON.parse(
+  readFileSync(resolve("resources/templates/debate_v1.config.json"), "utf8")
+);
+template.question = {
+  text: "Live smoke prompt",
+  question_id: "live_smoke_q1"
+};
+template.output = { runs_dir: "runs" };
+writeFileSync(configPath, `${JSON.stringify(template, null, 2)}\n`, "utf8");
 
 const runCase = (label, extraArgs) => {
   console.log(`Running live smoke test (${label})...`);
   execFileSync(
-    "node",
-    [
-      "dist/cli/index.js",
-      "run",
-      "--config",
-      "examples/debate_v1.smoke.json",
-      "--out",
-      runsDir,
-      "--mode",
+      "node",
+      [
+        "dist/cli/index.js",
+        "run",
+        "--config",
+        configPath,
+        "--out",
+        runsDir,
+        "--mode",
       "live",
       ...extraArgs
     ],
