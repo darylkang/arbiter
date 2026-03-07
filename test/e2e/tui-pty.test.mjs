@@ -42,7 +42,7 @@ const withTimeout = async (promise, timeoutMs, label) => {
   }
 };
 
-const createMockConfig = (cwd) => {
+const createMockConfig = (cwd, overrides = {}) => {
   const initResult = spawnSync("node", [CLI_ENTRY, "init"], {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
@@ -59,6 +59,13 @@ const createMockConfig = (cwd) => {
   config.question.text = "Wizard e2e question";
   config.question.question_id = "wizard_e2e_q1";
   config.measurement.clustering.enabled = false;
+  Object.assign(config.execution, overrides.execution ?? {});
+  if (overrides.question) {
+    Object.assign(config.question, overrides.question);
+  }
+  if (overrides.measurement?.clustering) {
+    Object.assign(config.measurement.clustering, overrides.measurement.clustering);
+  }
   writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 };
 
@@ -94,7 +101,7 @@ const assertRunArtifacts = (cwd, runDirName) => {
 };
 
 const createPtySession = (input) => {
-  const proc = pty.spawn("node", [CLI_ENTRY], {
+  const proc = pty.spawn("node", [CLI_ENTRY, ...(input.args ?? [])], {
     name: "xterm-256color",
     cols: input.cols ?? 120,
     rows: input.rows ?? 40,
@@ -171,6 +178,7 @@ const createPtySession = (input) => {
     typeText,
     arrowDown,
     escape,
+    resize: (cols, rows) => proc.resize(cols, rows),
     waitForExit,
     stop,
     getOutput: () => stripAnsi(output)
@@ -352,6 +360,73 @@ test("pty: decode numeric input stays inside the Stage 1 TUI renderer", { concur
       false,
       "decode step should not fall back to readline-style prompts"
     );
+  } finally {
+    await session.stop();
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("pty: undersized dashboard path falls back cleanly without live monitor", { concurrency: false }, async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-dashboard-small-"));
+  createMockConfig(cwd);
+  const session = createPtySession({
+    cwd,
+    cols: 60,
+    rows: 14,
+    args: ["run", "--config", "arbiter.config.json", "--dashboard"]
+  });
+
+  try {
+    await session.waitForText(
+      "Dashboard requires at least 60 columns x 15 rows; continuing without live dashboard.",
+      25000
+    );
+    await session.waitForText("Stopped:", 45000);
+    const exit = await session.waitForExit(45000);
+    assert.equal(exit.exitCode, 0);
+
+    const output = session.getOutput();
+    assert.equal(output.includes("── PROGRESS"), false);
+    assert.equal(output.includes("── RECEIPT"), false);
+  } finally {
+    await session.stop();
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("pty: dashboard re-renders across a live terminal resize", { concurrency: false }, async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-dashboard-resize-"));
+  createMockConfig(cwd, {
+    execution: {
+      k_max: 8
+    }
+  });
+  const session = createPtySession({
+    cwd,
+    cols: 120,
+    rows: 24,
+    args: ["run", "--config", "arbiter.config.json", "--dashboard"],
+    env: {
+      ARBITER_MOCK_DELAY_MS: "120"
+    }
+  });
+
+  try {
+    await session.waitForText("── PROGRESS", 25000);
+    await session.waitForText("Trials: 1/8", 25000);
+
+    session.resize(60, 14);
+    await session.waitForText(
+      "Dashboard requires at least 60 columns x 15 rows; continuing without live dashboard.",
+      25000
+    );
+
+    session.resize(120, 24);
+    await session.waitForText("Trials: 5/8", 45000);
+    await session.waitForText("── RECEIPT", 45000);
+
+    const exit = await session.waitForExit(45000);
+    assert.equal(exit.exitCode, 0);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });

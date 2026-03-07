@@ -7,6 +7,7 @@ import {
   renderRuledSection,
   renderWorkerRow
 } from "../../src/ui/wizard-theme.ts";
+import { countRenderedRows, countRowsForLines } from "../../src/ui/runtime/live-region.ts";
 import { buildWizardFrameText } from "../../src/ui/wizard/frame-manager.ts";
 import {
   buildReceiptDisplayText,
@@ -237,4 +238,11 @@ test("Stage 3 receipt builder has a deterministic plain-text fixture", () => {
       ""
     ].join("\n")
   );
+});
+
+test("live-region row counting matches Arbiter's current single-width glyph contract", () => {
+  const line = "W2  \u001b[33m⠙░░░░░░░░░\u001b[0m  idle      trial —    —";
+  assert.equal(countRenderedRows(line, 80), 1);
+  assert.equal(countRenderedRows(line, 10), 4);
+  assert.equal(countRowsForLines(["✔  Entry Path", "◆  Research Question"], 80), 2);
 });

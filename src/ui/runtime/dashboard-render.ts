@@ -1,0 +1,176 @@
+import { UI_COPY } from "../copy.js";
+import { createStdoutFormatter, type Formatter } from "../fmt.js";
+import type { DashboardVM, RenderLine } from "../runtime-view-models.js";
+import { MASTER_BAR_MAX, renderKV, renderProgressBar, renderRuledSection, renderSeparator, renderStatusStrip, renderWorkerRow } from "../wizard-theme.js";
+import { countRenderedRows, countRowsForLines } from "./live-region.js";
+
+type DashboardRenderOptions = {
+  width?: number;
+  maxRows?: number;
+  fmt?: Formatter;
+};
+
+const formatClockHMS = (inputMs: number): string => {
+  const totalSeconds = Math.max(0, Math.floor(inputMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor(totalSeconds / 60) % 60;
+  const seconds = totalSeconds % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
+    2,
+    "0"
+  )}`;
+};
+
+const renderToneLine = (line: RenderLine, fmt: Formatter): string => {
+  if (line.tone === "warn") {
+    return fmt.warn(line.text);
+  }
+  if (line.tone === "error") {
+    return fmt.error(line.text);
+  }
+  if (line.tone === "success") {
+    return fmt.success(line.text);
+  }
+  if (line.tone === "info") {
+    return fmt.info(line.text);
+  }
+  if (line.tone === "text") {
+    return fmt.text(line.text);
+  }
+  return fmt.muted(line.text);
+};
+
+const buildWorkerSection = (
+  workerRows: DashboardVM["workerRows"],
+  fmt: Formatter,
+  width: number,
+  compact: boolean,
+  remainingRows: number
+): string[] => {
+  if (workerRows.length <= 1 || remainingRows <= 0) {
+    return [];
+  }
+
+  const sectionPrefix = [
+    renderRuledSection("WORKERS", width, fmt),
+    ...(compact ? [] : [""]),
+    fmt.muted("ID  Activity      State     Trial     Model")
+  ];
+  const prefixRows = countRowsForLines(sectionPrefix, width);
+  const overflowRows = countRowsForLines([fmt.muted("(+0 more workers)")], width);
+  const minVisibleRows = prefixRows + 1;
+  if (remainingRows < minVisibleRows) {
+    return [];
+  }
+
+  let visibleCount = 0;
+  let usedRows = prefixRows;
+  while (visibleCount < workerRows.length) {
+    const workerLine = renderWorkerRow(workerRows[visibleCount]!, fmt, width);
+    const workerLineRows = countRenderedRows(workerLine, width);
+    const remainingWorkers = workerRows.length - (visibleCount + 1);
+    const requiredOverflowRows = remainingWorkers > 0 ? overflowRows : 0;
+    if (usedRows + workerLineRows + requiredOverflowRows > remainingRows) {
+      break;
+    }
+    usedRows += workerLineRows;
+    visibleCount += 1;
+  }
+
+  if (visibleCount === 0) {
+    return [];
+  }
+
+  const lines = [...sectionPrefix];
+  for (let index = 0; index < visibleCount; index += 1) {
+    lines.push(renderWorkerRow(workerRows[index]!, fmt, width));
+  }
+  const hidden = workerRows.length - visibleCount;
+  if (hidden > 0) {
+    lines.push(fmt.muted(`(+${hidden} more workers)`));
+  }
+  return lines;
+};
+
+export const buildDashboardTooSmallText = (width: number, fmt: Formatter = createStdoutFormatter()): string =>
+  `${renderStatusStrip("run / monitoring", 0, width, fmt)}\n${renderSeparator(width, fmt)}\n\n${fmt.warn(
+    UI_COPY.dashboardTerminalTooSmall
+  )}\n`;
+
+export const buildRunDashboardText = (vm: DashboardVM, options: DashboardRenderOptions = {}): string => {
+  const fmt = options.fmt ?? createStdoutFormatter();
+  const width = options.width ?? fmt.termWidth();
+  const maxRows = options.maxRows;
+  const compact = maxRows !== undefined && maxRows <= 18;
+  const elapsed = formatClockHMS(vm.elapsedMs);
+  const masterBar = renderProgressBar(
+    vm.progressPct,
+    Math.min(MASTER_BAR_MAX, Math.max(10, width - 34)),
+    fmt.brand,
+    fmt
+  );
+  const sections: string[] = [];
+  let usedRows = 0;
+  const pushBlock = (block: string[], required = false): boolean => {
+    if (block.length === 0) {
+      return true;
+    }
+    const blockRows = countRowsForLines(block, width);
+    if (!required && maxRows !== undefined && usedRows + blockRows > maxRows) {
+      return false;
+    }
+    sections.push(...block);
+    usedRows += blockRows;
+    return true;
+  };
+
+  pushBlock([renderStatusStrip(vm.statusContext, vm.elapsedMs, width, fmt), renderSeparator(width, fmt)], true);
+  if (!compact) {
+    pushBlock([""]);
+  }
+  pushBlock(
+    [
+      renderRuledSection("PROGRESS", width, fmt),
+      ...(compact ? [] : [""]),
+      vm.progressLabel,
+      `${masterBar}  ${String(Math.round(vm.progressPct)).padStart(3, " ")}%    ${elapsed}  ETA ${vm.eta}`
+    ],
+    true
+  );
+  if (!compact) {
+    pushBlock([""]);
+  }
+
+  const monitoringBlock = [
+    renderRuledSection("MONITORING", width, fmt),
+    ...(compact ? [] : [""]),
+    ...vm.monitoringRows.map((row) => renderKV(row.key, row.value, fmt))
+  ];
+  pushBlock(monitoringBlock, true);
+
+  const caveatBlock = vm.caveatLines.map((line) => renderToneLine(line, fmt));
+  pushBlock(compact ? caveatBlock : ["", ...caveatBlock], true);
+
+  const footerBlock = compact
+    ? [renderSeparator(width, fmt), fmt.muted(vm.footerText)]
+    : ["", renderSeparator(width, fmt), fmt.muted(vm.footerText)];
+  const footerRows = countRowsForLines(footerBlock, width);
+
+  const remainingBeforeFooter =
+    maxRows === undefined ? Number.POSITIVE_INFINITY : Math.max(0, maxRows - usedRows - footerRows);
+  const workerBlock = buildWorkerSection(vm.workerRows, fmt, width, compact, remainingBeforeFooter);
+  if (workerBlock.length > 0) {
+    pushBlock(compact ? workerBlock : ["", ...workerBlock]);
+  }
+
+  const usageBlock = [
+    renderRuledSection("USAGE", width, fmt),
+    ...(compact ? [] : [""]),
+    ...vm.usageLines.map((line) => renderToneLine(line, fmt))
+  ];
+  pushBlock(compact ? usageBlock : ["", ...usageBlock]);
+
+  pushBlock(compact ? [renderSeparator(width, fmt), fmt.muted(vm.footerText)] : ["", renderSeparator(width, fmt), fmt.muted(vm.footerText)], true);
+
+  return `${sections.join("\n")}\n`;
+};

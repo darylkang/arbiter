@@ -48,20 +48,20 @@ Scrollback after exit shows: frozen rail → Stage 2 final → Stage 3 receipt. 
 3. Triggered by: each keypress that changes state.
 4. At the minimum supported wizard height (`18` rows), Stage 1 compacts vertically: brand identity collapses to a 2-line block and rail content omits decorative spacer rows so the active step remains visible without scrolling the alternate screen viewport.
 
-**Stage 2**: In-place update via cursor movement.
+**Stage 2**: Bounded live-region update below the frozen Stage 1 prefix.
 
-1. Count rendered lines of previous frame.
-2. Move cursor up: `\x1b[{lineCount}A`.
-3. Clear from cursor: `\x1b[J`.
-4. Write new frame.
-5. Animation timer: 120ms interval for worker state and progress updates (see Activity Indicator section).
-6. Substantive re-render on: `trial.completed`, `worker.status`, `monitoring.record`, `batch.completed`.
+1. Compute the visible prefix height at the current terminal width.
+2. Reserve a live region from `topRow` to the terminal bottom via scroll-region control.
+3. Re-render the full Stage 2 frame inside that region from current state.
+4. Animation timer: 120ms interval for worker activity and compact-state refresh.
+5. Substantive re-render on: `trial.completed`, `worker.status`, `monitoring.record`, `batch.completed`.
+6. If the terminal drops below the live-dashboard minimum (`60x15`), Stage 2 swaps to the explicit terminal-too-small warning inside the live region and Stage 3 falls back to plain `receipt.txt` output.
 
 **Stage 3**: Single static write, then process exit.
 
 ### Resize
 
-Terminal resize triggers re-render at new dimensions. The rail is width-agnostic, progress bars scale via formula, separators refill to terminal width, and the Stage 1 shell compacts at the minimum supported wizard height. Minimum supported width: 60 columns. Minimum supported height for the wizard: 18 rows. Minimum supported height for the live Stage 2 dashboard: 15 rows; below that threshold, the premium dashboard is disabled and receipt falls back to plain text.
+Terminal resize triggers re-render from current state at new dimensions. The rail is width-agnostic, progress bars scale via formula, separators refill to terminal width, and the Stage 1 shell compacts at the minimum supported wizard height. During Stage 2, the live region recalculates against the current terminal size on each render tick; if the terminal drops below `60x15`, the premium dashboard is replaced by the explicit dashboard-too-small warning and Stage 3 falls back to plain `receipt.txt` output until the terminal is large enough again. Minimum supported width: 60 columns. Minimum supported height for the wizard: 18 rows. Minimum supported height for the live Stage 2 dashboard: 15 rows.
 
 ## Visual Grammar
 

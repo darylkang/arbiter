@@ -1,5 +1,3 @@
-import type { WorkerRow } from "./wizard-theme.js";
-
 export type RenderTone = "text" | "muted" | "warn" | "error" | "success" | "info";
 
 export type RenderLine = {
@@ -10,6 +8,14 @@ export type RenderLine = {
 export type KeyValueRow = {
   key: string;
   value: string;
+};
+
+export type WorkerRow = {
+  id: number;
+  state: "running" | "idle" | "finishing" | "error";
+  trialId?: number;
+  model?: string;
+  tick?: number;
 };
 
 export type DashboardVM = {

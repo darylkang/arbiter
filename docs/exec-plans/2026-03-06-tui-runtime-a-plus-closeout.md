@@ -50,8 +50,10 @@ Temporary coexistence rules:
 3. resize handling may initially fail closed with explicit unsupported-size or no-live-resize messaging before more graceful reflow behavior is introduced.
 
 ## Progress
-- [ ] (2026-03-06 00:00Z) plan drafted; implementation not started (`proposed`)
-- [ ] external architecture review and sign-off recorded before M1 starts
+- [x] (2026-03-06 00:00Z) plan drafted (`proposed`)
+- [x] (2026-03-07 06:04Z) M1 complete: Stage 2/3 runtime decomposed into explicit dashboard VM, dashboard render, live-region, and receipt-render seams; runtime behavior preserved and validated (`completed`)
+- [x] (2026-03-07 06:04Z) M2 complete: validation expanded to cover undersized dashboard fallback, live resize across the dashboard path, short-terminal scrollback, and current glyph-width assumptions (`completed`)
+- [ ] (2026-03-07 06:04Z) M3 pending external sign-off on the implemented runtime and A+ closeout evidence (`in_progress`)
 
 ## Surprises & Discoveries
 - Observation: the remaining gap to A+ is no longer missing layering in Stage 1; it is runtime exactness and parity across all stages.
@@ -66,6 +68,30 @@ Temporary coexistence rules:
   Evidence: `src/ui/run-lifecycle-hooks.ts` contains both the event handler mutators and the render/teardown logic in one class.
 - Observation: the existing validation stack is strong for text truth but still requires a human-operated viewer for color/composition truth.
   Evidence: `scripts/tui-visual-capture.mjs`, `scripts/tui-terminal-viewer.html`, `test/e2e/tui-visual-capture.test.mjs`.
+- Observation: the Stage 2 live region now re-measures frozen-prefix height at the current terminal width on every render tick rather than relying on a startup-only prefix row count.
+  Evidence: `src/ui/run-lifecycle-hooks.ts`, `src/ui/runtime/live-region.ts`.
+
+## Outcomes & Retrospective
+Delivered in this round:
+
+1. `src/ui/run-lifecycle-hooks.ts` is now a runtime coordinator rather than the sole owner of Stage 2/3 view-model construction, rendering, geometry, and receipt composition.
+2. New explicit Stage 2/3 seams now exist in:
+   - `src/ui/runtime/dashboard-vm.ts`
+   - `src/ui/runtime/dashboard-render.ts`
+   - `src/ui/runtime/live-region.ts`
+   - `src/ui/runtime/receipt-render.ts`
+3. Runtime geometry assumptions are localized and documented in code via the live-region module rather than buried inside the coordinator.
+4. The resize contract is now explicit in `docs/TUI-RUNTIME.md` and `docs/product-specs/tui-visual-screen-deck.md`.
+5. Validation now covers:
+   - undersized dashboard startup fallback,
+   - live resize during the dashboard path,
+   - short-terminal Stage 2→Stage 3 handoff,
+   - current glyph-width row counting assumptions,
+   - receipt artifact ANSI separation.
+
+Remaining gap before the plan can be marked fully completed:
+
+1. external review/sign-off on the implemented runtime and this closeout evidence.
 
 ## Decision Log
 - Decision: keep the current five-layer runtime architecture from `docs/TUI-RUNTIME.md`.
@@ -358,3 +384,4 @@ Current baseline artifacts:
 ## Plan Change Notes
 - 2026-03-06: created as a follow-on plan after the runtime hardening plan closed at a strong but not yet elite grade.
 - 2026-03-06: revised after external architecture review to merge geometry work into the Stage 2/3 decomposition milestone and drop screenshot automation as a required success criterion.
+- 2026-03-07: M1 and M2 completed. Stage 2/3 runtime seams were extracted, the resize contract was made explicit, and validation expanded to cover undersized dashboard fallback plus live resize on the dashboard path.

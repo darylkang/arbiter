@@ -285,6 +285,14 @@ Rules:
 2. no silent broken rendering is allowed,
 3. resize behavior must trigger re-render from the current state, not partial patching based on stale assumptions.
 
+Current runtime contract:
+
+1. Stage 1 re-renders immediately against the new terminal dimensions.
+2. Stage 2 re-measures width, rows, and frozen-prefix height on every render tick.
+3. If Stage 2 drops below the live-dashboard minimum (`60x15`), it renders the explicit dashboard-too-small warning in the live region instead of the premium dashboard.
+4. If the terminal recovers before completion, Stage 2 resumes premium dashboard rendering from current state.
+5. If a run finishes while the terminal is still below the live-dashboard minimum, Stage 3 falls back to plain `receipt.txt` output.
+
 ## 9) Testing and Validation Model
 
 The internal runtime must support framework-grade validation discipline without introducing a second full rendering implementation.

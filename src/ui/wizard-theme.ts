@@ -1,5 +1,6 @@
 import { UI_COPY, toApiKeyPresenceLabel, toRunModeLabel, type UiRunMode } from "./copy.js";
 import { type Formatter } from "./fmt.js";
+import type { WorkerRow } from "./runtime-view-models.js";
 
 export type RailStepState = "completed" | "active" | "pending";
 
@@ -8,14 +9,6 @@ export type RailStep = {
   state: RailStepState;
   summary?: string;
   contentLines?: string[];
-};
-
-export type WorkerRow = {
-  id: number;
-  state: "running" | "idle" | "finishing" | "error";
-  trialId?: number;
-  model?: string;
-  tick?: number;
 };
 
 export const SUMMARY_COLUMN = 22;
