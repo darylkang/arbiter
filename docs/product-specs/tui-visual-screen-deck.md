@@ -1,1347 +1,507 @@
 # Arbiter TUI Visual Screen Deck
 
-Status: accepted implementation target
+Status: accepted redesign target
 Owner: Arbiter
-Last updated: 2026-03-06
+Last updated: 2026-03-07
 
 ## Scope and Precedence
 
 Precedence order for TUI implementation:
 
-1. `docs/product-specs/tui-wizard.md` (behavior and interaction semantics),
-2. `docs/product-specs/tui-copy-deck.md` (LOCKED/FLEX copy contract),
-3. this visual screen deck (visual layout contract),
-4. `docs/TUI-RUNTIME.md` (internal runtime architecture and renderer ownership).
-5. `docs/exec-plans/2026-03-06-build-internal-tui-runtime-layer.md` (current hardening and migration workflow).
+1. `docs/product-specs/tui-wizard.md` (behavior and interaction semantics)
+2. `docs/product-specs/tui-copy-deck.md` (LOCKED/FLEX copy contract)
+3. this visual screen deck (visual layout contract)
+4. `docs/TUI-RUNTIME.md` (internal runtime architecture and renderer ownership)
 
 When this visual deck conflicts with behavior semantics, behavior semantics win.
 When this visual deck conflicts with LOCKED copy, LOCKED copy wins.
 
 ## Design Intent
 
-Arbiter's TUI reads as a warm instrument panel — information-dense, calm, no visual clutter. Gruvbox dark palette provides warmth. Amber highlights active elements; teal marks structural chrome. Content occupies center stage; decoration is absent. When making judgment calls not covered by this spec, choose the option that looks more like laboratory equipment and less like a consumer app.
+Arbiter should read as a precision console: warm, technical, and premium without becoming theatrical.
 
-Never implement: box-bordered cards (`╭──╮`/`╰──╯`), bracket-wrapped progress bars (`[███░]`), `[x]`/`[ ]` checkboxes, split-pane layouts, rainbow or decorative color, CRT/blink effects.
+The UI should feel:
 
-## Screen Management
+1. deliberate, not improvised,
+2. instrument-grade, not shell-like,
+3. contained and hierarchical, not like a flat formatted log,
+4. terminal-native, not a faux GUI,
+5. visually confident without becoming noisy.
 
-### Screen Buffers
+The current redesign direction is defined by four principles:
 
-All three stages render on the **normal screen buffer**. Interactive frames are ephemeral because they are overwritten in place; only the durable transcript remains after the run completes.
+1. **Identity panel over floating brand text** — the top of the app is a contained chrome surface, not a loose wordmark.
+2. **Stage headers over pseudo-command strips** — `▍ SETUP`, `▍ RUN`, and `▍ RECEIPT` replace shell-like `› arbiter ...` context strips.
+3. **Hierarchy over rule spam** — fewer full-width dividers, more hierarchy through color, spacing, containment, and short-prefix subsection labels.
+4. **Two-accent structure** — amber marks current/lifecycle emphasis; teal marks structure and grouping.
 
-On `Run now`:
+Never implement:
 
-1. Stage 1 updates in place via normal-screen overwrite.
-2. Once the user commits to `Run now`, the current wizard region is cleared.
-3. Write one frozen durable prefix to the normal screen:
-   - Stage 0 header (status strip + brand block),
-   - frozen rail summary,
-   - transition beat.
-4. Run Stage 2 as a bounded normal-screen overwrite region beneath that frozen prefix.
-5. On completion, clear the live region and write one final normal-screen transcript extension:
-   - final Stage 2 snapshot,
-   - Stage 3 receipt.
+1. rainbow or decorative multi-color styling,
+2. CRT or blink effects,
+3. split-pane layouts,
+4. bracket-wrapped progress bars (`[███░]`),
+5. `[x]` / `[ ]` checkboxes,
+6. large ASCII-art logos,
+7. framed boxes for every section.
 
-Scrollback after exit shows: Stage 0 header → frozen rail → Stage 2 final → Stage 3 receipt. Intermediate Stage 1 editing and Stage 2 refresh frames are not preserved.
+Allowed containment:
 
-`arbiter run --dashboard` uses the same normal-screen overwrite model for Stage 2 and writes one final normal-screen transcript at completion. It omits the Stage 0 header and frozen rail summary.
+1. one rounded-corner identity panel at the top of Stage 0 / Stage 1,
+2. no repeated heavy framed panels for Stage 2 or Stage 3.
 
-### Render Loop
+## Runtime and Transcript Relationship
 
-**Stage 1**: Full-frame clear-and-redraw on each interaction using normal-screen overwrite.
+This file defines the visual contract only. The normal-screen overwrite runtime defined in `docs/TUI-RUNTIME.md` remains authoritative for rendering mechanics.
 
-1. First render: `\x1b[2J\x1b[H` (clear visible screen + cursor home).
-2. Subsequent renders: move cursor up by previous frame height, clear from cursor to end of screen, write new frame.
-3. Render: status strip → separator → content (brand block or rail) → separator → footer.
-4. Triggered by: each keypress that changes state.
-5. At the minimum supported wizard height (`18` rows), Stage 1 compacts vertically: brand identity collapses to a 2-line block and rail content omits decorative spacer rows so the active step remains visible without scrolling the visible viewport.
+Durable transcript contract:
 
-**Stage 2**: Bounded live-region update on the normal screen.
+1. Stage 0 identity panel appears once at the top of the durable transcript.
+2. Stage 1 contributes one frozen study rail summary beneath that identity panel.
+3. Stage 2 contributes one final dashboard snapshot beneath the frozen summary.
+4. Stage 3 contributes one receipt beneath the final dashboard snapshot.
+5. The identity panel is not re-emitted as a heavy framed panel between stages.
 
-1. Compute the visible prefix height at the current terminal width.
-2. Count the rendered rows in the previous Stage 2 frame.
-3. Move cursor up by that many rows, clear to end of screen, and write the new Stage 2 frame.
-4. Animation timer: 120ms interval for worker activity and compact-state refresh.
-5. Substantive re-render on: `trial.completed`, `worker.status`, `monitoring.record`, `batch.completed`.
-6. If the terminal drops below the live-dashboard minimum (`60x15`), Stage 2 swaps to the explicit terminal-too-small warning inside the live region.
+## Visual Hierarchy
 
-**Stage 3**: Single static write, then process exit.
+The UI uses four hierarchy levels.
 
-### Resize
+### Level 0: Identity Panel
 
-Terminal resize triggers re-render from current state at new dimensions. The rail is width-agnostic, progress bars scale via formula, separators refill to terminal width, and the Stage 1 shell compacts at the minimum supported wizard height. During Stage 2, the live region recalculates against the current terminal size on each render tick; if the terminal drops below `60x15`, the premium dashboard is replaced by the explicit dashboard-too-small warning until the terminal is large enough again. The durable final transcript is written once at completion rather than rebuilt incrementally during the run. Minimum supported width: 60 columns. Minimum supported height for the wizard: 18 rows. Minimum supported height for the live Stage 2 dashboard: 15 rows.
+A rounded-corner teal frame containing:
 
-## Visual Grammar
+1. compact `ARBITER` wordmark,
+2. tagline,
+3. one-per-line environment signal rows.
 
-### Color Palette
+This is the only heavy containment element in the product.
 
-**256-color (target tier):**
+### Level 1: Stage Header
 
-| Role | Hex | Code | Escape | `fmt.ts` method |
-|------|-----|------|--------|-----------------|
-| `fg.primary` | `#ebdbb2` | 223 | `\x1b[38;5;223m` | `text()` |
-| `fg.muted` | `#928374` | 245 | `\x1b[38;5;245m` | `muted()` |
-| `accent.primary` | `#fabd2f` | 214 | `\x1b[38;5;214m` | `brand()` |
-| `accent.secondary` | `#83a598` | 109 | `\x1b[38;5;109m` | `accent()` — **change from 208** |
-| `status.success` | `#b8bb26` | 142 | `\x1b[38;5;142m` | `success()` |
-| `status.warn` | `#d79921` | 172 | `\x1b[38;5;172m` | `warn()` — **change from 214** |
-| `status.error` | `#fb4934` | 167 | `\x1b[38;5;167m` | `error()` |
-
-Bold: `\x1b[1m`. Reset: `\x1b[0m`.
-
-**16-color fallback:**
-
-| Role | ANSI | `fmt.ts` change |
-|------|------|-----------------|
-| `accent.primary` | `\x1b[93m` bright yellow | no change |
-| `accent.secondary` | `\x1b[36m` cyan | **change `accent` from `\x1b[33m`** |
-| `status.warn` | `\x1b[33m` yellow | no change |
-| Others | standard mapping | no change |
-
-### Glyph Vocabulary
-
-Each glyph has exactly one semantic role.
-
-| Glyph | Role | Context | Color |
-|-------|------|---------|-------|
-| `◆` | Active step | Rail | `accent.primary` |
-| `◇` | Pending step | Rail | `accent.secondary` |
-| `✔` | Completed step | Rail | `accent.primary` |
-| `│` | Content indent | Rail | `accent.secondary` |
-| `●` | Selected | Single-choice | `accent.primary` |
-| `○` | Unselected | Single-choice | `fg.muted` |
-| `■` | Selected | Multi-choice | `accent.primary` |
-| `□` | Unselected | Multi-choice | `fg.muted` |
-| `▸` | Focus cursor | Actionable row | `accent.primary` |
-| `✓` | Passed | Preflight | `status.success` |
-| `⚠` | Warning/skip | Preflight | `status.warn` |
-| `✗` | Failed | Preflight | `status.error` |
-| `█` | Fill | Progress bar | varies by context |
-| `░` | Empty | Progress bar | `fg.muted` |
-| `─` | Rule | Separators | `accent.secondary` |
-| `›` | Prompt | Status strip | `accent.primary` |
-
-### Progress Bars
-
-Bracketless — no `[` or `]` wrapping.
-
-**Master bar:**
+A left-bar lifecycle marker.
 
 ```text
-████████████░░░░░░░░░░░░░░░░░░  35%    00:02:12  ETA 00:04:03
+▍ SETUP                                                  00:12
+▍ RUN                                                    00:00
+▍ RECEIPT                                                00:00
 ```
 
-1. Fill (`█`): `accent.primary`. Empty (`░`): `fg.muted`.
-2. Width: `min(42, termWidth - 34)` characters.
-3. Percentage: `fg.primary`, 4-char gap after bar.
-4. Elapsed: `fg.primary`, format `HH:MM:SS`.
-5. ETA: label in `fg.muted`, value in `fg.primary`, format `HH:MM:SS` or `—` when unknown.
+Rules:
 
-**Worker activity bar:**
+1. `▍` and label use `accent.primary`.
+2. Clock is right-aligned in `fg.muted`.
+3. No shell prompt glyphs.
+4. No full-width rule directly attached to the stage header.
+
+### Level 2: Subsection Header
+
+Short-prefix label, not full-width ruled fill.
 
 ```text
-W1  ░███░░░░░  running  trial 28  GPT-4o Mini
+── PROGRESS
+── MONITORING
+── WORKERS
+── USAGE
 ```
 
-1. ID (`W{n}`): `fg.primary`, 4-char width.
-2. Worker rows are activity indicators, not determinate completion percentages.
-3. Fill behavior by state: `running` → animated `accent.primary` pulse, `finishing` → full `accent.secondary` bar, `idle` → muted spinner + `░`, `error` → `status.error`.
-4. Bar width: 10 chars (fixed).
-5. Column layout:
+Rules:
+
+1. Prefix dashes and label use `accent.secondary`.
+2. Bold label, no trailing fill to terminal edge.
+3. One blank line before content.
+4. Subsection headers are structural, not dramatic.
+
+### Level 3: Content
+
+Body rows, KV pairs, worker rows, artifact rows, helper copy.
+
+Rules:
+
+1. labels/keys in `fg.muted`,
+2. values in `fg.primary`,
+3. highlighted live values may use `accent.primary`,
+4. caveat lines use warning glyph + muted prose.
+
+## Color Strategy
+
+### Primary Accent Roles
+
+- `accent.primary` (amber): lifecycle emphasis, active state, progress bars, stage headers, wordmark
+- `accent.secondary` (teal): structure, subsection headers, panel border, rail connector, informational signal dots
+
+### Semantic Roles
+
+- `status.success`: success / completed / available
+- `status.warn`: warning / caveat / skipped state
+- `status.error`: error / failed state
+- `fg.muted`: labels, helper text, secondary metadata
+- `fg.primary`: body values and readable content
+
+### Application Rule
+
+Teal is no longer decorative separator color only. It is structural chrome.
+
+## Glyph Vocabulary
+
+### Rail Navigation
+
+| Meaning | Glyph | Color | Notes |
+|---------|-------|-------|-------|
+| completed step | `◆` | `status.success` | filled diamond |
+| active step | `▸` | `accent.primary` | active/current |
+| pending step | `◇` | `fg.muted` | hollow diamond |
+| rail connector | `│` | `accent.secondary` | vertical continuity |
+
+### Controls
+
+| Meaning | Glyph | Color |
+|---------|-------|-------|
+| single selected | `●` | `accent.primary` |
+| single unselected | `○` | `fg.muted` |
+| multi selected | `■` | `accent.primary` |
+| multi unselected | `□` | `fg.muted` |
+| focus cursor | `▸` | `accent.primary` |
+
+The only shared glyph between rail and controls is `▸`, and in both contexts it means “currently active.”
+
+### Preflight and Signals
+
+| Meaning | Glyph |
+|---------|-------|
+| pass | `✓` |
+| warning / skipped | `⚠` |
+| fail | `✕` |
+| signal dot | `●` |
+
+### Progress and Activity
+
+| Meaning | Glyph |
+|---------|-------|
+| fill | `█` |
+| empty | `░` |
+
+## Identity Panel
+
+The identity panel replaces the loose Stage 0 brand block.
+
+### Target Shape
 
 ```text
-Col 0    Col 4       Col 16        Col 28    Col 40
-W{n}     {bar 10ch}  {state 8ch}   trial {n} {model}
+╭──────────────────────────────────────────────────────────────╮
+│                                                              │
+│  ARBITER                                             v0.1.0  │
+│  Distributional reasoning harness                            │
+│                                                              │
+│  ● API key    detected                                       │
+│  ● Run mode   Mock                                           │
+│  ● Configs    98 in current directory                        │
+│                                                              │
+╰──────────────────────────────────────────────────────────────╯
 ```
 
-### Ruled Sections
+### Rules
 
-Stage 2 and Stage 3 use ruled section headers:
+1. `ARBITER` is compact bold, no letter-spacing.
+2. Panel border is `accent.secondary`.
+3. Version is right-aligned in `fg.muted`.
+4. Tagline is `fg.muted`.
+5. Each environment row gets its own signal dot and line.
+6. Dots are context-colored:
+   - API key detected → `status.success`
+   - run mode → `accent.primary`
+   - configs/info → `accent.secondary`
+7. The panel persists visually throughout Stage 1.
+8. In the durable transcript, it appears once at the top and is not repeated.
+
+## Stage 1: Setup Surface
+
+Stage 1 consists of:
+
+1. identity panel,
+2. `▍ SETUP` stage header,
+3. inline study rail,
+4. command footer.
+
+### Layout Shape
 
 ```text
-── {LABEL} ─────────────────────────────────────────────────────────────────
+╭─ identity panel ─╮
+
+▍ SETUP                                                  00:12
+
+  ◆  Entry Path                   Create new study
+  │
+  ◆  Run Mode                     Mock
+  │
+  ▸  Research Question
+  │
+  │   helper text
+  │   input / selectors
+  │
+  ◇  Protocol
+  ◇  Models
+  ◇  Personas
+  ◇  Decode Params
+  ◇  Advanced Settings
+  ◇  Review and Confirm
+
+  ─────────────────────────────────────────────────────────────
+  ↑/↓ move · Enter select · Esc back
 ```
 
-1. Label: ALL-CAPS, `accent.primary` + bold.
-2. Rule chars (`─`): `accent.secondary`.
-3. Fill to full terminal width.
+### Rail Rules
 
-Key-value rows below headers:
+1. Completed rows use `◆`, not `✔`.
+2. Active row uses `▸`, not `◆`.
+3. Pending rows use `◇`.
+4. Rail summaries align to a consistent summary column.
+5. Rail connector lines remain teal.
+6. Command footer uses one muted full-width rule above it.
 
-1. Key: `fg.muted`, left-aligned, 16-char width.
-2. Value: `fg.primary`, left-aligned at column 16.
+### Step 1 Question Surface
 
-## App Shell
-
-Every screen uses this three-part frame:
+The research-question step is the most important input surface and should look intentionally supported.
 
 ```text
-› arbiter  {context}                                                     {time}
-───────────────────────────────────────────────────────────────────────────────
-{content}
-───────────────────────────────────────────────────────────────────────────────
-{footer}
+▍ SETUP                                                  00:11
+
+  ◆  Entry Path                   Create new study
+  │
+  ◆  Run Mode                     Mock
+  │
+  ▸  Research Question
+  │
+  │   Include all relevant context. Arbiter samples responses
+  │   to characterize distributional behavior.
+  │
+  │   Question
+  │   {multiline input area}
+  │
+  ◇  Protocol
+  ◇  Models
+  ◇  Personas
+  ◇  Decode Params
+  ◇  Advanced Settings
+  ◇  Review and Confirm
+
+  ─────────────────────────────────────────────────────────────
+  Enter continue · Esc back
 ```
 
-### Status Strip
+### Stage 1 Frozen Summary
+
+When `Run now` is selected, the editable rail freezes into a durable study rail summary.
 
 ```text
-› arbiter  setup / models                                                00:13
+◆  Entry Path                     Create new study
+│
+◆  Run Mode                       Mock
+│
+◆  Research Question              "What is the nature..." (30 chars)
+│
+◆  Protocol                       Independent
+│
+◆  Models                         GPT-4o Mini (1 selected)
+│
+◆  Personas                       Neutral (1 selected)
+│
+◆  Decode Params                  temp 0.7, seed 424242
+│
+◆  Advanced Settings              defaults
 ```
 
-1. `›` in `accent.primary`, `arbiter` in `accent.primary` + bold.
-2. Context label in `fg.muted`. Values: `onboarding`, `onboarding / mode`, `setup / question`, `setup / protocol`, `setup / models`, `setup / personas`, `setup / decode`, `setup / advanced`, `setup / review`, `run / monitoring`, `run / receipt`.
-3. Elapsed time in `fg.muted`, right-aligned, format `MM:SS` (or `HH:MM:SS` when ≥ 1 hour).
+Rules:
 
-### Separator
+1. All frozen rows show the completed glyph `◆`.
+2. Frozen rail content remains visible above Stage 2 and Stage 3 in the durable transcript.
+3. The frozen rail is visually quieter than the live dashboard below, but still readable.
 
-Full terminal width `─` in `accent.secondary`.
+## Stage 1 → Stage 2 Handoff
 
-### Command Footer
+The handoff seam should feel intentional and not collapsed into the dashboard header.
+
+### Required Sequence
+
+1. Frozen identity panel and study rail remain above.
+2. Blank line.
+3. `Starting run` transition cue on its own line in `fg.muted`.
+4. Blank line.
+5. `▍ RUN` stage header.
+
+This handoff seam replaces the current blended `Starting run                › arbiter  run / monitoring` collision.
+
+## Stage 2: Dashboard Surface
+
+Stage 2 consists of:
+
+1. `▍ RUN` stage header,
+2. subsection blocks,
+3. one muted footer rule,
+4. footer control hint.
+
+### Target Shape
 
 ```text
-↑/↓ move · Space toggle · Enter confirm · Esc back
+▍ RUN                                                    00:00
+
+  ── PROGRESS
+  Trials: 20/20 · Workers: 3
+  ██████████████████████████████████████████  100%  00:00:00  ETA 00:00:00
+
+  ── MONITORING
+  Novelty rate          0.000 (threshold 0.100)
+  Patience              3/2
+  Status                max trials reached
+  Similarity            0.975 (threshold 0.850)
+  △ Stopping indicates diminishing novelty, not correctness.
+
+  ── WORKERS
+  ID   Activity        State      Trial      Model
+  W1   ⠦░░░░░░░░░░░   idle       trial 18   GPT-4o Mini
+  W2   ⠦░░░░░░░░░░░   idle       trial 19   GPT-4o Mini
+  W3   ⠦░░░░░░░░░░░   idle       trial 17   GPT-4o Mini
+
+  ── USAGE
+  Mock mode: usage and cost are not tracked.
+
+  ─────────────────────────────────────────────────────────────
+  Ctrl+C to stop gracefully
 ```
 
-Key names in `fg.primary`. Actions and `·` separators in `fg.muted`. Footer adapts per step (see copy deck for exact strings).
+### Rules
 
-### Brand Block
+1. Remove the old shell-like status strip from Stage 2.
+2. Use `▍ RUN` as the only stage-level chrome.
+3. Use short-prefix subsection labels (`── PROGRESS`), not full-width ruled fills.
+4. Keep one muted full-width footer rule only.
+5. Worker model labels must use product display labels, not raw slugs.
+6. Stage 2 should feel lighter and more open than the current ruled-section wall.
 
-Rendered on **all Stage 1 steps**. Not repeated on Stage 2 or Stage 3.
+## Stage 3: Receipt Surface
+
+Stage 3 should feel like one receipt document with subsections, not like a stack of peer stages.
+
+### Target Shape
 
 ```text
-A R B I T E R                                          v0.1.0
-Distributional reasoning harness
+▍ RECEIPT                                                00:00
 
-API key:    detected
-Run mode:   —
-Configs:    0 in current directory
+  Stopped: max trials reached
+  △ Stopping indicates diminishing novelty, not correctness.
+
+  ── SUMMARY
+  Stop reason           max trials reached
+  Trials                20 / 20 / 20 (planned / completed / eligible)
+  Duration              —
+  Usage                 not available
+  Protocol              Independent
+  Models                1
+  Personas              1
+
+  ── ARTIFACTS
+  Only generated files are listed.
+  config.source.json
+  config.resolved.json
+  manifest.json
+  trial_plan.jsonl
+  trials.jsonl
+  monitoring.jsonl
+  receipt.txt
+  embeddings.arrow
+
+  ── REPRODUCE
+  arbiter run --config ./runs/20260307T.../config.resolved.json
+
+  ─────────────────────────────────────────────────────────────
+  → Run complete.
 ```
 
-1. Brand: letter-spaced, `accent.primary` + bold. Version: `fg.muted`, right-aligned.
-2. Tagline: `fg.muted`.
-3. Status keys: `fg.muted`, 12-char width. Values: `fg.primary` (or `status.warn` if `not detected`).
+### Rules
 
-## Inline Rail
+1. `▍ RECEIPT` is the parent-level stage header in amber.
+2. `── SUMMARY`, `── ARTIFACTS`, `── REPRODUCE`, and conditional `── GROUPS` are child-level subsection headers in teal.
+3. Artifact ledger remains vertical, one file per line.
+4. Completion footer should be visually quiet and conclusive.
 
-The inline rail is the core composition primitive for Stage 1. All wizard steps render as a single continuous vertical document where content expands under the active step marker.
+## Dashboard-Only Mode
 
-### Step States
+`arbiter run --dashboard` uses the same Stage 2 and Stage 3 visual system, but omits:
 
-| State | Glyph | Label color | Content |
-|-------|-------|-------------|---------|
-| Completed | `✔` (`accent.primary`) | `fg.primary` | Summary in `fg.muted` at column 22 |
-| Active | `◆` (`accent.primary`) | `accent.primary` + bold | Content region below, indented by `│` |
-| Pending | `◇` (`accent.secondary`) | `fg.muted` | None |
+1. the identity panel,
+2. the frozen Stage 1 rail summary.
 
-### Rendering Algorithm
+It still uses:
+
+1. `▍ RUN`,
+2. `▍ RECEIPT`,
+3. the same subsection header grammar.
+
+## Width and Spacing Rules
+
+1. Minimum supported width remains 60 columns.
+2. Keep the current normal-screen overwrite runtime model.
+3. Use blank lines aggressively enough to preserve hierarchy, but not so many that the transcript feels sparse.
+4. Identity panel must remain readable at minimum supported width; it may compact vertically but should not collapse into the old floating wordmark treatment.
+5. Subsection headers should never trail-fill to the terminal edge.
+6. Footer rules remain full-width and muted.
+
+## Testable Assertions
+
+These strings and relationships should become the high-value capture/PTY targets after implementation.
+
+### Stage 1
 
 ```text
-for each step in steps:
-  if COMPLETED:
-    emit "✔  {label}           {summary}"
-    //  ✔ accent.primary | label fg.primary | summary fg.muted | align at col 22
-
-  if ACTIVE:
-    emit "◆  {label}"              // ◆ accent.primary | label accent.primary+bold
-    emit "│"                       // breathing line, │ accent.secondary
-    for each line in content:
-      emit "│   {line}"            // │ accent.secondary, 3-space indent
-    emit "│"                       // breathing line
-
-  if PENDING:
-    emit "◇  {label}"             // ◇ accent.secondary | label fg.muted
+waitForText("ARBITER")
+waitForText("▍ SETUP")
+waitForText("◆  Entry Path")
+waitForText("▸  Research Question")
 ```
 
-Constants: `SUMMARY_COLUMN = 22`, `CONTENT_INDENT = 4` (1 `│` + 3 spaces), `GLYPH_INDENT = 0`.
-
-### Content Region
-
-1. Content appears between `│` breathing lines, indented 4 chars from left margin.
-2. Content includes: helper text, selection lists, input fields, validation messages, warnings.
-3. Selection glyphs (`●/○`, `■/□`, `▸`) render inside the content region.
-4. Only one step is ACTIVE at a time.
-5. Long text wraps at word boundaries within `termWidth - CONTENT_INDENT`.
-6. Validation errors render inline in the content region, colored `status.error`.
-
-### Rail Items and Step Mapping
-
-The rail has 9 visual items, mapped to 8 wizard steps:
-
-| Rail item | Step | Notes |
-|-----------|------|-------|
-| Entry Path | Step 0, phase 1 | |
-| Run Mode | Step 0, phase 2 | Hidden until Entry Path completes |
-| Research Question | Step 1 | |
-| Protocol | Step 2 | |
-| Models | Step 3 | |
-| Personas | Step 4 | |
-| Decode Params | Step 5 | |
-| Advanced Settings | Step 6 | |
-| Review and Confirm | Step 7 | |
-
-When Entry Path is active, Run Mode is not yet shown in the rail (8 visible items). Once Entry Path completes, Run Mode appears and becomes active (9 visible items). All subsequent states show 9 items.
-
-### State Transitions
-
-Step state is determined by position relative to `currentStepIndex`:
+### Stage 2
 
 ```text
-step.index < currentStepIndex  →  COMPLETED  (shows summary)
-step.index == currentStepIndex →  ACTIVE     (shows content region)
-step.index > currentStepIndex  →  PENDING    (no content)
+waitForText("▍ RUN")
+waitForText("── PROGRESS")
+waitForText("── MONITORING")
+waitForText("── WORKERS")
 ```
 
-**Advance** (Enter confirms step N):
-
-1. Step N: ACTIVE → COMPLETED. Summary generated from step data (see copy deck Rail confirmation patterns).
-2. Step N+1: PENDING → ACTIVE. Content region expands.
-
-**Back** (Esc on step N, N > 0):
-
-1. Step N: ACTIVE → PENDING. Content region collapses.
-2. Step N-1: COMPLETED → ACTIVE. Summary removed, content region re-expands.
-3. All step data is preserved in memory. Only visual state changes.
-
-**Freeze** (Run now selected on Step 7):
-
-1. All steps: → COMPLETED. All summaries shown.
-2. Written once into the durable normal-screen transcript before the Stage 2 overwrite loop begins.
-3. Rail renders in `fg.muted` (all glyphs, labels, summaries) to visually subordinate to active Stage 2/3 content.
-
-**Existing-config jump** (Step 0 Entry Path → `Run existing config`):
-
-1. After both Entry Path and Run Mode are completed, jump directly to Step 7.
-2. Steps 1-6 are shown as COMPLETED with summaries derived from the loaded config file.
-3. User may select `Revise` from Step 7 → goes back to Step 1 with all data preserved.
-
-### Frozen Rail
-
-When `Run now` is selected, the rail freezes (all `✔`) and remains in terminal scrollback.
+### Stage 3
 
 ```text
-✔  Entry Path           Create new study
-✔  Run Mode             Mock
-✔  Research Question    "What is the effect of..." (72 chars)
-✔  Protocol             Independent
-✔  Models               GPT-4o Mini, GPT-4.1 Mini (2 selected)
-✔  Personas             Neutral, Skeptical (2 selected)
-✔  Decode Params        temp 0.70, seed random
-✔  Advanced Settings    defaults
+waitForText("▍ RECEIPT")
+waitForText("── SUMMARY")
+waitForText("── ARTIFACTS")
+waitForText("── REPRODUCE")
 ```
 
-During Stage 1 (wizard active): completed steps use normal coloring (`✔` accent.primary, label fg.primary, summary fg.muted).
-
-During Stage 2 and Stage 3: all frozen rail text renders in `fg.muted` to subordinate it visually to the active content below.
-
-Existing-config variant: `✔  Entry Path           Run existing config (arbiter.config.json)`.
-
-## Stage 1 Screen Deck
-
-### Step 0: Entry Path
+### Durable Transcript Ordering
 
 ```text
-› arbiter  onboarding                                                    00:09
-───────────────────────────────────────────────────────────────────────────────
-
-A R B I T E R                                          v0.1.0
-Distributional reasoning harness
-
-API key:    detected
-Run mode:   —
-Configs:    0 in current directory
-
-◆  Entry Path
-│
-│   Choose how to start
-│
-│   ▸ ● Create new study (guided wizard)
-│     ○ Run existing config (unavailable)
-│
-│   Run existing config is unavailable:
-│   no config files found in this directory.
-│
-◇  Research Question
-◇  Protocol
-◇  Models
-◇  Personas
-◇  Decode Params
-◇  Advanced Settings
-◇  Review and Confirm
-
-───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Enter select · Esc back
+"ARBITER"      < "▍ SETUP"
+"▍ SETUP"     < "▍ RUN"
+"▍ RUN"       < "▍ RECEIPT"
+"▍ RECEIPT"   < "Run complete."
 ```
 
-### Step 0: Run Mode
+## Implementation Notes
 
-```text
-› arbiter  onboarding / mode                                             00:10
-───────────────────────────────────────────────────────────────────────────────
+This redesign is a rendering-layer overhaul only.
 
-✔  Entry Path           Create new study
+Preserve:
 
-◆  Run Mode
-│
-│   Choose run mode
-│
-│   ▸ ● Mock (no API calls)
-│     ○ Live (OpenRouter) (unavailable)
-│
-│   Live mode is unavailable:
-│   OPENROUTER_API_KEY not detected.
-│
-◇  Research Question
-◇  Protocol
-◇  Models
-◇  Personas
-◇  Decode Params
-◇  Advanced Settings
-◇  Review and Confirm
+1. current runtime architecture,
+2. current view-model / render-function separation,
+3. current Stage 0 → Stage 1 → Stage 2 → Stage 3 behavior,
+4. current normal-screen overwrite transcript model,
+5. current worker animation behavior,
+6. current bracketless progress bars.
 
-───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Enter select · Esc back
-```
+Do not preserve visually:
 
-Brand block remains visible throughout Stage 1 and is not repeated in Stage 2 or Stage 3.
-
-### Step 1: Research Question
-
-```text
-› arbiter  setup / question                                              00:11
-───────────────────────────────────────────────────────────────────────────────
-
-✔  Entry Path           Create new study
-✔  Run Mode             Mock
-
-◆  Research Question
-│
-│   Include all relevant context. Arbiter samples responses
-│   to characterize distributional behavior.
-│
-│   Question
-│   {multiline input area}
-│
-◇  Protocol
-◇  Models
-◇  Personas
-◇  Decode Params
-◇  Advanced Settings
-◇  Review and Confirm
-
-───────────────────────────────────────────────────────────────────────────────
-Enter continue · Esc back
-```
-
-### Step 1: Validation Error
-
-When the input is empty and user presses Enter:
-
-```text
-◆  Research Question
-│
-│   Include all relevant context. Arbiter samples responses
-│   to characterize distributional behavior.
-│
-│   Question
-│   {empty input}
-│
-│   Fix required: enter a research question to continue.
-│
-```
-
-Validation error text renders in `status.error`.
-
-### Step 2: Protocol
-
-```text
-› arbiter  setup / protocol                                              00:12
-───────────────────────────────────────────────────────────────────────────────
-
-✔  Entry Path           Create new study
-✔  Run Mode             Mock
-✔  Research Question    "What is the effect of..." (42 chars)
-
-◆  Protocol
-│
-│   Select how each trial is structured.
-│
-│   ▸ ● Independent
-│     ○ Debate
-│
-◇  Models
-◇  Personas
-◇  Decode Params
-◇  Advanced Settings
-◇  Review and Confirm
-
-───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Enter select · Esc back
-```
-
-### Step 3: Models
-
-```text
-› arbiter  setup / models                                                00:13
-───────────────────────────────────────────────────────────────────────────────
-
-✔  Entry Path           Create new study
-✔  Run Mode             Mock
-✔  Research Question    "What is the effect of..." (42 chars)
-✔  Protocol             Independent
-
-◆  Models
-│
-│   Select one or more models for sampling.
-│
-│   ▸ ■ GPT-4o Mini · OpenAI · paid
-│     □ Claude Sonnet 4 · Anthropic · paid · alias
-│     ■ GPT-4.1 Mini · OpenAI · paid
-│     □ Gemini 2.0 Flash · Google · free
-│
-│   Warning: free-tier models selected. Availability may be
-│   limited. Use paid models for publishable research.
-│
-◇  Personas
-◇  Decode Params
-◇  Advanced Settings
-◇  Review and Confirm
-
-───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Space toggle · Enter confirm · Esc back
-```
-
-### Step 4: Personas
-
-```text
-› arbiter  setup / personas                                              00:13
-───────────────────────────────────────────────────────────────────────────────
-
-✔  Entry Path           Create new study
-✔  Run Mode             Mock
-✔  Research Question    "What is the effect of..." (42 chars)
-✔  Protocol             Independent
-✔  Models               GPT-4o Mini, GPT-4.1 Mini (2 selected)
-
-◆  Personas
-│
-│   Select one or more personas for sampling.
-│
-│   ▸ ■ Neutral — default baseline stance
-│     ■ Skeptical — press on the strongest objection
-│     □ Precise — define terms and state assumptions
-│
-◇  Decode Params
-◇  Advanced Settings
-◇  Review and Confirm
-
-───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Space toggle · Enter confirm · Esc back
-```
-
-### Step 5: Decode Params
-
-```text
-› arbiter  setup / decode                                                00:14
-───────────────────────────────────────────────────────────────────────────────
-
-✔  Entry Path           Create new study
-✔  Run Mode             Mock
-✔  Research Question    "What is the effect of..." (42 chars)
-✔  Protocol             Independent
-✔  Models               GPT-4o Mini, GPT-4.1 Mini (2 selected)
-✔  Personas             Neutral, Skeptical (2 selected)
-
-◆  Decode Params
-│
-│   Set temperature and seed behavior for trial sampling.
-│
-│   Temperature mode
-│   ▸ ● Single value
-│     ○ Range (uniform)
-│
-│   Temperature: 0.70
-│
-│   Seed mode
-│   ● Random  ○ Fixed seed
-│
-◇  Advanced Settings
-◇  Review and Confirm
-
-───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Enter confirm · Esc back
-```
-
-### Step 6: Advanced Settings
-
-```text
-› arbiter  setup / advanced                                              00:15
-───────────────────────────────────────────────────────────────────────────────
-
-✔  Entry Path           Create new study
-✔  Run Mode             Mock
-✔  Research Question    "What is the effect of..." (42 chars)
-✔  Protocol             Independent
-✔  Models               GPT-4o Mini, GPT-4.1 Mini (2 selected)
-✔  Personas             Neutral, Skeptical (2 selected)
-✔  Decode Params        temp 0.70, seed random
-
-◆  Advanced Settings
-│
-│   Use defaults or customize execution and stopping settings.
-│
-│   ▸ ● Use defaults (recommended)
-│     ○ Customize
-│
-◇  Review and Confirm
-
-───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Enter select · Esc back
-```
-
-### Step 7: Review and Confirm
-
-```text
-› arbiter  setup / review                                                00:16
-───────────────────────────────────────────────────────────────────────────────
-
-✔  Entry Path           Create new study
-✔  Run Mode             Mock
-✔  Research Question    "What is the effect of..." (42 chars)
-✔  Protocol             Independent
-✔  Models               GPT-4o Mini, GPT-4.1 Mini (2 selected)
-✔  Personas             Neutral, Skeptical (2 selected)
-✔  Decode Params        temp 0.70, seed random
-✔  Advanced Settings    defaults
-
-◆  Review and Confirm
-│
-│   Review settings, run checks, and choose how to proceed.
-│
-│   Preflight
-│   ✓ Schema validation
-│   ✓ Output path writable
-│   ⚠ Live connectivity check (skipped in Mock mode)
-│
-│   Config Summary
-│   Question         "What is the effect of..." 
-│   Protocol         Independent
-│   Models           GPT-4o Mini, GPT-4.1 Mini (2 selected)
-│   Personas         Neutral, Skeptical (2 selected)
-│   Decode Params    temp 0.70, seed random
-│   Run mode         Mock
-│   Output dir       runs
-│
-│   Review action
-│
-│   ▸ ● Run now
-│     ○ Save config and exit
-│     ○ Revise
-│     ○ Quit without saving
-│
-
-───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Enter select · Esc back
-```
-
-### Existing-Config Path: Step 7
-
-When the user chose `Run existing config` at Step 0, intermediate steps are completed with summaries derived from the config:
-
-```text
-› arbiter  setup / review                                                00:11
-───────────────────────────────────────────────────────────────────────────────
-
-✔  Entry Path           Run existing config (arbiter.config.json)
-✔  Run Mode             Live
-✔  Research Question    "Compare reasoning approaches..." (48 chars)
-✔  Protocol             Debate (2P, 1R)
-✔  Models               GPT-4o Mini, Claude Sonnet 4 (2 selected)
-✔  Personas             Neutral (1 selected)
-✔  Decode Params        temp 0.70, seed random
-✔  Advanced Settings    workers 4, K_max 120
-
-◆  Review and Confirm
-│
-│   Review settings, run checks, and choose how to proceed.
-│
-│   Preflight
-│   ✓ Schema validation
-│   ✓ Output path writable
-│   ⚠ Live connectivity check occurs at run start
-│
-│   Config Summary
-│   Question         "Compare reasoning approaches..."
-│   Protocol         Debate (2P, 1R)
-│   Models           GPT-4o Mini, Claude Sonnet 4 (2 selected)
-│   Personas         Neutral (1 selected)
-│   Decode Params    temp 0.70, seed random
-│   Run mode         Live
-│   Output dir       runs
-│
-│   Review action
-│
-│   ▸ ● Run now
-│     ○ Save config and exit
-│     ○ Revise
-│     ○ Quit without saving
-│
-
-───────────────────────────────────────────────────────────────────────────────
-↑/↓ move · Enter select · Esc back
-```
-
-## Stage 2: Run Dashboard
-
-### Composition
-
-Stage 2 replaces Stage 1's interactive content with ruled sections. The frozen Stage 0 header plus frozen rail summary (all `✔`, in `fg.muted`) appear above in scrollback.
-
-Status strip context: `run / monitoring`. Footer: `Ctrl+C graceful stop`.
-
-Three ruled sections:
-
-1. `── PROGRESS ──` — trial counts, master progress bar.
-2. `── MONITORING ──` — novelty rate, patience, status, caveat.
-3. `── WORKERS ──` — per-worker activity rows. Omitted when workers == 1.
-
-### In-Place Update
-
-Stage 2 re-renders its entire content region in place on the normal screen:
-
-1. Recompute live-region bounds from current terminal dimensions and frozen-prefix height.
-2. Count the rows occupied by the previous Stage 2 frame.
-3. Move cursor up by that row count.
-4. Clear from cursor to end of screen.
-5. Write the new Stage 2 frame.
-
-The frozen header and frozen rail summary above are visible during the live run, but the durable normal-screen transcript is not rewritten on every Stage 2 update. At completion, the final dashboard snapshot and receipt are appended once beneath that frozen prefix.
-
-### Mid-Run Screen Target
-
-```text
-› arbiter  run / monitoring                                              00:19
-───────────────────────────────────────────────────────────────────────────────
-
-✔  Entry Path           Create new study
-✔  Run Mode             Mock
-✔  Research Question    "What is the effect of..." (72 chars)
-✔  Protocol             Independent
-✔  Models               GPT-4o Mini, GPT-4.1 Mini (2 selected)
-✔  Personas             Neutral, Skeptical (2 selected)
-✔  Decode Params        temp 0.70, seed random
-✔  Advanced Settings    defaults
-
-───────────────────────────────────────────────────────────────────────────────
-Starting run
-
-── PROGRESS ────────────────────────────────────────────────────────────────
-
-Trials: 28/80 · Workers: 3
-████████████░░░░░░░░░░░░░░░░░░  35%    00:02:12  ETA 00:04:03
-
-── MONITORING ──────────────────────────────────────────────────────────────
-
-Novelty rate    0.18 (threshold 0.05)
-Patience        2/4
-Status          sampling continues
-
-Stopping indicates diminishing novelty, not correctness.
-
-── WORKERS ─────────────────────────────────────────────────────────────────
-
-W1  ░███░░░░░  running   trial 28  GPT-4o Mini
-W2  ⠋░░░░░░░░░  idle      trial 19  GPT-4.1 Mini
-W3  ░░███░░░░  running   trial 27  GPT-4o Mini
-
-───────────────────────────────────────────────────────────────────────────────
-Ctrl+C graceful stop
-```
-
-Frozen rail renders in `fg.muted` during Stage 2.
-
-### Worker Rendering
-
-1. One row per visible worker (column layout defined in Visual Grammar → Progress Bars).
-2. When workers exceed available terminal height: show top N, then `(+{hidden} more workers)`.
-3. When workers == 1: `── WORKERS ──` section is omitted entirely.
-4. Worker bar fill color is semantic by state (running=amber, finishing=teal, idle=muted, error=red).
-5. Worker model labels use the same product display labels as Stage 1 wherever a display label exists; raw provider slugs are not a premium-mode display target.
-
-### Stage 1 → Stage 2 Transition Beat
-
-When `Run now` fires:
-
-1. The frozen completed Stage 0 header and rail summary remain in scrollback.
-2. Insert one full-width separator after the frozen rail block.
-3. Render `Starting run` as a muted transition line.
-4. Then begin the Stage 2 status strip and ruled sections.
-
-This transition beat is intentionally minimal. Its purpose is continuity, not a second dashboard header.
-
-### Graceful Stop
-
-When user presses Ctrl+C during a run:
-
-```text
-── PROGRESS ────────────────────────────────────────────────────────────────
-
-Trials: 28/80 · Workers: 3
-████████████░░░░░░░░░░░░░░░░░░  35%    00:02:12  ETA —
-
-Graceful stop requested. Finishing in-flight trials and writing partial artifacts.
-```
-
-ETA changes to `—`. Graceful stop message appears. Monitoring and workers sections may be collapsed.
-
-### Dashboard-Only Mode
-
-`arbiter run --dashboard` renders Stage 2 and Stage 3 without brand block or frozen rail. Status strip still appears.
-
-### Stage 2 Sentinel
-
-Entry sentinel: `── PROGRESS ──`. PTY tests match with prefix check: any line starting with `── PROGRESS `.
-
-## Stage 3: Receipt
-
-### Composition
-
-Receipt renders below Stage 2's final snapshot (progress at 100%). Five ruled sections:
-
-1. `── RECEIPT ──` — stop banner and interpretation hint.
-2. `── SUMMARY ──` — key-value run summary.
-3. `── GROUPS ──` — conditional, only when group data exists.
-4. `── ARTIFACTS ──` — file list.
-5. `── REPRODUCE ──` — rerun command.
-
-### Screen Target
-
-```text
-› arbiter  run / receipt                                                 00:25
-───────────────────────────────────────────────────────────────────────────────
-
-[frozen rail summary — all ✔, in fg.muted]
-[final Stage 2 snapshot — progress at 100%]
-
-── RECEIPT ─────────────────────────────────────────────────────────────────
-
-Stopped: novelty saturation
-Stopping indicates diminishing novelty, not correctness.
-
-── SUMMARY ─────────────────────────────────────────────────────────────────
-
-Stop reason     novelty saturation
-Trials          80 / 80 / 76 (planned / completed / eligible)
-Duration        00:05:47
-Usage           122k tokens (est.)
-Protocol        Independent
-Models          GPT-4o Mini, GPT-4.1 Mini
-Personas        Neutral, Skeptical
-
-── ARTIFACTS ───────────────────────────────────────────────────────────────
-
-config.source.json
-config.resolved.json
-manifest.json
-trials.jsonl
-monitoring.jsonl
-receipt.txt
-
-── REPRODUCE ───────────────────────────────────────────────────────────────
-
-arbiter run --config ./runs/20260307T012010Z_d03f44/config.resolved.json
-
-───────────────────────────────────────────────────────────────────────────────
-Run complete.
-```
-
-`Run complete.` in `fg.muted`. Repro command in `fg.primary`.
-
-### Groups (Conditional)
-
-```text
-── GROUPS ──────────────────────────────────────────────────────────────────
-
-Top group sizes
-12, 8, 6, 4, 3
-
-Groups reflect embedding similarity, not semantic categories.
-```
-
-Rendered only when embedding group data exists. Caveat in `fg.muted`.
-
-### Artifacts
-
-1. Render one artifact path per line for scanability.
-2. Only list files that actually exist in the output directory.
-3. If no embeddings due to zero eligible trials: `No embeddings were generated because there were zero eligible trials.`
-
-### Stage 3 Sentinel
-
-Entry sentinel: `── RECEIPT ──`. PTY tests match with prefix check: any line starting with `── RECEIPT `.
-
-### Reproduce Path
-
-1. Prefer a path relative to the current working directory when the run directory is inside that tree.
-2. Fall back to an absolute path only when no stable relative path exists.
-
-## Width Behavior
-
-The inline rail is width-agnostic. One rendering path for all widths.
-
-1. Rail, labels, and content flow as a single column.
-2. Long text wraps at word boundaries within content region.
-3. Status strip context labels may truncate at narrow widths.
-4. Master progress bar scales: `min(42, termWidth - 34)`.
-5. Worker bars: fixed 10 chars.
-6. Key-value alignment: fixed 16-char key width.
-7. LOCKED copy wraps, never clips.
-8. Minimum supported width: 60 columns.
-
-## Sentinels and Test Contracts
-
-### Sentinel Values
-
-| Sentinel | Purpose | Replaces |
-|----------|---------|----------|
-| `── PROGRESS ──` | Stage 2 start | `═══ RUN ═══` |
-| `── RECEIPT ──` | Stage 3 start | `═══ RECEIPT ═══` |
-
-### Atomic Update Rule
-
-When sentinel values change, ALL of these must be updated in one commit:
-
-1. `docs/product-specs/tui-copy-deck.md` — LOCKED values.
-2. `test/e2e/tui-pty.test.mjs` — assertion strings.
-3. `scripts/tui-visual-capture.mjs` — wait targets.
-4. `src/ui/run-lifecycle-hooks.ts` — sentinel strings.
-5. `src/ui/copy.ts` — `UI_COPY.runHeader` and `UI_COPY.receiptHeader`.
-6. This screen deck.
-
-### Testable Assertions
-
-PTY tests should verify these strings and ordering:
-
-```text
-Stage 1 entry:
-  waitForText("A R B I T E R")           // brand block on Step 0
-  waitForText("Choose how to start")      // entry path prompt
-
-Stage 1 progression:
-  waitForText("✔  Entry Path")            // completed step in rail
-  waitForText("◆  Research Question")     // active step marker
-
-Stage 2 entry:
-  waitForText("── PROGRESS")              // sentinel (prefix match)
-  waitForText("Trials:")                  // progress summary line
-
-Stage 3 entry:
-  waitForText("── RECEIPT")               // sentinel (prefix match)
-  waitForText("Stopped:")                 // completion banner
-
-Scrollback ordering (assert indexOf A < indexOf B):
-  "✔  Entry Path"  <  "── PROGRESS"
-  "── PROGRESS"    <  "── RECEIPT"
-  "── RECEIPT"     <  "Run complete."
-```
-
-## Implementation Guide
-
-This section describes the current runtime model for Arbiter: typed view models plus pure render functions returning strings. It is not a separate layout-tree architecture. If the internal runtime architecture changes materially, update this section and `docs/TUI-RUNTIME.md` in the same change.
-
-### Rendering Primitives
-
-Add to `src/ui/wizard-theme.ts` (or new `src/ui/rail-renderer.ts`):
-
-```typescript
-import type { Formatter } from "./fmt.js";
-
-// --- Types ---
-
-type RailStepState = "completed" | "active" | "pending";
-
-type RailStep = {
-  label: string;
-  state: RailStepState;
-  summary?: string;        // required when state == "completed"
-  contentLines?: string[]; // required when state == "active"
-};
-
-type WorkerRow = {
-  id: number;
-  state: "running" | "idle" | "finishing" | "error";
-  trialId?: number;
-  model?: string;
-  tick?: number;
-};
-
-// --- Constants ---
-
-const SUMMARY_COLUMN = 22;
-const CONTENT_INDENT = 4;    // "│   "
-const KV_KEY_WIDTH = 16;
-const MASTER_BAR_MAX = 42;
-const WORKER_BAR_WIDTH = 10;
-
-// --- Functions ---
-
-/** One rail step line. Returns string (no trailing newline). */
-function renderRailStep(
-  step: RailStep,
-  fmt: Formatter,
-  dimmed?: boolean
-): string;
-
-/** Content lines with │-indent and breathing lines. Returns multi-line string. */
-function renderRailContent(lines: string[], fmt: Formatter): string;
-
-/** ── LABEL ────── ruled header. Returns string. */
-function renderRuledSection(
-  label: string,
-  width: number,
-  fmt: Formatter
-): string;
-
-/** Bracketless progress bar. Returns string. */
-function renderProgressBar(
-  pct: number,
-  width: number,
-  fillColor: (s: string) => string,
-  fmt: Formatter
-): string;
-
-/** Letter-spaced brand block with status rows. Returns multi-line string. */
-function renderBrandBlock(
-  version: string,
-  apiKeyPresent: boolean,
-  runMode: string | null,
-  configCount: number,
-  width: number,
-  fmt: Formatter
-): string;
-
-/** › arbiter  {context}  {time} top line. Returns string. */
-function renderStatusStrip(
-  context: string,
-  elapsedMs: number,
-  width: number,
-  fmt: Formatter
-): string;
-
-/** Key-value pair with fixed key width. Returns string. */
-function renderKV(
-  key: string,
-  value: string,
-  fmt: Formatter,
-  keyWidth?: number
-): string;
-
-/** One worker activity row. Returns string. */
-function renderWorkerRow(worker: WorkerRow, fmt: Formatter): string;
-
-/** Full-width separator line. Returns string. */
-function renderSeparator(width: number, fmt: Formatter): string;
-```
-
-### Rail Step Conversion
-
-Convert existing `StepFrame` data to `RailStep[]`:
-
-```typescript
-const RAIL_ITEMS: Array<{ label: string; railIndex: number }> = [
-  { label: "Entry Path",         railIndex: 0 },
-  { label: "Run Mode",           railIndex: 1 },
-  { label: "Research Question",  railIndex: 2 },
-  { label: "Protocol",           railIndex: 3 },
-  { label: "Models",             railIndex: 4 },
-  { label: "Personas",           railIndex: 5 },
-  { label: "Decode Params",      railIndex: 6 },
-  { label: "Advanced Settings",  railIndex: 7 },
-  { label: "Review and Confirm", railIndex: 8 },
-];
-
-// Rail item indices (not step indices) for the two Step 0 phases.
-const ENTRY_PATH_RAIL = 0;
-const RUN_MODE_RAIL = 1;
-
-function toRailSteps(
-  currentRailIndex: number,  // index into RAIL_ITEMS (0-8), NOT step index
-  railSummaries: Map<number, string>,  // keyed by rail index
-  activeContent: string[],
-  showRunMode: boolean  // false until Entry Path completes
-): RailStep[] {
-  return RAIL_ITEMS
-    .filter((item, railIdx) => {
-      if (railIdx === RUN_MODE_RAIL && !showRunMode) return false;
-      return true;
-    })
-    .map((item) => {
-      // Use the original rail index from RAIL_ITEMS for state comparison,
-      // NOT the filtered array index.
-      const originalIdx = RAIL_ITEMS.indexOf(item);
-      const state: RailStepState =
-        originalIdx < currentRailIndex ? "completed" :
-        originalIdx === currentRailIndex ? "active" :
-        "pending";
-      return {
-        label: item.label,
-        state,
-        summary: state === "completed" ? railSummaries.get(originalIdx) : undefined,
-        contentLines: state === "active" ? activeContent : undefined,
-      };
-    });
-}
-```
-
-**Important**: `currentRailIndex` is an index into `RAIL_ITEMS` (0–8), not a wizard step index (0–7). Entry Path = rail 0, Run Mode = rail 1, Research Question = rail 2, etc. The mapping between rail indices and wizard step indices is defined in the `RAIL_ITEMS` array above.
-
-Summary strings for each rail item are defined by the copy deck's Rail confirmation patterns.
-
-### Return-Type Contract
-
-All rendering functions return a string. Strings include internal newlines but **no trailing newline**. The caller joins fragments with `\n` and writes to stdout in a single `process.stdout.write()` call.
-
-```typescript
-// Composition example (Stage 1):
-const parts: string[] = [];
-parts.push(renderStatusStrip(context, elapsed, width, fmt));
-parts.push(renderSeparator(width, fmt));
-if (isStep0EntryPath) {
-  parts.push(renderBrandBlock(version, apiKey, runMode, configCount, width, fmt));
-}
-for (const step of railSteps) {
-  parts.push(renderRailStep(step, fmt));
-  if (step.state === "active" && step.contentLines) {
-    parts.push(renderRailContent(step.contentLines, fmt));
-  }
-}
-parts.push(renderSeparator(width, fmt));
-parts.push(footerText);
-process.stdout.write(parts.join("\n") + "\n");
-```
-
-### Stage 2 Composition
-
-`buildRunDashboardText(snapshot, width, fmt)` returns the full Stage 2 runtime surface for dashboard-only mode and the live dashboard region for the stacked run path. It includes the status strip and separator, but never includes the frozen rail summary.
-
-```typescript
-function buildRunDashboardText(
-  snapshot: DashboardSnapshot,
-  width: number,
-  fmt: Formatter
-): string {
-  const parts: string[] = [];
-
-  // Status strip
-  parts.push(renderStatusStrip("run / monitoring", snapshot.elapsedMs, width, fmt));
-  parts.push(renderSeparator(width, fmt));
-
-  // PROGRESS section
-  parts.push(renderRuledSection("PROGRESS", width, fmt));
-  parts.push("");  // blank line after rule
-  parts.push(`Trials: ${snapshot.completed}/${snapshot.planned} · Workers: ${snapshot.workerCount}`);
-  parts.push(renderProgressBar(snapshot.pct, Math.min(42, width - 34), fmt.brand, fmt)
-    + `    ${formatElapsed(snapshot.elapsedMs)}  ETA ${formatEta(snapshot.eta)}`);
-
-  // MONITORING section
-  parts.push("");
-  parts.push(renderRuledSection("MONITORING", width, fmt));
-  parts.push("");
-  parts.push(renderKV("Novelty rate", `${snapshot.noveltyRate} (threshold ${snapshot.threshold})`, fmt));
-  parts.push(renderKV("Patience", `${snapshot.patience}/${snapshot.patienceMax}`, fmt));
-  parts.push(renderKV("Status", snapshot.samplingStatus, fmt));
-  parts.push("");
-  parts.push(fmt.muted("Stopping indicates diminishing novelty, not correctness."));
-
-  // WORKERS section (omit when workerCount == 1)
-  if (snapshot.workerCount > 1) {
-    parts.push("");
-    parts.push(renderRuledSection("WORKERS", width, fmt));
-    parts.push("");
-    for (const worker of snapshot.workers) {
-      parts.push(renderWorkerRow(worker, fmt, width));
-    }
-  }
-
-  // Footer
-  parts.push("");
-  parts.push(renderSeparator(width, fmt));
-  parts.push(fmt.muted("Ctrl+C graceful stop"));
-
-  return parts.join("\n");
-}
-```
-
-**In-place update loop**: The caller stores `previousLineCount`. On each update:
-
-```typescript
-// Move cursor up to overwrite previous frame
-process.stdout.write(`\x1b[${previousLineCount}A\x1b[J`);
-const frame = buildRunDashboardText(snapshot, width, fmt);
-process.stdout.write(frame + "\n");
-previousLineCount = frame.split("\n").length;
-```
-
-### Stage 3 Composition
-
-```typescript
-function buildReceiptText(
-  result: RunResult,
-  width: number,
-  fmt: Formatter
-): string {
-  const parts: string[] = [];
-
-  // Status strip
-  parts.push(renderStatusStrip("run / receipt", result.elapsedMs, width, fmt));
-  parts.push(renderSeparator(width, fmt));
-
-  // RECEIPT section — stop banner + interpretation hint
-  parts.push(renderRuledSection("RECEIPT", width, fmt));
-  parts.push("");
-  parts.push(`Stopped: ${result.stopReasonLabel}`);
-  parts.push(fmt.muted("Stopping indicates diminishing novelty, not correctness."));
-
-  // SUMMARY section — key-value rows
-  parts.push("");
-  parts.push(renderRuledSection("SUMMARY", width, fmt));
-  parts.push("");
-  parts.push(renderKV("Stop reason", result.stopReasonLabel, fmt));
-  parts.push(renderKV("Trials", `${result.planned} / ${result.completed} / ${result.eligible} (planned / completed / eligible)`, fmt));
-  parts.push(renderKV("Duration", formatElapsed(result.elapsedMs), fmt));
-  parts.push(renderKV("Usage", result.usageSummary, fmt));
-  parts.push(renderKV("Protocol", result.protocolLabel, fmt));
-  parts.push(renderKV("Models", result.modelsSummary, fmt));
-  parts.push(renderKV("Personas", result.personasSummary, fmt));
-
-  // GROUPS section — conditional
-  if (result.groups) {
-    parts.push("");
-    parts.push(renderRuledSection("GROUPS", width, fmt));
-    parts.push("");
-    parts.push("Top group sizes");
-    parts.push(result.groups.topSizes.join(", "));
-    parts.push("");
-    parts.push(fmt.muted("Groups reflect embedding similarity, not semantic categories."));
-  }
-
-  // ARTIFACTS section
-  parts.push("");
-  parts.push(renderRuledSection("ARTIFACTS", width, fmt));
-  parts.push("");
-  parts.push(...result.artifacts);
-
-  // REPRODUCE section
-  parts.push("");
-  parts.push(renderRuledSection("REPRODUCE", width, fmt));
-  parts.push("");
-  parts.push(`arbiter run --config ${result.displayConfigPath}`);
-
-  // Footer
-  parts.push("");
-  parts.push(renderSeparator(width, fmt));
-  parts.push(fmt.muted("Run complete."));
-
-  return parts.join("\n");
-}
-```
-
-### Frozen Prefix Render Boundary
-
-The frozen Stage 0 header and frozen rail summary are rendered to the durable normal-screen transcript once, before the live Stage 2 loop begins. They are never part of the repeated Stage 2 render loop.
-
-Transition sequence:
-
-```typescript
-// 1. Clear the interactive Stage 1 region
-clearWizardRegion();
-
-// 2. Write the frozen durable prefix once
-process.stdout.write(stage0Header + "\n" + frozenRail + "\n" + transitionBeat + "\n");
-
-// 3. Run the bounded Stage 2 overwrite loop beneath that prefix
-startDashboardLoop();
-
-// 4. On completion, clear the live region and append one final durable transcript
-process.stdout.write(finalDashboard + "\n" + receipt);
-```
-
-The overwrite logic is confined to the live region beneath the frozen prefix. The durable normal-screen transcript is emitted once and does not accumulate repeated refresh frames.
-
-### Activity Indicator
-
-The "120ms animation timer" drives **worker state text cycling**, not a spinner glyph. No spinner is rendered. The timer triggers a re-render of the Stage 2 content region, which picks up new worker states (`running`/`idle`/`finishing`/`error`) and progress percentages from the event stream. No additional animation glyphs are needed — the progress bar fill and worker state text provide sufficient visual activity.
-
-If a future version adds a spinner (e.g., `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` cycle on idle workers), define it in this section. For v1, the timer is purely functional.
-
-### Dashboard-Only Mode
-
-`arbiter run --dashboard` skips Stage 1 entirely. It still uses the bounded normal-screen overwrite region during execution, then writes one final normal-screen transcript containing the final dashboard snapshot and receipt.
-
-```text
-› arbiter  run / monitoring                                              00:19
-───────────────────────────────────────────────────────────────────────────────
-
-── PROGRESS ────────────────────────────────────────────────────────────────
-
-Trials: 28/80 · Workers: 3
-████████████░░░░░░░░░░░░░░░░░░  35%    00:02:12  ETA 00:04:03
-
-── MONITORING ──────────────────────────────────────────────────────────────
-
-Novelty rate    0.18 (threshold 0.05)
-Patience        2/4
-Status          sampling continues
-
-Stopping indicates diminishing novelty, not correctness.
-
-── WORKERS ─────────────────────────────────────────────────────────────────
-
-W1  ░███░░░░░  running   trial 28  GPT-4o Mini
-W2  ⠋░░░░░░░░░  idle      trial 19  GPT-4.1 Mini
-W3  ░░███░░░░  running   trial 27  GPT-4o Mini
-
-───────────────────────────────────────────────────────────────────────────────
-Ctrl+C graceful stop
-```
-
-Same as the standard Stage 2 wireframe minus the frozen rail above it. `buildRunDashboardText()` produces identical output in both modes — the only difference is whether the frozen rail was written to scrollback before the loop starts.
-
-Receipt renders identically in dashboard-only mode. The receipt composition function does not reference Stage 1 state.
-
-### File Changes
-
-| File | Action |
-|------|--------|
-| `src/ui/fmt.ts` | Change `accent` 256→109, 16→cyan. Change `warn` 256→172. |
-| `src/ui/copy.ts` | Letter-space brand: `"A R B I T E R"`. Update sentinels: `runHeader` → `"── PROGRESS ──"`, `receiptHeader` → `"── RECEIPT ──"`. |
-| `src/ui/wizard-theme.ts` | Delete `renderCard()`, `renderMasthead()`, `renderProgressSpine()`. Add primitives above. |
-| `src/ui/wizard/app.ts` | Rewrite `renderStepFrame()` to: clearScreen → renderStatusStrip → renderSeparator → persistent Stage 1 brand block → rail loop → renderSeparator → footer. Remove three-block stacking. |
-| `src/ui/run-lifecycle-hooks.ts` | Rewrite `buildRunDashboardText()` to use `renderRuledSection()` + `renderKV()`. Bracketless bars. New sentinels. |
-| `scripts/tui-visual-capture.mjs` | Update wait strings: `═══ RUN ═══` → `── PROGRESS`, `═══ RECEIPT ═══` → `── RECEIPT`. Update step detection strings. |
-| `test/e2e/tui-pty.test.mjs` | Update assertions per Testable Assertions section. |
-
-### Current → New Function Mapping
-
-| Current | Location | Action |
-|---------|----------|--------|
-| `renderCard(input)` | `wizard-theme.ts` | Delete. Replace call sites with rail content or ruled sections. |
-| `renderMasthead(input)` | `wizard-theme.ts` | Delete. Replace with `renderBrandBlock()` (Step 0) + `renderStatusStrip()` (all). |
-| `renderProgressSpine(input)` | `wizard-theme.ts` | Delete. Replace with rail loop using `renderRailStep()`. |
-| `renderStepFrame(input)` | `wizard/app.ts` | Rewrite. New composition: clearScreen → status strip → separator → persistent Stage 1 brand block → rail loop (with inline content at active step) → separator → footer. |
-| `buildRunDashboardText(snapshot)` | `run-lifecycle-hooks.ts` | Rewrite. New: renderRuledSection("PROGRESS") → trial line + master bar → renderRuledSection("MONITORING") → KV rows + caveat → renderRuledSection("WORKERS") → worker rows. |
-| receipt builder | `run-lifecycle-hooks.ts` | Rewrite. New: renderRuledSection("RECEIPT") → banner + hint → renderRuledSection("SUMMARY") → KV rows → renderRuledSection("ARTIFACTS") → file list → renderRuledSection("REPRODUCE") → command → `Run complete.` |
-
-### Migration Order
-
-Execute in this order to maintain a working build at each step:
-
-1. **`fmt.ts` palette** — change `accent` and `warn` color codes. Non-breaking: call sites use the same method names.
-2. **`copy.ts` constants** — update brand string and sentinel values. Tests will break until step 7.
-3. **`wizard-theme.ts` primitives** — add new rendering functions alongside existing ones. Don't delete old functions yet.
-4. **`wizard/app.ts` composition** — rewrite `renderStepFrame()` to use new primitives. Delete old functions from wizard-theme after this step compiles.
-5. **`run-lifecycle-hooks.ts`** — rewrite dashboard and receipt rendering. Use ruled sections, bracketless bars, new sentinels.
-6. **`tui-visual-capture.mjs`** — update wait strings.
-7. **`tui-pty.test.mjs`** — update assertions. Tests should pass after this step.
-
-Each step should compile. Steps 2-5 may cause test failures resolved by step 7.
+1. shell-like status strips,
+2. letter-spaced brand wordmark,
+3. heavy dependence on full-width ruled section headers,
+4. checkmark-based rail completion,
+5. flat receipt hierarchy.

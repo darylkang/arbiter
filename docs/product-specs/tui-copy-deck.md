@@ -1,22 +1,22 @@
 # Arbiter TUI Copy Deck
 
-Status: accepted implementation target
+Status: accepted redesign target
 Owner: Arbiter
-Last updated: 2026-03-06
+Last updated: 2026-03-07
 
 ## Purpose
 
 Define the canonical user-facing copy for Arbiter TTY surfaces:
 
-1. Stage 0 Brand Identity Block
-2. Stage 1 Intake Wizard
-3. Stage 2 Run Dashboard
-4. Stage 3 Receipt
+1. Stage 0 identity panel
+2. Stage 1 setup rail
+3. Stage 2 run dashboard
+4. Stage 3 receipt
 
 This copy deck is implementation-facing and should be used with:
 
 1. `docs/product-specs/tui-wizard.md` for behavior and UX contract
-2. `docs/product-specs/tui-visual-screen-deck.md` for concrete visual layout targets
+2. `docs/product-specs/tui-visual-screen-deck.md` for visual layout targets
 3. `docs/TUI-RUNTIME.md` for internal runtime architecture and renderer ownership
 
 When this deck and the wizard spec conflict, behavior semantics from `tui-wizard.md` win.
@@ -25,37 +25,30 @@ When this deck and the wizard spec conflict, behavior semantics from `tui-wizard
 
 Line markers:
 
-1. `LOCKED`: must match exactly in runtime UI copy unless explicitly revised in this document.
+1. `LOCKED`: must match exactly in runtime UI copy unless explicitly revised here.
 2. `FLEX`: can be refined for brevity/fit while preserving meaning and terminology.
 
 Formatting markers:
 
 1. `{var}` indicates runtime interpolation.
-2. `|` indicates inline option separators, not separate lines.
+2. `·` indicates inline metadata separation.
 
 ## Stage Composition Copy Contract
 
-1. `LOCKED`: Stage 0 brand identity block remains visible throughout Stage 1. Stage 2 and Stage 3 use the status strip plus frozen Stage 1 summary for context.
-2. `LOCKED`: Stage 1 uses an inline rail where content expands under the active step marker. Completed steps show `✔` with inline summaries.
-3. `LOCKED`: When `Run now` is chosen, the inline rail freezes into a completed-step summary (all steps show `✔` with summaries). This frozen rail summary remains visible in scrollback.
-4. `LOCKED`: Stage 2 is rendered below the frozen Stage 1 rail summary and updates in place.
-5. `LOCKED`: Stage 3 is rendered below the final Stage 2 snapshot.
-6. `LOCKED`: The run-path stack is preserved in terminal scrollback on exit.
-7. `LOCKED`: `arbiter run --dashboard` renders Stage 2 and Stage 3 without brand identity block or frozen Stage 1 rail summary.
+1. `LOCKED`: the identity panel persists throughout Stage 1 and is printed once at the top of the durable transcript.
+2. `LOCKED`: Stage 1 uses an inline study rail where content expands beneath the active step marker.
+3. `LOCKED`: when `Run now` is chosen, Stage 1 freezes into a completed study rail summary.
+4. `LOCKED`: Stage 2 renders beneath the frozen study rail summary.
+5. `LOCKED`: Stage 3 renders beneath the final Stage 2 snapshot.
+6. `LOCKED`: the durable transcript preserves one instance each of identity panel, frozen rail, final dashboard snapshot, and receipt.
+7. `LOCKED`: `arbiter run --dashboard` renders Stage 2 and Stage 3 without identity panel or frozen Stage 1 rail.
 
-## App-Shell Copy Contract
+## App Chrome Copy Contract
 
-1. `FLEX`: top status strip uses compact context format (`arbiter  {stage_context}`).
-2. `LOCKED`: command footer is always present and control-first.
-3. `LOCKED`: tab hints, when shown, use `←/→ cycle tabs`.
-
-## Color Semantics Contract
-
-1. `LOCKED`: runtime UI uses color to encode focus and status; monochrome-only presentation is not an acceptable premium target.
-2. `LOCKED`: warnings use warn color, errors use error color, success states use success color.
-3. `LOCKED`: active selection/focus uses accent color; non-active rows remain neutral.
-4. `LOCKED`: master and worker progress bars are colorized, with semantic status coloring for worker bars.
-5. `LOCKED`: color remains disciplined (no decorative rainbow styling).
+1. `LOCKED`: stage chrome uses lifecycle headers, not shell-like status strips.
+2. `LOCKED`: stage header labels are `SETUP`, `RUN`, and `RECEIPT`.
+3. `LOCKED`: subsection headers use short-prefix labels such as `── PROGRESS`, `── SUMMARY`, `── ARTIFACTS`.
+4. `LOCKED`: command footer copy remains concise and control-first.
 
 ## Voice System
 
@@ -63,12 +56,12 @@ Arbiter copy should read as a high-confidence research instrument.
 
 Rules:
 
-1. Precise and declarative.
-2. Calm and direct; no hype language.
-3. Action-oriented where a user must decide or fix something.
-4. Research-honest: no correctness or truth claims from stopping/grouping outputs.
-5. Short terminal-scan lines; avoid dense prose.
-6. Quality bar: Google/Stripe-grade clarity and consistency.
+1. precise and declarative,
+2. calm and direct; no hype language,
+3. action-oriented where a user must decide or fix something,
+4. research-honest: no correctness or truth claims from stopping/grouping outputs,
+5. short terminal-scan lines; avoid dense prose,
+6. premium and controlled rather than ornamental.
 
 ## Terminology Canon
 
@@ -84,19 +77,10 @@ Never use in runtime UI:
 1. `converged`
 2. `correctness` as a result claim
 3. `truth`
-4. `semantic categories` except in the required caveat sentence
-5. `clusters`
-6. `quickstart`
+4. `clusters`
+5. `quickstart`
 
 ## Global Microcopy Patterns
-
-Step title pattern:
-
-1. `FLEX`: noun phrase, 1-4 words (`Research Question`, `Advanced Settings`).
-
-Helper text pattern:
-
-1. `FLEX`: one sentence with purpose or caveat.
 
 Validation error pattern:
 
@@ -106,76 +90,66 @@ Warning pattern:
 
 1. `LOCKED` structure: `Warning: {condition}. {impact}. {recommended action}.`
 
-Completion confirmation pattern (inline rail):
-
-1. `LOCKED` structure: `✔  {StepLabel}           {short summary}`
-2. `LOCKED`: completed steps align summaries at a consistent column (column 22).
-3. `LOCKED`: `✔` is colored `accent.primary`, label is `fg.primary`, summary is `fg.muted`.
-
-Rail glyph pattern:
-
-1. `LOCKED`: active step uses `◆` in `accent.primary`.
-2. `LOCKED`: pending steps use `◇` in `accent.secondary`.
-3. `LOCKED`: completed steps use `✔` in `accent.primary`.
-4. `LOCKED`: active step content is indented under `│` continuation lines in `accent.secondary`.
-5. `LOCKED`: rail glyphs (`◆`, `◇`, `✔`) are used exclusively for navigation state. They must not appear in selection controls or preflight indicators.
-
-Selection glyph pattern:
-
-1. `LOCKED` single-choice structure: `○ {option}` (unselected), `● {option}` (selected).
-2. `LOCKED` multi-choice structure: `□ {option}` (unselected), `■ {option}` (selected).
-3. `LOCKED`: do not use `[ ]` or `[x]` in premium-mode selectors.
-4. `LOCKED`: focus cursor `▸` marks the current actionable row.
-
-Navigation hint pattern:
-
-1. `LOCKED` structure: `↑/↓ move · Enter select · Esc back`
-2. `LOCKED` structure (tabs): `←/→ cycle tabs · Enter select · Esc back`
-3. `FLEX`: include `Space toggle` when multi-select behavior is active.
-
-App-shell chrome pattern:
-
-1. `FLEX`: top status strip should use compact context labels. Canonical values: `onboarding`, `onboarding / mode`, `setup / question`, `setup / protocol`, `setup / models`, `setup / personas`, `setup / decode`, `setup / advanced`, `setup / review`, `run / monitoring`, `run / receipt`. (See screen deck Status Strip section for the authoritative enumerated list.)
-2. `LOCKED`: command footer copy must be concise and control-first.
-
-Inline metadata pattern:
-
-1. `LOCKED`: model and persona metadata uses compact inline segments separated by ` · `, not bracket-wrapped badges.
-2. `LOCKED`: provider names use canonical capitalization (`OpenAI`, `Anthropic`, `Google`, `Meta`).
-3. `FLEX`: pricing or alias metadata may appear as muted inline metadata when it improves scanability.
-4. `LOCKED`: raw slugs are not a premium-mode display target when a product display label exists.
-
-Preflight checklist symbol pattern:
-
-1. `LOCKED`: `✓` indicates passed preflight checks.
-2. `LOCKED`: `⚠` indicates skipped or warning-state preflight checks.
-3. `LOCKED`: `✗` indicates failed preflight checks.
-
 Disabled option interaction pattern:
 
 1. `LOCKED` structure: `{option} (unavailable)`
 2. `LOCKED`: `That option is not available.`
 
-## Stage 0 Brand Identity Block
+Inline metadata pattern:
 
-The brand identity block remains visible throughout Stage 1. Stage 2 and Stage 3 use the app-shell status strip and frozen Stage 1 summary for context.
+1. `LOCKED`: model and persona metadata uses compact inline segments separated by ` · `.
+2. `LOCKED`: provider names use canonical capitalization (`OpenAI`, `Anthropic`, `Google`, `Meta`).
+3. `LOCKED`: raw slugs are not a premium-mode display target when a product display label exists.
+4. `FLEX`: pricing or alias metadata may appear as muted inline metadata when it improves scanability.
+
+## Glyph and Label Contract
+
+### Rail Navigation
+
+1. `LOCKED`: completed rail steps use `◆`.
+2. `LOCKED`: active rail step uses `▸`.
+3. `LOCKED`: pending rail steps use `◇`.
+4. `LOCKED`: rail connector uses `│`.
+5. `LOCKED`: rail glyphs are reserved for navigation state and must not be reused as selection markers.
+
+### Controls
+
+1. `LOCKED`: single-choice structure: `○ {option}` (unselected), `● {option}` (selected).
+2. `LOCKED`: multi-choice structure: `□ {option}` (unselected), `■ {option}` (selected).
+3. `LOCKED`: focus cursor `▸` marks the current actionable row.
+4. `LOCKED`: do not use `[ ]` or `[x]` in premium-mode selectors.
+
+### Preflight and Signals
+
+1. `LOCKED`: `✓` indicates passed preflight checks.
+2. `LOCKED`: `⚠` indicates skipped or warning-state preflight checks.
+3. `LOCKED`: `✕` indicates failed preflight checks.
+4. `LOCKED`: `●` is used for signal-dot environment indicators.
+
+## Stage 0 Identity Panel
 
 Brand lines:
 
-1. `LOCKED`: `A R B I T E R` (letter-spaced, rendered in `accent.primary` + bold as instrument nameplate).
+1. `LOCKED`: `ARBITER`
 2. `LOCKED`: `Distributional reasoning harness`
-3. `LOCKED`: `v{version}` (right-aligned on the same line as the brand).
+3. `LOCKED`: `v{version}`
 
-Status rows (key-value pairs below brand):
+Environment rows:
 
-1. `LOCKED`: `API key: {present_or_missing}`
-2. `LOCKED`: `Run mode: {mode_or_dash}`
-3. `LOCKED`: `Configs: {count} in current directory`
+1. `LOCKED`: `● API key    {present_or_missing}`
+2. `LOCKED`: `● Run mode   {mode_or_dash}`
+3. `LOCKED`: `● Configs    {count} in current directory`
 4. `LOCKED`: `{present_or_missing}` values are `detected` or `not detected`.
 5. `LOCKED`: `{mode_or_dash}` values are `Live`, `Mock`, or `—`.
-6. `LOCKED`: if `{present_or_missing}` is `not detected`, render the value in `status.warn` color.
 
-## Stage 1 Intake Wizard
+## Stage Headers
+
+1. `LOCKED`: `▍ SETUP`
+2. `LOCKED`: `▍ RUN`
+3. `LOCKED`: `▍ RECEIPT`
+4. `LOCKED`: stage headers may include a right-aligned elapsed clock.
+
+## Stage 1 Setup Wizard
 
 ### Shared Labels
 
@@ -188,11 +162,6 @@ Status rows (key-value pairs below brand):
 7. `LOCKED`: `Quit without saving`
 
 ### Step 0 Welcome and Entry
-
-Header and status strip:
-
-1. `LOCKED`: Step 0 renders the Stage 0 brand identity block above the rail, and the same brand block remains visible throughout Stage 1.
-2. `LOCKED`: Step 0 does not duplicate brand identity lines in the step content area.
 
 Entry path prompt:
 
@@ -218,306 +187,229 @@ Multiple-config selector:
 
 ### Step 1 Research Question
 
-Title and helper:
-
 1. `LOCKED`: `Research Question`
 2. `LOCKED`: `Include all relevant context. Arbiter samples responses to characterize distributional behavior.`
-
-Prompt label and placeholder:
-
-1. `LOCKED`: `Question`
-2. `FLEX`: `Type your question and press Enter to continue.`
-
-Validation:
-
-1. `LOCKED`: `Fix required: enter a research question to continue.`
+3. `LOCKED`: `Question`
+4. `FLEX`: `Type your question and press Enter to continue.`
+5. `LOCKED`: `Fix required: enter a research question to continue.`
 
 Rail confirmation:
 
-1. `LOCKED`: `✔  Research Question    "{preview}" ({chars} chars)`
+1. `LOCKED`: `◆  Research Question              "{preview}" ({chars} chars)`
 
 ### Step 2 Protocol
 
-Title and helper:
-
 1. `LOCKED`: `Protocol`
 2. `FLEX`: `Select how each trial is structured.`
-
-Primary options:
-
-1. `LOCKED`: `Independent`
-2. `LOCKED`: `Debate`
-
-Debate fields:
-
-1. `LOCKED`: `Participants (P)`
-2. `LOCKED`: `Rounds (R)`
-3. `LOCKED`: `Total turns per trial: P × R + 1`
-4. `LOCKED`: `Turn order: A..P for each round, then A final`
-5. `LOCKED`: `Slot assignments are sampled once per trial and remain fixed for that trial.`
-6. `LOCKED`: `Model, persona, and decode are sampled per slot with replacement.`
+3. `LOCKED`: `Independent`
+4. `LOCKED`: `Debate`
+5. `LOCKED`: `Participants (P)`
+6. `LOCKED`: `Rounds (R)`
+7. `LOCKED`: `Total turns per trial: P × R + 1`
+8. `LOCKED`: `Turn order: A..P for each round, then A final`
+9. `LOCKED`: `Slot assignments are sampled once per trial and remain fixed for that trial.`
+10. `LOCKED`: `Model, persona, and decode are sampled per slot with replacement.`
 
 Rail confirmation:
 
-1. `LOCKED`: `✔  Protocol             Independent`
-2. `LOCKED`: `✔  Protocol             Debate ({participants}P, {rounds}R)`
+1. `LOCKED`: `◆  Protocol                       Independent`
+2. `LOCKED`: `◆  Protocol                       Debate ({participants}P, {rounds}R)`
 
 ### Step 3 Models
 
-Title and helper:
-
 1. `LOCKED`: `Models`
 2. `FLEX`: `Select one or more models for sampling.`
-
-Validation:
-
-1. `LOCKED`: `Fix required: select at least one model.`
-
-Free-tier warning:
-
-1. `LOCKED`: `Warning: free-tier models selected. Availability may be limited. Use paid models for publishable research.`
+3. `LOCKED`: `Fix required: select at least one model.`
+4. `LOCKED`: `Warning: free-tier models selected. Availability may be limited. Use paid models for publishable research.`
 
 Rail confirmation:
 
-1. `LOCKED`: `✔  Models               {summary} ({count} selected)`
+1. `LOCKED`: `◆  Models                         {summary} ({count} selected)`
 
 ### Step 4 Personas
 
-Title and helper:
-
 1. `LOCKED`: `Personas`
 2. `FLEX`: `Select one or more personas for sampling.`
-
-Validation:
-
-1. `LOCKED`: `Fix required: select at least one persona.`
+3. `LOCKED`: `Fix required: select at least one persona.`
 
 Rail confirmation:
 
-1. `LOCKED`: `✔  Personas             {summary} ({count} selected)`
+1. `LOCKED`: `◆  Personas                       {summary} ({count} selected)`
 
 ### Step 5 Decode Params
 
-Title and helper:
-
 1. `LOCKED`: `Decode Params`
 2. `FLEX`: `Set temperature and seed behavior for trial sampling.`
-
-Temperature labels:
-
-1. `LOCKED`: `Temperature mode`
-2. `LOCKED`: `Single value`
-3. `LOCKED`: `Range (uniform)`
-
-Seed labels:
-
-1. `LOCKED`: `Seed mode`
-2. `LOCKED`: `Random`
-3. `LOCKED`: `Fixed seed`
-
-Validation:
-
-1. `LOCKED`: `Fix required: temperature must be within [0.0, 2.0].`
-2. `LOCKED`: `Fix required: range min must be less than or equal to max.`
-3. `LOCKED`: `Fix required: seed must be a non-negative integer.`
+3. `LOCKED`: `Temperature mode`
+4. `LOCKED`: `Single value`
+5. `LOCKED`: `Range (uniform)`
+6. `LOCKED`: `Seed mode`
+7. `LOCKED`: `Random`
+8. `LOCKED`: `Fixed seed`
+9. `LOCKED`: `Fix required: temperature must be within [0.0, 2.0].`
+10. `LOCKED`: `Fix required: range min must be less than or equal to max.`
+11. `LOCKED`: `Fix required: seed must be a non-negative integer.`
 
 Rail confirmation:
 
-1. `LOCKED`: `✔  Decode Params        temp {temp_summary}, seed {seed_summary}`
+1. `LOCKED`: `◆  Decode Params                  temp {temp_summary}, seed {seed_summary}`
 
 ### Step 6 Advanced Settings
 
-Title and helper:
-
 1. `LOCKED`: `Advanced Settings`
 2. `FLEX`: `Use defaults or customize execution and stopping settings.`
-
-Gate options:
-
-1. `LOCKED`: `Use defaults (recommended)`
-2. `LOCKED`: `Customize`
-
-Group headers:
-
-1. `LOCKED`: `Execution`
-2. `LOCKED`: `Budget and Limits`
-3. `LOCKED`: `Stopping Policy`
-4. `LOCKED`: `Output`
+3. `LOCKED`: `Use defaults (recommended)`
+4. `LOCKED`: `Customize`
+5. `LOCKED`: `Execution`
+6. `LOCKED`: `Budget and Limits`
+7. `LOCKED`: `Stopping Policy`
+8. `LOCKED`: `Output`
 
 Rail confirmation:
 
-1. `LOCKED`: `✔  Advanced Settings    defaults`
-2. `LOCKED`: `✔  Advanced Settings    {changed_summary}`
+1. `LOCKED`: `◆  Advanced Settings              defaults`
+2. `LOCKED`: `◆  Advanced Settings              {changed_summary}`
 
 ### Step 7 Review and Confirm
 
-Title and helper:
-
 1. `LOCKED`: `Review and Confirm`
 2. `FLEX`: `Review settings, run checks, and choose how to proceed.`
+3. `LOCKED`: `Preflight`
+4. `LOCKED`: `Schema validation`
+5. `LOCKED`: `Output path writable`
+6. `LOCKED`: `Live connectivity check`
+7. `LOCKED`: `Run now`
+8. `LOCKED`: `Save config and exit`
+9. `LOCKED`: `Revise`
+10. `LOCKED`: `Quit without saving`
+11. `LOCKED`: `Config saved: {path}`
+12. `LOCKED`: `Starting run`
+13. `LOCKED`: `Returning to Step 1 with your selections preserved.`
+14. `LOCKED`: `Config Summary`
 
-Preflight labels:
+## Stage 1 Frozen Study Rail (Run Path)
 
-1. `LOCKED`: `Preflight`
-2. `LOCKED`: `Schema validation`
-3. `LOCKED`: `Output path writable`
-4. `LOCKED`: `Live connectivity check`
-5. `LOCKED` structure: `✓ {check_name}`
-6. `LOCKED` structure: `⚠ {check_name}`
-7. `LOCKED` structure: `✗ {check_name}`
-8. `LOCKED`: live-mode review uses `⚠ Live connectivity check occurs at run start` rather than a blocking in-wizard network probe.
+When `Run now` is chosen, all setup steps freeze into completed state. No separate study card is rendered.
 
-Live save warning:
+Frozen rail lines:
 
-1. `LOCKED`: `Live mode requires OPENROUTER_API_KEY to run; config saved but not executed.`
-
-Action labels:
-
-1. `LOCKED`: `Run now`
-2. `LOCKED`: `Save config and exit`
-3. `LOCKED`: `Revise`
-4. `LOCKED`: `Quit without saving`
-
-Action confirmations:
-
-1. `LOCKED`: `Config saved: {path}`
-2. `LOCKED`: `Starting run`
-3. `LOCKED`: `Returning to Step 1 with your selections preserved.`
-4. `LOCKED`: `Starting run` is rendered as a transition beat between the frozen rail summary and the Stage 2 status strip; separator treatment is defined in the visual screen deck.
-
-### Stage 1 Frozen Rail Summary (Run Path)
-
-When `Run now` is chosen, all wizard steps freeze into completed state. The frozen rail summary is the inline rail with every step showing `✔` and its summary. No separate "Study Summary card" is rendered.
-
-Frozen rail lines use the completion confirmation pattern:
-
-1. `LOCKED`: `✔  Entry Path           {entry_path_summary}` (for existing-config path: `Run existing config ({filename})`)
-2. `LOCKED`: `✔  Run Mode             {run_mode_summary}`
-3. `LOCKED`: `✔  Research Question    "{preview}" ({chars} chars)`
-4. `FLEX` note: if question text is long, truncate for summary readability (recommended first 80 chars with ellipsis).
-5. `LOCKED`: `✔  Protocol             {protocol_summary}`
-6. `LOCKED`: `✔  Models               {models_summary} ({count} selected)`
-7. `LOCKED`: `✔  Personas             {personas_summary} ({count} selected)`
-8. `LOCKED`: `✔  Decode Params        temp {temp_summary}, seed {seed_summary}`
-9. `LOCKED`: `✔  Advanced Settings    {advanced_summary}`
+1. `LOCKED`: `◆  Entry Path                     {entry_path_summary}`
+2. `LOCKED`: `◆  Run Mode                       {run_mode_summary}`
+3. `LOCKED`: `◆  Research Question              "{preview}" ({chars} chars)`
+4. `LOCKED`: `◆  Protocol                       {protocol_summary}`
+5. `LOCKED`: `◆  Models                         {models_summary} ({count} selected)`
+6. `LOCKED`: `◆  Personas                       {personas_summary} ({count} selected)`
+7. `LOCKED`: `◆  Decode Params                  temp {temp_summary}, seed {seed_summary}`
+8. `LOCKED`: `◆  Advanced Settings              {advanced_summary}`
 
 ## Stage 2 Run Dashboard
 
-Sentinel:
+Stage header:
 
-1. `LOCKED`: `── PROGRESS ──` (ruled section header format, replaces `═══ RUN ═══`).
+1. `LOCKED`: `▍ RUN`
 
-Summary line:
+Subsection headers:
 
-1. `LOCKED`: `Trials: {completed}/{planned} · Workers: {workers}`
+1. `LOCKED`: `── PROGRESS`
+2. `LOCKED`: `── MONITORING`
+3. `LOCKED`: `── WORKERS`
+4. `LOCKED`: `── USAGE`
 
 Progress block:
 
-1. `LOCKED`: progress bar uses bracketless format: `{bar} {pct}%` (no `[` or `]` wrapping).
-2. `LOCKED`: elapsed time renders inline after percentage, no label prefix, format `HH:MM:SS`.
-3. `LOCKED`: ETA renders inline after elapsed, prefix `ETA`, format `HH:MM:SS` or `—` when unknown.
-
-Worker block:
-
-1. `LOCKED`: `Workers`
-2. `LOCKED`: `ID`
-3. `LOCKED`: `Activity`
-4. `LOCKED`: `State`
-5. `LOCKED`: `Trial`
-6. `LOCKED`: `Model`
-7. `LOCKED` structure: `W{worker_index} {worker_bar} {worker_state} trial {worker_trial} {worker_model}` (bracketless bar, tab-aligned columns)
-8. `LOCKED`: `(+{hidden_count} more workers)`
-9. `LOCKED`: `one worker activity row is rendered per visible async worker.`
-10. `LOCKED`: `stage dashboard includes one master progress bar plus per-worker activity bars.`
+1. `LOCKED`: `Trials: {completed}/{planned} · Workers: {workers}`
+2. `LOCKED`: progress bar uses bracketless format.
+3. `LOCKED`: elapsed time renders inline after percentage.
+4. `LOCKED`: ETA renders inline after elapsed with `ETA` prefix.
 
 Monitoring block:
 
-1. `LOCKED`: `Monitoring`
-2. `LOCKED`: key `Novelty rate`, value `{value} (threshold {threshold})` — rendered as KV row (no colon, 16-char key column).
-3. `LOCKED`: key `Patience`, value `{current}/{target}`.
-4. `LOCKED`: key `Status`, value `{sampling_status}`.
-5. `LOCKED`: `Stopping indicates diminishing novelty, not correctness.`
-6. `LOCKED`: `Groups reflect embedding similarity, not semantic categories.` (show only when group output is shown)
+1. `LOCKED`: key `Novelty rate`, value `{value} (threshold {threshold})`
+2. `LOCKED`: key `Patience`, value `{current}/{target}`
+3. `LOCKED`: key `Status`, value `{sampling_status}`
+4. `LOCKED`: `Stopping indicates diminishing novelty, not correctness.`
+5. `LOCKED`: `Groups reflect embedding similarity, not semantic categories.` (only when group output is shown)
+
+Workers block:
+
+1. `LOCKED`: `ID`
+2. `LOCKED`: `Activity`
+3. `LOCKED`: `State`
+4. `LOCKED`: `Trial`
+5. `LOCKED`: `Model`
+6. `LOCKED`: `one worker activity row is rendered per visible async worker.`
+7. `LOCKED`: `stage dashboard includes one master progress bar plus per-worker activity bars.`
+8. `LOCKED`: worker model labels use product display names when available.
 
 Usage block:
 
 1. `LOCKED`: `Usage so far: {usage_summary}`
 2. `LOCKED`: `Mock mode: usage and cost are not tracked.`
-3. `LOCKED`: `Cost: {cost_estimate}` (`estimate` label required when not reliable)
+3. `LOCKED`: `Cost: {cost_estimate}`
 
-Graceful-stop line:
+Footer and stop line:
 
-1. `LOCKED`: `Graceful stop requested. Finishing in-flight trials and writing partial artifacts.`
+1. `LOCKED`: `Ctrl+C to stop gracefully`
+2. `LOCKED`: `Graceful stop requested. Finishing in-flight trials and writing partial artifacts.`
 
 ## Stage 3 Receipt
 
-Sentinel:
+Stage header:
 
-1. `LOCKED`: `── RECEIPT ──` (ruled section header format, replaces `═══ RECEIPT ═══`).
+1. `LOCKED`: `▍ RECEIPT`
 
-Completion banner:
+Receipt lead lines:
 
 1. `LOCKED`: `Stopped: novelty saturation`
 2. `LOCKED`: `Stopped: max trials reached`
 3. `LOCKED`: `Stopped: user requested graceful stop`
 4. `LOCKED`: `Stopped: sampling complete`
 5. `LOCKED`: `Stopped: run failed`
+6. `LOCKED`: `Stopping indicates diminishing novelty, not correctness.`
 
-Interpretation hint:
+Subsection headers:
 
-1. `LOCKED`: `Stopping indicates diminishing novelty, not correctness.`
-2. `FLEX` note: this hint is currently emitted for all stop reasons; a future refinement may conditionally scope it to novelty-related stops.
+1. `LOCKED`: `── SUMMARY`
+2. `LOCKED`: `── GROUPS`
+3. `LOCKED`: `── ARTIFACTS`
+4. `LOCKED`: `── REPRODUCE`
 
-Summary section labels:
+Summary labels:
 
-1. `LOCKED`: `Summary`
-2. `LOCKED`: `Stop reason`
-3. `LOCKED`: key `Trials`, value `{planned} / {completed} / {eligible} (planned / completed / eligible)` — parenthetical is inline documentation, not a separate label.
-4. `LOCKED`: `Duration`
-5. `LOCKED`: `Usage`
-6. `LOCKED`: `Protocol`
-7. `LOCKED`: `Models`
-8. `LOCKED`: `Personas`
+1. `LOCKED`: `Stop reason`
+2. `LOCKED`: `Trials`
+3. `LOCKED`: `Duration`
+4. `LOCKED`: `Usage`
+5. `LOCKED`: `Protocol`
+6. `LOCKED`: `Models`
+7. `LOCKED`: `Personas`
 
-Groups section:
+Artifacts:
 
-1. `LOCKED`: ruled section header: `GROUPS`. Body content uses "Embedding groups" as a prose label.
-2. `LOCKED`: `Top group sizes`
-3. `LOCKED`: `Groups reflect embedding similarity, not semantic categories.` (show only when group output is shown)
-
-Artifact section:
-
-1. `LOCKED`: `Artifacts`
+1. `FLEX`: `Only generated files are listed.`
 2. `LOCKED`: `No embeddings were generated because there were zero eligible trials.`
-3. `FLEX`: `Only generated files are listed.`
 
-Repro section:
+Reproduce:
 
-1. `LOCKED`: ruled section header: `REPRODUCE`. No prose title line — section body starts directly with the command.
-2. `LOCKED`: `arbiter run --config {config_path}`
-3. `LOCKED`: prefer a relative `{config_path}` from the current working directory when available; fall back to an absolute path only when necessary.
+1. `LOCKED`: `arbiter run --config {config_path}`
+2. `LOCKED`: prefer a relative `{config_path}` from the current working directory when available.
 
-Exit line:
+Completion footer:
 
 1. `FLEX`: `Run complete.`
 
 ## Non-TTY / Headless Copy
 
-`arbiter` without TTY stdout:
-
 1. `LOCKED`: `TTY not detected. Showing headless help.`
-
-`arbiter run --dashboard` without TTY stdout:
-
-1. `LOCKED`: `Dashboard requested without TTY; continuing in headless mode.`
+2. `LOCKED`: `Dashboard requested without TTY; continuing in headless mode.`
 
 ## Copy QA Checklist
 
-1. Forbidden terms absent from runtime UI surfaces.
-2. Canonical caveat lines appear in required contexts.
-3. Grouping caveat appears only when group output is shown.
-4. Stop-reason labels are consistent across Stage 2 and Stage 3.
-5. Validation and warning messages follow the required patterns.
-6. Long lines in narrow terminals remain readable without semantic truncation.
-7. Brand identity block remains visible throughout Stage 1; subsequent stages use status strip plus frozen Stage 1 summary.
-8. Frozen Stage 1 rail summary (all steps showing `✔`) remains visible above Stage 2 and Stage 3 in run-path scrollback.
+1. no shell-like pseudo-command chrome remains in the product surface,
+2. compact `ARBITER` brand treatment is used instead of the spaced-out wordmark,
+3. rail completion uses `◆`, active uses `▸`, pending uses `◇`,
+4. model/persona metadata is inline and product-facing,
+5. Stage 2 and Stage 3 subsection labels use short-prefix form (`── LABEL`),
+6. receipt hierarchy is visibly parent/child,
+7. command footer copy remains concise and control-first,
+8. the identity panel appears once at the top of the durable transcript.
