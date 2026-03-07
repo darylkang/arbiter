@@ -1,6 +1,6 @@
 # ExecPlan: Fix TUI Run-Path Transcript Integrity
 
-Status: in_progress (manual verification pending)
+Status: superseded
 Owner: Codex
 Last updated: 2026-03-06
 
@@ -359,3 +359,4 @@ These counts should drop to one final transcript occurrence after the correction
 
 1. This plan reopens the run-path correctness question despite prior runtime closeout work, because transcript-truth validation was previously insufficient.
 2. The prior runtime A+ closeout remains valid for structural modularity and runtime ownership, but not for this specific end-user scrollback invariant until this plan is completed.
+3. Superseded by `docs/exec-plans/2026-03-06-replace-stage2-alt-screen-with-normal-screen-overwrite.md`, which replaces the Stage 2 mechanism rather than continuing to refine the alt-screen approach.
