@@ -1,0 +1,278 @@
+# Arbiter Research Method Contract
+
+`RESEARCH-METHOD.md` is the canonical repo-local bridge between the research briefs and the harness.
+
+It has four jobs:
+
+1. define the current paper's methodological contract in implementation-facing terms,
+2. state what the paper's primary estimand and first-class outputs actually are,
+3. separate durable harness infrastructure from paper-specific analysis commitments,
+4. prevent the scientific core from drifting into Notion-only prose, ad hoc schemas, or implementation accidents.
+
+This document is intentionally narrower than `docs/DESIGN.md`. `DESIGN.md` owns durable cross-project semantics for Arbiter as a harness. This document owns the current paper family's research-method commitments.
+
+## 1) Authority and Scope
+
+### 1.1) Document Boundary
+
+Use this document when the question is:
+
+- what the current paper is actually estimating,
+- what counts as a primary scientific output,
+- what role `Q(c)` and `M` play in the estimand,
+- how to separate online operational monitoring from paper-facing analysis,
+- which methodological assumptions are frozen versus still exploratory.
+
+This document does not own:
+
+- raw schema shape details,
+- CLI or TUI behavior contracts,
+- general contributor workflow,
+- rollout sequencing.
+
+### 1.2) Authority Order
+
+For research-significant implementation work, use this order:
+
+1. `schemas/` for contract shapes and field names,
+2. `docs/DESIGN.md` for durable harness semantics and interpretation boundaries,
+3. this document for the current paper's methodological contract and analysis boundary,
+4. `README.md` for operator workflow,
+5. `AGENTS.md` and `docs/PLANS.md` for contributor process.
+
+The Notion research briefs remain important source material, but once a methodological commitment is recorded here, this file becomes the implementation-facing source of truth for that commitment.
+
+## 2) Core Research Contract
+
+Arbiter supports a methodology paper on reasoning as a distribution under heterogeneous, budget-matched sampling.
+
+The paper's core claim is not that Arbiter discovers truth or improves correctness by itself. The paper's claim is that:
+
+1. an explicit configuration distribution `Q(c)` induces a measurable distribution over outcomes,
+2. different heterogeneity sources can be compared under matched budgets,
+3. both decision uncertainty and estimation uncertainty should be reported as first-class outputs.
+
+The heterogeneity ladder remains the central experimental structure:
+
+1. `H0`: fixed single-shot baseline,
+2. `H1`: decode heterogeneity,
+3. `H2`: prompt/persona heterogeneity,
+4. `H3`: cross-model heterogeneity,
+5. `H4`: interaction heterogeneity.
+
+Interaction is one rung in the ladder, not the entire thesis.
+
+## 3) Primary Estimand
+
+### 3.1) Core Objects
+
+- `x`: input instance.
+- `c = (m, d, p, pi)`: configuration tuple:
+  - `m`: model or provider identity,
+  - `d`: decode settings,
+  - `p`: prompt or persona framing,
+  - `pi`: protocol.
+- `Q(c)`: explicit user-specified distribution over configurations.
+- `K`: number of executed trials.
+- `s_k`: raw free-form model output observed on trial `k`.
+- `M`: measurement procedure that maps raw outputs into measurement-defined outcome structure.
+
+### 3.2) Primary Path: Free-Form Semantic Outcome Estimation
+
+For the current paper, the primary path is not a fixed discrete task label supplied from outside the harness.
+
+The primary path is:
+
+1. run `K` trials under `Q(c)`,
+2. collect free-form outputs,
+3. apply a specified measurement procedure `M`,
+4. induce measurement-defined semantic outcome classes,
+5. estimate the resulting outcome distribution.
+
+Formally, the paper's primary estimand is:
+
+`P_(Q,M)(y | x)`
+
+where `y` is a measurement-defined semantic outcome class produced by `M`.
+
+This is a stronger commitment than treating semantic clustering as a secondary convenience. It means:
+
+1. `Q(c)` remains estimand-defining,
+2. `M` is also estimand-defining,
+3. changing either `Q` or `M` changes what is being estimated.
+
+### 3.3) What `M` Includes
+
+For this paper family, `M` may include:
+
+1. structured extraction or normalization from raw assistant text,
+2. choice of source text used for semantic comparison,
+3. preprocessing and truncation rules,
+4. embedding model and embedding provider behavior,
+5. similarity metric and normalization rules,
+6. clustering or semantic grouping procedure,
+7. thresholds, ordering rules, and any deterministic tie-breaking,
+8. any optional mapping from groups to human-readable labels.
+
+Because the primary path is semantic and free-form, these choices are not implementation detail. They are part of the measurement definition.
+
+### 3.4) Discrete-Label Path
+
+Discrete-label tasks remain valuable, but they are a special case rather than the paper's center.
+
+In that case:
+
+1. `y` may come directly from a task label set or a strict decision contract,
+2. `M` reduces to a simpler normalization layer,
+3. the same `Q(c)` framing still applies.
+
+This path is useful for calibration, validation, and comparison, but it does not displace the primary semantic path.
+
+## 4) First-Class Scientific Outputs
+
+The harness must ultimately support these first-class outputs for the paper:
+
+1. raw per-trial records sufficient to reconstruct trial conditions, outputs, provenance, and budgets,
+2. per-instance semantic outcome distributions estimated under `Q(c)` and `M`,
+3. decision-uncertainty features derived from those outcome distributions,
+4. estimation-uncertainty outputs on those features,
+5. rung-level comparisons under matched model-call budgets,
+6. provenance and budget summaries sufficient to audit the experiment.
+
+At minimum, decision-uncertainty reporting should support:
+
+1. top-choice mass,
+2. entropy or another dispersion statistic,
+3. margin between leading outcomes when well-defined.
+
+At minimum, estimation-uncertainty reporting should support:
+
+1. interval estimates on the primary per-instance uncertainty quantities,
+2. convergence or precision curves as `K` increases.
+
+The exact estimator family for those intervals may vary by quantity, but it must be fixed in the experiment analysis specification before paper claims are made.
+
+## 5) Analysis Boundary
+
+Arbiter is primarily the experiment harness and data-collection layer.
+
+The paper analysis is a downstream step.
+
+### 5.1) Arbiter Owns
+
+Arbiter is responsible for producing:
+
+1. deterministic trial planning,
+2. raw per-trial outputs and parsed records,
+3. provenance and budget logging,
+4. resolved configuration and measurement settings,
+5. operational monitoring signals needed to manage execution safely.
+
+### 5.2) Downstream Analysis Owns
+
+The paper analysis layer is responsible for computing:
+
+1. per-instance semantic outcome distributions,
+2. decision-uncertainty features,
+3. estimation-uncertainty intervals and convergence curves,
+4. selective-prediction, calibration, AUROC, and other evaluation figures,
+5. final rung-level comparison tables and plots.
+
+This separation is intentional. It prevents operational execution logic from silently becoming the scientific contract.
+
+## 6) Online Monitoring Versus Paper Measurement
+
+Arbiter currently emits online monitoring and grouping artifacts such as novelty, similarity, grouping, and saturation signals.
+
+Those signals are useful, but they are not automatically the paper's primary outputs.
+
+For the current paper:
+
+1. online monitoring is operational first,
+2. semantic outcome estimation is scientific first,
+3. overlap between the two is allowed but must be explicit.
+
+Important boundary:
+
+1. current online groups are measurement-defined artifacts under the configured runtime procedure,
+2. they are not ontological semantic truth,
+3. they must not be treated as ground-truth categories simply because they are convenient to compute online.
+
+If the paper uses semantic clustering as a primary path, that usage must still remain explicit about measurement dependence and approximation error.
+
+## 7) Stopping Contract
+
+Stopping must remain scientifically honest.
+
+Current rule:
+
+1. online stopping may use operational heuristics such as novelty or saturation under the configured runtime measurement,
+2. online stopping does not imply correctness, semantic truth, or sufficient scientific certainty.
+
+Paper-facing convergence claims should be based on downstream estimation-uncertainty analysis, not on the existence of an online stop event by itself.
+
+If future work introduces CI-width-based or precision-target-based stopping, that change must be documented here before it is treated as canonical.
+
+## 8) Budget-Matching Contract
+
+Budget matching is part of the paper's discipline, not an optional reporting convenience.
+
+The primary matched budget axis is:
+
+1. model calls per instance per rung.
+
+Secondary quantities must still be logged and reported:
+
+1. tokens,
+2. cost,
+3. latency.
+
+If two rung comparisons are call-matched but materially diverge on token or cost budgets, that sensitivity must be reported in the analysis.
+
+## 9) Frozen Versus Exploratory
+
+### 9.1) Frozen Now
+
+The following are part of the current methodological contract:
+
+1. explicit `Q(c)` is estimand-defining,
+2. the primary paper path uses free-form semantic outcome estimation under `M`,
+3. `M` is co-estimand-defining on that path,
+4. decision uncertainty and estimation uncertainty are separate objects,
+5. the harness must preserve enough raw data and provenance to support downstream uncertainty analysis,
+6. interaction is one rung, not the whole thesis,
+7. convergence does not imply correctness.
+
+### 9.2) Exploratory or Still Adjustable
+
+The following remain adjustable unless and until they are explicitly frozen by an experiment-specific analysis contract:
+
+1. exact embedding model,
+2. exact clustering algorithm and thresholds,
+3. exact interval estimator and replicate count,
+4. exact feature set beyond the baseline uncertainty quantities,
+5. exact online stopping heuristic,
+6. exact dataset mix and benchmark selection.
+
+## 10) Implications for Schemas and Artifacts
+
+This document implies the following for future schema and artifact work:
+
+1. the schema layer must prioritize artifacts sufficient to reconstruct `P_(Q,M)(y | x)` offline,
+2. raw trial artifacts are more foundational than online monitoring summaries,
+3. primary scientific outputs must not remain implicit in untyped manifest blobs,
+4. online monitoring artifacts may remain exploratory until they are explicitly promoted into the paper contract,
+5. schema changes that alter `Q(c)` or `M` are research-significant and must be documented as such.
+
+## 11) Change Control
+
+Update this document when any of the following change:
+
+1. the definition of `y`,
+2. the role of semantic clustering in the paper,
+3. the boundary between Arbiter outputs and downstream analysis,
+4. the set of first-class scientific outputs,
+5. the interpretation of online stopping or convergence,
+6. the meaning of budget matching.
+
+When those changes also affect durable cross-project semantics, update `docs/DESIGN.md` as well.

@@ -18,9 +18,10 @@ For product and runtime behavior, Arbiter uses this authority order:
 
 1. `schemas/` for contract shapes and field names,
 2. this document for system semantics, invariants, and interpretation boundaries,
-3. `docs/product-specs/` for exact Wizard, Dashboard, Receipt, copy, and visual contracts that refine this design,
-4. `README.md` for operator-facing usage guidance,
-5. `AGENTS.md` and `docs/PLANS.md` for contributor process, planning, and validation discipline.
+3. `docs/RESEARCH-METHOD.md` for the current paper's methodological contract and analysis boundary,
+4. `docs/product-specs/` for exact Wizard, Dashboard, Receipt, copy, and visual contracts that refine this design,
+5. `README.md` for operator-facing usage guidance,
+6. `AGENTS.md` and `docs/PLANS.md` for contributor process, planning, and validation discipline.
 
 If documents disagree:
 
@@ -37,6 +38,13 @@ This document owns:
 - execution semantics,
 - determinism, provenance, monitoring, grouping, and artifact contracts,
 - durable compatibility exceptions and migration boundaries.
+
+`docs/RESEARCH-METHOD.md` owns:
+
+- the current paper's estimand definition,
+- what counts as primary scientific output versus operational monitoring,
+- the role of `Q(c)` and `M` in the paper's analysis contract,
+- the boundary between harness artifacts and downstream analysis.
 
 `docs/product-specs/` owns:
 
@@ -80,9 +88,9 @@ It is not an algorithmic claim of model correctness.
   - `pi`: protocol.
 - `Q(c)`: explicit distribution over configurations.
 - `K`: number of executed trials.
-- `y`: normalized decision output for a trial.
+- `y`: measurement-defined outcome class for a trial, which may be a strict contract label or a semantic class induced by `M`.
 - `hat(P)_Q(y | x)`: empirical distribution estimated from executed trials.
-- `M`: measurement procedure, including embedding model, preprocessing, and optional grouping settings.
+- `M`: measurement procedure, including extraction, embedding model, preprocessing, and any semantic-normalization or grouping settings.
 
 Design commitments:
 

@@ -18,6 +18,7 @@ Arbiter focuses on **measurement quality** and **traceability**. It does not cla
 This README defines Arbiter's stabilized v1 product and artifact contracts.
 
 Implementation rollout is tracked in `docs/exec-plans/`.
+The current paper-facing methodological contract lives in `docs/RESEARCH-METHOD.md`.
 If runtime behavior diverges from this document, treat that as either:
 
 - an implementation defect to fix, or
@@ -34,7 +35,7 @@ Arbiter runs many trials against a fixed question and configuration, then record
 - optional embedding-group outputs,
 - and a complete run manifest for verification.
 
-This supports analysis of how response behavior changes across model/persona/protocol sampling choices.
+This supports downstream analysis of semantic outcome distributions and uncertainty under explicit configuration and measurement choices.
 
 ---
 

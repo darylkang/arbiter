@@ -4,7 +4,7 @@ Purpose: this file is the project-local operating contract for contributors and 
 
 It governs how to work in this repository: what is authoritative, what must be read first, what must not be broken, and what validation is required before claiming success.
 
-It does not replace product or schema truth. Keep product semantics in `docs/DESIGN.md`, `schemas/`, and the relevant product-spec docs.
+It does not replace product or schema truth. Keep semantic truth in `docs/DESIGN.md`, `docs/RESEARCH-METHOD.md`, `schemas/`, and the relevant product-spec docs.
 
 ## Mission Alignment
 
@@ -26,14 +26,15 @@ For implementation truth, use this order:
 
 1. `schemas/` for config and artifact contracts.
 2. `docs/DESIGN.md` for semantics, architecture, invariants, and interpretation boundaries.
-3. Product-spec docs for UI work:
+3. `docs/RESEARCH-METHOD.md` for the current paper's methodological contract, estimand boundary, and analysis/output expectations.
+4. Product-spec docs for UI work:
    - `docs/product-specs/tui-wizard.md` for behavior and interaction,
    - `docs/product-specs/tui-copy-deck.md` for locked and flexible copy,
    - `docs/product-specs/tui-visual-screen-deck.md` for visual layout and QA targets.
-4. `docs/TUI-RUNTIME.md` for internal TUI runtime architecture, renderer ownership, and migration rules.
-5. `docs/TESTING.md` for testing architecture, lane ownership, and migration rules.
-6. `README.md` for operator and developer workflow.
-7. `docs/PLANS.md` for ExecPlan requirements and execution behavior.
+5. `docs/TUI-RUNTIME.md` for internal TUI runtime architecture, renderer ownership, and migration rules.
+6. `docs/TESTING.md` for testing architecture, lane ownership, and migration rules.
+7. `README.md` for operator and developer workflow.
+8. `docs/PLANS.md` for ExecPlan requirements and execution behavior.
 
 Precedence within the TUI product-spec set:
 
@@ -55,13 +56,15 @@ Always read:
 
 1. `AGENTS.md`
 2. `docs/DESIGN.md`
-3. `README.md`
+3. `docs/RESEARCH-METHOD.md`
+4. `README.md`
 
 Read `docs/PLANS.md` when the work is non-trivial: complex features, significant refactors, migrations, cross-cutting changes, or anything with material unknowns or risk.
 
 Read these before editing the corresponding areas:
 
 - `schemas/` before schema, artifact, config-shape, provenance, contract, or verification work.
+- `docs/RESEARCH-METHOD.md` before research-significant work on `Q(c)`, `M`, semantic clustering, uncertainty outputs, monitoring/grouping meaning, or paper-facing artifact design.
 - `docs/TESTING.md` before changing test taxonomy, validation commands, test ownership, TUI testing infrastructure, or the structure of the test suite itself.
 - `docs/TUI-RUNTIME.md` before changing TUI renderer architecture, frame ownership, layout primitives, or TUI testing infrastructure.
 - `docs/product-specs/tui-wizard.md`, `docs/product-specs/tui-copy-deck.md`, and `docs/product-specs/tui-visual-screen-deck.md` before changing wizard, dashboard, receipt, terminal rendering, or TUI copy.
