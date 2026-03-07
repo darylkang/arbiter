@@ -1,6 +1,7 @@
 import type { EventPayloadMap } from "../../events/types.js";
 import { UI_COPY } from "../copy.js";
 import type { DashboardVM, RenderLine, WorkerRow } from "../runtime-view-models.js";
+import { formatClockHMS } from "./render-utils.js";
 
 type WorkerViewStatus = "idle" | "running" | "finishing" | "error";
 
@@ -54,17 +55,6 @@ const formatProtocolLabel = (payload: EventPayloadMap["run.started"]): string =>
     return `Debate (${participants}p x ${rounds}r + A)`;
   }
   return "Independent";
-};
-
-const formatClockHMS = (inputMs: number): string => {
-  const totalSeconds = Math.max(0, Math.floor(inputMs / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor(totalSeconds / 60) % 60;
-  const seconds = totalSeconds % 60;
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
-    2,
-    "0"
-  )}`;
 };
 
 const formatEtaHMS = (state: DashboardState, nowMs: number): string => {

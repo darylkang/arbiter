@@ -1,43 +1,14 @@
 import { UI_COPY } from "../copy.js";
 import { createStdoutFormatter, type Formatter } from "../fmt.js";
-import type { DashboardVM, RenderLine } from "../runtime-view-models.js";
+import type { DashboardVM } from "../runtime-view-models.js";
 import { MASTER_BAR_MAX, renderKV, renderProgressBar, renderRuledSection, renderSeparator, renderStatusStrip, renderWorkerRow } from "../wizard-theme.js";
 import { countRenderedRows, countRowsForLines } from "./live-region.js";
+import { formatClockHMS, renderToneLine } from "./render-utils.js";
 
 type DashboardRenderOptions = {
   width?: number;
   maxRows?: number;
   fmt?: Formatter;
-};
-
-const formatClockHMS = (inputMs: number): string => {
-  const totalSeconds = Math.max(0, Math.floor(inputMs / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor(totalSeconds / 60) % 60;
-  const seconds = totalSeconds % 60;
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
-    2,
-    "0"
-  )}`;
-};
-
-const renderToneLine = (line: RenderLine, fmt: Formatter): string => {
-  if (line.tone === "warn") {
-    return fmt.warn(line.text);
-  }
-  if (line.tone === "error") {
-    return fmt.error(line.text);
-  }
-  if (line.tone === "success") {
-    return fmt.success(line.text);
-  }
-  if (line.tone === "info") {
-    return fmt.info(line.text);
-  }
-  if (line.tone === "text") {
-    return fmt.text(line.text);
-  }
-  return fmt.muted(line.text);
 };
 
 const buildWorkerSection = (
@@ -148,7 +119,7 @@ export const buildRunDashboardText = (vm: DashboardVM, options: DashboardRenderO
   ];
   pushBlock(monitoringBlock, true);
 
-  const caveatBlock = vm.caveatLines.map((line) => renderToneLine(line, fmt));
+  const caveatBlock = vm.caveatLines.map((line) => renderToneLine(line.text, line.tone, fmt));
   pushBlock(compact ? caveatBlock : ["", ...caveatBlock], true);
 
   const footerBlock = compact
@@ -166,11 +137,11 @@ export const buildRunDashboardText = (vm: DashboardVM, options: DashboardRenderO
   const usageBlock = [
     renderRuledSection("USAGE", width, fmt),
     ...(compact ? [] : [""]),
-    ...vm.usageLines.map((line) => renderToneLine(line, fmt))
+    ...vm.usageLines.map((line) => renderToneLine(line.text, line.tone, fmt))
   ];
   pushBlock(compact ? usageBlock : ["", ...usageBlock]);
 
-  pushBlock(compact ? [renderSeparator(width, fmt), fmt.muted(vm.footerText)] : ["", renderSeparator(width, fmt), fmt.muted(vm.footerText)], true);
+  pushBlock(footerBlock, true);
 
   return `${sections.join("\n")}\n`;
 };

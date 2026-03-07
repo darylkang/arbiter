@@ -6,21 +6,11 @@ import { createStdoutFormatter, type Formatter } from "../fmt.js";
 import { buildReceiptModel } from "../receipt-model.js";
 import type { ReceiptVM } from "../runtime-view-models.js";
 import { renderKV, renderRuledSection, renderSeparator, renderStatusStrip } from "../wizard-theme.js";
+import { formatClockHMS, renderToneLine } from "./render-utils.js";
 
 type ReceiptRenderOptions = {
   width?: number;
   fmt?: Formatter;
-};
-
-const formatClockHMS = (inputMs: number): string => {
-  const totalSeconds = Math.max(0, Math.floor(inputMs / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor(totalSeconds / 60) % 60;
-  const seconds = totalSeconds % 60;
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
-    2,
-    "0"
-  )}`;
 };
 
 const toDurationFromIso = (startedAt?: string, completedAt?: string): string => {
@@ -33,25 +23,6 @@ const toDurationFromIso = (startedAt?: string, completedAt?: string): string => 
     return "—";
   }
   return formatClockHMS(completed - started);
-};
-
-const renderToneLine = (text: string, tone: ReceiptVM["caveatLines"][number]["tone"], fmt: Formatter): string => {
-  if (tone === "warn") {
-    return fmt.warn(text);
-  }
-  if (tone === "error") {
-    return fmt.error(text);
-  }
-  if (tone === "success") {
-    return fmt.success(text);
-  }
-  if (tone === "info") {
-    return fmt.info(text);
-  }
-  if (tone === "text") {
-    return fmt.text(text);
-  }
-  return fmt.muted(text);
 };
 
 export const readReceiptText = (runDir: string): string | null => {

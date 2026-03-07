@@ -1,13 +1,10 @@
-const ANSI_CSI_REGEX = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
+import { stripAnsi } from "./render-utils.js";
 
 export type LiveRegionLayout = {
   terminalRows: number;
   topRow: number;
   liveRows: number;
 };
-
-export const stripAnsi = (value: string): string =>
-  value.replace(ANSI_CSI_REGEX, "").replace(/\r/g, "");
 
 // This is intentionally limited to Arbiter's current live-region glyph set:
 // single-width BMP characters only. If the dashboard ever renders wide

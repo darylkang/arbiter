@@ -1,5 +1,6 @@
 import { UI_COPY, toApiKeyPresenceLabel, toRunModeLabel, type UiRunMode } from "./copy.js";
 import { type Formatter } from "./fmt.js";
+import { stripAnsi } from "./runtime/render-utils.js";
 import type { WorkerRow } from "./runtime-view-models.js";
 
 export type RailStepState = "completed" | "active" | "pending";
@@ -17,8 +18,6 @@ export const KV_KEY_WIDTH = 16;
 export const MASTER_BAR_MAX = 42;
 export const WORKER_BAR_WIDTH = 10;
 const WORKER_ACTIVITY_PULSE = 3;
-
-const stripAnsi = (value: string): string => value.replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, "");
 
 const visibleLength = (value: string): number => stripAnsi(value).length;
 

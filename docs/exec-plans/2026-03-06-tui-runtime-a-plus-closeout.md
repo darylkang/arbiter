@@ -53,7 +53,7 @@ Temporary coexistence rules:
 - [x] (2026-03-06 00:00Z) plan drafted (`proposed`)
 - [x] (2026-03-07 06:04Z) M1 complete: Stage 2/3 runtime decomposed into explicit dashboard VM, dashboard render, live-region, and receipt-render seams; runtime behavior preserved and validated (`completed`)
 - [x] (2026-03-07 06:04Z) M2 complete: validation expanded to cover undersized dashboard fallback, live resize across the dashboard path, short-terminal scrollback, and current glyph-width assumptions (`completed`)
-- [ ] (2026-03-07 06:04Z) M3 pending external sign-off on the implemented runtime and A+ closeout evidence (`in_progress`)
+- [x] (2026-03-07 06:28Z) M3 complete: external review signed off on the implemented runtime as A+ with only non-blocking leaf-level cleanup notes (`completed`)
 
 ## Surprises & Discoveries
 - Observation: the remaining gap to A+ is no longer missing layering in Stage 1; it is runtime exactness and parity across all stages.
@@ -89,9 +89,10 @@ Delivered in this round:
    - current glyph-width row counting assumptions,
    - receipt artifact ANSI separation.
 
-Remaining gap before the plan can be marked fully completed:
+External sign-off result:
 
-1. external review/sign-off on the implemented runtime and this closeout evidence.
+1. Opus reviewed the implemented runtime, validation evidence, and capture pack and issued `SIGN-OFF: A+`.
+2. Remaining notes were limited to non-blocking DRY cleanup in leaf helpers.
 
 ## Decision Log
 - Decision: keep the current five-layer runtime architecture from `docs/TUI-RUNTIME.md`.
@@ -385,3 +386,4 @@ Current baseline artifacts:
 - 2026-03-06: created as a follow-on plan after the runtime hardening plan closed at a strong but not yet elite grade.
 - 2026-03-06: revised after external architecture review to merge geometry work into the Stage 2/3 decomposition milestone and drop screenshot automation as a required success criterion.
 - 2026-03-07: M1 and M2 completed. Stage 2/3 runtime seams were extracted, the resize contract was made explicit, and validation expanded to cover undersized dashboard fallback plus live resize on the dashboard path.
+- 2026-03-07: M3 completed after external sign-off. Follow-up cleanup was limited to shared leaf helpers (`formatClockHMS`, `renderToneLine`, `stripAnsi`) and one duplicated footer-block assembly.
