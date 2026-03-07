@@ -20,9 +20,9 @@ Use the surrounding docs in this order:
 2. `/Users/darylkang/Developer/arbiter/docs/DESIGN.md` for durable harness semantics,
 3. `/Users/darylkang/Developer/arbiter/docs/RESEARCH-METHOD.md` for the current paper's estimand, analysis boundary, and first-class scientific outputs.
 
-For the current paper-specific schema interpretation, also read:
+For the current paper-specific methodological interpretation, also read:
 
-4. `/Users/darylkang/Developer/arbiter/schemas/PAPER-ALIGNMENT.md`
+4. `/Users/darylkang/Developer/arbiter/docs/RESEARCH-METHOD.md`
 
 ## Current Paper Alignment
 
@@ -43,6 +43,15 @@ The current schemas are strongest around:
 4. operational monitoring.
 
 The current paper's primary scientific outputs, such as per-instance outcome distributions, primary reliability signals, estimation-uncertainty outputs, and ladder-comparison summaries, are now represented by dedicated analysis schemas in this directory. The downstream analysis pipeline itself still remains separate from the harness runtime.
+
+Current schema coverage is strongest in four areas:
+
+1. `Q(c)` materialization and deterministic trial planning,
+2. raw per-trial evidence and parsing outcomes,
+3. measurement inputs and embedding provenance,
+4. minimal stable paper-facing analysis artifacts.
+
+Current schema weakness is no longer basic contract coverage. It is the thinner paper-facing layer around richer downstream analysis provenance, fuller `M` unification, and labeled-evaluation reproducibility.
 
 ## Design Principles
 
@@ -160,6 +169,8 @@ They govern:
 
 These files are paper-facing artifacts, not online monitoring records.
 
+They are intentionally the minimum stable paper-facing layer. Richer analysis provenance, expanded metric families, and experiment-specific analysis internals should only be promoted when they become durable enough to deserve long-lived contracts.
+
 ### 5. Resource and Contract Metadata
 
 These schemas govern catalogs, prompt manifests, protocol resources, and decision-contract presets.
@@ -220,6 +231,23 @@ When changing schema contracts:
 
 If a schema change alters `Q(c)`, `M`, labeled-path assumptions, or paper-facing artifact meaning, treat it as research-significant work rather than routine cleanup.
 
+Promotion rule:
+
+Add a new paper-facing schema only when all of the following are true:
+
+1. the object is required for the paper's primary claims or canonical analysis path,
+2. it should be reproducible and machine-verifiable across runs,
+3. its meaning is stable enough to deserve a long-lived contract,
+4. leaving it untyped would weaken auditability or reproducibility.
+
+Do not add a schema just because a quantity is interesting once.
+
+Likely future schema evolution areas remain:
+
+1. richer analysis-level provenance and analysis-spec identifiers,
+2. stronger `M` contract encoding for preprocessing and semantic grouping,
+3. stronger labeled-evaluation metadata sufficient to reproduce correctness-based claims from artifacts alone.
+
 ## Contract Rules
 
 1. Prefer `additionalProperties: false` for concrete record shapes.
@@ -245,3 +273,11 @@ This keeps the schema system cohesive.
 
 It does **not** by itself prove that the schema substance is scientifically complete for the current paper.
 That requires alignment with `/Users/darylkang/Developer/arbiter/docs/RESEARCH-METHOD.md`, `/Users/darylkang/Developer/arbiter/docs/DESIGN.md`, and the current research brief.
+
+Before approving a research-significant schema change, ask:
+
+1. does this alter `Q(c)` or `M`?
+2. does it change what is reproducible from run artifacts alone?
+3. is it operational-first or paper-facing?
+4. is the object stable enough to deserve a schema?
+5. does the change belong in the harness contract, the research-method contract, or a separate analysis specification?

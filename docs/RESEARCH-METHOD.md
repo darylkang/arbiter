@@ -272,6 +272,21 @@ This document implies the following for future schema and artifact work:
 4. online monitoring artifacts may remain exploratory until they are explicitly promoted into the paper contract,
 5. schema changes that alter `Q(c)` or `M` are research-significant and must be documented as such.
 
+Current schema alignment is strongest in:
+
+1. `Q(c)` materialization and deterministic trial planning,
+2. raw trial evidence, parsing records, and provenance,
+3. measurement inputs and embedding provenance,
+4. minimal stable paper-facing analysis artifacts.
+
+Current schema alignment remains thinner in:
+
+1. richer downstream analysis provenance,
+2. fuller end-to-end encoding of `M`,
+3. labeled-evaluation metadata sufficient to reproduce correctness-based claims from artifacts alone.
+
+This is intentional. The schema layer should freeze durable meaning, not every transient analysis choice.
+
 ## 11) Change Control
 
 Update this document when any of the following change:

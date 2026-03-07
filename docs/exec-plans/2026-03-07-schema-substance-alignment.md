@@ -97,7 +97,7 @@ Relevant sources reviewed before planning:
    - defines the current paper contract, including `P_(Q,M)(y | x)`, the labeled validation backbone, and the analysis boundary.
 4. `schemas/README.md`
    - defines the schema layer's role and the policy for operational versus paper-facing contracts.
-5. `schemas/PAPER-ALIGNMENT.md`
+5. `schemas/README.md`
    - records the current substance gaps and promotion rules.
 6. `schemas/config.schema.json`
    - current `Q(c)` and `M` contract surface.
@@ -265,7 +265,7 @@ Primary evidence files for this round:
 
 1. `docs/RESEARCH-METHOD.md`
 2. `schemas/README.md`
-3. `schemas/PAPER-ALIGNMENT.md`
+3. `docs/RESEARCH-METHOD.md`
 4. `src/artifacts/artifact-writer.ts`
 
 ## Plan Change Notes
