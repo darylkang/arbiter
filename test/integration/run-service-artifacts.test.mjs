@@ -98,6 +98,12 @@ test("runMockService writes complete artifact set with manifest/count consistenc
     assert.equal(manifest.k_eligible, result.kEligible);
     assert.equal(typeof manifest.plan_sha256, "string");
     assert.equal(manifest.plan_sha256.length, 64);
+    assert.equal(manifest.measurement.embedding.embed_text_strategy, "outcome_only");
+    assert.equal(manifest.measurement.embedding.normalization, "newline_to_lf+trim_trailing");
+    assert.equal(manifest.measurement.grouping.enabled, false);
+    assert.equal(manifest.measurement.grouping.params, null);
+    assert.equal(manifest.metrics.final.k_attempted, result.kAttempted);
+    assert.equal(manifest.metrics.final.k_eligible, result.kEligible);
 
     assert.equal(countJsonlLines(resolve(result.runDir, "trial_plan.jsonl")), resolvedConfig.execution.k_max);
     assert.equal(countJsonlLines(resolve(result.runDir, "trials.jsonl")), result.kAttempted);

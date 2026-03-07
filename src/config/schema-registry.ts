@@ -57,6 +57,18 @@ export const SCHEMA_REGISTRY = [
     family: "artifacts"
   },
   {
+    schemaFile: "instance-analysis.schema.json",
+    generatedTypeFile: "instance-analysis.types.ts",
+    validatorExport: "validateInstanceAnalysis",
+    family: "analysis"
+  },
+  {
+    schemaFile: "ladder-comparison.schema.json",
+    generatedTypeFile: "ladder-comparison.types.ts",
+    validatorExport: "validateLadderComparison",
+    family: "analysis"
+  },
+  {
     schemaFile: "monitoring.schema.json",
     generatedTypeFile: "monitoring.types.ts",
     validatorExport: "validateMonitoring",

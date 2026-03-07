@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbiter.dev/schemas/v1/instance-analysis.schema.json",
+  "title": "Arbiter Instance Analysis Record",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lower", "upper"],
+      "properties": {
+        "lower": { "type": "number" },
+        "upper": { "type": "number" }
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "question_id",
+    "estimand_path",
+    "trial_count",
+    "outcome_distribution",
+    "primary_signals",
+    "estimation_uncertainty"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "question_id": { "type": "string", "minLength": 1 },
+    "rung": {
+      "type": "string",
+      "enum": ["H0", "H1", "H2", "H3", "H4"]
+    },
+    "estimand_path": {
+      "type": "string",
+      "enum": ["labeled", "semantic"]
+    },
+    "outcome_source": {
+      "type": "string",
+      "enum": ["task_label", "decision_contract", "semantic_grouping"]
+    },
+    "trial_count": { "type": "integer", "minimum": 1 },
+    "outcome_distribution": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["outcome", "count", "mass", "rank"],
+        "properties": {
+          "outcome": { "type": "string", "minLength": 1 },
+          "display_label": { "type": "string", "minLength": 1 },
+          "count": { "type": "integer", "minimum": 0 },
+          "mass": { "type": "number", "minimum": 0, "maximum": 1 },
+          "rank": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "primary_signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["top_choice_mass", "top_two_margin"],
+      "properties": {
+        "top_choice_mass": { "type": "number", "minimum": 0, "maximum": 1 },
+        "top_two_margin": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "entropy": { "type": ["number", "null"], "minimum": 0 }
+      }
+    },
+    "estimation_uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "resampling_unit", "intervals"],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["wilson", "bootstrap_percentile", "bootstrap_bca", "other"]
+        },
+        "confidence_level": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "bootstrap_replicates": { "type": "integer", "minimum": 1 },
+        "resampling_unit": {
+          "type": "string",
+          "enum": ["trial"]
+        },
+        "intervals": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "top_choice_mass": { "$ref": "#/$defs/interval" },
+            "top_two_margin": { "$ref": "#/$defs/interval" },
+            "entropy": { "$ref": "#/$defs/interval" }
+          }
+        }
+      }
+    },
+    "reference_evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ground_truth_label": { "type": "string", "minLength": 1 },
+        "top_choice_label": { "type": "string", "minLength": 1 },
+        "top_choice_correct": { "type": "boolean" }
+      }
+    },
+    "budget_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model_calls": { "type": "integer", "minimum": 1 },
+        "prompt_tokens": { "type": "integer", "minimum": 0 },
+        "completion_tokens": { "type": "integer", "minimum": 0 },
+        "total_tokens": { "type": "integer", "minimum": 0 },
+        "cost": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

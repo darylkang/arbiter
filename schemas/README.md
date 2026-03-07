@@ -7,7 +7,8 @@ It defines the schema-validated shapes for:
 1. the estimand-defining experiment configuration,
 2. the foundational run artifacts required to reconstruct results offline,
 3. the operational monitoring and grouping records emitted during execution,
-4. the resource and contract metadata that support parsing, prompting, and protocol resolution.
+4. the paper-facing analysis artifacts used to summarize per-instance and rung-level results,
+5. the resource and contract metadata that support parsing, prompting, and protocol resolution.
 
 These schemas are authoritative for contract shape and field naming.
 If implementation, docs, and schemas disagree on a field-level contract, the schemas win.
@@ -41,9 +42,7 @@ The current schemas are strongest around:
 3. embedding and grouping support artifacts,
 4. operational monitoring.
 
-The current paper's primary scientific outputs, such as per-instance outcome distributions, primary reliability signals, and estimation-uncertainty outputs, are governed methodologically by `/Users/darylkang/Developer/arbiter/docs/RESEARCH-METHOD.md` but are not yet fully represented as first-class analysis artifact schemas in this directory.
-
-This is intentional current-state documentation, not a claim that the schema layer is already complete for the paper.
+The current paper's primary scientific outputs, such as per-instance outcome distributions, primary reliability signals, estimation-uncertainty outputs, and ladder-comparison summaries, are now represented by dedicated analysis schemas in this directory. The downstream analysis pipeline itself still remains separate from the harness runtime.
 
 ## Design Principles
 
@@ -128,7 +127,23 @@ Treat them as:
 
 Do not treat online groups as semantic truth.
 
-### 4. Resource and Contract Metadata
+### 4. Paper-Facing Analysis Artifacts
+
+These schemas define the stable downstream analysis objects for the current paper.
+
+- `instance-analysis.schema.json`
+- `ladder-comparison.schema.json`
+
+They govern:
+
+1. per-instance outcome distributions,
+2. primary reliability signals,
+3. estimation-uncertainty summaries,
+4. fixed-budget ladder-comparison outputs.
+
+These files are paper-facing artifacts, not online monitoring records.
+
+### 5. Resource and Contract Metadata
 
 These schemas govern catalogs, prompt manifests, protocol resources, and decision-contract presets.
 
@@ -147,16 +162,17 @@ Arbiter's schema layer currently governs:
 1. experiment setup,
 2. raw run artifacts,
 3. operational monitoring,
-4. resource and parsing contracts.
+4. paper-facing analysis artifacts,
+5. resource and parsing contracts.
 
 The paper's downstream analysis layer is expected to compute:
 
-1. per-instance semantic outcome distributions,
+1. instances of the paper-facing analysis artifact schemas,
 2. primary reliability signals such as top-choice mass and margin,
 3. estimation-uncertainty outputs,
 4. dataset-level AUROC, selective-prediction, calibration, and rung-comparison summaries.
 
-If any of those downstream analysis objects become durable, reusable, or publication-critical enough to require stable machine-readable artifacts, they should be promoted into new explicit schemas here rather than buried in untyped blobs.
+If additional downstream analysis objects become durable, reusable, or publication-critical enough to require stable machine-readable artifacts, they should be promoted into new explicit schemas here rather than buried in untyped blobs.
 
 ## Registry and Generation
 

@@ -31,6 +31,111 @@
           "minimum": 0
         }
       }
+    },
+    "manifest_measurement_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["embedding", "grouping"],
+      "properties": {
+        "embedding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requested_model",
+            "actual_model",
+            "embed_text_strategy",
+            "normalization",
+            "status",
+            "generated_vectors",
+            "generation_ids_count",
+            "arrow_written",
+            "fallback_jsonl_written"
+          ],
+          "properties": {
+            "requested_model": { "type": "string", "minLength": 1 },
+            "actual_model": { "type": ["string", "null"] },
+            "embed_text_strategy": {
+              "type": "string",
+              "enum": ["outcome_only", "outcome_or_raw_assistant"]
+            },
+            "normalization": { "type": "string", "minLength": 1 },
+            "status": {
+              "type": "string",
+              "enum": ["not_generated", "arrow_generated", "jsonl_fallback"]
+            },
+            "generated_vectors": { "type": "integer", "minimum": 0 },
+            "generation_ids_count": { "type": "integer", "minimum": 0 },
+            "arrow_written": { "type": "boolean" },
+            "fallback_jsonl_written": { "type": "boolean" }
+          }
+        },
+        "grouping": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "params"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "params": {
+              "oneOf": [
+                { "type": "null" },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "algorithm",
+                    "similarity_metric",
+                    "tau",
+                    "centroid_update_rule",
+                    "ordering_rule",
+                    "cluster_limit",
+                    "stop_mode"
+                  ],
+                  "properties": {
+                    "algorithm": { "type": "string", "enum": ["online_leader"] },
+                    "similarity_metric": { "type": "string", "enum": ["cosine"] },
+                    "tau": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "centroid_update_rule": {
+                      "type": "string",
+                      "enum": ["fixed_leader", "incremental_mean"]
+                    },
+                    "ordering_rule": {
+                      "type": "string",
+                      "enum": ["trial_id_asc"]
+                    },
+                    "cluster_limit": { "type": "integer", "minimum": 1 },
+                    "stop_mode": {
+                      "type": "string",
+                      "enum": ["disabled", "advisory", "enforced"]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "manifest_final_metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["k_attempted", "k_eligible", "novelty_rate", "mean_max_sim_to_prior"],
+      "properties": {
+        "k_attempted": { "type": "integer", "minimum": 0 },
+        "k_eligible": { "type": "integer", "minimum": 0 },
+        "novelty_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "mean_max_sim_to_prior": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "group_count": { "type": ["integer", "null"], "minimum": 0 },
+        "entropy": { "type": ["number", "null"], "minimum": 0 },
+        "incomplete": { "type": "boolean" }
+      }
+    },
+    "manifest_metrics_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["final"],
+      "properties": {
+        "final": { "$ref": "#/$defs/manifest_final_metrics" }
+      }
     }
   },
   "required": [
@@ -285,11 +390,7 @@
         }
       }
     },
-    "measurement": {
-      "type": "object"
-    },
-    "metrics": {
-      "type": "object"
-    }
+    "measurement": { "$ref": "#/$defs/manifest_measurement_summary" },
+    "metrics": { "$ref": "#/$defs/manifest_metrics_summary" }
   }
 }

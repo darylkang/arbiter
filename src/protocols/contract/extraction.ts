@@ -8,6 +8,11 @@ import { canonicalStringify } from "../../utils/canonical-json.js";
 export type DecisionContractConfig = {
   id: string;
   schema: Record<string, unknown>;
+  label_space: {
+    type: "finite";
+    labels: [string, ...string[]];
+    description?: string;
+  };
   embed_text_source: "decision" | "rationale" | "raw_content";
   rationale_max_chars?: number;
 };

@@ -478,8 +478,9 @@ Canonical artifact rules:
 
 1. `trials.jsonl` is the canonical per-trial record and includes parse and embedding summaries,
 2. Debate intermediate turns live inside per-trial `transcript` records in `trials.jsonl`,
-3. final run-level summary metrics and embedding provenance summary live in `manifest.json`,
-4. this contract supersedes legacy names such as `parsed.jsonl`, `convergence_trace.jsonl`, `aggregates.json`, `embeddings.provenance.json`, and `clusters/*`.
+3. final stable runtime summary metrics and embedding provenance summary live in `manifest.json`,
+4. paper-facing downstream analysis artifacts are separate from `manifest.json` and may use dedicated schema-validated contracts,
+5. this contract supersedes legacy names such as `parsed.jsonl`, `convergence_trace.jsonl`, `aggregates.json`, `embeddings.provenance.json`, and `clusters/*`.
 
 ### 7.5) Run Classes
 

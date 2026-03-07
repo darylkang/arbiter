@@ -4,5 +4,4 @@ export interface ArbiterDebateDecisionContract {
   decision: string;
   confidence?: "low" | "medium" | "high";
   reasoning?: string;
-  [k: string]: unknown;
 }

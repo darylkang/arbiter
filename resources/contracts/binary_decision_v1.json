@@ -1,11 +1,16 @@
 {
   "id": "binary_decision_v1",
+  "label_space": {
+    "type": "finite",
+    "labels": ["yes", "no"],
+    "description": "Binary normalized decision labels."
+  },
   "embed_text_source": "rationale",
   "rationale_max_chars": 500,
   "schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "additionalProperties": true,
+    "additionalProperties": false,
     "required": ["decision", "rationale"],
     "properties": {
       "decision": { "type": "string", "enum": ["yes", "no"] },

@@ -10,6 +10,10 @@ import {
 
 const contract = {
   id: "binary_decision_v1",
+  label_space: {
+    type: "finite",
+    labels: ["yes", "no"]
+  },
   schema: {
     type: "object",
     required: ["decision", "rationale"],

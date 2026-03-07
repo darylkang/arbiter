@@ -3,7 +3,7 @@
   "$id": "https://arbiter.dev/schemas/v1/debate-decision-contract.schema.json",
   "title": "Arbiter Debate Decision Contract",
   "type": "object",
-  "additionalProperties": true,
+  "additionalProperties": false,
   "required": ["decision"],
   "properties": {
     "decision": { "type": "string", "minLength": 1 },

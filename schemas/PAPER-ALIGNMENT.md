@@ -6,7 +6,7 @@ Use it when the question is:
 
 1. which current schemas already support the paper's scientific contract,
 2. which schemas are operational-first rather than paper-first,
-3. which paper-facing objects are still missing from the schema layer,
+3. which paper-facing objects are now typed versus still missing,
 4. what should be promoted into new schemas next.
 
 This is a bridge document.
@@ -88,6 +88,22 @@ These preserve:
 
 This makes the free-form semantic path auditable, even if it is not yet fully elevated into paper-facing output schemas.
 
+### 2.4 Paper-Facing Analysis Outputs
+
+Current schemas that now support this directly:
+
+- `instance-analysis.schema.json`
+- `ladder-comparison.schema.json`
+
+These preserve:
+
+1. per-instance outcome distributions,
+2. primary reliability signals,
+3. estimation-uncertainty summaries,
+4. fixed-budget ladder comparison outputs.
+
+This is intentionally the minimum paper-facing analysis contract, not the entire analysis pipeline.
+
 ## 3. What Is Operational-First Rather Than Paper-First
 
 Current schemas in this category:
@@ -118,33 +134,20 @@ The current paper says:
 
 ## 4. Where the Schema Layer Is Still Too Weak
 
-### 4.1 Primary Scientific Outputs Are Still Missing
+### 4.1 Primary Scientific Outputs Are Only Minimally Typed
 
-The current paper calls these first-class scientific objects:
-
-1. per-instance semantic outcome distributions,
-2. primary reliability signals,
-3. estimation-uncertainty outputs,
-4. rung-level paper comparison outputs.
-
-Today, the schema layer does **not** yet contain dedicated artifact contracts for those objects.
+The current paper's first-class scientific outputs now have dedicated artifact contracts, but only at the minimum stable level.
 
 The practical consequence is that:
 
 1. raw experiment evidence is strongly typed,
 2. operational summaries are strongly typed,
-3. paper-facing analysis outputs are still mostly outside the schema layer.
+3. core paper-facing analysis outputs are now typed,
+4. richer analysis-level provenance and expanded metric families are still intentionally deferred.
 
 ### 4.2 `manifest.json` Is Too Open Where It Matters Most
 
-`manifest.schema.json` still leaves:
-
-1. `measurement`
-2. `metrics`
-
-as open objects.
-
-That is acceptable as transitional infrastructure, but it is not the desired end state for paper-critical summaries.
+`manifest.schema.json` no longer leaves `measurement` and `metrics` as open objects, but it still represents only the stable runtime summary surface rather than the full downstream paper-analysis layer.
 
 ### 4.3 `M` Is Only Partially Encoded as a Co-Estimand-Defining Contract
 
@@ -157,7 +160,7 @@ Today, parts of `M` live in:
 
 That is too fragmented for a paper whose primary semantic path explicitly depends on `M`.
 
-### 4.4 Labeled Validation Is Under-Contracted
+### 4.4 Labeled Validation Is Still Thinner Than It Should Be
 
 The current paper treats labeled tasks as the empirical validation backbone.
 
@@ -187,16 +190,13 @@ Operational heuristics, exploratory statistics, and unstable experimental diagno
 
 Ordered by dependency.
 
-### 6.1 Analysis Artifact Schemas
+### 6.1 Analysis Artifact Expansion
 
 Most likely additions:
 
-1. a per-instance outcome-distribution artifact,
-2. a primary reliability-signal artifact,
-3. an estimation-uncertainty artifact,
-4. an optional rung-comparison or dataset-summary artifact.
-
-These should be added only after the analysis-pipeline contract is frozen enough to make them stable.
+1. richer measurement-provenance fields on instance analysis artifacts,
+2. more explicit dataset-summary or rung-summary schemas if the analysis pipeline stabilizes further,
+3. optional analysis-spec identifiers or hashes once the downstream pipeline contract is frozen.
 
 ### 6.2 Stronger Measurement Contract
 

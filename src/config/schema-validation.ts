@@ -12,6 +12,8 @@ import type { ArbiterTrialPlanRecord } from "../generated/trial-plan.types.js";
 import type { ArbiterParsedOutputRecord } from "../generated/parsed-output.types.js";
 import type { ArbiterDebugEmbeddingJSONLRecord } from "../generated/embedding.types.js";
 import type { ArbiterEmbeddingsProvenance } from "../generated/embeddings-provenance.types.js";
+import type { ArbiterInstanceAnalysisRecord } from "../generated/instance-analysis.types.js";
+import type { ArbiterLadderComparisonSummary } from "../generated/ladder-comparison.types.js";
 import type { ArbiterMonitoringRecord } from "../generated/monitoring.types.js";
 import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
@@ -40,7 +42,8 @@ const Ajv2020Ctor = Ajv2020 as unknown as new (opts?: Options) => {
 const ajv = new Ajv2020Ctor({
   allErrors: true,
   strict: true,
-  validateSchema: true
+  validateSchema: true,
+  $data: true
 });
 
 const applyFormats = addFormats as unknown as (instance: unknown) => void;
@@ -66,6 +69,10 @@ export const validateEmbedding =
   compiledValidators.validateEmbedding as ValidateFunction<ArbiterDebugEmbeddingJSONLRecord>;
 export const validateEmbeddingsProvenance =
   compiledValidators.validateEmbeddingsProvenance as ValidateFunction<ArbiterEmbeddingsProvenance>;
+export const validateInstanceAnalysis =
+  compiledValidators.validateInstanceAnalysis as ValidateFunction<ArbiterInstanceAnalysisRecord>;
+export const validateLadderComparison =
+  compiledValidators.validateLadderComparison as ValidateFunction<ArbiterLadderComparisonSummary>;
 export const validateMonitoring =
   compiledValidators.validateMonitoring as ValidateFunction<ArbiterMonitoringRecord>;
 export const validateAggregates =

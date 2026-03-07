@@ -29,6 +29,7 @@ import {
   validateGroupState
 } from "../config/schema-validation.js";
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
+import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import type { ArbiterRunManifest } from "../generated/manifest.types.js";
 import type { ArbiterTrialPlanRecord } from "../generated/trial-plan.types.js";
 import type { RunPolicySnapshot } from "../config/policy.js";
@@ -103,7 +104,7 @@ export class ArtifactWriter {
   private manifest: ArbiterRunManifest | null = null;
   private embeddingsProvenance: EmbeddingsProvenance | null = null;
   private latestMonitoring: MonitoringRecordPayload["monitoring_record"] | null = null;
-  private latestAggregates: Record<string, unknown> | null = null;
+  private latestAggregates: ArbiterAggregates | null = null;
 
   private readonly trialPlanWriter: JsonlWriter;
   private readonly trialsWriter: JsonlWriter;
@@ -410,7 +411,7 @@ export class ArtifactWriter {
   }
 
   private onAggregatesComputed(payload: AggregatesComputedPayload): void {
-    this.latestAggregates = payload.aggregates as unknown as Record<string, unknown>;
+    this.latestAggregates = payload.aggregates;
   }
 
   private onEmbeddingsFinalized(payload: EmbeddingsFinalizedPayload): void {
@@ -565,6 +566,8 @@ export class ArtifactWriter {
       embedding: {
         requested_model: this.resolvedConfig.measurement.embedding_model,
         actual_model: this.embeddingsProvenance?.actual_embedding_model ?? null,
+        embed_text_strategy: this.resolvedConfig.measurement.embed_text_strategy,
+        normalization: this.resolvedConfig.measurement.normalization,
         status: this.embeddingsProvenance?.status ?? "not_generated",
         generated_vectors: this.counts.embeddingSuccess,
         generation_ids_count: this.embeddingsProvenance?.generation_ids?.length ?? 0,
@@ -575,7 +578,12 @@ export class ArtifactWriter {
         enabled: this.groupingEnabled,
         params: this.groupingEnabled
           ? {
+              algorithm: this.resolvedConfig.measurement.clustering.algorithm,
+              similarity_metric: this.resolvedConfig.measurement.similarity_metric,
               tau: this.resolvedConfig.measurement.clustering.tau,
+              centroid_update_rule: this.resolvedConfig.measurement.clustering.centroid_update_rule,
+              ordering_rule: this.resolvedConfig.measurement.clustering.ordering_rule,
+              cluster_limit: this.resolvedConfig.measurement.clustering.cluster_limit,
               stop_mode: this.resolvedConfig.measurement.clustering.stop_mode
             }
           : null
@@ -584,8 +592,15 @@ export class ArtifactWriter {
 
     this.manifest.metrics = {
       final: this.latestAggregates ?? {
+        k_attempted: this.counts.trials,
+        k_eligible: this.counts.embeddingSuccess,
         novelty_rate: this.latestMonitoring?.novelty_rate ?? null,
-        mean_max_sim_to_prior: this.latestMonitoring?.mean_max_sim_to_prior ?? null
+        mean_max_sim_to_prior: this.latestMonitoring?.mean_max_sim_to_prior ?? null,
+        group_count: this.groupingEnabled
+          ? (this.latestMonitoring?.group_count ?? 0)
+          : null,
+        entropy: this.latestMonitoring?.entropy ?? null,
+        incomplete: input.incomplete
       }
     };
 

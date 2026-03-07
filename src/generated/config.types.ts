@@ -16,6 +16,10 @@ export type ArbiterResolvedConfig = {
     text: string;
     question_id?: string;
     source?: string;
+    evaluation?: QuestionEvaluation;
+    metadata?: {
+      [k: string]: unknown;
+    };
   };
   sampling: {
     /**
@@ -54,6 +58,7 @@ export type ArbiterResolvedConfig = {
       schema: {
         [k: string]: unknown;
       };
+      label_space: FiniteLabelSpace;
       embed_text_source: "decision" | "rationale" | "raw_content";
       rationale_max_chars?: number;
     };
@@ -84,13 +89,16 @@ export type ArbiterResolvedConfig = {
   measurement: {
     embedding_model: string;
     embedding_max_chars?: number;
+    normalization: "newline_to_lf+trim_trailing";
     embed_text_strategy: "outcome_only" | "outcome_or_raw_assistant";
+    similarity_metric: "cosine";
     novelty_threshold: number;
     clustering: {
       enabled: boolean;
       algorithm: "online_leader";
       tau: number;
       centroid_update_rule: "fixed_leader" | "incremental_mean";
+      ordering_rule: "trial_id_asc";
       cluster_limit: number;
       stop_mode: "disabled" | "advisory" | "enforced";
     };
@@ -103,6 +111,30 @@ export type Seed = number | string;
 export type NumberOrRange = number | NumberRange;
 export type IntegerOrRange = number | IntegerRange;
 
+export interface QuestionEvaluation {
+  ground_truth_label?: string;
+  label_space?: FiniteLabelSpace;
+  reference_answer?: string;
+  dataset?: {
+    dataset_id?: string;
+    split?: string;
+    record_id?: string;
+  };
+  adjudication?: {
+    source?: string;
+    reference_id?: string;
+    verified_at?: string;
+    notes?: string;
+  };
+}
+export interface FiniteLabelSpace {
+  type: "finite";
+  /**
+   * @minItems 1
+   */
+  labels: [string, ...string[]];
+  description?: string;
+}
 export interface WeightedModel {
   model: string;
   weight: number;

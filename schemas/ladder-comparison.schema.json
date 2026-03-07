@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbiter.dev/schemas/v1/ladder-comparison.schema.json",
+  "title": "Arbiter Ladder Comparison Summary",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lower", "upper"],
+      "properties": {
+        "lower": { "type": "number" },
+        "upper": { "type": "number" }
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "estimand_path",
+    "primary_signal",
+    "evaluation_metric",
+    "budget_axis",
+    "resampling_unit",
+    "comparisons"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "benchmark_id": { "type": "string", "minLength": 1 },
+    "estimand_path": {
+      "type": "string",
+      "enum": ["labeled", "semantic"]
+    },
+    "primary_signal": {
+      "type": "string",
+      "enum": ["top_choice_mass", "top_two_margin"]
+    },
+    "evaluation_metric": {
+      "type": "string",
+      "enum": ["auroc", "selective_prediction", "calibration"]
+    },
+    "budget_axis": {
+      "type": "string",
+      "enum": ["model_calls"]
+    },
+    "resampling_unit": {
+      "type": "string",
+      "enum": ["instance"]
+    },
+    "comparisons": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["baseline_rung", "candidate_rung", "value", "instance_count"],
+        "properties": {
+          "baseline_rung": {
+            "type": "string",
+            "enum": ["H0", "H1", "H2", "H3", "H4"]
+          },
+          "candidate_rung": {
+            "type": "string",
+            "enum": ["H0", "H1", "H2", "H3", "H4"]
+          },
+          "value": { "type": "number" },
+          "interval": { "$ref": "#/$defs/interval" },
+          "instance_count": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "budget_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model_calls_per_instance": { "type": "integer", "minimum": 1 },
+        "mean_total_tokens": { "type": "number", "minimum": 0 },
+        "mean_cost": { "type": "number", "minimum": 0 }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

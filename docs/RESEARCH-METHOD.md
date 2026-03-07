@@ -184,6 +184,8 @@ The paper analysis layer is responsible for computing:
 
 This separation is intentional. It prevents operational execution logic from silently becoming the scientific contract.
 
+When those downstream outputs are stabilized enough to deserve machine-readable persistence, they should use dedicated analysis artifact contracts rather than open manifest blobs.
+
 The analysis-pipeline specification will live in a separate document. This document governs only the boundary between harness and analysis, not the analysis internals.
 
 ## 6) Online Monitoring Versus Paper Measurement

@@ -61,16 +61,49 @@ export interface ArbiterRunManifest {
       [k: string]: UsageStats;
     };
   };
-  measurement?: {
-    [k: string]: unknown;
-  };
-  metrics?: {
-    [k: string]: unknown;
-  };
+  measurement?: ManifestMeasurementSummary;
+  metrics?: ManifestMetricsSummary;
 }
 export interface UsageStats {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
   cost?: number;
+}
+export interface ManifestMeasurementSummary {
+  embedding: {
+    requested_model: string;
+    actual_model: string | null;
+    embed_text_strategy: "outcome_only" | "outcome_or_raw_assistant";
+    normalization: string;
+    status: "not_generated" | "arrow_generated" | "jsonl_fallback";
+    generated_vectors: number;
+    generation_ids_count: number;
+    arrow_written: boolean;
+    fallback_jsonl_written: boolean;
+  };
+  grouping: {
+    enabled: boolean;
+    params: null | {
+      algorithm: "online_leader";
+      similarity_metric: "cosine";
+      tau: number;
+      centroid_update_rule: "fixed_leader" | "incremental_mean";
+      ordering_rule: "trial_id_asc";
+      cluster_limit: number;
+      stop_mode: "disabled" | "advisory" | "enforced";
+    };
+  };
+}
+export interface ManifestMetricsSummary {
+  final: ManifestFinalMetrics;
+}
+export interface ManifestFinalMetrics {
+  k_attempted: number;
+  k_eligible: number;
+  novelty_rate: number | null;
+  mean_max_sim_to_prior: number | null;
+  group_count?: number | null;
+  entropy?: number | null;
+  incomplete?: boolean;
 }

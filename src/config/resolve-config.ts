@@ -16,6 +16,7 @@ import type { ArbiterPromptManifest } from "../generated/prompt-manifest.types.j
 import type { ArbiterDecisionContractManifest } from "../generated/contract-manifest.types.js";
 import type { ArbiterDecisionContractPreset } from "../generated/decision-contract.types.js";
 import type { ArbiterProtocolSpec } from "../generated/protocol.types.js";
+import { EMBED_TEXT_NORMALIZATION } from "../core/constants.js";
 import { sha256Hex } from "../utils/hash.js";
 import { DEFAULT_EMBEDDING_MAX_CHARS, DEFAULT_STOP_POLICY } from "./defaults.js";
 
@@ -199,6 +200,15 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
   if (resolvedConfig.measurement.embedding_max_chars === undefined) {
     resolvedConfig.measurement.embedding_max_chars = DEFAULT_EMBEDDING_MAX_CHARS;
   }
+  if (resolvedConfig.measurement.normalization === undefined) {
+    resolvedConfig.measurement.normalization = EMBED_TEXT_NORMALIZATION;
+  }
+  if (resolvedConfig.measurement.similarity_metric === undefined) {
+    resolvedConfig.measurement.similarity_metric = "cosine";
+  }
+  if (resolvedConfig.measurement.clustering.ordering_rule === undefined) {
+    resolvedConfig.measurement.clustering.ordering_rule = "trial_id_asc";
+  }
 
   const resolvedPersonas = resolvedConfig.sampling.personas.map((persona) => {
     const resolved = resolvePromptEntry(
@@ -318,6 +328,7 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
       id: contractEntry.id,
       sha256: contractSha256,
       schema: contract.schema,
+      label_space: contract.label_space,
       embed_text_source: contract.embed_text_source,
       ...(contract.rationale_max_chars !== undefined
         ? { rationale_max_chars: contract.rationale_max_chars }
