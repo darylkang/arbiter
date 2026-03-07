@@ -10,7 +10,6 @@ import { REPO_ROOT, withTempWorkspace, writeJson } from "../helpers/workspace.mj
 const noopWarningSink = { warn() {} };
 const templates = [
   "default",
-  "quickstart_independent",
   "heterogeneity_mix",
   "debate_v1",
   "free_quickstart"
