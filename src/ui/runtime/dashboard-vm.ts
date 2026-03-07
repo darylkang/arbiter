@@ -33,6 +33,7 @@ export type DashboardState = {
     total: number;
     cost?: number;
   };
+  modelDisplayBySlug: Map<string, string>;
   trialModelById: Map<number, string>;
   workerStatus: Map<number, { status: WorkerViewStatus; trialId?: number }>;
 };
@@ -112,6 +113,7 @@ export const createDashboardState = (
   input: {
     runId: string;
     mode: "mock" | "live";
+    modelDisplayBySlug?: Map<string, string>;
     resolvedConfig: EventPayloadMap["run.started"]["resolved_config"] | {
       execution: {
         k_min: number;
@@ -161,6 +163,7 @@ export const createDashboardState = (
       completion: 0,
       total: 0
     },
+    modelDisplayBySlug: input.modelDisplayBySlug ?? new Map(),
     trialModelById: new Map(),
     workerStatus: new Map()
   };
@@ -214,7 +217,10 @@ export const applyDashboardTrialPlanned = (
   state: DashboardState,
   payload: EventPayloadMap["trial.planned"]
 ): void => {
-  state.trialModelById.set(payload.trial_id, payload.assigned_config.model);
+  state.trialModelById.set(
+    payload.trial_id,
+    state.modelDisplayBySlug.get(payload.assigned_config.model) ?? payload.assigned_config.model
+  );
 };
 
 export const applyDashboardEmbeddingRecorded = (
@@ -348,7 +354,7 @@ export const buildDashboardViewModel = (
 
   const usageLines: RenderLine[] =
     state.mode === "mock"
-      ? [{ text: "Usage not applicable", tone: "muted" }]
+      ? [{ text: UI_COPY.mockUsageSummary, tone: "muted" }]
       : [
           { text: `Usage so far: ${toUsageSummary(state)}`, tone: "text" },
           ...(state.usage.cost !== undefined
@@ -366,6 +372,6 @@ export const buildDashboardViewModel = (
     caveatLines,
     workerRows,
     usageLines,
-    footerText: "Ctrl+C graceful stop"
+    footerText: "Ctrl+C request graceful stop"
   };
 };

@@ -407,10 +407,11 @@ export const askMultilineQuestion = async (inputControl: {
   return withRawKeyCapture<string | NavigationSignal>({
     render: (errorLine) => {
       const lines = [
-        "Question",
-        "Type your question and press Enter to continue.",
+        "Include all relevant context. Arbiter samples responses to characterize distributional behavior.",
         "",
-        buffer.length === 0 ? "(start typing)" : buffer,
+        "Question",
+        "",
+        buffer.length === 0 ? "Start typing…" : buffer,
         "",
         `Characters: ${buffer.length}`
       ];

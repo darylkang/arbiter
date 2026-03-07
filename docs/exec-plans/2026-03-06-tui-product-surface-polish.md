@@ -1,6 +1,6 @@
 # ExecPlan: TUI Product-Surface Polish
 
-Status: proposed
+Status: completed
 Owner: Codex
 Last updated: 2026-03-06
 
@@ -45,15 +45,16 @@ Sequencing constraints:
 
 ## 3. Progress
 
-- [ ] M0: spec reconciliation for product polish
-- [ ] M1: display-quality cleanup
-- [ ] M2: transition and consistency polish
-- [ ] M3: validation, capture review, and closeout
+- [x] M0: spec reconciliation for product polish
+- [x] M1: display-quality cleanup
+- [x] M2: transition and consistency polish
+- [x] M3: validation, capture review, and closeout
 
 ## 4. Surprises & Discoveries
 
 1. The runtime architecture is no longer the limiting factor. Product polish is now primarily constrained by presentation decisions encoded in `steps.ts`, `draft.ts`, `dashboard-vm.ts`, and `receipt-render.ts`.
 2. The existing product-spec docs remain mostly correct, but some display details are stale relative to the current product ambition, especially model metadata formatting, Stage 1→2 transition guidance, and mock-mode usage copy.
+3. The highest-value product improvements came from removing developer-facing presentation details rather than introducing new visual primitives. Display-name mapping, inline metadata, and a deliberate transition beat materially improved the product surface without touching runtime architecture.
 
 ## 5. Decision Log
 
@@ -246,6 +247,29 @@ Rollback boundary:
 2. Generate a fresh capture pack.
 3. Review the updated `.txt` artifacts and paired `.ansi` files.
 4. Record the new product-surface grade and any residual polish debt.
+
+Completion notes:
+
+1. Validation passed:
+   - `npm run test:ui`
+   - `npm run test:e2e:tui`
+   - `npm run test:unit`
+   - `npm run test:guards`
+   - `npm run capture:tui`
+2. Fresh capture pack reviewed:
+   - `output/playwright/tui-visual/2026-03-07T01-55-03-472Z`
+3. Result:
+   - Stage 1 selection surfaces now use product display labels with inline metadata.
+   - Stage 1 question screen now includes the locked helper text.
+   - Stage 1→2 handoff now includes a visible transition beat.
+   - Stage 2 worker rows now use display labels instead of raw slugs.
+   - Stage 2 mock-mode usage now reads as an intentional state.
+   - Stage 3 artifact list now renders vertically and reproduce paths prefer relative paths.
+4. Updated product-surface grade:
+   - `A-`
+5. Residual polish debt:
+   - Stage 3 summary remains functionally strong but visually plainer than Stage 1.
+   - Persona descriptions are improved but still intentionally terse rather than highly expressive.
 
 ## 10. Validation and Acceptance
 

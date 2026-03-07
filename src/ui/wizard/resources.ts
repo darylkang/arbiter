@@ -12,14 +12,31 @@ const titleCase = (value: string): string =>
     .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
     .join(" ");
 
+const PROVIDER_LABELS: Record<string, string> = {
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+  google: "Google",
+  meta: "Meta",
+  "meta-llama": "Meta"
+};
+
+const normalizeModelDisplay = (value: string): string =>
+  value
+    .replace(/\s*\(\d{4}-\d{2}-\d{2}\)$/, "")
+    .replace(/\s+\d{3}$/, "")
+    .replace(/\s*\(free\)$/i, "")
+    .trim();
+
 const toPersonaDisplay = (id: string): string => titleCase(id.replace(/^persona_/, ""));
 
-const toModelBadges = (input: { provider: string; tier: string; isAliased: boolean }): string[] => {
-  const badges = [titleCase(input.provider), input.tier === "free" ? "free" : "paid"];
+const toProviderLabel = (provider: string): string => PROVIDER_LABELS[provider] ?? titleCase(provider);
+
+const toModelMetadata = (input: { provider: string; tier: string; isAliased: boolean }): string => {
+  const parts = [toProviderLabel(input.provider), input.tier === "free" ? "free" : "paid"];
   if (input.isAliased) {
-    badges.push("alias");
+    parts.push("alias");
   }
-  return badges;
+  return parts.join(" · ");
 };
 
 export const loadWizardVersion = (assetRoot: string): string => {
@@ -33,11 +50,11 @@ export const loadCatalogModels = (assetRoot: string): CatalogModel[] => {
   );
   return catalog.models.map((model) => ({
     slug: model.slug,
-    display: model.display_name,
+    display: normalizeModelDisplay(model.display_name),
     provider: model.provider,
     tier: model.tier,
     isAliased: model.is_aliased === true,
-    badges: toModelBadges({
+    metadata: toModelMetadata({
       provider: model.provider,
       tier: model.tier,
       isAliased: model.is_aliased === true
@@ -54,7 +71,10 @@ export const loadPersonaOptions = (assetRoot: string): PersonaOption[] => {
     .map((entry) => ({
       id: entry.id,
       display: toPersonaDisplay(entry.id),
-      description: entry.description ?? ""
+      description:
+        entry.description?.trim().toLowerCase().startsWith(toPersonaDisplay(entry.id).toLowerCase())
+          ? "default baseline stance"
+          : (entry.description ?? "").trim().replace(/\.$/, "")
     }));
 };
 

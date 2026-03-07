@@ -18,6 +18,7 @@ export const UI_COPY = {
     "Dashboard requires at least 60 columns x 15 rows; continuing without live dashboard.",
   gracefulStopRequested:
     "Graceful stop requested. Finishing in-flight trials and writing partial artifacts.",
+  mockUsageSummary: "Mock mode: usage and cost are not tracked.",
   startingRun: "Starting run",
   runHeader: "── PROGRESS ──",
   receiptHeader: "── RECEIPT ──"

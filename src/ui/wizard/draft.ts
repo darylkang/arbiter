@@ -45,6 +45,8 @@ const summarizeDisplaySelection = (
 ): string =>
   summarizeSelection(values.map((value) => labels?.get(value) ?? value));
 
+const formatReviewRow = (key: string, value: string): string => `${key.padEnd(16)}${value}`;
+
 export const toRailSummaries = (input: {
   draft: WizardDraft;
   currentStep: number;
@@ -245,16 +247,22 @@ export const buildReviewLines = (input: {
       : "⚠ Live connectivity check occurs at run start",
     "",
     "Config Summary",
-    `Question: "${truncate(draft.question.trim(), 72)}"`,
-    `Protocol: ${formatProtocol(draft)}`,
-    `Models: ${summarizeDisplaySelection(draft.modelSlugs, modelLabels)} (${draft.modelSlugs.length} selected)`,
-    `Personas: ${summarizeDisplaySelection(draft.personaIds, personaLabels)} (${draft.personaIds.length} selected)`,
-    `Decode Params: ${toDecodeSummary(draft)}`,
-    `Run mode: ${toRunModeLabel(runMode as UiRunMode)}`,
-    `Output dir: ${draft.outputDir}`
+    formatReviewRow("Question", `"${truncate(draft.question.trim(), 72)}"`),
+    formatReviewRow("Protocol", formatProtocol(draft)),
+    formatReviewRow(
+      "Models",
+      `${summarizeDisplaySelection(draft.modelSlugs, modelLabels)} (${draft.modelSlugs.length} selected)`
+    ),
+    formatReviewRow(
+      "Personas",
+      `${summarizeDisplaySelection(draft.personaIds, personaLabels)} (${draft.personaIds.length} selected)`
+    ),
+    formatReviewRow("Decode Params", toDecodeSummary(draft)),
+    formatReviewRow("Run mode", toRunModeLabel(runMode as UiRunMode)),
+    formatReviewRow("Output dir", draft.outputDir)
   ];
   if (isExistingPath && selectedConfigPath) {
-    lines.push(`Source config: ${selectedConfigPath}`);
+    lines.push(formatReviewRow("Source config", selectedConfigPath));
   }
   return lines;
 };

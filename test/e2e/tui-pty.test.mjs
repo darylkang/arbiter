@@ -239,7 +239,7 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
 
     await session.waitForText("✔  Entry Path", 45000);
     await session.waitForText("── PROGRESS", 45000);
-    await session.waitForText("Usage not applicable", 45000);
+    await session.waitForText("Mock mode: usage and cost are not tracked.", 45000);
     await session.waitForText("── RECEIPT", 45000);
     await session.waitForText("Stopped:", 45000);
 
@@ -314,7 +314,7 @@ test("pty: create-new path submits Step 1 question with Enter", { concurrency: f
     session.pressEnter();
 
     await session.waitForText("Research Question", 25000);
-    await session.waitForText("press Enter to continue", 25000);
+    await session.waitForText("Enter continue · Esc back", 25000);
     session.typeText("Question submit fallback test");
     session.pressEnter();
 

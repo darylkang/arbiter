@@ -44,7 +44,7 @@ export type CatalogModel = {
   provider: string;
   tier: string;
   isAliased: boolean;
-  badges: string[];
+  metadata: string;
 };
 
 export type PersonaOption = {

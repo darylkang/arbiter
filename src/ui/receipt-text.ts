@@ -1,5 +1,6 @@
 import type { ReceiptModel } from "./receipt-model.js";
 import { UI_COPY, toStopBanner } from "./copy.js";
+import { toDisplayConfigPath } from "./runtime/render-utils.js";
 
 const formatCount = (value: number | undefined): string => (value === undefined ? "-" : String(value));
 
@@ -53,7 +54,7 @@ export const formatReceiptText = (model: ReceiptModel): string => {
 
   lines.push("");
   lines.push("Reproduce this run:");
-  lines.push(`arbiter run --config ${model.run_dir}/config.resolved.json`);
+  lines.push(`arbiter run --config ${toDisplayConfigPath(model.run_dir)}`);
   lines.push("");
   lines.push("Run complete.");
 

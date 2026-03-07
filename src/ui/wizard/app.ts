@@ -3,6 +3,8 @@ import { runLiveService, runMockService } from "../../run/run-service.js";
 import { createConsoleWarningSink } from "../../utils/warnings.js";
 import { createUiRunLifecycleHooks } from "../run-lifecycle-hooks.js";
 import { UI_COPY } from "../copy.js";
+import { createStdoutFormatter } from "../fmt.js";
+import { renderSeparator } from "../wizard-theme.js";
 import {
   listConfigFiles,
   nextCollisionSafeConfigPath,
@@ -36,10 +38,13 @@ const runStudy = async (input: {
   configPath: string;
   assetRoot: string;
   stackPrefixText?: string;
+  modelDisplayBySlug?: Map<string, string>;
 }): Promise<void> => {
+  const fmt = createStdoutFormatter();
   const hooks = createUiRunLifecycleHooks({
     dashboard: true,
-    stackPrefixText: input.stackPrefixText
+    stackPrefixText: input.stackPrefixText,
+    modelDisplayBySlug: input.modelDisplayBySlug
   });
   const warningSink = createConsoleWarningSink();
   const common = {
@@ -209,6 +214,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         configPathToRun = saveTarget;
       }
 
+      const fmt = createStdoutFormatter();
       const stackPrefixText = [
         buildFrozenRailSummary({
           draft: state.draft,
@@ -219,7 +225,8 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
           personaLabels: personaLabelById
         }),
         "",
-        UI_COPY.startingRun,
+        renderSeparator(fmt.termWidth(), fmt),
+        fmt.muted(UI_COPY.startingRun),
         ""
       ].join("\n");
 
@@ -229,7 +236,8 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         runMode: state.runMode,
         configPath: configPathToRun,
         assetRoot,
-        stackPrefixText
+        stackPrefixText,
+        modelDisplayBySlug: modelLabelBySlug
       });
       return;
     }

@@ -1,3 +1,5 @@
+import { isAbsolute, relative, resolve } from "node:path";
+
 import type { Formatter } from "../fmt.js";
 import type { RenderTone } from "../runtime-view-models.js";
 
@@ -34,4 +36,13 @@ export const renderToneLine = (text: string, tone: RenderTone | undefined, fmt: 
     return fmt.text(text);
   }
   return fmt.muted(text);
+};
+
+export const toDisplayConfigPath = (runDir: string, cwd = process.cwd()): string => {
+  const absolute = resolve(runDir, "config.resolved.json");
+  const rel = relative(cwd, absolute);
+  if (rel.length > 0 && !rel.startsWith("..") && !isAbsolute(rel)) {
+    return rel.startsWith(".") ? rel : `./${rel}`;
+  }
+  return absolute;
 };

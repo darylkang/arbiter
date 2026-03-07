@@ -18,10 +18,10 @@ const buildDashboardVm = (overrides = {}) => ({
   caveatLines: [{ text: "Stopping indicates diminishing novelty, not correctness.", tone: "muted" }],
   workerRows: [
     { id: 1, state: "idle", model: "—", tick: 1 },
-    { id: 2, state: "running", trialId: 4, model: "openai/gpt-4o-mini-2024-07-18", tick: 1 }
+    { id: 2, state: "running", trialId: 4, model: "GPT-4o Mini", tick: 1 }
   ],
   usageLines: [{ text: "Usage so far: 0 tokens (in 0, out 0)", tone: "text" }],
-  footerText: "Ctrl+C graceful stop",
+  footerText: "Ctrl+C request graceful stop",
   ...overrides
 });
 
@@ -59,15 +59,16 @@ test("dashboard shows unknown ETA when insufficient data", () => {
 test("dashboard marks usage as not applicable in mock mode", () => {
   const text = buildRunDashboardText(
     buildDashboardVm({
-      usageLines: [{ text: "Usage not applicable", tone: "muted" }]
+      usageLines: [{ text: "Mock mode: usage and cost are not tracked.", tone: "muted" }]
     })
   );
-  assert.equal(text.includes("Usage not applicable"), true);
+  assert.equal(text.includes("Mock mode: usage and cost are not tracked."), true);
 });
 
 test("dashboard worker rows show assigned model labels for active trials", () => {
   const text = buildRunDashboardText(buildDashboardVm());
-  assert.equal(text.includes("openai/gpt-4o-mini-2024-07-18"), true);
+  assert.equal(text.includes("GPT-4o Mini"), true);
+  assert.equal(text.includes("openai/gpt-4o-mini-2024-07-18"), false);
   assert.equal(text.includes("trial 4"), true);
 });
 

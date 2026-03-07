@@ -9,6 +9,7 @@ import { createStdoutFormatter } from "../ui/fmt.js";
 import { UI_COPY } from "../ui/copy.js";
 import { createUiRunLifecycleHooks } from "../ui/run-lifecycle-hooks.js";
 import { launchWizardTUI } from "../ui/wizard/app.js";
+import { loadCatalogModels } from "../ui/wizard/resources.js";
 import { runLiveService, runMockService } from "../run/run-service.js";
 import type { WarningSink } from "../utils/warnings.js";
 import {
@@ -112,8 +113,12 @@ const runHeadless = async (input: {
     process.stderr.write(`${UI_COPY.dashboardNoTty}\n`);
   }
 
+  const modelDisplayBySlug = dashboardEnabled
+    ? new Map(loadCatalogModels(input.assetRoot).map((model) => [model.slug, model.display]))
+    : undefined;
+
   const warnings = dashboardEnabled ? undefined : createSilentWarningSink();
-  const hooks = createUiRunLifecycleHooks({ dashboard: dashboardEnabled });
+  const hooks = createUiRunLifecycleHooks({ dashboard: dashboardEnabled, modelDisplayBySlug });
 
   const maxTrials = getFlagInteger(parsed.flags, "--max-trials");
   const batchSize = getFlagInteger(parsed.flags, "--batch-size");

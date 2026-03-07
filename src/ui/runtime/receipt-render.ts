@@ -6,7 +6,7 @@ import { createStdoutFormatter, type Formatter } from "../fmt.js";
 import { buildReceiptModel } from "../receipt-model.js";
 import type { ReceiptVM } from "../runtime-view-models.js";
 import { renderKV, renderRuledSection, renderSeparator, renderStatusStrip } from "../wizard-theme.js";
-import { formatClockHMS, renderToneLine } from "./render-utils.js";
+import { formatClockHMS, renderToneLine, toDisplayConfigPath } from "./render-utils.js";
 
 type ReceiptRenderOptions = {
   width?: number;
@@ -22,7 +22,11 @@ const toDurationFromIso = (startedAt?: string, completedAt?: string): string => 
   if (!Number.isFinite(started) || !Number.isFinite(completed) || completed < started) {
     return "—";
   }
-  return formatClockHMS(completed - started);
+  const elapsedMs = completed - started;
+  if (elapsedMs < 1000) {
+    return "—";
+  }
+  return formatClockHMS(elapsedMs);
 };
 
 export const readReceiptText = (runDir: string): string | null => {
@@ -70,10 +74,7 @@ export const buildReceiptViewModel = (runDir: string): ReceiptVM => {
   if ((model.artifacts?.length ?? 0) === 0) {
     artifactRows.push("—");
   } else {
-    const paths = model.artifacts?.map((artifact) => artifact.path) ?? [];
-    for (let index = 0; index < paths.length; index += 3) {
-      artifactRows.push(paths.slice(index, index + 3).join("    "));
-    }
+    artifactRows.push(...(model.artifacts?.map((artifact) => artifact.path) ?? []));
   }
   if ((model.counts.k_eligible ?? 0) === 0) {
     artifactRows.push("No embeddings were generated because there were zero eligible trials.");
@@ -86,7 +87,7 @@ export const buildReceiptViewModel = (runDir: string): ReceiptVM => {
     summaryRows,
     groupLines,
     artifactRows,
-    reproduceCommand: `arbiter run --config ${runDir}/config.resolved.json`,
+    reproduceCommand: `arbiter run --config ${toDisplayConfigPath(runDir)}`,
     footerText: "Run complete."
   };
 };

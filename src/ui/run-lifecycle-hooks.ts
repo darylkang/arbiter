@@ -50,12 +50,13 @@ class RunDashboardMonitor {
   private animationTimer: NodeJS.Timeout | null = null;
   private hasRendered = false;
 
-  constructor(context: RunLifecycleContext, prefixText?: string) {
+  constructor(context: RunLifecycleContext, modelDisplayBySlug?: Map<string, string>, prefixText?: string) {
     this.bus = context.bus;
     this.prefixText = prefixText?.trim().length ? prefixText.replace(/\n+$/, "") : null;
     this.snapshot = createDashboardState({
       runId: context.runId,
       mode: context.mode,
+      modelDisplayBySlug,
       resolvedConfig: context.resolvedConfig
     });
   }
@@ -172,6 +173,7 @@ export {
 export const createUiRunLifecycleHooks = (input?: {
   dashboard?: boolean;
   stackPrefixText?: string;
+  modelDisplayBySlug?: Map<string, string>;
 }): RunLifecycleHooks => {
   const dashboardEnabled = shouldRenderDashboard(Boolean(input?.dashboard));
   const stackPrefixText = input?.stackPrefixText?.replace(/\n+$/, "");
@@ -193,7 +195,7 @@ export const createUiRunLifecycleHooks = (input?: {
       if (stackPrefixText && stackPrefixText.trim().length > 0) {
         process.stdout.write(`${stackPrefixText}\n`);
       }
-      monitor = new RunDashboardMonitor(context, stackPrefixText);
+      monitor = new RunDashboardMonitor(context, input?.modelDisplayBySlug, stackPrefixText);
       monitor.attach();
     },
     onRunFinally: async (context): Promise<void> => {

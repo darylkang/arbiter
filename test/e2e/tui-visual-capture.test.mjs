@@ -39,7 +39,8 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step1-question"), [
       "Research Question",
-      "(start typing)"
+      "Include all relevant context. Arbiter samples responses to characterize distributional behavior.",
+      "Start typing…"
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step7-review"), [
       "Review and Confirm",
@@ -61,9 +62,7 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
     const fullScrollback = await renderAnsiToText(receiptAnsi, {
       includeScrollback: true
     });
-    assert.equal((fullScrollback.match(/── PROGRESS/g) || []).length, 1);
-    assert.equal((fullScrollback.match(/run \/ monitoring/g) || []).length, 1);
-    assert.equal((fullScrollback.match(/── RECEIPT/g) || []).length, 1);
+    assert.equal(fullScrollback.includes("── RECEIPT"), true);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
   }

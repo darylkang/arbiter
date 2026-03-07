@@ -69,8 +69,16 @@ test("Stage 1 frame builder has a deterministic plain-text fixture", () => {
       contextLabel: "setup / question",
       showRunMode: true,
       activeLabel: "Research Question",
-      activeLines: ["Research Question", "", "What pattern matters?", "", "(start typing)"],
-      footerText: "Enter submit · Esc back",
+      activeLines: [
+        "Include all relevant context. Arbiter samples responses to characterize distributional behavior.",
+        "",
+        "Question",
+        "",
+        "Start typing…",
+        "",
+        "Characters: 0"
+      ],
+      footerText: "Enter continue · Esc back",
       stepSummaries: {
         0: "Create new study",
         1: "Mock"
@@ -97,11 +105,13 @@ test("Stage 1 frame builder has a deterministic plain-text fixture", () => {
       "✔  Run Mode           Mock",
       "◆  Research Question",
       "│",
-      "│   Research Question",
+      "│   Include all relevant context. Arbiter samples responses to characterize distributional behavior.",
       "│",
-      "│   What pattern matters?",
+      "│   Question",
       "│",
-      "│   (start typing)",
+      "│   Start typing…",
+      "│",
+      "│   Characters: 0",
       "│",
       "◇  Protocol",
       "◇  Models",
@@ -111,7 +121,7 @@ test("Stage 1 frame builder has a deterministic plain-text fixture", () => {
       "◇  Review and Confirm",
       "",
       "────────────────────────────────────────────────────────────────────────────────",
-      "Enter submit · Esc back"
+      "Enter continue · Esc back"
     ].join("\n")
   );
 });
@@ -137,7 +147,7 @@ test("Stage 2 dashboard builder has a deterministic plain-text fixture", () => {
         { id: 2, state: "idle", trialId: undefined, model: "—", tick: 1 }
       ],
       usageLines: [{ text: "Usage so far: 1200 tokens (in 700, out 500)", tone: "text" }],
-      footerText: "Ctrl+C graceful stop"
+      footerText: "Ctrl+C request graceful stop"
     },
     { width: 80, fmt }
   );
@@ -172,7 +182,7 @@ test("Stage 2 dashboard builder has a deterministic plain-text fixture", () => {
       "Usage so far: 1200 tokens (in 700, out 500)",
       "",
       "────────────────────────────────────────────────────────────────────────────────",
-      "Ctrl+C graceful stop",
+      "Ctrl+C request graceful stop",
       ""
     ].join("\n")
   );
@@ -195,8 +205,8 @@ test("Stage 3 receipt builder has a deterministic plain-text fixture", () => {
         { text: "Embedding groups: 3", tone: "text" },
         { text: "Groups reflect embedding similarity, not semantic categories.", tone: "muted" }
       ],
-      artifactRows: ["Only generated files are listed.", "config.resolved.json    manifest.json"],
-      reproduceCommand: "arbiter run --config runs/example/config.resolved.json",
+      artifactRows: ["Only generated files are listed.", "config.resolved.json", "manifest.json"],
+      reproduceCommand: "arbiter run --config ./runs/example/config.resolved.json",
       footerText: "Run complete."
     },
     { width: 80, fmt }
@@ -227,11 +237,12 @@ test("Stage 3 receipt builder has a deterministic plain-text fixture", () => {
       "── ARTIFACTS ───────────────────────────────────────────────────────────────────",
       "",
       "Only generated files are listed.",
-      "config.resolved.json    manifest.json",
+      "config.resolved.json",
+      "manifest.json",
       "",
       "── REPRODUCE ───────────────────────────────────────────────────────────────────",
       "",
-      "arbiter run --config runs/example/config.resolved.json",
+      "arbiter run --config ./runs/example/config.resolved.json",
       "",
       "────────────────────────────────────────────────────────────────────────────────",
       "Run complete.",

@@ -130,7 +130,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
       prompt: "Models",
       choices: context.modelOptions.map((model) => ({
         id: model.slug,
-        label: `${model.display}${model.badges.length > 0 ? ` ${model.badges.map((badge) => `[${badge}]`).join(" ")}` : ""}`
+        label: model.metadata.length > 0 ? `${model.display} · ${model.metadata}` : model.display
       })),
       defaults: state.draft.modelSlugs,
       emptySelectionError: "Fix required: select at least one model.",

@@ -233,7 +233,7 @@ export const captureVisualJourney = async (options = {}) => {
     pressEnter();
 
     await waitForText("◆  Research Question");
-    await waitForText("Type your question and press Enter to continue");
+    await waitForText("Enter continue · Esc back");
     await saveSnapshot("step1-question");
     session.write("What are the tradeoffs of event sourcing?\r");
 
