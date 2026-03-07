@@ -9,7 +9,7 @@ It has four jobs:
 3. separate durable harness infrastructure from paper-specific analysis commitments,
 4. prevent the scientific core from drifting into Notion-only prose, ad hoc schemas, or implementation accidents.
 
-This document is intentionally narrower than `docs/DESIGN.md`. `DESIGN.md` owns durable cross-project semantics for Arbiter as a harness. This document owns the current paper family's research-method commitments.
+This document is intentionally narrower than `docs/DESIGN.md`. `DESIGN.md` owns durable cross-project semantics for Arbiter as a harness. This document owns the current paper's research-method commitments.
 
 ## 1) Authority and Scope
 
@@ -29,6 +29,8 @@ This document does not own:
 - CLI or TUI behavior contracts,
 - general contributor workflow,
 - rollout sequencing.
+
+The Notion research brief defines the estimand as `P_Q(y | x)` with `Y` finite and task-given, and it positions discrete-label evaluation as the primary path for the paper's strongest claims. This document intentionally extends that framing by making `M` co-estimand-defining and by elevating free-form semantic outcome estimation as the most general estimand formalism that the harness must support. The brief remains the source for thesis, positioning, and related-work strategy. This document is the source for how that methodological contract is implemented in the repository.
 
 ### 1.2) Authority Order
 
@@ -101,9 +103,11 @@ This is a stronger commitment than treating semantic clustering as a secondary c
 2. `M` is also estimand-defining,
 3. changing either `Q` or `M` changes what is being estimated.
 
+This means that `P_(Q,M)(y | x)` is the paper's most general estimand formalism. It does not mean that discrete-label evaluation is deprioritized. The paper's strongest empirical claims, including AUROC, selective prediction, and calibration, still require tasks with known ground truth, where `y` may come from a task-defined label set. On those tasks, `M` reduces to a normalization layer and the estimand simplifies to `P_Q(y | x)`.
+
 ### 3.3) What `M` Includes
 
-For this paper family, `M` may include:
+For this paper, `M` may include:
 
 1. structured extraction or normalization from raw assistant text,
 2. choice of source text used for semantic comparison,
@@ -118,7 +122,7 @@ Because the primary path is semantic and free-form, these choices are not implem
 
 ### 3.4) Discrete-Label Path
 
-Discrete-label tasks remain valuable, but they are a special case rather than the paper's center.
+Discrete-label tasks remain essential even though they are not the most general formalization of the estimand.
 
 In that case:
 
@@ -126,7 +130,7 @@ In that case:
 2. `M` reduces to a simpler normalization layer,
 3. the same `Q(c)` framing still applies.
 
-This path is useful for calibration, validation, and comparison, but it does not displace the primary semantic path.
+Free-form semantic outcome estimation under `M` is the paper's distinctive methodological contribution. Discrete-label evaluation is the paper's validation backbone. Both are essential.
 
 ## 4) First-Class Scientific Outputs
 
@@ -179,6 +183,8 @@ The paper analysis layer is responsible for computing:
 5. final rung-level comparison tables and plots.
 
 This separation is intentional. It prevents operational execution logic from silently becoming the scientific contract.
+
+The analysis-pipeline specification will live in a separate document. This document governs only the boundary between harness and analysis, not the analysis internals.
 
 ## 6) Online Monitoring Versus Paper Measurement
 
