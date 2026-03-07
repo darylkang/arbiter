@@ -6,8 +6,8 @@ import {
   chatCompletion,
   embedText,
   listModels
-} from "../../dist/openrouter/client.js";
-import { resetOpenRouterRateLimiterForTests } from "../../dist/openrouter/rate-limiter.js";
+} from "../../src/openrouter/client.ts";
+import { resetOpenRouterRateLimiterForTests } from "../../src/openrouter/rate-limiter.ts";
 
 const restoreEnv = (snapshot) => {
   for (const [key, value] of Object.entries(snapshot)) {

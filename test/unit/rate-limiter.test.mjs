@@ -6,7 +6,7 @@ import {
   resolveOpenRouterRateLimit,
   resetOpenRouterRateLimiterForTests,
   waitForOpenRouterToken
-} from "../../dist/openrouter/rate-limiter.js";
+} from "../../src/openrouter/rate-limiter.ts";
 
 test("resolveOpenRouterRateLimit uses defaults and disable semantics", () => {
   assert.equal(resolveOpenRouterRateLimit(undefined), 10);

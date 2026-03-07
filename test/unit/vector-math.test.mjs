@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { cosineSimilarity, vectorNorm } from "../../dist/core/vector-math.js";
+import { cosineSimilarity, vectorNorm } from "../../src/core/vector-math.ts";
 
 test("vectorNorm computes Euclidean norm", () => {
   assert.equal(vectorNorm([3, 4]), 5);

@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createJsonlWriter } from "../../dist/artifacts/io.js";
+import { createJsonlWriter } from "../../src/artifacts/io.ts";
 
 test("createJsonlWriter surfaces write-stream errors on close", async () => {
   const root = mkdtempSync(join(tmpdir(), "arbiter-io-test-"));

@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   extractFencedJson,
   extractUnfencedJson
-} from "../../dist/core/json-extraction.js";
+} from "../../src/core/json-extraction.ts";
 
 test("extractFencedJson extracts JSON from fenced block", () => {
   const value = extractFencedJson("```json\n{\"decision\":\"yes\"}\n```");

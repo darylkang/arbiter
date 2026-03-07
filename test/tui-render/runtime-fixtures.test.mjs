@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPlainFormatter } from "../../dist/ui/fmt.js";
+import { createPlainFormatter } from "../../src/ui/fmt.ts";
 import {
   renderBrandBlock,
   renderRuledSection,
   renderWorkerRow
-} from "../../dist/ui/wizard-theme.js";
-import { buildWizardFrameText } from "../../dist/ui/wizard/frame-manager.js";
+} from "../../src/ui/wizard-theme.ts";
+import { buildWizardFrameText } from "../../src/ui/wizard/frame-manager.ts";
 import {
   buildReceiptDisplayText,
   buildRunDashboardText
-} from "../../dist/ui/run-lifecycle-hooks.js";
+} from "../../src/ui/run-lifecycle-hooks.ts";
 
 test("renderBrandBlock uses the provided width instead of terminal globals", () => {
   const fmt = createPlainFormatter({ columns: 120 });

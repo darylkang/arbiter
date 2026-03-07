@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { EventBus } from "../../dist/events/event-bus.js";
+import { EventBus } from "../../src/events/event-bus.ts";
 
 test("EventBus emits envelope metadata with monotonic sequence", () => {
   const bus = new EventBus();

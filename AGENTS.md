@@ -201,7 +201,7 @@ Minimum by change type:
   - `npm run test:pack`
   - `npm pack` and inspect tarball contents
 - **CLI surface changes**:
-  - `npm run test:cli-contracts`
+  - `npm run test:cli`
   - `npm run test:ui` if TTY behavior changed
 - **Provider integration / provenance changes**:
   - `npm run test:provenance`
@@ -211,22 +211,19 @@ If you do not run an expected command, say so explicitly and name the residual r
 
 ### Merge Gate
 
-Before merging implementation changes, run the standard suite:
+Before merging implementation changes, run the canonical non-live gate:
 
-- `npm run check:types`
-- `npm run check:schemas`
-- `npm run test:mock-run`
-- `npm run test:templates`
-- `npm run test:verify`
-- `npm run test:debate`
-- `npm run test:clustering`
-- `npm run test:embeddings`
-- `npm run test:pack`
-- `npm run test:ui`
+- `npm run test:merge`
+
+If `test:merge` is being changed or debugged, fall back to the component suites:
+
+- `npm run test:static`
+- `npm run test:integration`
+- `npm run test:cli`
+- `npm run test:tui:render`
 - `npm run test:e2e:tui`
-- `npm run test:cli-contracts`
+- `npm run test:release`
 - `npm run test:unit`
-- `npm run test:guards`
 
 Also run these when relevant:
 
@@ -277,7 +274,7 @@ When changing a subsystem, update the governing docs and run the matching valida
   - run `npm run capture:tui`, `npm run test:ui`, and `npm run test:e2e:tui`.
 - **CLI routing or command surface**:
   - update `docs/DESIGN.md` and `README.md`,
-  - run `npm run test:cli-contracts` and any affected TUI/headless tests.
+  - run `npm run test:cli` and any affected TUI/headless tests.
 - **Release or publish path**:
   - update `README.md` when user-facing usage changes,
   - run `npm run test:pack` and `npm pack`,

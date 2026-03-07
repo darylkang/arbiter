@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
-import { loadTemplateConfig } from "../../dist/cli/commands.js";
-import { runPreflight } from "../../dist/ui/wizard/flows.js";
+import { loadTemplateConfig } from "../../src/cli/commands.ts";
+import { runPreflight } from "../../src/ui/wizard/flows.ts";
 
 const REPO_ROOT = resolve(new URL("../../", import.meta.url).pathname);
 

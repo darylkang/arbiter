@@ -41,11 +41,11 @@ The suite follows these principles:
 
 Current state:
 
-1. Arbiter already has strong coverage across unit tests, PTY end-to-end tests, smoke scripts, architecture guards, and package/install checks.
-2. The main weakness is taxonomy: the testing system is encoded in `package.json` and ad hoc `scripts/*.mjs` names rather than a durable architecture.
-3. Many current "unit" tests still import from `dist/*`, which makes the fast loop slower and more build-coupled than intended.
-4. TUI visual review is already credible through `capture:tui`, but the render-contract lane is only beginning to emerge.
-5. Transitional named lanes now exist in `package.json`, but they still wrap the current build-backed and script-heavy implementation.
+1. Arbiter now has explicit lane entrypoints in `package.json` for static, unit, integration, CLI, TUI render, TUI end-to-end, release, canary, fast, and merge validation.
+2. The fast lane is real: `test:static` and `test:unit` both run without a full `dist/` build, and source-level tests import from `src/*`.
+3. TUI render contracts now live in `test/tui-render/*.test.mjs`, separate from PTY end-to-end coverage in `test/e2e/*.test.mjs`.
+4. Integration, CLI, release, and canary lanes now have explicit `test/` directories, but the integration lane intentionally still retains a smaller set of script-backed smokes where they remain the most practical owner.
+5. The remaining cleanup problem is no longer lane naming; it is continued pruning of retained script-backed smokes and further tightening of invariant ownership where the line between unit and integration is still slightly broad.
 
 Target state:
 
@@ -72,39 +72,35 @@ This document defines the target architecture and the migration map from the cur
      - `npm run test:guards`
 
 2. `test:unit`
-   - purpose: fast deterministic logic and pure render-fixture checks
-   - current owners:
+  - purpose: fast deterministic logic and pure render-fixture checks
+  - current owners:
      - `npm run test:unit`
      - `test/unit/*.test.mjs`
-   - migration target:
-     - primarily source-level imports from `src/*`
+   - current characteristics:
+     - source-level imports from `src/*`
      - no full build step for the common fast path
 
 3. `test:integration`
-   - purpose: subsystem and mock-run behavior, artifact correctness, protocol semantics, and cross-module workflows under non-live conditions
-   - current owners:
-     - `npm run test:mock-run`
-     - `npm run test:verify`
-     - `npm run test:contracts`
-     - `npm run test:templates`
-     - `npm run test:report`
-     - `npm run test:debate`
-     - `npm run test:clustering`
-     - `npm run test:embeddings`
+  - purpose: subsystem and mock-run behavior, artifact correctness, protocol semantics, and cross-module workflows under non-live conditions
+  - current owners:
+     - `npm run test:integration`
+     - `test/integration/*.test.mjs`
+     - retained script-backed smokes invoked from `test/integration/script-backed-smokes.test.mjs`
 
 4. `test:cli`
-   - purpose: public command surface, flag routing, help output, non-TTY behavior, and exit semantics
-   - current owners:
-     - `npm run test:cli-contracts`
-     - CLI-focused portions of `npm run test:ui`
+  - purpose: public command surface, flag routing, help output, non-TTY behavior, and exit semantics
+  - current owners:
+     - `npm run test:cli`
+     - `test/cli/*.test.mjs`
 
 5. `test:tui:render`
-   - purpose: deterministic screen/layout contracts using the real render functions with plain/no-color formatting
-   - current owners:
-     - emerging fixture coverage in `test/unit/tui-runtime-fixtures.test.mjs`
-     - render-oriented portions of `test/unit/fmt.test.mjs`
-   - migration target:
-     - own Stage 0 through Stage 3 layout/content contracts
+  - purpose: deterministic screen/layout contracts using the real render functions with plain/no-color formatting
+  - current owners:
+     - `npm run test:tui:render`
+     - `test/tui-render/*.test.mjs`
+   - current scope:
+     - Stage 0 through Stage 3 layout/content contracts
+     - width-aware plain-text fixtures
 
 6. `test:tui:e2e`
    - purpose: PTY lifecycle, key handling, resize behavior, stage handoff ordering, scrollback, and terminal cleanup
@@ -114,10 +110,10 @@ This document defines the target architecture and the migration map from the cur
      - `test/e2e/tui-visual-capture.test.mjs`
 
 7. `test:release`
-   - purpose: package/install/bin correctness for the shipped artifact
-   - current owners:
-     - `npm run test:pack`
-     - `npm pack`
+  - purpose: package/install/bin correctness for the shipped artifact
+  - current owners:
+     - `npm run test:release`
+     - `test/release/*.test.mjs`
 
 8. `test:canary`
    - purpose: live provider and provenance canary checks when credentials are available
@@ -128,16 +124,16 @@ This document defines the target architecture and the migration map from the cur
 ### 3.2) Composed lanes
 
 1. `test:fast`
-   - target composition:
+   - composition:
      - `test:static`
      - source-level `test:unit`
-   - target characteristics:
+   - characteristics:
      - no full build step
      - default local confidence lane
      - target warm-run duration under 10 seconds
    - current status:
-     - intentionally not added yet
-     - the nearest approximation is `npm run typecheck && npm run test:guards && npm run test:unit`
+     - exists in `package.json`
+     - is the canonical local confidence lane
 
 2. `test:merge`
    - target composition:
@@ -151,8 +147,9 @@ This document defines the target architecture and the migration map from the cur
    - excludes:
      - `test:canary`
    - current status:
-     - exists as a transitional alias in `package.json`
-     - still resolves to the current build-backed lane composition rather than the final streamlined system
+     - exists in `package.json`
+     - is the canonical non-live merge gate
+     - intentionally retains build-backed integration, PTY, and release stages
 
 ## 4) Invariant Ownership
 
@@ -292,15 +289,19 @@ Target classification:
 2. keep as guard utilities:
    - `scripts/architecture-guard.mjs`
 
-3. migrate toward `test/unit/` ownership:
+3. removed after replacement lane coverage landed:
    - `scripts/tui-intent.mjs`
    - `scripts/event-bus-safety.mjs`
-
-4. migrate toward `test/cli/` ownership:
+   - `scripts/tui-headless.mjs`
    - `scripts/cli-output-contracts.mjs`
    - `scripts/tui-command-smoke.mjs`
+   - `scripts/tui-warning-sink.mjs`
+   - `scripts/signal-handlers.mjs`
+   - `scripts/status-mapping.mjs`
+   - `scripts/test-pack-install.mjs`
+   - `scripts/openrouter-provenance.mjs`
 
-5. migrate toward `test/integration/` ownership:
+4. retained as script-backed integration smokes with explicit lane ownership:
    - `scripts/mock-run-smoke.mjs`
    - `scripts/verify-smoke.mjs`
    - `scripts/report-smoke.mjs`
@@ -314,24 +315,13 @@ Target classification:
    - `scripts/debate-empty.mjs`
    - `scripts/validate-embeddings-arrow.mjs`
    - `scripts/resolve-only.mjs`
-   - `scripts/tui-warning-sink.mjs`
-   - `scripts/signal-handlers.mjs`
-   - `scripts/status-mapping.mjs`
    - `scripts/receipt-failure.mjs`
    - `scripts/zero-eligible.mjs`
    - `scripts/error-code-null.mjs`
    - `scripts/relative-config-path.mjs`
 
-6. migrate toward `test:release` ownership:
-   - `scripts/test-pack-install.mjs`
-
-7. migrate toward `test:canary` ownership:
+5. retained as canary support:
    - `scripts/live-smoke.mjs`
-   - `scripts/openrouter-provenance.mjs`
-
-Concrete redundancy already identified:
-
-1. `scripts/tui-headless.mjs` is a pruning candidate because it tests a strict subset of the help and headless-routing assertions already covered more thoroughly by `scripts/cli-output-contracts.mjs`.
 
 Pruning rule:
 
@@ -339,29 +329,30 @@ Pruning rule:
 
 ## 8) What To Run Today
 
-Until the lane migration lands, use the current command surface in `package.json`.
-
 Practical guidance:
 
-1. TUI behavior or visual changes:
+1. fastest local confidence path:
+   - `npm run test:fast`
+
+2. TUI behavior or visual changes:
    - `npm run test:ui`
    - `npm run test:e2e:tui`
-   - `npm run test:unit`
-   - `npm run test:guards`
    - `npm run capture:tui`
 
-2. schema, contract, or artifact-shape changes:
-   - `npm run check:types`
-   - `npm run check:schemas`
+3. schema, contract, or artifact-shape changes:
+   - `npm run test:static`
    - plus the relevant subsystem suites from `AGENTS.md`
 
-3. release or publish changes:
-   - `npm run test:pack`
+4. release or publish changes:
+   - `npm run test:release`
    - `npm pack`
 
-4. full pre-merge validation:
-   - prefer `npm run test:merge`
-   - use the merge-gate list in `AGENTS.md` as the fallback source of truth if `test:merge` is being debugged or changed
+5. full pre-merge validation:
+   - `npm run test:merge`
+
+6. compatibility note:
+   - focused legacy commands such as `npm run test:mock-run` and `npm run test:verify` still exist for targeted diagnosis
+   - they are no longer the primary way to understand the suite
 
 ## 9) Migration Discipline
 

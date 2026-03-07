@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createFormatter, createPlainFormatter } from "../../dist/ui/fmt.js";
+import { createFormatter, createPlainFormatter } from "../../src/ui/fmt.ts";
 
 const ANSI_REGEX = /\u001b\[[0-9;]*m/g;
 

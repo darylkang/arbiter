@@ -4,8 +4,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { EventBus } from "../../dist/events/event-bus.js";
-import { ArtifactWriter } from "../../dist/artifacts/artifact-writer.js";
+import { EventBus } from "../../src/events/event-bus.ts";
+import { ArtifactWriter } from "../../src/artifacts/artifact-writer.ts";
 
 test("ArtifactWriter emits warning instead of throwing when a handler fails", async () => {
   const runDir = mkdtempSync(join(tmpdir(), "arbiter-artifacts-test-"));

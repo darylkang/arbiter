@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRngForTrial, createSeededRng } from "../../dist/utils/seeded-rng.js";
+import { createRngForTrial, createSeededRng } from "../../src/utils/seeded-rng.ts";
 
 test("createSeededRng is deterministic for the same seed", () => {
   const a = createSeededRng("arbiter-seed");

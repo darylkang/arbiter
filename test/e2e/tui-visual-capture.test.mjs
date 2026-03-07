@@ -31,6 +31,7 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
     });
 
     assert.equal(existsSync(join(outputDir, "index.txt")), true, "expected capture index");
+    assert.equal(existsSync(join(outputDir, "index.json")), true, "expected capture json index");
 
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step0-entry"), [
       "A R B I T E R",

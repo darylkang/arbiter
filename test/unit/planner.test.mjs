@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { generateTrialPlan } from "../../dist/planning/planner.js";
+import { generateTrialPlan } from "../../src/planning/planner.ts";
 
 const buildIndependentConfig = (seed = "planner-seed") => ({
   run: { seed },

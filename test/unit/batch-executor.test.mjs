@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runBatchWithWorkers } from "../../dist/engine/batch-executor.js";
+import { runBatchWithWorkers } from "../../src/engine/batch-executor.ts";
 
 test("runBatchWithWorkers executes all entries with bounded workers", async () => {
   const entries = [1, 2, 3, 4, 5];

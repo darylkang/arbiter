@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { UsageTracker } from "../../dist/artifacts/usage-tracker.js";
+import { UsageTracker } from "../../src/artifacts/usage-tracker.ts";
 
 const nearlyEqual = (a, b, epsilon = 1e-12) => Math.abs(a - b) <= epsilon;
 

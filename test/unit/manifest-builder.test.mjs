@@ -9,7 +9,7 @@ import {
   buildArtifactEntries,
   buildInitialManifest,
   readPackageVersion
-} from "../../dist/artifacts/manifest-builder.js";
+} from "../../src/artifacts/manifest-builder.ts";
 
 test("readPackageVersion returns explicit version and falls back when missing", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "arbiter-manifest-builder-"));

@@ -8,7 +8,7 @@ import {
   DEFAULT_CONFIG_FILENAME,
   listConfigFiles,
   nextCollisionSafeConfigPath
-} from "../../dist/cli/commands.js";
+} from "../../src/cli/commands.ts";
 
 const withTempDir = (fn) => {
   const cwd = mkdtempSync(join(tmpdir(), "arbiter-config-discovery-"));

@@ -235,11 +235,32 @@ export const captureVisualJourney = async (options = {}) => {
     await waitForExit();
 
     const indexPath = resolve(outputDir, "index.txt");
+    const indexJsonPath = resolve(outputDir, "index.json");
     const indexLines = checkpoints.flatMap((checkpoint) => [
       `${basename(checkpoint.ansiPath)} | raw ANSI`,
       `${basename(checkpoint.textPath)} | rendered text`
     ]);
     writeFileSync(indexPath, `${indexLines.join("\n")}\n`, "utf8");
+    writeFileSync(
+      indexJsonPath,
+      `${JSON.stringify(
+        {
+          outputDir,
+          cols,
+          rows,
+          checkpointCount: checkpoints.length,
+          checkpoints: checkpoints.map((checkpoint, index) => ({
+            index: index + 1,
+            slug: checkpoint.slug,
+            ansiFile: basename(checkpoint.ansiPath),
+            textFile: basename(checkpoint.textPath)
+          }))
+        },
+        null,
+        2
+      )}\n`,
+      "utf8"
+    );
 
     if (!quiet) {
       console.log(`saved ${checkpoints.length} rendered checkpoints to ${outputDir}`);
@@ -251,7 +272,9 @@ export const captureVisualJourney = async (options = {}) => {
 
     return {
       outputDir,
-      checkpoints
+      checkpoints,
+      indexPath,
+      indexJsonPath
     };
   } finally {
     try {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { evaluatePolicy } from "../../dist/config/policy.js";
+import { evaluatePolicy } from "../../src/config/policy.ts";
 
 const makeResolvedConfig = (overrides = {}) => ({
   sampling: {

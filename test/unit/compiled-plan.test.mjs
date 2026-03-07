@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compileRunPlan } from "../../dist/planning/compiled-plan.js";
+import { compileRunPlan } from "../../src/planning/compiled-plan.ts";
 
 const buildConfig = () => ({
   run: {

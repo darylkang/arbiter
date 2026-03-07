@@ -64,11 +64,11 @@ Temporary coexistence rules:
 - [x] (2026-03-06 16:55Z) initial testing-system redesign plan drafted (`proposed`)
 - [x] (2026-03-06 23:40Z) M0 testing charter, lane taxonomy, and invariant-owner matrix checked in (`in_progress`)
 - [x] (2026-03-06 23:40Z) transitional named lane aliases landed in `package.json` without deleting the legacy command surface
-- [ ] fast source-level lane established and build-coupled unit tests reduced
-- [ ] integration, CLI, release, and canary lanes rationalized
-- [ ] TUI render lane formalized and PTY coverage narrowed to terminal-behavior ownership
-- [ ] redundant tests and script sprawl pruned with evidence-backed replacements
-- [ ] steady-state documentation and merge path finalized
+- [x] (2026-03-07 02:55Z) fast source-level lane established and build-coupled unit tests reduced
+- [x] (2026-03-07 02:55Z) integration, CLI, release, and canary lanes rationalized
+- [x] (2026-03-07 02:55Z) TUI render lane formalized and PTY coverage narrowed to terminal-behavior ownership
+- [x] (2026-03-07 02:55Z) redundant tests and script sprawl pruned with evidence-backed replacements
+- [x] (2026-03-07 02:55Z) steady-state documentation and merge path finalized
 
 ## Surprises & Discoveries
 - Observation: Arbiter's current suite is stronger than it first looks, but its structure is encoded in `package.json` and ad hoc script names rather than in a durable testing charter.
@@ -83,6 +83,8 @@ Temporary coexistence rules:
   Evidence: `scripts/tui-visual-capture.mjs`, `test/e2e/tui-visual-capture.test.mjs`, `README.md`.
 - Observation: `scripts/tui-headless.mjs` tests a strict subset of what `scripts/cli-output-contracts.mjs` already covers.
   Evidence: both assert on no-arg help and root help output, while `scripts/cli-output-contracts.mjs` additionally covers `init`, version, non-TTY routing, and missing-config failure paths.
+- Observation: Node's native `--experimental-strip-types` is not sufficient for Arbiter's source tree because `NodeNext` source imports use `.js` specifiers that do not resolve back to `.ts` automatically.
+  Evidence: source-level imports of `src/planning/planner.ts` and `src/ui/run-lifecycle-hooks.ts` fail without a loader; `tsx` resolves the source tree correctly.
 
 ## Decision Log
 - Decision: keep `node:test` and `node:assert/strict` as Arbiter's primary test runner and assertion framework.
@@ -522,3 +524,7 @@ Candidate invariant-owner model to prove or revise in M0:
 - 2026-03-06 16:55Z: initial testing-system architecture plan drafted after a first-principles review of the current suite and its gaps.
 - 2026-03-06 23:40Z: incorporated Opus review feedback by making `test:fast` and `test:merge` compositions explicit, correcting script-classification guidance, and recording the concrete `tui-headless` redundancy.
 - 2026-03-06 23:40Z: M0 implementation added `docs/TESTING.md`, updated contributor docs, and introduced non-destructive lane aliases in `package.json` while intentionally deferring `test:fast`.
+- 2026-03-07 02:55Z: M1 landed a real source-level fast path via `tsx`, moved unit tests off `dist/*`, and made `check:schemas` build-free.
+- 2026-03-07 02:55Z: M2 landed explicit `test/cli/`, `test/integration/`, `test/release/`, `test/canary/`, and shared `test/helpers/` structure while retaining only a smaller script-backed smoke subset inside the integration lane.
+- 2026-03-07 02:55Z: M3 moved render fixtures into `test/tui-render/` and extended `capture:tui` with machine-readable `index.json`.
+- 2026-03-07 02:55Z: M4 pruned replaced smoke scripts, promoted `test:fast` and `test:merge` to canonical status in contributor docs, and aligned `AGENTS.md`, `README.md`, `docs/TESTING.md`, and `docs/TUI-RUNTIME.md`.

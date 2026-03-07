@@ -146,6 +146,7 @@ This writes a timestamped directory under `output/playwright/tui-visual/` with p
 
 - `*.ansi`: raw terminal output for human visual review
 - `*.txt`: rendered screen text produced by replaying the ANSI stream through xterm headless
+- `index.json`: machine-readable checkpoint manifest for agents and tooling
 
 Recommended review split:
 
@@ -188,12 +189,13 @@ Use that document for:
 - invariant ownership,
 - the TUI render versus PTY split,
 - script-migration and redundancy guidance,
-- the long-term shape of `test:fast` and `test:merge`.
+- the canonical shape of `test:fast` and `test:merge`.
 
 Current note:
 
-- named lane aliases now exist in `package.json` for most of the target testing architecture,
-- `test:fast` is intentionally not added yet because the fast source-level lane still needs to be built.
+- `npm run test:fast` is the canonical local confidence lane,
+- `npm run test:merge` is the canonical non-live merge gate,
+- focused legacy commands remain available for subsystem diagnosis, but the named lanes are now the primary test interface.
 
 ---
 

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { EventBus } from "../../dist/events/event-bus.js";
-import { ClusteringMonitor } from "../../dist/clustering/monitor.js";
-import { encodeFloat32Base64 } from "../../dist/utils/float32-base64.js";
+import { EventBus } from "../../src/events/event-bus.ts";
+import { ClusteringMonitor } from "../../src/clustering/monitor.ts";
+import { encodeFloat32Base64 } from "../../src/utils/float32-base64.ts";
 
 const makeConfig = (overrides = {}) => ({
   measurement: {

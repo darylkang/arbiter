@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPlainFormatter } from "../../dist/ui/fmt.js";
-import { buildReceiptDisplayText, buildRunDashboardText } from "../../dist/ui/run-lifecycle-hooks.js";
+import { createPlainFormatter } from "../../src/ui/fmt.ts";
+import { buildReceiptDisplayText, buildRunDashboardText } from "../../src/ui/run-lifecycle-hooks.ts";
 
 const buildDashboardVm = (overrides = {}) => ({
   statusContext: "run / monitoring",

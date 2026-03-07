@@ -6,7 +6,7 @@ import {
   buildParsedOutputWithContract,
   extractContractOutput,
   formatDecisionContractClause
-} from "../../dist/protocols/contract/extraction.js";
+} from "../../src/protocols/contract/extraction.ts";
 
 const contract = {
   id: "binary_decision_v1",

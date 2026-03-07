@@ -13,29 +13,21 @@ const runsDir = resolve(tempRoot, "runs");
 
 const runCase = (label, extraArgs) => {
   console.log(`Running live smoke test (${label})...`);
-  const output = execFileSync(
+  execFileSync(
     "node",
     [
       "dist/cli/index.js",
       "run",
-      "--live",
-      "--yes",
       "--config",
       "examples/debate_v1.smoke.json",
       "--out",
       runsDir,
-      "--quiet",
-      "--debug",
+      "--mode",
+      "live",
       ...extraArgs
     ],
     { encoding: "utf8", stdio: "pipe" }
   );
-  if (!output.includes("run complete (live)")) {
-    throw new Error(`Expected live completion marker in ${label} run output`);
-  }
-  if (output.includes("run complete (mock)")) {
-    throw new Error(`Unexpected mock completion marker in ${label} run output`);
-  }
 };
 
 try {

@@ -294,7 +294,7 @@ Required validation layers:
 1. unit tests for formatter behavior and individual render primitives,
 2. fixture tests for full-screen composition using the real render functions with a plain or no-color formatter,
 3. PTY end-to-end tests for interactive flows,
-4. rendered snapshot capture via `npm run capture:tui`,
+4. rendered snapshot capture via `npm run capture:tui` with `index.txt` and machine-readable `index.json`,
 5. human ANSI review through `scripts/tui-terminal-viewer.html` when visual polish is being judged.
 
 Deterministic review model:

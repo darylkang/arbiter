@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { OnlineLeaderClustering } from "../../dist/clustering/online-leader.js";
+import { OnlineLeaderClustering } from "../../src/clustering/online-leader.ts";
 
 test("OnlineLeaderClustering creates, matches, and force-assigns clusters", () => {
   const clustering = new OnlineLeaderClustering({

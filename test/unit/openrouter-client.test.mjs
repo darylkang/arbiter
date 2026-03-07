@@ -4,8 +4,8 @@ import test from "node:test";
 import {
   listModels,
   OpenRouterError
-} from "../../dist/openrouter/client.js";
-import { resetOpenRouterRateLimiterForTests } from "../../dist/openrouter/rate-limiter.js";
+} from "../../src/openrouter/client.ts";
+import { resetOpenRouterRateLimiterForTests } from "../../src/openrouter/rate-limiter.ts";
 
 test("listModels wraps pre-aborted requests in OpenRouterError", async () => {
   resetOpenRouterRateLimiterForTests();

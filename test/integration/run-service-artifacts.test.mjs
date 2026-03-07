@@ -5,8 +5,8 @@ import { join, relative, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { runMockService, runResolveService } from "../../dist/run/run-service.js";
-import { createUiRunLifecycleHooks } from "../../dist/ui/run-lifecycle-hooks.js";
+import { runMockService, runResolveService } from "../../src/run/run-service.ts";
+import { createUiRunLifecycleHooks } from "../../src/ui/run-lifecycle-hooks.ts";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const QUICKSTART_TEMPLATE_PATH = resolve(

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { generateRunId } from "../../dist/artifacts/run-id.js";
+import { generateRunId } from "../../src/artifacts/run-id.ts";
 
 test("generateRunId uses deterministic suffix when provided", () => {
   const id = generateRunId(new Date("2026-02-07T00:00:00Z"), { suffix: "abc123" });
