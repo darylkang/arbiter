@@ -49,6 +49,7 @@ Formatting markers:
 2. `LOCKED`: stage header labels are `SETUP`, `RUN`, and `RECEIPT`.
 3. `LOCKED`: subsection headers use short-prefix labels such as `── PROGRESS`, `── SUMMARY`, `── ARTIFACTS`.
 4. `LOCKED`: command footer copy remains concise and control-first.
+5. `LOCKED`: the product uses two header states: expanded identity panel for the Welcome moment, compact brand chrome for later stages when vertical space is constrained.
 
 ## Voice System
 
@@ -141,6 +142,7 @@ Environment rows:
 3. `LOCKED`: `● Configs    {count} in current directory`
 4. `LOCKED`: `{present_or_missing}` values are `detected` or `not detected`.
 5. `LOCKED`: `{mode_or_dash}` values are `Live`, `Mock`, or `—`.
+6. `LOCKED`: status rows are reusable status-row components; they may render one-per-line in the expanded header or as a compact grouped row in the compact header.
 
 ## Stage Headers
 

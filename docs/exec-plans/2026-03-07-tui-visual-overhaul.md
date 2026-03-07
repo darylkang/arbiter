@@ -37,6 +37,7 @@ Out of scope:
 3. changes to research methodology, stopping semantics, or artifact contracts,
 4. new major product features,
 5. introducing a new TUI framework or rendering backend.
+6. split wide-layout Stage 1 experiments or multi-column Stage 2 layout experiments in the first pass.
 
 Sequencing constraints:
 
@@ -56,6 +57,7 @@ Sequencing constraints:
 1. The redesign consensus moved away from shell-like status strips entirely; the replacement is lifecycle stage headers, not a refined prompt-style strip.
 2. The prior `✔/◆/◇` rail contract is superseded by `◆/▸/◇` to avoid checkbox collisions while keeping a geometric vocabulary.
 3. The identity panel should persist as top chrome during Stage 1 and appear once in the durable transcript, not be repeated as a heavy panel throughout the full run transcript.
+4. Expanded vs compact header states are part of the accepted visual contract; split wide-layout experiments remain explicitly deferred.
 
 ## Decision Log
 

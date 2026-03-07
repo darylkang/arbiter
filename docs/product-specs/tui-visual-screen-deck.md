@@ -35,6 +35,13 @@ The current redesign direction is defined by four principles:
 3. **Hierarchy over rule spam** — fewer full-width dividers, more hierarchy through color, spacing, containment, and short-prefix subsection labels.
 4. **Two-accent structure** — amber marks current/lifecycle emphasis; teal marks structure and grouping.
 
+Retro boundary:
+
+1. premium research instrument first,
+2. arcade influence second,
+3. use retro influence through warm palette, geometric glyphs, and confident chrome,
+4. do not use retro influence through giant ASCII logos, dense box art, playful glyph clutter, or cyberpunk parody.
+
 Never implement:
 
 1. rainbow or decorative multi-color styling,
@@ -65,6 +72,15 @@ Durable transcript contract:
 ## Visual Hierarchy
 
 The UI uses four hierarchy levels.
+
+### Hierarchy Contract
+
+| Level | Purpose | Treatment | Spacing | Borders |
+|------|---------|-----------|---------|---------|
+| 0 | identity and app presence | compact wordmark, tagline, status rows | most generous vertical rhythm | framed only in the expanded identity panel |
+| 1 | stage lifecycle | amber stage header with muted clock | open spacing above and below | no attached full-width rule |
+| 2 | subsection grouping | teal short-prefix header | one blank line before content | no box, no trailing fill |
+| 3 | content and evidence | muted labels, primary values, restrained caveats | compact scan-oriented spacing | no decorative borders |
 
 ### Level 0: Identity Panel
 
@@ -141,6 +157,39 @@ Rules:
 
 Teal is no longer decorative separator color only. It is structural chrome.
 
+## Header Variants
+
+The redesign uses two header states to preserve the identity moment without over-framing later stages.
+
+### Expanded Header
+
+Use for the Welcome / initial setup moment.
+
+Includes:
+
+1. framed identity panel,
+2. compact `ARBITER` wordmark,
+3. tagline,
+4. one-per-line environment status rows.
+
+### Compact Header
+
+Use for later setup screens, run, and receipt when vertical space is constrained.
+
+Target shape:
+
+```text
+ARBITER                                              v0.1.0
+● API key    detected   ● Run mode    Mock   ● Configs    98
+```
+
+Rules:
+
+1. no heavy frame by default,
+2. preserve the same color semantics as the expanded header,
+3. values may truncate with ellipsis, but labels never wrap,
+4. the durable transcript still prints the expanded identity panel once at the top and does not repeat it later.
+
 ## Glyph Vocabulary
 
 ### Rail Navigation
@@ -213,11 +262,108 @@ The identity panel replaces the loose Stage 0 brand block.
 7. The panel persists visually throughout Stage 1.
 8. In the durable transcript, it appears once at the top and is not repeated.
 
+## Component Inventory
+
+### ExpandedHeader
+
+- purpose: Welcome / first-impression identity surface
+- treatment: teal framed identity panel
+- spacing: generous vertical rhythm
+- overflow: values truncate at line end, never mid-label
+
+### CompactHeader
+
+- purpose: lightweight brand chrome after the welcome moment
+- treatment: one compact brand line plus one compact status row line
+- spacing: tighter than the expanded header
+- overflow: labels stay intact; values truncate with ellipsis
+
+### StageHeader
+
+- purpose: mark `SETUP`, `RUN`, and `RECEIPT`
+- treatment: amber left bar + uppercase label + muted clock
+- spacing: one blank line below by default
+- overflow: labels never wrap
+
+### StatusRow
+
+- purpose: present environment/runtime state cleanly
+- treatment: signal dot + label + value
+- spacing: one per line in expanded header; compact grouped row in compact header when width allows
+- overflow: values truncate before labels wrap
+
+### ProgressRail
+
+- purpose: show setup progress and frozen setup summary
+- treatment: geometric rail markers with aligned summaries
+- spacing: consistent summary column and teal connectors
+- overflow: summaries truncate with ellipsis rather than deforming rail structure
+
+### ActiveStepCard
+
+- purpose: support the active setup prompt/content region
+- treatment: content nested beneath the active rail marker without heavy framing
+- spacing: distinct helper, prompt label, and control region spacing
+- overflow: helper prose wraps by word
+
+### SectionHeader
+
+- purpose: group dashboard and receipt subsections
+- treatment: teal `── Label`
+- spacing: one blank line before content
+- overflow: labels never wrap
+
+### KVTable
+
+- purpose: align monitoring and summary values
+- treatment: muted keys, primary values, fixed key column
+- spacing: compact vertical rhythm
+- overflow: truncate long values with ellipsis unless the row is prose
+
+### ProgressBar
+
+- purpose: show master and worker activity visually
+- treatment: bracketless amber or semantic fill
+- spacing: sits inline with percentage/time where appropriate
+- overflow: bar shrinks before surrounding labels collapse
+
+### WorkerTable
+
+- purpose: console-grade worker snapshot
+- treatment: aligned columns for ID, state, trial, model, activity
+- spacing: dense but legible rows
+- overflow: model names truncate before table structure wraps
+
+### FooterHint
+
+- purpose: low-emphasis operator affordance
+- treatment: muted footer line beneath one muted rule
+- spacing: visually separated from main content
+- overflow: should stay single-line where possible
+
+### CaveatNote
+
+- purpose: communicate research-honest constraints
+- treatment: warning glyph plus muted prose
+- spacing: placed close to the metric it qualifies
+- overflow: wraps by word only
+
+## Text Flow Rules
+
+1. Never wrap model names, provider names, or filenames mid-token.
+2. Prefer truncation with ellipsis over arbitrary wrapping for constrained labels.
+3. Paths may wrap only at path separators or be moved to a dedicated line.
+4. Warning and caveat prose must wrap by word.
+5. Table columns must define truncation behavior before allowing structural wrap.
+6. Active or focused rows may expand into a details region instead of forcing dense inline wrapping.
+7. Version strings, stage headers, and subsection headers never wrap.
+8. File extensions should remain attached to filenames when truncated.
+
 ## Stage 1: Setup Surface
 
 Stage 1 consists of:
 
-1. identity panel,
+1. expanded or compact header, depending on stage and available height,
 2. `▍ SETUP` stage header,
 3. inline study rail,
 4. command footer.
@@ -257,6 +403,7 @@ Stage 1 consists of:
 4. Rail summaries align to a consistent summary column.
 5. Rail connector lines remain teal.
 6. Command footer uses one muted full-width rule above it.
+7. A split wide-layout setup surface is deferred; the first pass keeps the inline rail/content composition.
 
 ### Step 1 Question Surface
 
@@ -376,6 +523,7 @@ Stage 2 consists of:
 4. Keep one muted full-width footer rule only.
 5. Worker model labels must use product display labels, not raw slugs.
 6. Stage 2 should feel lighter and more open than the current ruled-section wall.
+7. Wide two-column dashboard experiments are deferred optional polish.
 
 ## Stage 3: Receipt Surface
 
@@ -444,6 +592,16 @@ It still uses:
 4. Identity panel must remain readable at minimum supported width; it may compact vertically but should not collapse into the old floating wordmark treatment.
 5. Subsection headers should never trail-fill to the terminal edge.
 6. Footer rules remain full-width and muted.
+
+## Deferred Polish
+
+Not required for the first implementation pass:
+
+1. animated completion pulse or reveal transitions,
+2. split Stage 1 wide layout,
+3. responsive multi-column Stage 2 layout,
+4. richer usage microcharts or mini-graphs,
+5. any additional decorative motion beyond the current runtime behavior.
 
 ## Testable Assertions
 
