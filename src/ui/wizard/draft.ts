@@ -1,7 +1,15 @@
 import type { ArbiterResolvedConfig } from "../../generated/config.types.js";
+import { UI_COPY } from "../copy.js";
 import { createStdoutFormatter } from "../fmt.js";
 import { toRunModeLabel, type UiRunMode } from "../copy.js";
-import { renderRailStep, truncate, type RailStep } from "../wizard-theme.js";
+import {
+  renderBrandBlock,
+  renderRailStep,
+  renderSeparator,
+  renderStatusStrip,
+  truncate,
+  type RailStep
+} from "../wizard-theme.js";
 import { RAIL_ITEMS, type EntryPath, type RunMode, type WizardDraft } from "./types.js";
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -129,6 +137,49 @@ export const buildFrozenRailSummary = (input: {
     lines.push(renderRailStep(step, fmt, true));
   }
   return lines.join("\n");
+};
+
+export const buildFrozenTranscriptPrefix = (input: {
+  version: string;
+  apiKeyPresent: boolean;
+  configCount: number;
+  contextLabel: string;
+  draft: WizardDraft;
+  selectedConfigPath: string | null;
+  entryPath: EntryPath;
+  runMode: RunMode;
+  modelLabels?: Map<string, string>;
+  personaLabels?: Map<string, string>;
+}): string => {
+  const fmt = createStdoutFormatter();
+  const width = fmt.termWidth();
+
+  return [
+    renderStatusStrip(input.contextLabel, 0, width, fmt),
+    renderSeparator(width, fmt),
+    "",
+    renderBrandBlock(
+      input.version,
+      input.apiKeyPresent,
+      input.runMode,
+      input.configCount,
+      width,
+      fmt
+    ),
+    "",
+    renderSeparator(width, fmt),
+    buildFrozenRailSummary({
+      draft: input.draft,
+      selectedConfigPath: input.selectedConfigPath,
+      entryPath: input.entryPath,
+      runMode: input.runMode,
+      modelLabels: input.modelLabels,
+      personaLabels: input.personaLabels
+    }),
+    "",
+    renderSeparator(width, fmt),
+    fmt.muted(UI_COPY.startingRun)
+  ].join("\n");
 };
 
 export const buildDraftFromConfig = (

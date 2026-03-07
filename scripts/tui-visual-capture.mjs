@@ -31,7 +31,62 @@ export const extractFinalNormalScreenAnsi = (ansiData) => {
   return ansiData.slice(lastDisableIndex + ALT_SCREEN_DISABLE.length);
 };
 
-export const extractFinalNormalScreenText = (ansiData) => stripAnsi(extractFinalNormalScreenAnsi(ansiData));
+export const renderFinalNormalScreenText = async (ansiData, options = {}) =>
+  extractDurableTranscriptText(
+    await renderAnsiToText(extractFinalNormalScreenAnsi(ansiData), {
+      cols: options.cols ?? DEFAULT_COLS,
+      rows: options.rows ?? DEFAULT_ROWS,
+      includeScrollback: true
+    })
+  );
+
+const previousLineStart = (value, lineStart) => {
+  if (lineStart <= 0) {
+    return 0;
+  }
+  return value.lastIndexOf("\n", lineStart - 2) + 1;
+};
+
+const anchorLineStart = (value, anchorIndex) => {
+  let start = value.lastIndexOf("\n", anchorIndex - 1) + 1;
+  let probeStart = start;
+  for (let index = 0; index < 4 && probeStart > 0; index += 1) {
+    const priorStart = previousLineStart(value, probeStart);
+    const priorLine = value.slice(priorStart, Math.max(priorStart, probeStart - 1)).trimEnd();
+    if (priorLine.startsWith("› arbiter")) {
+      start = priorStart;
+      break;
+    }
+    probeStart = priorStart;
+  }
+  return start;
+};
+
+const extractDurableTranscriptText = (renderedText) => {
+  const receiptIndex = renderedText.lastIndexOf("── RECEIPT");
+  if (receiptIndex < 0) {
+    return renderedText.trim();
+  }
+
+  const progressIndex = renderedText.lastIndexOf("── PROGRESS", receiptIndex);
+  const apiKeyIndex = renderedText.lastIndexOf("API key:", receiptIndex);
+  const brandIndex =
+    apiKeyIndex >= 0
+      ? renderedText.lastIndexOf("A R B I T E R", apiKeyIndex)
+      : progressIndex >= 0
+        ? renderedText.lastIndexOf("A R B I T E R", progressIndex)
+        : renderedText.lastIndexOf("A R B I T E R", receiptIndex);
+  const entryIndex = renderedText.lastIndexOf("✔  Entry Path", receiptIndex);
+
+  let anchorIndex = receiptIndex;
+  if (brandIndex >= 0 && entryIndex > brandIndex) {
+    anchorIndex = brandIndex;
+  } else if (progressIndex >= 0) {
+    anchorIndex = progressIndex;
+  }
+
+  return renderedText.slice(anchorLineStart(renderedText, anchorIndex)).trim();
+};
 
 const delay = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
 
@@ -217,7 +272,7 @@ export const captureVisualJourney = async (options = {}) => {
     const transcriptPath =
       slug === "stage3-receipt" ? resolve(outputDir, `${prefix}.transcript.txt`) : undefined;
     if (transcriptPath) {
-      const transcriptText = extractFinalNormalScreenText(snapshotAnsi);
+      const transcriptText = await renderFinalNormalScreenText(snapshotAnsi, { cols, rows });
       writeFileSync(transcriptPath, transcriptText.length > 0 ? `${transcriptText}\n` : "", "utf8");
     }
     checkpoints.push({

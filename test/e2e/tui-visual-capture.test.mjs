@@ -6,7 +6,7 @@ import test from "node:test";
 
 import {
   captureVisualJourney,
-  extractFinalNormalScreenText
+  renderFinalNormalScreenText
 } from "../../scripts/tui-visual-capture.mjs";
 
 const getCheckpoint = (checkpoints, slug) => {
@@ -62,7 +62,7 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
     assert.equal(reviewRendered.includes("event sourcing?What are"), false);
 
     const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
-    const finalTranscript = extractFinalNormalScreenText(receiptAnsi);
+    const finalTranscript = await renderFinalNormalScreenText(receiptAnsi);
     assert.equal(finalTranscript.includes("── RECEIPT"), true);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
@@ -84,7 +84,7 @@ test("pty capture preserves the Stage 2 status strip on a 24-row terminal", { co
     assert.equal(runRendered.includes("run / monitoring"), true);
 
     const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
-    const finalTranscript = extractFinalNormalScreenText(receiptAnsi);
+    const finalTranscript = await renderFinalNormalScreenText(receiptAnsi, { cols: 120, rows: 24 });
     assert.equal((finalTranscript.match(/── PROGRESS/g) || []).length, 1);
     assert.equal((finalTranscript.match(/run \/ monitoring/g) || []).length, 1);
     assert.equal((finalTranscript.match(/── RECEIPT/g) || []).length, 1);
@@ -108,7 +108,7 @@ test("pty capture preserves the Stage 2 status strip on a 60x24 terminal", { con
     assert.equal(runRendered.includes("run / monitoring"), true);
 
     const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
-    const finalTranscript = extractFinalNormalScreenText(receiptAnsi);
+    const finalTranscript = await renderFinalNormalScreenText(receiptAnsi, { cols: 60, rows: 24 });
     assert.equal((finalTranscript.match(/── PROGRESS/g) || []).length, 1);
     assert.equal((finalTranscript.match(/run \/ monitoring/g) || []).length, 1);
     assert.equal((finalTranscript.match(/── RECEIPT/g) || []).length, 1);
@@ -137,7 +137,7 @@ test("pty capture completes at the minimum supported 60x18 size", { concurrency:
       "Trials:"
     ]);
     const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
-    const finalTranscript = extractFinalNormalScreenText(receiptAnsi);
+    const finalTranscript = await renderFinalNormalScreenText(receiptAnsi, { cols: 60, rows: 18 });
     assert.equal(finalTranscript.includes("── RECEIPT"), true);
     assert.equal(finalTranscript.includes("Run complete."), true);
   } finally {

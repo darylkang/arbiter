@@ -1,10 +1,9 @@
 import type { ArbiterResolvedConfig } from "../../generated/config.types.js";
+import { EventBus } from "../../events/event-bus.js";
 import { runLiveService, runMockService } from "../../run/run-service.js";
-import { createConsoleWarningSink } from "../../utils/warnings.js";
+import { createEventWarningSink } from "../../utils/warnings.js";
 import { createUiRunLifecycleHooks } from "../run-lifecycle-hooks.js";
 import { UI_COPY } from "../copy.js";
-import { createStdoutFormatter } from "../fmt.js";
-import { renderSeparator } from "../wizard-theme.js";
 import {
   listConfigFiles,
   nextCollisionSafeConfigPath,
@@ -13,7 +12,7 @@ import {
 } from "../../cli/commands.js";
 import {
   buildDraftFromConfig,
-  buildFrozenRailSummary,
+  buildFrozenTranscriptPrefix,
   toRailSummaries
 } from "./draft.js";
 import { createWizardFrameManager } from "./frame-manager.js";
@@ -40,19 +39,19 @@ const runStudy = async (input: {
   stackPrefixText?: string;
   modelDisplayBySlug?: Map<string, string>;
 }): Promise<void> => {
-  const fmt = createStdoutFormatter();
+  const bus = new EventBus();
   const hooks = createUiRunLifecycleHooks({
     dashboard: true,
     stackPrefixText: input.stackPrefixText,
-    modelDisplayBySlug: input.modelDisplayBySlug,
-    liveSurfaceMode: "inherit-alt-screen"
+    modelDisplayBySlug: input.modelDisplayBySlug
   });
-  const warningSink = createConsoleWarningSink();
+  const warningSink = createEventWarningSink(bus);
   const common = {
     configPath: input.configPath,
     assetRoot: input.assetRoot,
     debug: false,
     quiet: false,
+    bus,
     hooks,
     warningSink,
     forwardWarningEvents: false,
@@ -217,23 +216,23 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         configPathToRun = saveTarget;
       }
 
-      const fmt = createStdoutFormatter();
       const stackPrefixText = [
         ...runPreludeLines,
-        buildFrozenRailSummary({
+        buildFrozenTranscriptPrefix({
+          version,
+          apiKeyPresent,
+          configCount: configFilesResolved.length,
+          contextLabel: "setup / review",
           draft: state.draft,
           selectedConfigPath: state.selectedConfigPath,
           entryPath: state.entryPath,
           runMode: state.runMode,
           modelLabels: modelLabelBySlug,
           personaLabels: personaLabelById
-        }),
-        "",
-        renderSeparator(fmt.termWidth(), fmt),
-        fmt.muted(UI_COPY.startingRun),
-        ""
+        })
       ].join("\n");
 
+      frameManager.printLines(stackPrefixText.split("\n"));
       handedOffToRun = true;
       try {
         await runStudy({

@@ -66,7 +66,7 @@ The runtime follows these principles.
    Screen controllers produce typed screen state and view models. Renderers do not infer business logic.
 
 2. One terminal owner.
-   Terminal mode, cursor visibility, alternate-screen entry, scroll regions, redraw policy, and teardown are owned by runtime seams, not by feature code.
+   Terminal mode, cursor visibility, redraw policy, and teardown are owned by runtime seams, not by feature code.
 
 3. Pure render functions.
    Screens are rendered through pure functions that accept typed view data plus formatter/runtime context and return strings with no hidden side effects.
@@ -182,11 +182,11 @@ Primary files today:
 
 Responsibilities:
 
-1. enter and exit alternate screen when required,
-2. hide and restore cursor safely,
-3. own redraw regions and teardown,
-4. enforce supported terminal constraints,
-5. contain all direct terminal control sequences.
+1. hide and restore cursor safely,
+2. own redraw regions and teardown,
+3. enforce supported terminal constraints,
+4. contain all direct terminal control sequences,
+5. keep the durable transcript on the normal screen at all times.
 
 Non-negotiable rule:
 all direct TUI `process.stdout.write(...)` calls must route through approved runtime seams or a narrowly approved fallback path documented in this file.
@@ -287,15 +287,15 @@ Rules:
 
 Current runtime contract:
 
-1. Stage 1 re-renders immediately against the new terminal dimensions.
-2. Stage 2 runs on an isolated live surface and must not emit repeated live-refresh frames into the durable normal-screen transcript.
+1. Stage 1 re-renders immediately against the new terminal dimensions using normal-screen overwrite.
+2. Stage 2 uses the same normal-screen overwrite model and must not emit repeated live-refresh frames into the durable transcript.
 3. Stage 2 re-measures width, rows, and frozen-prefix height on every render tick.
 4. If Stage 2 drops below the live-dashboard minimum (`60x15`), it renders the explicit dashboard-too-small warning in the live region instead of the premium dashboard.
 5. If the terminal recovers before completion, Stage 2 resumes premium dashboard rendering from current state.
-6. On completion, the runtime exits the live surface and writes the durable normal-screen transcript once:
-   - wizard path: frozen Stage 1 summary, final Stage 2 snapshot, Stage 3 receipt,
+6. On completion, the runtime clears the transient live region and writes the durable normal-screen transcript once:
+   - wizard path: Stage 0 header, frozen Stage 1 summary, final Stage 2 snapshot, Stage 3 receipt,
    - `arbiter run --dashboard`: final Stage 2 snapshot, Stage 3 receipt.
-7. Transcript truth is a first-class invariant and is validated separately from rendered final-state buffer truth.
+7. Alternate-screen sequences are forbidden in the runtime; transcript truth is a first-class invariant and is validated separately from rendered final-state buffer truth.
 
 ## 9) Testing and Validation Model
 
@@ -314,7 +314,7 @@ Deterministic review model:
 1. live runtime emits ANSI through the real renderer,
 2. `@xterm/headless` converts captured ANSI into deterministic rendered text,
 3. rendered text snapshots are treated as structural truth for agent review, and Stage 2 / Stage 3 snapshot text may include scrollback so the full run-path stack is inspectable,
-4. raw transcript extraction is used to validate the durable normal-screen output after the final alt-screen exit,
+4. raw transcript extraction is used to validate the durable normal-screen output after overwrite-based rendering and final transcript commit,
 5. no separate text renderer backend should exist unless a future need proves the current approach insufficient.
 
 The formatter should support a plain or no-color mode so render primitives can be unit-tested without ANSI noise.

@@ -4,6 +4,7 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { EventBus } from "../events/event-bus.js";
 import { getAssetRoot } from "../utils/asset-root.js";
 import { createStdoutFormatter } from "../ui/fmt.js";
 import { UI_COPY } from "../ui/copy.js";
@@ -11,7 +12,7 @@ import { createUiRunLifecycleHooks } from "../ui/run-lifecycle-hooks.js";
 import { launchWizardTUI } from "../ui/wizard/app.js";
 import { loadCatalogModels } from "../ui/wizard/resources.js";
 import { runLiveService, runMockService } from "../run/run-service.js";
-import type { WarningSink } from "../utils/warnings.js";
+import { createEventWarningSink, type WarningSink } from "../utils/warnings.js";
 import {
   DEFAULT_CONFIG_FILENAME,
   getFlag,
@@ -113,11 +114,12 @@ const runHeadless = async (input: {
     process.stderr.write(`${UI_COPY.dashboardNoTty}\n`);
   }
 
+  const bus = dashboardEnabled ? new EventBus() : undefined;
   const modelDisplayBySlug = dashboardEnabled
     ? new Map(loadCatalogModels(input.assetRoot).map((model) => [model.slug, model.display]))
     : undefined;
 
-  const warnings = dashboardEnabled ? undefined : createSilentWarningSink();
+  const warnings = dashboardEnabled && bus ? createEventWarningSink(bus) : createSilentWarningSink();
   const hooks = createUiRunLifecycleHooks({ dashboard: dashboardEnabled, modelDisplayBySlug });
 
   const maxTrials = getFlagInteger(parsed.flags, "--max-trials");
@@ -130,6 +132,7 @@ const runHeadless = async (input: {
     runsDir: getFlag(parsed.flags, "--out") ?? undefined,
     quiet: !dashboardEnabled,
     debug: false,
+    bus,
     hooks,
     warningSink: warnings,
     forwardWarningEvents: false,

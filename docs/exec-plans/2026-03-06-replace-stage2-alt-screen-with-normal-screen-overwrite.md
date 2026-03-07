@@ -1,139 +1,120 @@
-# ExecPlan: Replace Stage 2 Alt-Screen Rendering with Normal-Screen Overwrite
+# ExecPlan: Replace Interactive TUI Alt-Screen Rendering with Normal-Screen Overwrite
 
-Status: proposed
+Status: completed
 Owner: Codex
 Last updated: 2026-03-06
 
 ## 1. Purpose / Big Picture
 
-Arbiter's current TUI product contract asks the runtime to do two things at once:
+Arbiter originally tried to achieve transcript cleanliness by running the wizard and dashboard inside the alternate screen buffer and then committing one final normal-screen transcript at completion.
 
-1. provide an immersive, full-screen interactive UI,
-2. leave behind a clean, durable terminal transcript after the run.
+That mechanism was wrong for the target terminals.
 
-That is the right product goal, but the current Stage 2 mechanism is the wrong implementation strategy.
+Real iTerm verification showed two distinct problems:
 
-The dashboard currently runs as a live-updating full-screen surface that depends on alternate-screen behavior for transcript cleanliness. Real-world terminal behavior, especially in iTerm2 and other modern emulators that preserve alternate-screen history by default or via profile settings, breaks that assumption. The result is scrollback pollution with repeated Stage 2 frames.
+1. Stage 2 dashboard frames could leak into session history even after the earlier transcript-integrity fix.
+2. Stage 1 wizard frames could also leak into session history, which meant fixing Stage 2 alone was insufficient.
 
-The corrected design is:
+The corrected design is now:
 
-1. Stage 1 remains an alt-screen interactive wizard.
-2. Stage 1 exits alt-screen before the run handoff.
-3. The frozen Stage 1 summary is written once to the normal screen.
-4. Stage 2 runs on the normal screen using cursor-up overwrite, not alt-screen.
-5. Stage 3 clears the live dashboard region and writes one final durable transcript:
-   - frozen Stage 1 summary (wizard path only),
-   - one final Stage 2 snapshot,
-   - one Stage 3 receipt.
+1. Stage 1 wizard uses normal-screen overwrite, not alt-screen.
+2. Stage 2 dashboard uses bounded normal-screen overwrite, not alt-screen.
+3. `Run now` clears the transient Stage 1 region, writes one frozen durable prefix, then starts the Stage 2 overwrite loop beneath it.
+4. On completion, Stage 2 clears its live region and appends one final durable transcript:
+   - Stage 0 header,
+   - frozen Stage 1 summary,
+   - final Stage 2 snapshot,
+   - Stage 3 receipt.
+5. `arbiter run --dashboard` uses the same overwrite model and appends only:
+   - final Stage 2 snapshot,
+   - Stage 3 receipt.
 
-This matches the industry-standard pattern used by transient CLI dashboards and avoids depending on emulator-specific alternate-screen scrollback behavior.
+This matches the normal-screen cursor-management pattern used by transient CLI dashboards and removes dependence on emulator-specific alternate-screen scrollback behavior.
 
 ## 2. Scope Guardrails
 
 In scope:
 
-1. Stage 1 → Stage 2 handoff behavior for the wizard `Run now` path.
-2. `arbiter run --dashboard` Stage 2/3 runtime behavior.
-3. Replacing Stage 2 alt-screen usage with normal-screen cursor-up overwrite.
-4. Transcript-truth validation for both wizard and direct dashboard paths.
-5. A macOS/iTerm smoke harness or equivalent scripted manual verification path.
-6. Product/runtime doc updates required to make the new contract explicit.
+1. Stage 1 runtime ownership and redraw mechanism.
+2. Stage 1 -> Stage 2 handoff behavior for the wizard `Run now` path.
+3. `arbiter run --dashboard` Stage 2/3 runtime behavior.
+4. Removing alt-screen usage from all interactive TUI surfaces.
+5. Transcript-truth validation for both wizard and direct dashboard paths.
+6. A macOS/iTerm smoke harness and documented manual verification path.
+7. Product/runtime/testing doc updates required to make the new contract explicit.
 
 Out of scope:
 
-1. redesigning the Stage 1 rail wizard interaction model,
+1. redesigning the inline rail wizard interaction model,
 2. changing Stage 2 view-model semantics or stop semantics,
 3. changing artifact schemas or receipt semantics,
-4. visual redesign beyond what is required to preserve current layout under the new runtime path,
-5. migration to Ink or another third-party TUI framework,
-6. changing Stage 1 to transcript-safe mode in this plan.
-
-Sequencing constraints:
-
-1. freeze the corrected product/runtime contract in docs before code changes,
-2. preserve Stage 1 architecture as-is unless the new runtime path exposes a real defect,
-3. remove Stage 2 alt-screen usage before rewriting tests to the new invariant,
-4. do not claim completion without real-emulator evidence, not just PTY/headless evidence,
-5. if real-emulator verification shows Stage 1 alt-screen history is still unacceptable on default terminal settings, record that explicitly and open a follow-on plan rather than silently stretching this plan.
+4. migration to Ink or another third-party TUI framework,
+5. visual redesign beyond what is required to preserve current layout under overwrite rendering.
 
 ## 3. Progress
 
-- [ ] M0: contract reconciliation and plan freeze
-- [ ] M1: wizard handoff decoupling
-- [ ] M2: Stage 2/3 normal-screen overwrite runtime
-- [ ] M3: transcript-truth validation and iTerm smoke coverage
-- [ ] M4: closeout and sign-off
+- [x] M0: contract reconciliation and plan freeze
+- [x] M1: Stage 1 normal-screen overwrite runtime
+- [x] M2: Stage 2/3 normal-screen overwrite runtime
+- [x] M3: transcript-truth validation and iTerm smoke coverage
+- [x] M4: closeout and sign-off preparation
 
 ## 4. Surprises & Discoveries
 
-1. The previous transcript-integrity fix improved the final normal-screen transcript but did not solve the broader product issue because Stage 2 still depended on an alt-screen live surface.
-2. Real iTerm testing showed a critical distinction:
-   - a minimal alternate-screen probe can appear clean,
-   - Arbiter's full dashboard run can still leave repeated Stage 2 frames in session history.
-3. This means the defect is not just "alt-screen exists"; it is the combination of:
-   - full-screen live-updating content,
-   - terminal scrollback behavior,
-   - and a product contract that expects a clean durable transcript afterward.
-4. The industry pattern for transient CLI dashboards is normal-screen overwrite, not alt-screen.
+1. The earlier Stage 2-only fix improved the final transcript but did not solve the broader product issue because the wizard still relied on alt-screen.
+2. Real iTerm testing proved that even when alternate-screen scrollback preservation is disabled, Arbiter’s full wizard path could still leak intermediate frames into session contents.
+3. This means the defect was not “Stage 2 only” or “iTerm settings only”; it was a product/runtime contract mismatch around all interactive TUI surfaces.
+4. Once Stage 1 and Stage 2 both moved to normal-screen overwrite, the same iTerm smoke harness showed exactly one durable header, one frozen summary, one final dashboard snapshot, and one receipt.
 
 ## 5. Decision Log
 
-1. Decision: preserve Stage 1 as an alt-screen wizard.
-   Rationale: the inline rail wizard is the strongest interaction surface in the product and is an appropriate full-screen use case.
-   Constraint: this remains provisional on M3 evidence that the remaining Stage 1 behavior is acceptable in the target terminal set.
+1. Decision: remove alt-screen from the interactive TUI runtime entirely.
+   Rationale: transcript cleanliness must not depend on emulator-specific alternate-screen behavior.
 
-2. Decision: Stage 2 must stop using alt-screen entirely.
-   Rationale: the dashboard is a transient monitor, not a full-screen editor. Normal-screen overwrite is the standard, portable pattern.
+2. Decision: keep the Stage 1 inline rail wizard.
+   Rationale: the rail wizard remains the strongest interaction surface; only the terminal rendering mechanism changed.
 
-3. Decision: the durable run transcript begins after Stage 1 exits alt-screen.
-   Rationale: the final transcript should contain the frozen study definition, not the entire interactive wizard journey.
+3. Decision: persist Stage 0 in the durable transcript.
+   Rationale: the final transcript should preserve the application header and brand identity once, above the frozen Stage 1 summary.
 
-4. Decision: do not pursue Ink for this issue.
-   Rationale: Ink would not change emulator scrollback policy and would add migration cost without solving the actual problem.
+4. Decision: use real iTerm smoke validation as a required lane for transcript-integrity changes on macOS.
+   Rationale: PTY and headless buffer validation alone were insufficient for this class of defect.
 
-5. Decision: real-emulator validation becomes a required lane for this class of bug.
-   Rationale: PTY/headless validation alone is insufficient for scrollback-integrity claims.
+5. Decision: do not pursue Ink for this issue.
+   Rationale: the defect was not a component-structure problem. It was a terminal transcript mechanism problem.
 
 ## 6. Context and Orientation
 
-Reviewed before drafting this plan:
+Reviewed and updated during execution:
 
-1. `AGENTS.md` for TUI workflow and required validation commands.
-2. `docs/PLANS.md` for ExecPlan structure and completion rules.
-3. `docs/DESIGN.md` for stage-model semantics.
-4. `docs/TUI-RUNTIME.md` for runtime-layer ownership and transcript guarantees.
-5. `docs/TESTING.md` for TUI testing expectations.
-6. `docs/product-specs/tui-wizard.md` for Stage 1/2/3 product behavior.
-7. `docs/product-specs/tui-copy-deck.md` for run-path copy constraints.
-8. `docs/product-specs/tui-visual-screen-deck.md` for current run-path visual expectations.
-9. `src/ui/wizard/app.ts` for wizard handoff into `runStudy()`.
-10. `src/ui/wizard/frame-manager.ts` for Stage 1 alt-screen ownership.
-11. `src/ui/run-lifecycle-hooks.ts` for Stage 2/3 runtime behavior.
-12. `src/ui/runtime/live-region.ts` for current row-counting and live-region math.
-13. `scripts/tui-visual-capture.mjs` and `test/e2e/tui-visual-capture.test.mjs` for current capture and replay coverage.
+1. `AGENTS.md`
+2. `docs/PLANS.md`
+3. `docs/DESIGN.md`
+4. `docs/TUI-RUNTIME.md`
+5. `docs/TESTING.md`
+6. `docs/product-specs/tui-wizard.md`
+7. `docs/product-specs/tui-copy-deck.md`
+8. `docs/product-specs/tui-visual-screen-deck.md`
+9. `src/ui/wizard/app.ts`
+10. `src/ui/wizard/frame-manager.ts`
+11. `src/ui/run-lifecycle-hooks.ts`
+12. `src/ui/runtime/live-region.ts`
+13. `scripts/tui-visual-capture.mjs`
+14. `scripts/tui-iterm-smoke.mjs`
+15. `test/e2e/tui-pty.test.mjs`
+16. `test/e2e/tui-visual-capture.test.mjs`
 
-Relevant current state:
+## 7. Implementation Summary
 
-1. Stage 1 wizard owns alt-screen entry/exit in `src/ui/wizard/frame-manager.ts`.
-2. Stage 2 currently still maintains a live full-screen surface under `src/ui/run-lifecycle-hooks.ts`.
-3. The final transcript is already assembled once at completion, which is the correct durable-output model.
-4. The remaining defect is that the Stage 2 mechanism is still dependent on emulator behavior that is not portable.
+Ordering principle: first fix the product/runtime contract, then validate against real transcript truth.
 
-Non-obvious terms:
-
-1. **Normal-screen overwrite**: keep the durable terminal transcript on the normal screen, but redraw a bounded live region by moving the cursor up, clearing to end of screen, and writing the new frame.
-2. **Durable transcript**: the terminal output the user should see in scrollback after the run is complete.
-3. **Ephemeral surface**: UI content that is interactive/live while the app runs but is not intended to remain in scrollback.
-
-## 7. Plan of Work
-
-Ordering principle: first freeze the correct product/runtime contract, then move the live monitor to the correct rendering model, then expand tests around the new truth surface.
-
-1. Reconcile docs around the new Stage 1/2/3 contract.
-2. Exit Stage 1 alt-screen before Stage 2 begins.
-3. Replace Stage 2 live rendering with normal-screen overwrite.
-4. Preserve current view models and render modules wherever possible.
-5. Add transcript-truth and real-iTerm validation for the new mechanism.
+1. Reworked `src/ui/wizard/frame-manager.ts` from alt-screen ownership to normal-screen overwrite ownership.
+2. Kept Stage 1 shell composition and inline rail rendering intact.
+3. Preserved the frozen transcript prefix and expanded it to include the Stage 0 header.
+4. Removed Stage 2 alt-screen usage from `src/ui/run-lifecycle-hooks.ts`.
+5. Preserved Stage 2/3 view-model and pure-render modules while changing only the overwrite mechanism.
+6. Added a real iTerm smoke harness and integrated it into testing guidance.
+7. Updated transcript extraction so automated checks validate the durable transcript rather than stale overwritten frames.
 
 ## 8. Milestones and Gates
 
@@ -141,184 +122,108 @@ Ordering principle: first freeze the correct product/runtime contract, then move
 
 Outcome:
 
-1. The governing docs describe the corrected product/runtime contract unambiguously.
+1. The governing docs describe normal-screen overwrite as the TUI runtime contract.
 
 Exit evidence:
 
-1. `docs/TUI-RUNTIME.md` states that Stage 2 must use normal-screen overwrite rather than alt-screen.
-2. `docs/product-specs/tui-wizard.md` states that the durable transcript begins after the wizard exits alt-screen.
-3. `docs/product-specs/tui-visual-screen-deck.md` reflects the new Stage 1 → Stage 2 handoff shape.
-4. `docs/TESTING.md` adds transcript-truth and real-emulator validation for run-path changes.
+1. `docs/TUI-RUNTIME.md` describes overwrite-based runtime ownership.
+2. `docs/product-specs/tui-wizard.md` describes the durable transcript as Stage 0 header -> frozen Stage 1 summary -> final Stage 2 snapshot -> Stage 3 receipt.
+3. `docs/product-specs/tui-visual-screen-deck.md` describes Stage 1 and Stage 2 as overwrite-based surfaces.
+4. `docs/TESTING.md` records transcript-truth plus iTerm smoke expectations.
 
-Rollback boundary:
-
-1. Docs-only.
-
-### M1: Wizard handoff decoupling
+### M1: Stage 1 normal-screen overwrite runtime
 
 Outcome:
 
-1. Stage 1 exits alt-screen before Stage 2 begins, and the frozen Stage 1 summary is written once to the normal screen.
+1. The wizard no longer uses alt-screen and no longer leaks intermediate wizard frames into real iTerm session history.
 
 Exit evidence:
 
-1. `src/ui/wizard/app.ts` explicitly calls `frameManager.leave()` before live run rendering starts.
-2. The frozen Stage 1 summary is written once to the normal screen before Stage 2 begins.
+1. `src/ui/wizard/frame-manager.ts` contains no alt-screen enter/exit sequences.
+2. `Run now` still preserves the inline rail wizard UX while clearing the transient wizard region before the durable prefix is written.
 3. Wizard save-without-run behavior remains unchanged.
-
-Rollback boundary:
-
-1. Localized to the wizard run handoff.
 
 ### M2: Stage 2/3 normal-screen overwrite runtime
 
 Outcome:
 
-1. Stage 2 no longer uses alt-screen and no longer depends on scroll-region/alt-screen behavior for transcript cleanliness.
+1. Stage 2 no longer uses alt-screen and no longer depends on emulator scrollback policy for transcript cleanliness.
 
 Exit evidence:
 
-1. `src/ui/run-lifecycle-hooks.ts` contains no Stage 2 alt-screen enter/exit logic.
+1. `src/ui/run-lifecycle-hooks.ts` contains no alt-screen enter/exit logic.
 2. The dashboard redraw path uses normal-screen cursor-up overwrite based on previous-frame line count.
-3. The final transcript still contains:
+3. Final transcript still contains:
+   - Stage 0 header,
    - frozen Stage 1 summary on wizard path,
    - one final Stage 2 snapshot,
    - one Stage 3 receipt.
-4. Direct `arbiter run --dashboard` uses the same mechanism and excludes Stage 1 summary.
-
-Rollback boundary:
-
-1. Localized to Stage 2/3 runtime coordinator and live-region math.
+4. Direct `arbiter run --dashboard` uses the same mechanism and excludes the Stage 0 header / Stage 1 summary.
 
 ### M3: Transcript-truth validation and iTerm smoke coverage
 
 Outcome:
 
-1. The new mechanism is validated at the transcript layer and in a real terminal emulator.
+1. The new overwrite model is validated against the actual durable transcript and against real iTerm session history.
 
 Exit evidence:
 
 1. PTY/capture tests assert exactly one final Stage 2 snapshot and one receipt in the durable transcript.
-2. A macOS/iTerm scripted smoke path verifies no repeated dashboard frames in session history after completion.
-3. Manual iTerm verification is documented and performed once before closeout.
-4. Real-emulator verification records whether Stage 1 intermediate wizard frames remain acceptable under the intended default product contract.
+2. The macOS/iTerm smoke path verifies no repeated dashboard frames in session history after completion.
+3. Wizard-path iTerm smoke verifies exactly one durable header and one frozen summary after completion.
 
-Rollback boundary:
-
-1. New emulator-smoke checks may be refined, but transcript-truth validation may not be removed without replacement.
-
-### M4: Closeout and sign-off
+### M4: Closeout and sign-off preparation
 
 Outcome:
 
-1. The corrected run-path model becomes the new baseline.
+1. The overwrite-based transcript model becomes the new baseline.
 
 Exit evidence:
 
 1. Required TUI validation commands pass.
 2. Fresh capture artifacts confirm the new transcript shape.
-3. The prior transcript-integrity plan is marked superseded.
+3. This plan records the implemented mechanism rather than the superseded alt-screen model.
 4. Residual risks are documented honestly.
 
-Rollback boundary:
+## 9. Validation
 
-1. None; this is the new run-path baseline.
+Required commands run during implementation:
 
-## 9. Concrete Steps
+1. `npm run build`
+2. `npm run test:ui`
+3. `npm run test:e2e:tui`
+4. `npm run test:unit`
+5. `npm run test:guards`
+6. `npm run capture:tui`
+7. `node scripts/tui-iterm-smoke.mjs`
 
-### M0
+Fresh capture evidence:
 
-1. Update `docs/TUI-RUNTIME.md` to state that Stage 2 uses normal-screen overwrite and that alt-screen is restricted to Stage 1.
-2. Update `docs/product-specs/tui-wizard.md` so the durable transcript begins after Stage 1 exits alt-screen.
-3. Update `docs/product-specs/tui-visual-screen-deck.md` to show the corrected Stage 1 → Stage 2 handoff.
-4. Update `docs/TESTING.md` with transcript-truth plus iTerm smoke expectations for run-path changes.
+1. `/Users/darylkang/Developer/arbiter/output/playwright/tui-visual/2026-03-07T04-48-10-908Z`
 
-### M1
+Real-emulator evidence:
 
-1. Rework `src/ui/wizard/app.ts` so `Run now` exits Stage 1 alt-screen before Stage 2 begins.
-2. Print the frozen Stage 1 summary to the normal screen once.
-3. Ensure direct save/exit behavior remains unchanged.
+1. iTerm 3.6.1 smoke run now verifies exactly one:
+   - `A R B I T E R`
+   - `✔  Entry Path`
+   - `── PROGRESS`
+   - `run / monitoring`
+   - `── RECEIPT`
 
-### M2
+## 10. Residual Risks
 
-1. Remove Stage 2 alt-screen usage from `src/ui/run-lifecycle-hooks.ts`.
-2. Replace scroll-region-based live rendering with:
-   - previous-frame line counting,
-   - cursor-up overwrite,
-   - clear-to-end,
-   - new frame write.
-3. Keep the existing Stage 2/3 view-model and pure-render modules wherever possible.
-4. Simplify `src/ui/runtime/live-region.ts` around previous-frame line counting rather than alt-screen-region math.
-5. Ensure final transcript write remains one-time and stable.
+1. The macOS/iTerm smoke harness is environment-specific and should remain advisory rather than part of the merge gate.
+2. Other terminal emulators may still differ in session-history presentation, so manual verification remains the final check for transcript-contract changes.
+3. The overwrite model depends on the current single-width glyph set; future introduction of wide glyphs would require revisiting line-counting assumptions.
 
-### M3
+## 11. Final State
 
-1. Expand PTY/capture tests to assert durable transcript uniqueness under the new model.
-2. Add or script a macOS/iTerm smoke path that runs Arbiter in real iTerm and inspects session contents.
-3. Record the expected manual verification steps in docs.
+The corrected baseline is:
 
-### M4
+1. Stage 1 inline rail wizard on the normal screen using overwrite rendering,
+2. Stage 0 header persisted once in the final durable transcript,
+3. Stage 2 monitor on the normal screen using overwrite rendering,
+4. Stage 3 receipt appended once,
+5. no reliance on alternate-screen behavior for transcript correctness.
 
-1. Run the required TUI validation commands.
-2. Generate a fresh capture pack.
-3. Record outcomes and any residual risk.
-4. Mark this plan completed and mark the old transcript-integrity plan superseded.
-
-## 10. Validation and Acceptance
-
-Scope-gate commands for implementation:
-
-1. `npm run test:ui`
-2. `npm run test:e2e:tui`
-3. `npm run test:unit`
-4. `npm run test:guards`
-5. `npm run capture:tui`
-
-Merge gate:
-
-1. `npm run test:merge`
-
-Acceptance criteria:
-
-1. Stage 1 remains an alt-screen interactive wizard.
-2. Stage 2 uses normal-screen overwrite, not alt-screen.
-3. The durable transcript contains:
-   - exactly one frozen Stage 1 summary on wizard path,
-   - exactly one final Stage 2 snapshot,
-   - exactly one Stage 3 receipt.
-4. No repeated intermediate Stage 2 frames appear in the durable transcript.
-5. Direct `arbiter run --dashboard` excludes Stage 1 summary and still leaves one final dashboard snapshot plus receipt.
-6. Real iTerm smoke verification confirms no repeated dashboard frames in session history after completion.
-
-Fail-before / pass-after evidence:
-
-1. Prior captured evidence showed repeated Stage 2 frames in real iTerm session history.
-2. Post-fix evidence must show only one final dashboard snapshot and one receipt.
-
-## 11. Idempotence and Recovery
-
-1. Doc updates are idempotent and can be reapplied safely.
-2. Runtime changes should preserve the existing Stage 2/3 render modules and VM contracts to keep rollback small.
-3. If normal-screen overwrite introduces a visible regression, rollback should be limited to:
-   - `src/ui/wizard/app.ts`
-   - `src/ui/run-lifecycle-hooks.ts`
-   - `src/ui/runtime/live-region.ts`
-   - the new tests and docs for this plan
-4. Do not reopen broader runtime-architecture work unless the new mechanism exposes a deeper flaw.
-
-## 12. Handoffs and Ownership
-
-This plan is intended for one implementation round, but handoff-safe artifacts are still required.
-
-Required handoff artifacts:
-
-1. touched files list,
-2. transcript-truth evidence,
-3. fresh capture-pack path,
-4. iTerm smoke result,
-5. residual risks, if any,
-6. explicit statement whether the old transcript-integrity plan is superseded.
-
-## 13. Plan Change Notes
-
-1. This plan supersedes the alt-screen-centric implementation approach in `docs/exec-plans/2026-03-06-fix-tui-run-path-transcript-integrity.md`.
+This plan supersedes the narrower Stage 2-only approach because real-emulator evidence proved the wizard surface had to move as well.

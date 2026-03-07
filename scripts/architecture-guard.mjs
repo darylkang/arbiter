@@ -87,4 +87,10 @@ assertNoDisallowedMatches(
   APPROVED_UI_ANSI_SEAMS
 );
 
+assertNoMatches(
+  "Alternate-screen control sequences are forbidden in the TUI runtime",
+  "\\?1049[hl]",
+  ["src/ui"]
+);
+
 console.log("architecture guard: ok");

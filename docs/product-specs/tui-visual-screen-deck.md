@@ -27,35 +27,40 @@ Never implement: box-bordered cards (`╭──╮`/`╰──╯`), bracket-wra
 
 ### Screen Buffers
 
-Stage 1 (wizard) renders in the **alternate screen buffer** (`\x1b[?1049h`). This keeps interactive editing out of terminal scrollback.
+All three stages render on the **normal screen buffer**. Interactive frames are ephemeral because they are overwritten in place; only the durable transcript remains after the run completes.
 
 On `Run now`:
 
-1. Keep the live run inside an isolated live surface while execution is in progress.
-2. Do **not** repeatedly redraw Stage 2 directly into the durable normal-screen transcript.
-3. On completion, disable alt-screen (`\x1b[?1049l`) and write one final normal-screen transcript:
-   - frozen rail summary (wizard path only),
+1. Stage 1 updates in place via normal-screen overwrite.
+2. Once the user commits to `Run now`, the current wizard region is cleared.
+3. Write one frozen durable prefix to the normal screen:
+   - Stage 0 header (status strip + brand block),
+   - frozen rail summary,
+   - transition beat.
+4. Run Stage 2 as a bounded normal-screen overwrite region beneath that frozen prefix.
+5. On completion, clear the live region and write one final normal-screen transcript extension:
    - final Stage 2 snapshot,
    - Stage 3 receipt.
 
-Scrollback after exit shows: frozen rail → Stage 2 final → Stage 3 receipt. Stage 1 interactive editing is NOT preserved in scrollback.
+Scrollback after exit shows: Stage 0 header → frozen rail → Stage 2 final → Stage 3 receipt. Intermediate Stage 1 editing and Stage 2 refresh frames are not preserved.
 
-`arbiter run --dashboard` uses the same live-surface model for Stage 2 and writes one final normal-screen transcript at completion. It omits the frozen rail summary.
+`arbiter run --dashboard` uses the same normal-screen overwrite model for Stage 2 and writes one final normal-screen transcript at completion. It omits the Stage 0 header and frozen rail summary.
 
 ### Render Loop
 
-**Stage 1**: Full-frame clear-and-redraw on each interaction.
+**Stage 1**: Full-frame clear-and-redraw on each interaction using normal-screen overwrite.
 
-1. Clear: `\x1b[H\x1b[J` (cursor home + clear from cursor).
-2. Render: status strip → separator → content (brand block or rail) → separator → footer.
-3. Triggered by: each keypress that changes state.
-4. At the minimum supported wizard height (`18` rows), Stage 1 compacts vertically: brand identity collapses to a 2-line block and rail content omits decorative spacer rows so the active step remains visible without scrolling the alternate screen viewport.
+1. First render: `\x1b[2J\x1b[H` (clear visible screen + cursor home).
+2. Subsequent renders: move cursor up by previous frame height, clear from cursor to end of screen, write new frame.
+3. Render: status strip → separator → content (brand block or rail) → separator → footer.
+4. Triggered by: each keypress that changes state.
+5. At the minimum supported wizard height (`18` rows), Stage 1 compacts vertically: brand identity collapses to a 2-line block and rail content omits decorative spacer rows so the active step remains visible without scrolling the visible viewport.
 
-**Stage 2**: Bounded live-region update on the isolated live surface.
+**Stage 2**: Bounded live-region update on the normal screen.
 
 1. Compute the visible prefix height at the current terminal width.
-2. Reserve a live region from `topRow` to the terminal bottom via scroll-region control.
-3. Re-render the full Stage 2 frame inside that region from current state.
+2. Count the rendered rows in the previous Stage 2 frame.
+3. Move cursor up by that many rows, clear to end of screen, and write the new Stage 2 frame.
 4. Animation timer: 120ms interval for worker activity and compact-state refresh.
 5. Substantive re-render on: `trial.completed`, `worker.status`, `monitoring.record`, `batch.completed`.
 6. If the terminal drops below the live-dashboard minimum (`60x15`), Stage 2 swaps to the explicit terminal-too-small warning inside the live region.
@@ -301,7 +306,7 @@ step.index > currentStepIndex  →  PENDING    (no content)
 **Freeze** (Run now selected on Step 7):
 
 1. All steps: → COMPLETED. All summaries shown.
-2. Rendered first on the isolated live surface; committed to the normal screen only once the run finishes.
+2. Written once into the durable normal-screen transcript before the Stage 2 overwrite loop begins.
 3. Rail renders in `fg.muted` (all glyphs, labels, summaries) to visually subordinate to active Stage 2/3 content.
 
 **Existing-config jump** (Step 0 Entry Path → `Run existing config`):
@@ -690,7 +695,7 @@ When the user chose `Run existing config` at Step 0, intermediate steps are comp
 
 ### Composition
 
-Stage 2 replaces Stage 1's interactive content with ruled sections. The frozen rail summary (all `✔`, in `fg.muted`) appears above in scrollback.
+Stage 2 replaces Stage 1's interactive content with ruled sections. The frozen Stage 0 header plus frozen rail summary (all `✔`, in `fg.muted`) appear above in scrollback.
 
 Status strip context: `run / monitoring`. Footer: `Ctrl+C graceful stop`.
 
@@ -702,13 +707,15 @@ Three ruled sections:
 
 ### In-Place Update
 
-Stage 2 re-renders its entire content region in place on the isolated live surface:
+Stage 2 re-renders its entire content region in place on the normal screen:
 
 1. Recompute live-region bounds from current terminal dimensions and frozen-prefix height.
-2. Restrict updates to the live surface via scroll-region control.
-3. Clear the live surface and write the new Stage 2 frame.
+2. Count the rows occupied by the previous Stage 2 frame.
+3. Move cursor up by that row count.
+4. Clear from cursor to end of screen.
+5. Write the new Stage 2 frame.
 
-The frozen rail summary above is visible during the live run, but the durable normal-screen transcript is not rewritten on every Stage 2 update. At completion, the frozen rail, final dashboard snapshot, and receipt are written to the normal screen once.
+The frozen header and frozen rail summary above are visible during the live run, but the durable normal-screen transcript is not rewritten on every Stage 2 update. At completion, the final dashboard snapshot and receipt are appended once beneath that frozen prefix.
 
 ### Mid-Run Screen Target
 
@@ -765,7 +772,7 @@ Frozen rail renders in `fg.muted` during Stage 2.
 
 When `Run now` fires:
 
-1. The frozen completed rail summary remains in scrollback.
+1. The frozen completed Stage 0 header and rail summary remain in scrollback.
 2. Insert one full-width separator after the frozen rail block.
 3. Render `Starting run` as a muted transition line.
 4. Then begin the Stage 2 status strip and ruled sections.
@@ -1239,25 +1246,27 @@ function buildReceiptText(
 }
 ```
 
-### Frozen Rail Render Boundary
+### Frozen Prefix Render Boundary
 
-The frozen rail is rendered on the isolated live surface during execution and committed to the normal screen transcript only once at completion. It is never part of the repeated Stage 2 render loop on the durable transcript.
+The frozen Stage 0 header and frozen rail summary are rendered to the durable normal-screen transcript once, before the live Stage 2 loop begins. They are never part of the repeated Stage 2 render loop.
 
 Transition sequence:
 
 ```typescript
-// 1. Keep the live run in alt-screen
-process.stdout.write("\x1b[?1049h");
+// 1. Clear the interactive Stage 1 region
+clearWizardRegion();
 
-// 2. Render frozen rail and Stage 2 on the live surface
+// 2. Write the frozen durable prefix once
+process.stdout.write(stage0Header + "\n" + frozenRail + "\n" + transitionBeat + "\n");
+
+// 3. Run the bounded Stage 2 overwrite loop beneath that prefix
 startDashboardLoop();
 
-// 3. On completion, exit alt-screen and write one durable transcript
-process.stdout.write("\x1b[?1049l");
-process.stdout.write(finalFrozenRail + "\n" + finalDashboard + "\n" + receipt);
+// 4. On completion, clear the live region and append one final durable transcript
+process.stdout.write(finalDashboard + "\n" + receipt);
 ```
 
-The in-place update logic is confined to the live surface. The durable normal-screen transcript is emitted once and does not accumulate repeated refresh frames.
+The overwrite logic is confined to the live region beneath the frozen prefix. The durable normal-screen transcript is emitted once and does not accumulate repeated refresh frames.
 
 ### Activity Indicator
 
@@ -1267,7 +1276,7 @@ If a future version adds a spinner (e.g., `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` cycle
 
 ### Dashboard-Only Mode
 
-`arbiter run --dashboard` skips Stage 1 entirely. It still uses the isolated live surface during execution, then writes one final normal-screen transcript containing the final dashboard snapshot and receipt.
+`arbiter run --dashboard` skips Stage 1 entirely. It still uses the bounded normal-screen overwrite region during execution, then writes one final normal-screen transcript containing the final dashboard snapshot and receipt.
 
 ```text
 › arbiter  run / monitoring                                              00:19

@@ -54,6 +54,7 @@
     "test:e2e:tui:nobuild": "node --import tsx --test test/e2e/*.test.mjs",
     "test:e2e:tui": "npm run build && npm run test:e2e:tui:nobuild",
     "test:tui:e2e": "npm run test:e2e:tui",
+    "test:smoke:iterm:tui": "npm run build && node scripts/tui-iterm-smoke.mjs",
     "test:cli-contracts": "npm run test:cli",
     "test:cli:nobuild": "node --import tsx --test test/cli/*.test.mjs",
     "test:cli": "npm run build && npm run test:cli:nobuild",

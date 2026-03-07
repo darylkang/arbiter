@@ -1,6 +1,7 @@
 import { stdout as output } from "node:process";
 
 import { createStdoutFormatter, type Formatter } from "../fmt.js";
+import { countRenderedRows } from "../runtime/live-region.js";
 import {
   truncate,
   renderBrandBlock,
@@ -13,13 +14,11 @@ import {
 import { toApiKeyPresenceLabel, toRunModeLabel } from "../copy.js";
 import { RAIL_ITEMS, type StepFrame } from "./types.js";
 
-const ALT_SCREEN_ENABLE = "\x1b[?1049h";
-const ALT_SCREEN_DISABLE = "\x1b[?1049l";
 const CURSOR_HIDE = "\x1b[?25l";
 const CURSOR_SHOW = "\x1b[?25h";
 
 const clearScreen = (): void => {
-  output.write("\x1b[H\x1b[J");
+  output.write("\x1b[2J\x1b[H");
 };
 
 const toRailSteps = (input: {
@@ -57,20 +56,30 @@ const renderCompactRailContent = (lines: string[], fmt: Formatter): string =>
 
 export const createWizardFrameManager = () => {
   let interactiveScreenEnabled = false;
+  let cursorHidden = false;
+  let lastFrameRows = 0;
 
   const enter = (): void => {
     if (output.isTTY && !interactiveScreenEnabled) {
-      output.write(ALT_SCREEN_ENABLE);
       output.write(CURSOR_HIDE);
       interactiveScreenEnabled = true;
+      cursorHidden = true;
+      lastFrameRows = 0;
     }
   };
 
   const leave = (): void => {
     if (interactiveScreenEnabled) {
-      output.write(CURSOR_SHOW);
-      output.write(ALT_SCREEN_DISABLE);
+      if (lastFrameRows > 0) {
+        output.write(`\x1b[${lastFrameRows}A`);
+      }
+      output.write("\x1b[J");
+      if (cursorHidden) {
+        output.write(CURSOR_SHOW);
+        cursorHidden = false;
+      }
       interactiveScreenEnabled = false;
+      lastFrameRows = 0;
     }
   };
 
@@ -93,8 +102,16 @@ export const createWizardFrameManager = () => {
 
   const render = (input: StepFrame): void => {
     const fmt = createStdoutFormatter();
-    clearScreen();
-    output.write(`${buildWizardFrameText(input, fmt, fmt.termWidth(), output.rows ?? 24)}\n`);
+    const width = fmt.termWidth();
+    const frameText = buildWizardFrameText(input, fmt, width, output.rows ?? 24);
+    if (lastFrameRows > 0) {
+      output.write(`\x1b[${lastFrameRows}A`);
+      output.write("\x1b[J");
+    } else {
+      clearScreen();
+    }
+    output.write(`${frameText}\n`);
+    lastFrameRows = countRenderedRows(frameText, width);
   };
 
   return {

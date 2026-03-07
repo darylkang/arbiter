@@ -251,7 +251,7 @@ They should not require a PTY.
 Use `test:tui:e2e` for:
 
 1. raw key handling,
-2. alternate-screen and terminal lifecycle behavior,
+2. terminal lifecycle and normal-screen overwrite behavior,
 3. resize re-render behavior,
 4. stage handoff ordering,
 5. scrollback preservation,
@@ -275,7 +275,8 @@ Operational rules:
 2. build-backed TUI commands must run serially, not in parallel,
 3. rendered `*.txt` snapshots are structural truth for layout/content review,
 4. raw transcript extraction from the final ANSI stream is required for run-path changes that affect scrollback or Stage 1 → Stage 2 → Stage 3 handoff behavior,
-5. color and composition review still belongs in `/Users/darylkang/Developer/arbiter/scripts/tui-terminal-viewer.html`.
+5. color and composition review still belongs in `/Users/darylkang/Developer/arbiter/scripts/tui-terminal-viewer.html`,
+6. run-path changes that affect transcript integrity must also run the real-emulator smoke path on macOS via `npm run test:smoke:iterm:tui`.
 
 ## 7) Script Classification Rules
 
@@ -290,6 +291,7 @@ Current classification:
 1. keep as developer or review utilities:
    - `scripts/tui-visual-capture.mjs`
    - `scripts/tui-terminal-viewer.html`
+   - `scripts/tui-iterm-smoke.mjs`
 
 2. keep as guard utilities:
    - `scripts/architecture-guard.mjs`
@@ -315,6 +317,7 @@ Practical guidance:
    - `npm run test:ui`
    - `npm run test:e2e:tui`
    - `npm run capture:tui`
+   - `npm run test:smoke:iterm:tui` on macOS when the change affects transcript integrity or emulator-visible scrollback
 
 3. schema, contract, or artifact-shape changes:
    - `npm run test:static`

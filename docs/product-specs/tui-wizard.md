@@ -175,10 +175,10 @@ No Stage 4 next-action menu.
 
 ### Stage Composition Contract
 
-1. Stage 0 status strip remains visible for all interactive stages in the run path. Brand identity block remains visible throughout Stage 1 and is not repeated in Stage 2 or Stage 3.
+1. Stage 0 status strip remains visible for all interactive stages in the run path. Brand identity block remains visible throughout Stage 1 and is persisted once at the top of the durable run transcript.
 2. During editable Stage 1, only one wizard step is active at a time.
 3. On `Run now`, Stage 1 transitions from editable form to a frozen Stage 1 summary.
-4. During execution, Stage 2 renders on an isolated live surface rather than repeatedly redrawing into the durable normal-screen transcript.
+4. During execution, Stage 2 renders on the normal screen via bounded cursor-up overwrite rather than via alternate-screen buffering.
 5. When execution ends, the runtime writes one final stacked normal-screen transcript:
    - wizard path: frozen Stage 1 summary, final Stage 2 snapshot, Stage 3 receipt.
 6. When Stage 2 ends, its final snapshot remains visible above Stage 3 in that durable transcript.
@@ -362,7 +362,7 @@ Stage 2 starts only after `Run now`.
 
 Layout behavior:
 
-1. Stage 2 is rendered below the persistent Stage 0 status strip and frozen Stage 1 summary.
+1. Stage 2 is rendered below the persistent Stage 0 header and frozen Stage 1 summary.
 2. During execution, only the Stage 2 live surface is updated; the durable normal-screen transcript is not repeatedly rewritten.
 3. On termination, Stage 2 final state is committed once to the normal-screen transcript above Stage 3 receipt.
 4. If terminal height is constrained, the live surface may compact or degrade, but the final durable transcript still preserves the final Stage 2 snapshot once.
@@ -511,7 +511,7 @@ Exit codes:
 25. `arbiter` launches wizard in TTY and prints help with exit code `0` in non-TTY.
 26. `arbiter run --config <file> --dashboard` renders dashboard in TTY and warns then continues headless in non-TTY.
 27. CLI help exposes no legacy flags (`--headless`, `--verbose`) and no extra primary commands beyond `arbiter`, `arbiter init`, and `arbiter run`.
-28. Stage 0 status strip remains visible throughout Stage 1-3 in the `Run now` path.
+28. Stage 0 header remains visible throughout Stage 1-3 in the `Run now` path and is persisted once at the top of the durable transcript.
 29. After `Run now`, Stage 1 remains visible only as a frozen summary (no editable step bodies).
 30. Stage 2 final snapshot remains visible above Stage 3 receipt until auto-exit.
 31. Scrollback after exit preserves the stacked run-path output order: Stage 0 status strip, Stage 1 frozen summary, Stage 2 final snapshot, Stage 3 receipt.
