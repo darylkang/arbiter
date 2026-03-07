@@ -5,8 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Arbiter TUI Visual Viewer</title>
     <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%231d2021'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' dominant-baseline='middle' font-family='Menlo,monospace' font-size='28' fill='%23ebdbb2'%3EA%3C/text%3E%3C/svg%3E"
+    />
+    <link
       rel="stylesheet"
-      href="https://unpkg.com/@xterm/xterm@6.0.0/css/xterm.css"
+      href="../node_modules/@xterm/xterm/css/xterm.css"
     />
     <style>
       html,
@@ -57,7 +61,7 @@
       <span id="status">Choose a captured <code>.ansi</code> snapshot to render.</span>
     </div>
     <div id="terminal"></div>
-    <script src="https://unpkg.com/@xterm/xterm@6.0.0/lib/xterm.js"></script>
+    <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
     <script>
       const status = document.getElementById("status");
       const input = document.getElementById("snapshot-file");
@@ -80,8 +84,13 @@
 
       window.renderSnapshot = async (ansiData) => {
         term.reset();
-        term.write(ansiData);
-        await new Promise((resolve) => setTimeout(resolve, 120));
+        await new Promise((resolve, reject) => {
+          try {
+            term.write(ansiData, resolve);
+          } catch (error) {
+            reject(error);
+          }
+        });
       };
 
       input.addEventListener("change", async (event) => {

@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 
 import pty from "@homebridge/node-pty-prebuilt-multiarch";
 import xtermHeadless from "@xterm/headless";
@@ -67,6 +68,49 @@ export const renderAnsiToText = async (
 const createDefaultOutputDir = () => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   return resolve(REPO_ROOT, "output/playwright/tui-visual", timestamp);
+};
+
+const usage = () => `Usage: node scripts/tui-visual-capture.mjs [options]
+
+Options:
+  --cols <number>   Terminal width to emulate (default: ${DEFAULT_COLS})
+  --rows <number>   Terminal height to emulate (default: ${DEFAULT_ROWS})
+  --out <path>      Output directory for capture artifacts
+  --quiet           Suppress checkpoint listing
+  --help            Show this message
+`;
+
+const parsePositiveInteger = (value, name) => {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer, got: ${value}`);
+  }
+  return parsed;
+};
+
+const parseCliOptions = (argv = process.argv.slice(2)) => {
+  const { values } = parseArgs({
+    args: argv,
+    allowPositionals: false,
+    options: {
+      cols: { type: "string" },
+      rows: { type: "string" },
+      out: { type: "string" },
+      quiet: { type: "boolean", default: false },
+      help: { type: "boolean", default: false }
+    }
+  });
+
+  if (values.help) {
+    return { help: true };
+  }
+
+  return {
+    cols: values.cols ? parsePositiveInteger(values.cols, "--cols") : undefined,
+    rows: values.rows ? parsePositiveInteger(values.rows, "--rows") : undefined,
+    outputDir: values.out ? resolve(REPO_ROOT, values.out) : undefined,
+    quiet: values.quiet
+  };
 };
 
 const createPtySession = (options) => {
@@ -287,7 +331,12 @@ export const captureVisualJourney = async (options = {}) => {
 
 const main = async () => {
   try {
-    await captureVisualJourney();
+    const options = parseCliOptions();
+    if (options.help) {
+      console.log(usage());
+      return;
+    }
+    await captureVisualJourney(options);
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

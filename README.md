@@ -142,6 +142,12 @@ Generate a full capture pack:
 npm run capture:tui
 ```
 
+Optional capture controls:
+
+```bash
+node scripts/tui-visual-capture.mjs --cols 60 --rows 18 --out output/playwright/tui-visual/manual-check --quiet
+```
+
 This writes a timestamped directory under `output/playwright/tui-visual/` with paired files for each checkpoint:
 
 - `*.ansi`: raw terminal output for human visual review
@@ -150,7 +156,7 @@ This writes a timestamped directory under `output/playwright/tui-visual/` with p
 
 Recommended review split:
 
-- Human review: open `/Users/darylkang/Developer/arbiter/scripts/tui-terminal-viewer.html` in a browser and load one of the captured `*.ansi` files.
+- Human review: open `/Users/darylkang/Developer/arbiter/scripts/tui-terminal-viewer.html` in a browser and load one of the captured `*.ansi` files. The viewer now uses repo-local xterm assets rather than a CDN.
 - Agent review: inspect the generated `*.txt` files directly. They reflect rendered terminal state rather than raw escape sequences. Stage 2 and Stage 3 checkpoint text includes rendered scrollback so the full run-path stack remains inspectable in one artifact.
 
 Execution note:
