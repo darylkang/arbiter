@@ -132,7 +132,7 @@ Bracketless — no `[` or `]` wrapping.
 **Worker activity bar:**
 
 ```text
-W1  ░███░░░░░  running  trial 28  gpt-5
+W1  ░███░░░░░  running  trial 28  GPT-4o Mini
 ```
 
 1. ID (`W{n}`): `fg.primary`, 4-char width.
@@ -316,8 +316,8 @@ When `Run now` is selected, the rail freezes (all `✔`) and remains in terminal
 ✔  Run Mode             Mock
 ✔  Research Question    "What is the effect of..." (72 chars)
 ✔  Protocol             Independent
-✔  Models               gpt-5, gpt-4.1-mini (2 selected)
-✔  Personas             neutral_analyst, skeptical_reviewer (2 selected)
+✔  Models               GPT-4o Mini, GPT-4.1 Mini (2 selected)
+✔  Personas             Neutral, Skeptical (2 selected)
 ✔  Decode Params        temp 0.70, seed random
 ✔  Advanced Settings    defaults
 ```
@@ -486,10 +486,10 @@ Validation error text renders in `status.error`.
 │
 │   Select one or more models for sampling.
 │
-│   ▸ ■ openai/gpt-5                [paid] [stable]
-│     □ anthropic/claude-sonnet-4    [paid]
-│     ■ openai/gpt-4.1-mini         [paid] [fast]
-│     □ google/gemini-2.0-flash      [free]
+│   ▸ ■ GPT-4o Mini · OpenAI · paid
+│     □ Claude Sonnet 4 · Anthropic · paid · alias
+│     ■ GPT-4.1 Mini · OpenAI · paid
+│     □ Gemini 2.0 Flash · Google · free
 │
 │   Warning: free-tier models selected. Availability may be
 │   limited. Use paid models for publishable research.
@@ -513,15 +513,15 @@ Validation error text renders in `status.error`.
 ✔  Run Mode             Mock
 ✔  Research Question    "What is the effect of..." (42 chars)
 ✔  Protocol             Independent
-✔  Models               gpt-5, gpt-4.1-mini (2 selected)
+✔  Models               GPT-4o Mini, GPT-4.1 Mini (2 selected)
 
 ◆  Personas
 │
 │   Select one or more personas for sampling.
 │
-│   ▸ ■ neutral_analyst
-│     ■ skeptical_reviewer
-│     □ policy_formalist
+│   ▸ ■ Neutral — default baseline stance
+│     ■ Skeptical — press on the strongest objection
+│     □ Precise — define terms and state assumptions
 │
 ◇  Decode Params
 ◇  Advanced Settings
@@ -541,8 +541,8 @@ Validation error text renders in `status.error`.
 ✔  Run Mode             Mock
 ✔  Research Question    "What is the effect of..." (42 chars)
 ✔  Protocol             Independent
-✔  Models               gpt-5, gpt-4.1-mini (2 selected)
-✔  Personas             neutral_analyst, skeptical_reviewer (2 selected)
+✔  Models               GPT-4o Mini, GPT-4.1 Mini (2 selected)
+✔  Personas             Neutral, Skeptical (2 selected)
 
 ◆  Decode Params
 │
@@ -574,8 +574,8 @@ Validation error text renders in `status.error`.
 ✔  Run Mode             Mock
 ✔  Research Question    "What is the effect of..." (42 chars)
 ✔  Protocol             Independent
-✔  Models               gpt-5, gpt-4.1-mini (2 selected)
-✔  Personas             neutral_analyst, skeptical_reviewer (2 selected)
+✔  Models               GPT-4o Mini, GPT-4.1 Mini (2 selected)
+✔  Personas             Neutral, Skeptical (2 selected)
 ✔  Decode Params        temp 0.70, seed random
 
 ◆  Advanced Settings
@@ -601,17 +601,30 @@ Validation error text renders in `status.error`.
 ✔  Run Mode             Mock
 ✔  Research Question    "What is the effect of..." (42 chars)
 ✔  Protocol             Independent
-✔  Models               gpt-5, gpt-4.1-mini (2 selected)
-✔  Personas             neutral_analyst, skeptical_reviewer (2 selected)
+✔  Models               GPT-4o Mini, GPT-4.1 Mini (2 selected)
+✔  Personas             Neutral, Skeptical (2 selected)
 ✔  Decode Params        temp 0.70, seed random
 ✔  Advanced Settings    defaults
 
 ◆  Review and Confirm
 │
+│   Review settings, run checks, and choose how to proceed.
+│
 │   Preflight
 │   ✓ Schema validation
 │   ✓ Output path writable
 │   ⚠ Live connectivity check (skipped in Mock mode)
+│
+│   Config Summary
+│   Question         "What is the effect of..." 
+│   Protocol         Independent
+│   Models           GPT-4o Mini, GPT-4.1 Mini (2 selected)
+│   Personas         Neutral, Skeptical (2 selected)
+│   Decode Params    temp 0.70, seed random
+│   Run mode         Mock
+│   Output dir       runs
+│
+│   Review action
 │
 │   ▸ ● Run now
 │     ○ Save config and exit
@@ -635,17 +648,30 @@ When the user chose `Run existing config` at Step 0, intermediate steps are comp
 ✔  Run Mode             Live
 ✔  Research Question    "Compare reasoning approaches..." (48 chars)
 ✔  Protocol             Debate (2P, 1R)
-✔  Models               gpt-5, claude-sonnet-4 (2 selected)
-✔  Personas             neutral_analyst (1 selected)
+✔  Models               GPT-4o Mini, Claude Sonnet 4 (2 selected)
+✔  Personas             Neutral (1 selected)
 ✔  Decode Params        temp 0.70, seed random
 ✔  Advanced Settings    workers 4, K_max 120
 
 ◆  Review and Confirm
 │
+│   Review settings, run checks, and choose how to proceed.
+│
 │   Preflight
 │   ✓ Schema validation
 │   ✓ Output path writable
 │   ⚠ Live connectivity check occurs at run start
+│
+│   Config Summary
+│   Question         "Compare reasoning approaches..."
+│   Protocol         Debate (2P, 1R)
+│   Models           GPT-4o Mini, Claude Sonnet 4 (2 selected)
+│   Personas         Neutral (1 selected)
+│   Decode Params    temp 0.70, seed random
+│   Run mode         Live
+│   Output dir       runs
+│
+│   Review action
 │
 │   ▸ ● Run now
 │     ○ Save config and exit
@@ -692,10 +718,13 @@ The frozen rail summary above is NOT re-rendered. It was written to scrollback b
 ✔  Run Mode             Mock
 ✔  Research Question    "What is the effect of..." (72 chars)
 ✔  Protocol             Independent
-✔  Models               gpt-5, gpt-4.1-mini (2 selected)
-✔  Personas             neutral_analyst, skeptical_reviewer (2 selected)
+✔  Models               GPT-4o Mini, GPT-4.1 Mini (2 selected)
+✔  Personas             Neutral, Skeptical (2 selected)
 ✔  Decode Params        temp 0.70, seed random
 ✔  Advanced Settings    defaults
+
+───────────────────────────────────────────────────────────────────────────────
+Starting run
 
 ── PROGRESS ────────────────────────────────────────────────────────────────
 
@@ -712,9 +741,9 @@ Stopping indicates diminishing novelty, not correctness.
 
 ── WORKERS ─────────────────────────────────────────────────────────────────
 
-W1  ░███░░░░░  running   trial 28  gpt-5
-W2  ⠋░░░░░░░░░  idle      trial 19  gpt-4.1-mini
-W3  ░░███░░░░  running   trial 27  gpt-5
+W1  ░███░░░░░  running   trial 28  GPT-4o Mini
+W2  ⠋░░░░░░░░░  idle      trial 19  GPT-4.1 Mini
+W3  ░░███░░░░  running   trial 27  GPT-4o Mini
 
 ───────────────────────────────────────────────────────────────────────────────
 Ctrl+C graceful stop
@@ -728,6 +757,18 @@ Frozen rail renders in `fg.muted` during Stage 2.
 2. When workers exceed available terminal height: show top N, then `(+{hidden} more workers)`.
 3. When workers == 1: `── WORKERS ──` section is omitted entirely.
 4. Worker bar fill color is semantic by state (running=amber, finishing=teal, idle=muted, error=red).
+5. Worker model labels use the same product display labels as Stage 1 wherever a display label exists; raw provider slugs are not a premium-mode display target.
+
+### Stage 1 → Stage 2 Transition Beat
+
+When `Run now` fires:
+
+1. The frozen completed rail summary remains in scrollback.
+2. Insert one full-width separator after the frozen rail block.
+3. Render `Starting run` as a muted transition line.
+4. Then begin the Stage 2 status strip and ruled sections.
+
+This transition beat is intentionally minimal. Its purpose is continuity, not a second dashboard header.
 
 ### Graceful Stop
 
@@ -785,17 +826,21 @@ Trials          80 / 80 / 76 (planned / completed / eligible)
 Duration        00:05:47
 Usage           122k tokens (est.)
 Protocol        Independent
-Models          gpt-5, gpt-4.1-mini
-Personas        neutral_analyst, skeptical_reviewer
+Models          GPT-4o Mini, GPT-4.1 Mini
+Personas        Neutral, Skeptical
 
 ── ARTIFACTS ───────────────────────────────────────────────────────────────
 
-config.source.json    config.resolved.json    manifest.json
-trials.jsonl          monitoring.jsonl         receipt.txt
+config.source.json
+config.resolved.json
+manifest.json
+trials.jsonl
+monitoring.jsonl
+receipt.txt
 
 ── REPRODUCE ───────────────────────────────────────────────────────────────
 
-arbiter run --config ./arbiter.config.json
+arbiter run --config ./runs/20260307T012010Z_d03f44/config.resolved.json
 
 ───────────────────────────────────────────────────────────────────────────────
 Run complete.
@@ -818,13 +863,18 @@ Rendered only when embedding group data exists. Caveat in `fg.muted`.
 
 ### Artifacts
 
-1. Three per row when width allows, single column at narrow widths.
+1. Render one artifact path per line for scanability.
 2. Only list files that actually exist in the output directory.
 3. If no embeddings due to zero eligible trials: `No embeddings were generated because there were zero eligible trials.`
 
 ### Stage 3 Sentinel
 
 Entry sentinel: `── RECEIPT ──`. PTY tests match with prefix check: any line starting with `── RECEIPT `.
+
+### Reproduce Path
+
+1. Prefer a path relative to the current working directory when the run directory is inside that tree.
+2. Fall back to an absolute path only when no stable relative path exists.
 
 ## Width Behavior
 
@@ -1170,14 +1220,13 @@ function buildReceiptText(
   parts.push("");
   parts.push(renderRuledSection("ARTIFACTS", width, fmt));
   parts.push("");
-  // Three per row when width allows, single column at narrow widths
-  parts.push(formatArtifactGrid(result.artifacts, width));
+  parts.push(...result.artifacts);
 
   // REPRODUCE section
   parts.push("");
   parts.push(renderRuledSection("REPRODUCE", width, fmt));
   parts.push("");
-  parts.push(`arbiter run --config ${result.configPath}`);
+  parts.push(`arbiter run --config ${result.displayConfigPath}`);
 
   // Footer
   parts.push("");
@@ -1240,9 +1289,9 @@ Stopping indicates diminishing novelty, not correctness.
 
 ── WORKERS ─────────────────────────────────────────────────────────────────
 
-W1  ░███░░░░░  running   trial 28  gpt-5
-W2  ⠋░░░░░░░░░  idle      trial 19  gpt-4.1-mini
-W3  ░░███░░░░  running   trial 27  gpt-5
+W1  ░███░░░░░  running   trial 28  GPT-4o Mini
+W2  ⠋░░░░░░░░░  idle      trial 19  GPT-4.1 Mini
+W3  ░░███░░░░  running   trial 27  GPT-4o Mini
 
 ───────────────────────────────────────────────────────────────────────────────
 Ctrl+C graceful stop

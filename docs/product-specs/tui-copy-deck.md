@@ -138,10 +138,12 @@ App-shell chrome pattern:
 1. `FLEX`: top status strip should use compact context labels. Canonical values: `onboarding`, `onboarding / mode`, `setup / question`, `setup / protocol`, `setup / models`, `setup / personas`, `setup / decode`, `setup / advanced`, `setup / review`, `run / monitoring`, `run / receipt`. (See screen deck Status Strip section for the authoritative enumerated list.)
 2. `LOCKED`: command footer copy must be concise and control-first.
 
-Metadata badge pattern:
+Inline metadata pattern:
 
-1. `LOCKED`: pricing/plan metadata uses compact badges (`[paid]`, `[free]`).
-2. `FLEX`: additional capability badges (for example `[fast]`, `[stable]`) may be used when consistently applied.
+1. `LOCKED`: model and persona metadata uses compact inline segments separated by ` · `, not bracket-wrapped badges.
+2. `LOCKED`: provider names use canonical capitalization (`OpenAI`, `Anthropic`, `Google`, `Meta`).
+3. `FLEX`: pricing or alias metadata may appear as muted inline metadata when it improves scanability.
+4. `LOCKED`: raw slugs are not a premium-mode display target when a product display label exists.
 
 Preflight checklist symbol pattern:
 
@@ -381,6 +383,7 @@ Action confirmations:
 1. `LOCKED`: `Config saved: {path}`
 2. `LOCKED`: `Starting run`
 3. `LOCKED`: `Returning to Step 1 with your selections preserved.`
+4. `LOCKED`: `Starting run` is rendered as a transition beat between the frozen rail summary and the Stage 2 status strip; separator treatment is defined in the visual screen deck.
 
 ### Stage 1 Frozen Rail Summary (Run Path)
 
@@ -439,7 +442,7 @@ Monitoring block:
 Usage block:
 
 1. `LOCKED`: `Usage so far: {usage_summary}`
-2. `LOCKED`: `Usage not applicable` (mock mode)
+2. `LOCKED`: `Mock mode: usage and cost are not tracked.`
 3. `LOCKED`: `Cost: {cost_estimate}` (`estimate` label required when not reliable)
 
 Graceful-stop line:
@@ -492,6 +495,7 @@ Repro section:
 
 1. `LOCKED`: ruled section header: `REPRODUCE`. No prose title line — section body starts directly with the command.
 2. `LOCKED`: `arbiter run --config {config_path}`
+3. `LOCKED`: prefer a relative `{config_path}` from the current working directory when available; fall back to an absolute path only when necessary.
 
 Exit line:
 
