@@ -203,7 +203,7 @@ Minimum by change type:
   - `npm run test:ui` if TTY behavior changed
 - **Provider integration / provenance changes**:
   - `npm run test:provenance`
-  - `npm run test:live-smoke` when the live path changed and credentials are available
+  - `npm run test:live-smoke` when the live path changed, `OPENROUTER_API_KEY` is present, and `ARBITER_ENABLE_LIVE_SMOKE=1`
 
 If you do not run an expected command, say so explicitly and name the residual risk.
 
@@ -230,7 +230,7 @@ Also run these when relevant:
 - `npm run test:report`
 - `npm run test:guards`
 - `npm run test:provenance`
-- `npm run test:live-smoke` when API key is present and live behavior changed
+- `npm run test:live-smoke` when live behavior changed, `OPENROUTER_API_KEY` is present, and `ARBITER_ENABLE_LIVE_SMOKE=1`
 
 ## Common Footguns
 

@@ -113,10 +113,15 @@ Steady-state target:
      - `test/release/*.test.mjs`
 
 8. `test:canary`
-   - purpose: live provider and provenance canary checks when credentials are available
+   - purpose: live provider and provenance canary checks when credentials and explicit opt-in are available
    - current owners:
      - `npm run test:live-smoke`
      - `npm run test:provenance`
+   - live-smoke contract:
+     - requires `OPENROUTER_API_KEY`
+     - requires `ARBITER_ENABLE_LIVE_SMOKE=1`
+     - skips cleanly when either condition is absent
+     - uses one-trial free-tier generation plus a free-tier embedding model to avoid spend
 
 ### 3.2) Composed lanes
 
@@ -214,6 +219,7 @@ CLI and terminal scenarios:
 6. short but supported TUI size such as `120x24`
 7. minimum supported width or height path such as `60x18` and `60x24`
 8. undersized terminal rejection path
+9. live provider path with explicit opt-in only
 
 Visual and render scenarios:
 
@@ -289,6 +295,7 @@ Current classification:
 
 3. keep as canary support:
    - `scripts/live-smoke.mjs`
+   - it must remain skip-safe by default and use free-tier models only when enabled
 
 Prohibition:
 
@@ -322,6 +329,11 @@ Practical guidance:
 6. focused subsystem diagnosis:
    - focused commands such as `npm run test:mock-run`, `npm run test:contracts`, `npm run test:verify`, `npm run test:report`, and `npm run test:quickstart` exist for targeted diagnosis
    - they are implemented as explicit test files rather than script wrappers
+
+7. live/provider changes:
+   - `npm run test:provenance`
+   - `npm run test:live-smoke`
+   - remote calls happen only when both `OPENROUTER_API_KEY` and `ARBITER_ENABLE_LIVE_SMOKE=1` are set
 
 ## 9) Maintenance Discipline
 

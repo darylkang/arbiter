@@ -195,6 +195,7 @@ Current note:
 
 - `npm run test:fast` is the canonical local confidence lane,
 - `npm run test:merge` is the canonical non-live merge gate,
+- `npm run test:live-smoke` is skip-safe by default and only makes remote calls when both `OPENROUTER_API_KEY` and `ARBITER_ENABLE_LIVE_SMOKE=1` are set,
 - focused subsystem commands remain available for diagnosis, but the named lanes are the primary test interface.
 
 ---
