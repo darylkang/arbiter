@@ -288,10 +288,14 @@ Rules:
 Current runtime contract:
 
 1. Stage 1 re-renders immediately against the new terminal dimensions.
-2. Stage 2 re-measures width, rows, and frozen-prefix height on every render tick.
-3. If Stage 2 drops below the live-dashboard minimum (`60x15`), it renders the explicit dashboard-too-small warning in the live region instead of the premium dashboard.
-4. If the terminal recovers before completion, Stage 2 resumes premium dashboard rendering from current state.
-5. If a run finishes while the terminal is still below the live-dashboard minimum, Stage 3 falls back to plain `receipt.txt` output.
+2. Stage 2 runs on an isolated live surface and must not emit repeated live-refresh frames into the durable normal-screen transcript.
+3. Stage 2 re-measures width, rows, and frozen-prefix height on every render tick.
+4. If Stage 2 drops below the live-dashboard minimum (`60x15`), it renders the explicit dashboard-too-small warning in the live region instead of the premium dashboard.
+5. If the terminal recovers before completion, Stage 2 resumes premium dashboard rendering from current state.
+6. On completion, the runtime exits the live surface and writes the durable normal-screen transcript once:
+   - wizard path: frozen Stage 1 summary, final Stage 2 snapshot, Stage 3 receipt,
+   - `arbiter run --dashboard`: final Stage 2 snapshot, Stage 3 receipt.
+7. Transcript truth is a first-class invariant and is validated separately from rendered final-state buffer truth.
 
 ## 9) Testing and Validation Model
 
@@ -310,7 +314,8 @@ Deterministic review model:
 1. live runtime emits ANSI through the real renderer,
 2. `@xterm/headless` converts captured ANSI into deterministic rendered text,
 3. rendered text snapshots are treated as structural truth for agent review, and Stage 2 / Stage 3 snapshot text may include scrollback so the full run-path stack is inspectable,
-4. no separate text renderer backend should exist unless a future need proves the current approach insufficient.
+4. raw transcript extraction is used to validate the durable normal-screen output after the final alt-screen exit,
+5. no separate text renderer backend should exist unless a future need proves the current approach insufficient.
 
 The formatter should support a plain or no-color mode so render primitives can be unit-tested without ANSI noise.
 

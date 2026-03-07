@@ -274,7 +274,8 @@ Operational rules:
 1. `capture:tui` is a scoped review workflow, not a mandatory gate for every code change,
 2. build-backed TUI commands must run serially, not in parallel,
 3. rendered `*.txt` snapshots are structural truth for layout/content review,
-4. color and composition review still belongs in `/Users/darylkang/Developer/arbiter/scripts/tui-terminal-viewer.html`.
+4. raw transcript extraction from the final ANSI stream is required for run-path changes that affect scrollback or Stage 1 → Stage 2 → Stage 3 handoff behavior,
+5. color and composition review still belongs in `/Users/darylkang/Developer/arbiter/scripts/tui-terminal-viewer.html`.
 
 ## 7) Script Classification Rules
 

@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { captureVisualJourney, renderAnsiToText } from "../../scripts/tui-visual-capture.mjs";
+import {
+  captureVisualJourney,
+  extractFinalNormalScreenText
+} from "../../scripts/tui-visual-capture.mjs";
 
 const getCheckpoint = (checkpoints, slug) => {
   const checkpoint = checkpoints.find((item) => item.slug === slug);
@@ -59,10 +62,8 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
     assert.equal(reviewRendered.includes("event sourcing?What are"), false);
 
     const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
-    const fullScrollback = await renderAnsiToText(receiptAnsi, {
-      includeScrollback: true
-    });
-    assert.equal(fullScrollback.includes("── RECEIPT"), true);
+    const finalTranscript = extractFinalNormalScreenText(receiptAnsi);
+    assert.equal(finalTranscript.includes("── RECEIPT"), true);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
   }
@@ -83,14 +84,10 @@ test("pty capture preserves the Stage 2 status strip on a 24-row terminal", { co
     assert.equal(runRendered.includes("run / monitoring"), true);
 
     const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
-    const fullScrollback = await renderAnsiToText(receiptAnsi, {
-      cols: 120,
-      rows: 24,
-      includeScrollback: true
-    });
-    assert.equal((fullScrollback.match(/── PROGRESS/g) || []).length, 1);
-    assert.equal((fullScrollback.match(/run \/ monitoring/g) || []).length, 1);
-    assert.equal((fullScrollback.match(/── RECEIPT/g) || []).length, 1);
+    const finalTranscript = extractFinalNormalScreenText(receiptAnsi);
+    assert.equal((finalTranscript.match(/── PROGRESS/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/run \/ monitoring/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/── RECEIPT/g) || []).length, 1);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
   }
@@ -111,14 +108,10 @@ test("pty capture preserves the Stage 2 status strip on a 60x24 terminal", { con
     assert.equal(runRendered.includes("run / monitoring"), true);
 
     const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
-    const fullScrollback = await renderAnsiToText(receiptAnsi, {
-      cols: 60,
-      rows: 24,
-      includeScrollback: true
-    });
-    assert.equal((fullScrollback.match(/── PROGRESS/g) || []).length, 1);
-    assert.equal((fullScrollback.match(/run \/ monitoring/g) || []).length, 1);
-    assert.equal((fullScrollback.match(/── RECEIPT/g) || []).length, 1);
+    const finalTranscript = extractFinalNormalScreenText(receiptAnsi);
+    assert.equal((finalTranscript.match(/── PROGRESS/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/run \/ monitoring/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/── RECEIPT/g) || []).length, 1);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
   }
@@ -144,13 +137,9 @@ test("pty capture completes at the minimum supported 60x18 size", { concurrency:
       "Trials:"
     ]);
     const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
-    const fullScrollback = await renderAnsiToText(receiptAnsi, {
-      cols: 60,
-      rows: 18,
-      includeScrollback: true
-    });
-    assert.equal(fullScrollback.includes("── RECEIPT"), true);
-    assert.equal(fullScrollback.includes("Run complete."), true);
+    const finalTranscript = extractFinalNormalScreenText(receiptAnsi);
+    assert.equal(finalTranscript.includes("── RECEIPT"), true);
+    assert.equal(finalTranscript.includes("Run complete."), true);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
   }

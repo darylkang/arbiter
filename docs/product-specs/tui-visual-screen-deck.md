@@ -31,13 +31,16 @@ Stage 1 (wizard) renders in the **alternate screen buffer** (`\x1b[?1049h`). Thi
 
 On `Run now`:
 
-1. Disable alt-screen (`\x1b[?1049l`).
-2. Write frozen rail summary to normal screen buffer.
-3. Stage 2 and Stage 3 render in normal screen. Scrollback is preserved.
+1. Keep the live run inside an isolated live surface while execution is in progress.
+2. Do **not** repeatedly redraw Stage 2 directly into the durable normal-screen transcript.
+3. On completion, disable alt-screen (`\x1b[?1049l`) and write one final normal-screen transcript:
+   - frozen rail summary (wizard path only),
+   - final Stage 2 snapshot,
+   - Stage 3 receipt.
 
 Scrollback after exit shows: frozen rail → Stage 2 final → Stage 3 receipt. Stage 1 interactive editing is NOT preserved in scrollback.
 
-`arbiter run --dashboard` never enters alt-screen. Stage 2 and Stage 3 render directly in normal screen.
+`arbiter run --dashboard` uses the same live-surface model for Stage 2 and writes one final normal-screen transcript at completion. It omits the frozen rail summary.
 
 ### Render Loop
 
@@ -48,20 +51,20 @@ Scrollback after exit shows: frozen rail → Stage 2 final → Stage 3 receipt. 
 3. Triggered by: each keypress that changes state.
 4. At the minimum supported wizard height (`18` rows), Stage 1 compacts vertically: brand identity collapses to a 2-line block and rail content omits decorative spacer rows so the active step remains visible without scrolling the alternate screen viewport.
 
-**Stage 2**: Bounded live-region update below the frozen Stage 1 prefix.
+**Stage 2**: Bounded live-region update on the isolated live surface.
 
 1. Compute the visible prefix height at the current terminal width.
 2. Reserve a live region from `topRow` to the terminal bottom via scroll-region control.
 3. Re-render the full Stage 2 frame inside that region from current state.
 4. Animation timer: 120ms interval for worker activity and compact-state refresh.
 5. Substantive re-render on: `trial.completed`, `worker.status`, `monitoring.record`, `batch.completed`.
-6. If the terminal drops below the live-dashboard minimum (`60x15`), Stage 2 swaps to the explicit terminal-too-small warning inside the live region and Stage 3 falls back to plain `receipt.txt` output.
+6. If the terminal drops below the live-dashboard minimum (`60x15`), Stage 2 swaps to the explicit terminal-too-small warning inside the live region.
 
 **Stage 3**: Single static write, then process exit.
 
 ### Resize
 
-Terminal resize triggers re-render from current state at new dimensions. The rail is width-agnostic, progress bars scale via formula, separators refill to terminal width, and the Stage 1 shell compacts at the minimum supported wizard height. During Stage 2, the live region recalculates against the current terminal size on each render tick; if the terminal drops below `60x15`, the premium dashboard is replaced by the explicit dashboard-too-small warning and Stage 3 falls back to plain `receipt.txt` output until the terminal is large enough again. Minimum supported width: 60 columns. Minimum supported height for the wizard: 18 rows. Minimum supported height for the live Stage 2 dashboard: 15 rows.
+Terminal resize triggers re-render from current state at new dimensions. The rail is width-agnostic, progress bars scale via formula, separators refill to terminal width, and the Stage 1 shell compacts at the minimum supported wizard height. During Stage 2, the live region recalculates against the current terminal size on each render tick; if the terminal drops below `60x15`, the premium dashboard is replaced by the explicit dashboard-too-small warning until the terminal is large enough again. The durable final transcript is written once at completion rather than rebuilt incrementally during the run. Minimum supported width: 60 columns. Minimum supported height for the wizard: 18 rows. Minimum supported height for the live Stage 2 dashboard: 15 rows.
 
 ## Visual Grammar
 
@@ -298,7 +301,7 @@ step.index > currentStepIndex  →  PENDING    (no content)
 **Freeze** (Run now selected on Step 7):
 
 1. All steps: → COMPLETED. All summaries shown.
-2. Written to normal screen buffer (exit alt-screen first).
+2. Rendered first on the isolated live surface; committed to the normal screen only once the run finishes.
 3. Rail renders in `fg.muted` (all glyphs, labels, summaries) to visually subordinate to active Stage 2/3 content.
 
 **Existing-config jump** (Step 0 Entry Path → `Run existing config`):
@@ -699,14 +702,13 @@ Three ruled sections:
 
 ### In-Place Update
 
-Stage 2 re-renders its entire content region in place:
+Stage 2 re-renders its entire content region in place on the isolated live surface:
 
-1. Count lines in previous rendered frame.
-2. Cursor up by line count: `\x1b[{n}A`.
-3. Clear to end of screen: `\x1b[J`.
-4. Write new frame.
+1. Recompute live-region bounds from current terminal dimensions and frozen-prefix height.
+2. Restrict updates to the live surface via scroll-region control.
+3. Clear the live surface and write the new Stage 2 frame.
 
-The frozen rail summary above is NOT re-rendered. It was written to scrollback before Stage 2 began. Only the Stage 2 content region is rewritten on each update.
+The frozen rail summary above is visible during the live run, but the durable normal-screen transcript is not rewritten on every Stage 2 update. At completion, the frozen rail, final dashboard snapshot, and receipt are written to the normal screen once.
 
 ### Mid-Run Screen Target
 
@@ -1239,26 +1241,23 @@ function buildReceiptText(
 
 ### Frozen Rail Render Boundary
 
-The frozen rail is **written once** to the normal screen buffer during the Stage 1 → Stage 2 transition. It is never part of Stage 2's render loop.
+The frozen rail is rendered on the isolated live surface during execution and committed to the normal screen transcript only once at completion. It is never part of the repeated Stage 2 render loop on the durable transcript.
 
 Transition sequence:
 
 ```typescript
-// 1. Exit alt-screen (returns to normal screen buffer)
-process.stdout.write("\x1b[?1049l");
+// 1. Keep the live run in alt-screen
+process.stdout.write("\x1b[?1049h");
 
-// 2. Write frozen rail (one-time, in fg.muted)
-const frozenRail = railSteps.map(step =>
-  renderRailStep({ ...step, state: "completed" }, fmt, /* dimmed */ true)
-).join("\n");
-process.stdout.write(frozenRail + "\n\n");
-
-// 3. Start Stage 2 render loop (only content below frozen rail is updated in-place)
-previousLineCount = 0;
+// 2. Render frozen rail and Stage 2 on the live surface
 startDashboardLoop();
+
+// 3. On completion, exit alt-screen and write one durable transcript
+process.stdout.write("\x1b[?1049l");
+process.stdout.write(finalFrozenRail + "\n" + finalDashboard + "\n" + receipt);
 ```
 
-The in-place update cursor movement (`\x1b[{n}A`) only covers `previousLineCount` lines — the frozen rail sits above and is not touched. It scrolls into terminal scrollback naturally as Stage 2 content accumulates.
+The in-place update logic is confined to the live surface. The durable normal-screen transcript is emitted once and does not accumulate repeated refresh frames.
 
 ### Activity Indicator
 
@@ -1268,7 +1267,7 @@ If a future version adds a spinner (e.g., `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` cycle
 
 ### Dashboard-Only Mode
 
-`arbiter run --dashboard` skips Stage 1 entirely. No alt-screen, no brand block, no frozen rail.
+`arbiter run --dashboard` skips Stage 1 entirely. It still uses the isolated live surface during execution, then writes one final normal-screen transcript containing the final dashboard snapshot and receipt.
 
 ```text
 › arbiter  run / monitoring                                              00:19

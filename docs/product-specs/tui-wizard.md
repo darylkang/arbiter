@@ -178,10 +178,12 @@ No Stage 4 next-action menu.
 1. Stage 0 status strip remains visible for all interactive stages in the run path. Brand identity block remains visible throughout Stage 1 and is not repeated in Stage 2 or Stage 3.
 2. During editable Stage 1, only one wizard step is active at a time.
 3. On `Run now`, Stage 1 transitions from editable form to a frozen Stage 1 summary.
-4. Stage 2 renders below the frozen Stage 1 summary and updates in place.
-5. When Stage 2 ends, its final snapshot remains visible and Stage 3 renders below it.
-6. This is not a full transcript stack: prior editable step bodies are not persisted after commit.
-7. Stacked composition applies only to wizard `Run now` path; `arbiter run --dashboard` renders Stage 2 and Stage 3 without brand identity block or Stage 1 summary.
+4. During execution, Stage 2 renders on an isolated live surface rather than repeatedly redrawing into the durable normal-screen transcript.
+5. When execution ends, the runtime writes one final stacked normal-screen transcript:
+   - wizard path: frozen Stage 1 summary, final Stage 2 snapshot, Stage 3 receipt.
+6. When Stage 2 ends, its final snapshot remains visible above Stage 3 in that durable transcript.
+7. This is not a full transcript stack: prior editable step bodies are not persisted after commit.
+8. Stacked composition applies only to wizard `Run now` path; `arbiter run --dashboard` renders Stage 2 and Stage 3 without brand identity block or Stage 1 summary.
 
 ## Stage 1: Intake Wizard
 
@@ -361,9 +363,9 @@ Stage 2 starts only after `Run now`.
 Layout behavior:
 
 1. Stage 2 is rendered below the persistent Stage 0 status strip and frozen Stage 1 summary.
-2. Only the Stage 2 region is live-updated; Stage 0 and Stage 1 summary remain static.
-3. On termination, Stage 2 final state remains visible above Stage 3 receipt.
-4. If terminal height is constrained, frozen content may scroll into terminal scrollback naturally while Stage 2 remains legible in visible rows.
+2. During execution, only the Stage 2 live surface is updated; the durable normal-screen transcript is not repeatedly rewritten.
+3. On termination, Stage 2 final state is committed once to the normal-screen transcript above Stage 3 receipt.
+4. If terminal height is constrained, the live surface may compact or degrade, but the final durable transcript still preserves the final Stage 2 snapshot once.
 
 Required regions:
 

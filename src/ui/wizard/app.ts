@@ -44,7 +44,8 @@ const runStudy = async (input: {
   const hooks = createUiRunLifecycleHooks({
     dashboard: true,
     stackPrefixText: input.stackPrefixText,
-    modelDisplayBySlug: input.modelDisplayBySlug
+    modelDisplayBySlug: input.modelDisplayBySlug,
+    liveSurfaceMode: "inherit-alt-screen"
   });
   const warningSink = createConsoleWarningSink();
   const common = {
@@ -78,6 +79,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
   const personaLabelById = new Map(personaOptions.map((persona) => [persona.id, persona.display]));
   const configFilesResolved = listConfigFiles();
   const apiKeyPresent = Boolean(process.env.OPENROUTER_API_KEY);
+  let handedOffToRun = false;
 
   try {
     frameManager.enter();
@@ -205,17 +207,19 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       }
 
       let configPathToRun: string;
+      let runPreludeLines: string[] = [];
       if (state.entryPath === "existing" && state.selectedConfigPath && !result.revised) {
         configPathToRun = state.selectedConfigPath;
       } else {
         const saveTarget = nextCollisionSafeConfigPath();
         writeJsonFile(saveTarget, result.config);
-        frameManager.printLine(`Config saved: ${saveTarget}`);
+        runPreludeLines = [`Config saved: ${saveTarget}`, ""];
         configPathToRun = saveTarget;
       }
 
       const fmt = createStdoutFormatter();
       const stackPrefixText = [
+        ...runPreludeLines,
         buildFrozenRailSummary({
           draft: state.draft,
           selectedConfigPath: state.selectedConfigPath,
@@ -230,18 +234,24 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
         ""
       ].join("\n");
 
-      frameManager.leave();
-      frameManager.clearScreen();
-      await runStudy({
-        runMode: state.runMode,
-        configPath: configPathToRun,
-        assetRoot,
-        stackPrefixText,
-        modelDisplayBySlug: modelLabelBySlug
-      });
+      handedOffToRun = true;
+      try {
+        await runStudy({
+          runMode: state.runMode,
+          configPath: configPathToRun,
+          assetRoot,
+          stackPrefixText,
+          modelDisplayBySlug: modelLabelBySlug
+        });
+      } catch (error) {
+        frameManager.leave();
+        throw error;
+      }
       return;
     }
   } finally {
-    frameManager.leave();
+    if (!handedOffToRun) {
+      frameManager.leave();
+    }
   }
 };

@@ -12,6 +12,7 @@ const REPO_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const CLI_ENTRY = resolve(REPO_ROOT, "dist/cli/index.js");
 const DEFAULT_COLS = 120;
 const DEFAULT_ROWS = 40;
+const ALT_SCREEN_DISABLE = "\u001b[?1049l";
 
 const ANSI_CSI_REGEX = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 const ANSI_OSC_REGEX = /\u001b\][^\u0007]*\u0007/g;
@@ -21,6 +22,16 @@ const stripAnsi = (value) =>
     .replace(ANSI_OSC_REGEX, "")
     .replace(ANSI_CSI_REGEX, "")
     .replace(/\r/g, "");
+
+export const extractFinalNormalScreenAnsi = (ansiData) => {
+  const lastDisableIndex = ansiData.lastIndexOf(ALT_SCREEN_DISABLE);
+  if (lastDisableIndex < 0) {
+    return ansiData;
+  }
+  return ansiData.slice(lastDisableIndex + ALT_SCREEN_DISABLE.length);
+};
+
+export const extractFinalNormalScreenText = (ansiData) => stripAnsi(extractFinalNormalScreenAnsi(ansiData));
 
 const delay = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
 
@@ -203,10 +214,17 @@ export const captureVisualJourney = async (options = {}) => {
       includeScrollback: slug.startsWith("stage")
     });
     writeFileSync(textPath, renderedText.length > 0 ? `${renderedText}\n` : "", "utf8");
+    const transcriptPath =
+      slug === "stage3-receipt" ? resolve(outputDir, `${prefix}.transcript.txt`) : undefined;
+    if (transcriptPath) {
+      const transcriptText = extractFinalNormalScreenText(snapshotAnsi);
+      writeFileSync(transcriptPath, transcriptText.length > 0 ? `${transcriptText}\n` : "", "utf8");
+    }
     checkpoints.push({
       slug,
       ansiPath,
-      textPath
+      textPath,
+      transcriptPath
     });
   };
 
@@ -282,7 +300,8 @@ export const captureVisualJourney = async (options = {}) => {
     const indexJsonPath = resolve(outputDir, "index.json");
     const indexLines = checkpoints.flatMap((checkpoint) => [
       `${basename(checkpoint.ansiPath)} | raw ANSI`,
-      `${basename(checkpoint.textPath)} | rendered text`
+      `${basename(checkpoint.textPath)} | rendered text`,
+      ...(checkpoint.transcriptPath ? [`${basename(checkpoint.transcriptPath)} | normal-screen transcript`] : [])
     ]);
     writeFileSync(indexPath, `${indexLines.join("\n")}\n`, "utf8");
     writeFileSync(
@@ -297,7 +316,8 @@ export const captureVisualJourney = async (options = {}) => {
             index: index + 1,
             slug: checkpoint.slug,
             ansiFile: basename(checkpoint.ansiPath),
-            textFile: basename(checkpoint.textPath)
+            textFile: basename(checkpoint.textPath),
+            ...(checkpoint.transcriptPath ? { transcriptFile: basename(checkpoint.transcriptPath) } : {})
           }))
         },
         null,

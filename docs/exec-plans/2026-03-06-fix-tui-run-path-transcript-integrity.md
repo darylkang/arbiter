@@ -1,6 +1,6 @@
 # ExecPlan: Fix TUI Run-Path Transcript Integrity
 
-Status: proposed
+Status: in_progress (manual verification pending)
 Owner: Codex
 Last updated: 2026-03-06
 
@@ -58,9 +58,9 @@ Sequencing constraints:
 
 ## 3. Progress
 
-- [ ] M0: run-path model reconciliation
-- [ ] M1: alt-screen live dashboard correction
-- [ ] M2: transcript-truth validation expansion
+- [x] M0: run-path model reconciliation
+- [x] M1: alt-screen live dashboard correction
+- [x] M2: transcript-truth validation expansion
 - [ ] M3: manual verification and closeout
 
 ## 4. Surprises & Discoveries
@@ -72,6 +72,7 @@ Sequencing constraints:
    - `Ctrl+C request graceful stop` appears 6 times.
 3. This means the problem is not a terminal emulator illusion. The dashboard is genuinely being written into the normal-screen transcript multiple times.
 4. The current Stage 2 model can keep the visible viewport clean while still corrupting scrollback history. Those are different invariants and must be tested separately.
+5. After the corrective implementation, the final normal-screen transcript extracted from `output/playwright/tui-visual/2026-03-07T02-39-40-654Z/11-stage3-receipt.ansi` contains exactly one frozen summary, one dashboard snapshot, and one receipt.
 
 ## 5. Decision Log
 

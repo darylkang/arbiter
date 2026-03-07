@@ -7,6 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import pty from "@homebridge/node-pty-prebuilt-multiarch";
+import { extractFinalNormalScreenText } from "../../scripts/tui-visual-capture.mjs";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const CLI_ENTRY = resolve(REPO_ROOT, "dist/cli/index.js");
@@ -181,6 +182,7 @@ const createPtySession = (input) => {
     resize: (cols, rows) => proc.resize(cols, rows),
     waitForExit,
     stop,
+    getRawOutput: () => output,
     getOutput: () => stripAnsi(output)
   };
 };
@@ -259,6 +261,7 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
     assert.equal(ANSI_OSC_REGEX.test(receiptArtifact), false, "receipt.txt must remain ANSI-free");
 
     const output = session.getOutput();
+    const finalTranscript = extractFinalNormalScreenText(session.getRawOutput());
     const mastheadIndex = output.indexOf("A R B I T E R");
     const summaryIndex = output.indexOf("✔  Entry Path");
     const runIndex = output.indexOf("── PROGRESS");
@@ -272,6 +275,10 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
       false,
       "stage 3 should auto-exit with no next-action menu"
     );
+    assert.equal((finalTranscript.match(/── PROGRESS/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/run \/ monitoring/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/── RECEIPT/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/✔  Entry Path/g) || []).length, 1);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });
@@ -427,6 +434,10 @@ test("pty: dashboard re-renders across a live terminal resize", { concurrency: f
 
     const exit = await session.waitForExit(45000);
     assert.equal(exit.exitCode, 0);
+    const finalTranscript = extractFinalNormalScreenText(session.getRawOutput());
+    assert.equal((finalTranscript.match(/── PROGRESS/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/── RECEIPT/g) || []).length, 1);
+    assert.equal(finalTranscript.includes("✔  Entry Path"), false);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });

@@ -22,9 +22,7 @@ import {
 import { buildDashboardTooSmallText, buildRunDashboardText } from "./runtime/dashboard-render.js";
 import {
   computeLiveRegionLayout,
-  countRenderedRows,
-  nextRowAfterLiveRegion,
-  type LiveRegionLayout
+  countRenderedRows
 } from "./runtime/live-region.js";
 import {
   buildReceiptDisplayText,
@@ -34,9 +32,14 @@ import {
 } from "./runtime/receipt-render.js";
 import { MIN_DASHBOARD_ROWS, getDashboardTerminalSupport } from "./tui-constraints.js";
 
+const ALT_SCREEN_ENABLE = "\x1b[?1049h";
+const ALT_SCREEN_DISABLE = "\x1b[?1049l";
 const CURSOR_HIDE = "\x1b[?25l";
 const CURSOR_SHOW = "\x1b[?25h";
 const RESET_SCROLL_REGION = "\x1b[r";
+const CLEAR_SCREEN = "\x1b[H\x1b[J";
+
+type LiveSurfaceMode = "inherit-alt-screen" | "own-alt-screen";
 
 const shouldRenderDashboard = (enabled: boolean): boolean =>
   enabled && Boolean(process.stdout.isTTY);
@@ -46,9 +49,7 @@ class RunDashboardMonitor {
   private readonly snapshot: DashboardState;
   private readonly unsubs: Array<() => void> = [];
   private readonly prefixText: string | null;
-  private lastLayout: LiveRegionLayout | null = null;
   private animationTimer: NodeJS.Timeout | null = null;
-  private hasRendered = false;
 
   constructor(context: RunLifecycleContext, modelDisplayBySlug?: Map<string, string>, prefixText?: string) {
     this.bus = context.bus;
@@ -62,7 +63,6 @@ class RunDashboardMonitor {
   }
 
   attach(): void {
-    process.stdout.write(CURSOR_HIDE);
     this.unsubs.push(
       this.bus.subscribeSafe("run.started", (payload) => this.onRunStarted(payload)),
       this.bus.subscribeSafe("trial.planned", (payload) => this.onTrialPlanned(payload)),
@@ -81,10 +81,12 @@ class RunDashboardMonitor {
     this.stopAnimationLoop();
     this.unsubs.splice(0).forEach((unsubscribe) => unsubscribe());
     process.stdout.write(RESET_SCROLL_REGION);
-    if (this.hasRendered && this.lastLayout) {
-      process.stdout.write(`\x1b[${nextRowAfterLiveRegion(this.lastLayout)};1H\n`);
-    }
-    process.stdout.write(CURSOR_SHOW);
+  }
+
+  buildFinalSnapshot(columns = Math.max(1, process.stdout.columns ?? 80)): string {
+    return buildRunDashboardText(buildDashboardViewModel(this.snapshot, Date.now()), {
+      width: columns
+    }).replace(/\n+$/, "");
   }
 
   private startAnimationLoop(): void {
@@ -158,8 +160,6 @@ class RunDashboardMonitor {
     process.stdout.write(`\x1b[${layout.topRow};${layout.terminalRows}r`);
     process.stdout.write(`\x1b[${layout.topRow};1H\x1b[J`);
     process.stdout.write(frameText);
-    this.lastLayout = layout;
-    this.hasRendered = true;
   }
 }
 
@@ -174,11 +174,53 @@ export const createUiRunLifecycleHooks = (input?: {
   dashboard?: boolean;
   stackPrefixText?: string;
   modelDisplayBySlug?: Map<string, string>;
+  liveSurfaceMode?: LiveSurfaceMode;
 }): RunLifecycleHooks => {
   const dashboardEnabled = shouldRenderDashboard(Boolean(input?.dashboard));
   const stackPrefixText = input?.stackPrefixText?.replace(/\n+$/, "");
+  const liveSurfaceMode: LiveSurfaceMode = input?.liveSurfaceMode ?? "own-alt-screen";
   let monitor: RunDashboardMonitor | null = null;
   let usePlainReceipt = false;
+  let liveSurfaceActive = false;
+  let liveSurfaceExited = false;
+  let dashboardTooSmallWarned = false;
+
+  const enterLiveSurface = (): void => {
+    if (liveSurfaceActive) {
+      return;
+    }
+    if (liveSurfaceMode === "own-alt-screen") {
+      process.stdout.write(ALT_SCREEN_ENABLE);
+    }
+    process.stdout.write(CURSOR_HIDE);
+    process.stdout.write(CLEAR_SCREEN);
+    liveSurfaceActive = true;
+    liveSurfaceExited = false;
+  };
+
+  const leaveLiveSurface = (): void => {
+    if (liveSurfaceExited) {
+      return;
+    }
+    if (!liveSurfaceActive && liveSurfaceMode !== "inherit-alt-screen") {
+      return;
+    }
+    process.stdout.write(RESET_SCROLL_REGION);
+    process.stdout.write(CURSOR_SHOW);
+    process.stdout.write(ALT_SCREEN_DISABLE);
+    liveSurfaceActive = false;
+    liveSurfaceExited = true;
+  };
+
+  const composeFinalTranscript = (parts: Array<string | null | undefined>): string => {
+    const segments = parts
+      .map((part) => part?.replace(/\n+$/, ""))
+      .filter((part): part is string => Boolean(part && part.length > 0));
+    if (segments.length === 0) {
+      return "";
+    }
+    return `${segments.join("\n")}\n`;
+  };
 
   return {
     onRunSetup: (context): void => {
@@ -188,10 +230,13 @@ export const createUiRunLifecycleHooks = (input?: {
       const terminalSupport = getDashboardTerminalSupport(process.stdout);
       if (!terminalSupport.ok) {
         usePlainReceipt = true;
+        leaveLiveSurface();
         process.stdout.write(`${UI_COPY.dashboardTerminalTooSmall}\n`);
+        dashboardTooSmallWarned = true;
         return;
       }
       usePlainReceipt = false;
+      enterLiveSurface();
       if (stackPrefixText && stackPrefixText.trim().length > 0) {
         process.stdout.write(`${stackPrefixText}\n`);
       }
@@ -199,17 +244,28 @@ export const createUiRunLifecycleHooks = (input?: {
       monitor.attach();
     },
     onRunFinally: async (context): Promise<void> => {
+      const finalDashboardText = monitor?.buildFinalSnapshot(Math.max(1, process.stdout.columns ?? 80)) ?? null;
       if (monitor) {
         monitor.detach();
         monitor = null;
       }
+      leaveLiveSurface();
 
       if ((!dashboardEnabled && !usePlainReceipt) || context.receiptMode === "skip") {
         return;
       }
 
       const receiptText = readReceiptText(context.runDir);
-      if (usePlainReceipt || !getDashboardTerminalSupport(process.stdout).ok) {
+      if (usePlainReceipt) {
+        const transcript = composeFinalTranscript([
+          stackPrefixText,
+          dashboardTooSmallWarned ? null : UI_COPY.dashboardTerminalTooSmall,
+          receiptText
+        ]);
+        if (transcript.length > 0) {
+          process.stdout.write(transcript);
+          return;
+        }
         if (receiptText) {
           process.stdout.write(receiptText);
           return;
@@ -220,7 +276,7 @@ export const createUiRunLifecycleHooks = (input?: {
 
       const receiptDisplayText = buildReceiptDisplayTextFromRunDir(context.runDir);
       if (receiptDisplayText) {
-        process.stdout.write(receiptDisplayText);
+        process.stdout.write(composeFinalTranscript([stackPrefixText, finalDashboardText, receiptDisplayText]));
         return;
       }
 
@@ -229,8 +285,9 @@ export const createUiRunLifecycleHooks = (input?: {
         return;
       }
 
-      process.stdout.write(`${UI_COPY.receiptHeader}\n`);
-      process.stdout.write(receiptText);
+      process.stdout.write(
+        composeFinalTranscript([stackPrefixText, finalDashboardText, `${UI_COPY.receiptHeader}\n${receiptText}`])
+      );
     }
   };
 };
