@@ -528,3 +528,4 @@ Candidate invariant-owner model to prove or revise in M0:
 - 2026-03-07 02:55Z: M2 landed explicit `test/cli/`, `test/integration/`, `test/release/`, `test/canary/`, and shared `test/helpers/` structure while retaining only a smaller script-backed smoke subset inside the integration lane.
 - 2026-03-07 02:55Z: M3 moved render fixtures into `test/tui-render/` and extended `capture:tui` with machine-readable `index.json`.
 - 2026-03-07 02:55Z: M4 pruned replaced smoke scripts, promoted `test:fast` and `test:merge` to canonical status in contributor docs, and aligned `AGENTS.md`, `README.md`, `docs/TESTING.md`, and `docs/TUI-RUNTIME.md`.
+- 2026-03-07 05:35Z: post-M4 refinement removed the final retained script-backed smokes, migrated focused subsystem commands to explicit `node:test` files, added `test/*:nobuild` sublanes, and changed `test:merge` plus `prepublishOnly` to a single-build orchestration model.

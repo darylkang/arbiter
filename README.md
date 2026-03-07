@@ -185,17 +185,17 @@ Arbiter's canonical testing charter lives in `/Users/darylkang/Developer/arbiter
 
 Use that document for:
 
-- the target lane model,
+- the lane model,
 - invariant ownership,
 - the TUI render versus PTY split,
-- script-migration and redundancy guidance,
+- script-classification and redundancy guidance,
 - the canonical shape of `test:fast` and `test:merge`.
 
 Current note:
 
 - `npm run test:fast` is the canonical local confidence lane,
 - `npm run test:merge` is the canonical non-live merge gate,
-- focused legacy commands remain available for subsystem diagnosis, but the named lanes are now the primary test interface.
+- focused subsystem commands remain available for diagnosis, but the named lanes are the primary test interface.
 
 ---
 

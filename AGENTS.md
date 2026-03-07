@@ -166,8 +166,6 @@ Keep this workflow lightweight:
 
 Canonical testing architecture, lane ownership, and the migration path from the current script surface live in `docs/TESTING.md`.
 
-The commands below are the current operational gates until that migration is fully landed in `package.json`.
-
 There are two validation levels: scope gate and merge gate.
 
 ### Scope Gate
@@ -196,9 +194,9 @@ Minimum by change type:
 - **Artifact / verify / report changes**:
   - `npm run test:verify`
   - `npm run test:report`
-  - `npm run test:pack`
+  - `npm run test:release`
 - **Packaging / publish changes**:
-  - `npm run test:pack`
+  - `npm run test:release`
   - `npm pack` and inspect tarball contents
 - **CLI surface changes**:
   - `npm run test:cli`
@@ -267,7 +265,7 @@ When changing a subsystem, update the governing docs and run the matching valida
   - run `npm run test:contracts` and the relevant protocol tests.
 - **Artifacts**:
   - update `docs/DESIGN.md` artifact semantics and any affected schemas,
-  - run `npm run test:verify`, `npm run test:report`, and `npm run test:pack`.
+  - run `npm run test:verify`, `npm run test:report`, and `npm run test:release`.
 - **TUI behavior, copy, or visuals**:
   - update the relevant product-spec docs,
   - update capture and assertion scripts as needed,
@@ -277,7 +275,7 @@ When changing a subsystem, update the governing docs and run the matching valida
   - run `npm run test:cli` and any affected TUI/headless tests.
 - **Release or publish path**:
   - update `README.md` when user-facing usage changes,
-  - run `npm run test:pack` and `npm pack`,
+  - run `npm run test:release` and `npm pack`,
   - inspect tarball contents and perform a secret-scan sanity check.
 
 ## Release and Publish Checklist
@@ -286,7 +284,7 @@ Before publishing:
 
 - `npm run check:types`
 - `npm run check:schemas`
-- `npm run test:pack`
+- `npm run test:release`
 - `npm pack` and inspect tarball contents
 - confirm `runs/`, `output/`, and other local artifacts are not included unless intentional
 - README accuracy check

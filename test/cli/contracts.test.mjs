@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import test from "node:test";
 
-import { DIST_CLI_ENTRY, runBuiltCli, withTempWorkspace } from "../helpers/workspace.mjs";
+import { loadTemplateConfig } from "../helpers/scenarios.mjs";
+import {
+  DIST_CLI_ENTRY,
+  getSingleRunDir,
+  runBuiltCli,
+  withTempWorkspace,
+  writeJson
+} from "../helpers/workspace.mjs";
 
 test("built CLI entry exists for command-surface tests", () => {
   assert.equal(existsSync(DIST_CLI_ENTRY), true);
@@ -90,5 +97,33 @@ test("built CLI handles version, unknown command, non-tty root, init collisions,
         missingConfig.stderr.toLowerCase().includes("enoent"),
       true
     );
+  });
+});
+
+test("built CLI resolves relative config paths from the current working directory", async () => {
+  await withTempWorkspace("arbiter-cli-contracts-", async (cwd) => {
+    const runsDir = resolve(cwd, "runs");
+    const configDir = resolve(cwd, "configs");
+    mkdirSync(configDir, { recursive: true });
+
+    const template = loadTemplateConfig("free_quickstart");
+    template.question = {
+      text: "Relative config path prompt",
+      question_id: "relative_path_q1"
+    };
+
+    writeJson(resolve(configDir, "relative.config.json"), template);
+
+    const result = runBuiltCli(
+      ["run", "--config", "configs/relative.config.json", "--out", "runs"],
+      { cwd }
+    );
+    assert.equal(result.status, 0, result.stderr);
+
+    const resolvedConfig = readFileSync(
+      resolve(getSingleRunDir(runsDir), "config.resolved.json"),
+      "utf8"
+    );
+    assert.equal(JSON.parse(resolvedConfig).question.question_id, "relative_path_q1");
   });
 });

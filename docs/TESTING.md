@@ -44,20 +44,18 @@ Current state:
 1. Arbiter now has explicit lane entrypoints in `package.json` for static, unit, integration, CLI, TUI render, TUI end-to-end, release, canary, fast, and merge validation.
 2. The fast lane is real: `test:static` and `test:unit` both run without a full `dist/` build, and source-level tests import from `src/*`.
 3. TUI render contracts now live in `test/tui-render/*.test.mjs`, separate from PTY end-to-end coverage in `test/e2e/*.test.mjs`.
-4. Integration, CLI, release, and canary lanes now have explicit `test/` directories, but the integration lane intentionally still retains a smaller set of script-backed smokes where they remain the most practical owner.
-5. The remaining cleanup problem is no longer lane naming; it is continued pruning of retained script-backed smokes and further tightening of invariant ownership where the line between unit and integration is still slightly broad.
+4. Integration, CLI, release, and canary lanes now have explicit `test/` directories, and the old script-backed smokes have been migrated or deleted.
+5. `test:merge` now builds `dist/` once and runs explicit no-build sublanes, so the merge gate reflects the lane model instead of recompiling at every stage.
 
-Target state:
+Steady-state target:
 
 1. a small set of named lanes with clear failure meaning,
 2. one primary runner family (`node:test`),
 3. a shared fixture and scenario vocabulary,
 4. a documented invariant-owner map,
 5. a TUI testing stack split into render-contract tests, PTY end-to-end tests, and review artifacts,
-6. a canonical local confidence lane and a canonical non-live merge lane.
-
-Until the migration finishes, the current commands in `package.json` remain operationally canonical.
-This document defines the target architecture and the migration map from the current aliases toward the final system.
+6. a canonical local confidence lane and a canonical non-live merge lane,
+7. focused subsystem commands that are implemented as explicit test files rather than ad hoc wrapper scripts.
 
 ## 3) Lane Model
 
@@ -85,7 +83,6 @@ This document defines the target architecture and the migration map from the cur
   - current owners:
      - `npm run test:integration`
      - `test/integration/*.test.mjs`
-     - retained script-backed smokes invoked from `test/integration/script-backed-smokes.test.mjs`
 
 4. `test:cli`
   - purpose: public command surface, flag routing, help output, non-TTY behavior, and exit semantics
@@ -136,20 +133,21 @@ This document defines the target architecture and the migration map from the cur
      - is the canonical local confidence lane
 
 2. `test:merge`
-   - target composition:
+   - composition:
      - `test:static`
      - `test:unit`
-     - `test:integration`
-     - `test:cli`
+     - one shared `npm run build`
+     - `test:integration:nobuild`
+     - `test:cli:nobuild`
      - `test:tui:render`
-     - `test:tui:e2e`
-     - `test:release`
+     - `test:e2e:tui:nobuild`
+     - `test:release:nobuild`
    - excludes:
      - `test:canary`
    - current status:
      - exists in `package.json`
      - is the canonical non-live merge gate
-     - intentionally retains build-backed integration, PTY, and release stages
+     - intentionally retains build-backed CLI, PTY, and release stages while avoiding redundant rebuilds
 
 ## 4) Invariant Ownership
 
@@ -272,15 +270,15 @@ Operational rules:
 3. rendered `*.txt` snapshots are structural truth for layout/content review,
 4. color and composition review still belongs in `/Users/darylkang/Developer/arbiter/scripts/tui-terminal-viewer.html`.
 
-## 7) Script Classification and Pruning Rules
+## 7) Script Classification Rules
 
-The current `scripts/` directory mixes three different things:
+The `scripts/` directory should contain only three kinds of files:
 
-1. true developer or review utilities,
-2. static guard utilities,
-3. test-only smoke logic.
+1. review or operator utilities,
+2. guard utilities,
+3. narrow canary support.
 
-Target classification:
+Current classification:
 
 1. keep as developer or review utilities:
    - `scripts/tui-visual-capture.mjs`
@@ -289,43 +287,14 @@ Target classification:
 2. keep as guard utilities:
    - `scripts/architecture-guard.mjs`
 
-3. removed after replacement lane coverage landed:
-   - `scripts/tui-intent.mjs`
-   - `scripts/event-bus-safety.mjs`
-   - `scripts/tui-headless.mjs`
-   - `scripts/cli-output-contracts.mjs`
-   - `scripts/tui-command-smoke.mjs`
-   - `scripts/tui-warning-sink.mjs`
-   - `scripts/signal-handlers.mjs`
-   - `scripts/status-mapping.mjs`
-   - `scripts/test-pack-install.mjs`
-   - `scripts/openrouter-provenance.mjs`
-
-4. retained as script-backed integration smokes with explicit lane ownership:
-   - `scripts/mock-run-smoke.mjs`
-   - `scripts/verify-smoke.mjs`
-   - `scripts/report-smoke.mjs`
-   - `scripts/template-smoke.mjs`
-   - `scripts/contract-fallback.mjs`
-   - `scripts/contract-policy.mjs`
-   - `scripts/clustering-determinism.mjs`
-   - `scripts/clustering-limit.mjs`
-   - `scripts/mock-run-interrupt.mjs`
-   - `scripts/mock-run-debate.mjs`
-   - `scripts/debate-empty.mjs`
-   - `scripts/validate-embeddings-arrow.mjs`
-   - `scripts/resolve-only.mjs`
-   - `scripts/receipt-failure.mjs`
-   - `scripts/zero-eligible.mjs`
-   - `scripts/error-code-null.mjs`
-   - `scripts/relative-config-path.mjs`
-
-5. retained as canary support:
+3. keep as canary support:
    - `scripts/live-smoke.mjs`
 
-Pruning rule:
+Prohibition:
 
-1. no test or script is deleted until its replacement owner lane is named and parity evidence is recorded.
+1. test-only smoke coverage must live under `test/`, not under `scripts/`,
+2. new subsystem validation should be added as explicit tests wired into a lane or focused test command,
+3. scripts may only remain when they are true utilities, guards, or canary support.
 
 ## 8) What To Run Today
 
@@ -350,16 +319,16 @@ Practical guidance:
 5. full pre-merge validation:
    - `npm run test:merge`
 
-6. compatibility note:
-   - focused legacy commands such as `npm run test:mock-run` and `npm run test:verify` still exist for targeted diagnosis
-   - they are no longer the primary way to understand the suite
+6. focused subsystem diagnosis:
+   - focused commands such as `npm run test:mock-run`, `npm run test:contracts`, `npm run test:verify`, `npm run test:report`, and `npm run test:quickstart` exist for targeted diagnosis
+   - they are implemented as explicit test files rather than script wrappers
 
-## 9) Migration Discipline
+## 9) Maintenance Discipline
 
-While the testing-system redesign is in progress:
+When extending the suite:
 
-1. prefer additive lane aliases and new docs before deleting old commands,
-2. keep old and new surfaces side by side until parity is demonstrated,
-3. do not claim a lane exists in contributor guidance until it exists in `package.json`,
-4. record every deletion alongside the invariant and replacement owner lane,
-5. keep changes coordinated with `docs/TUI-RUNTIME.md` and the active TUI runtime hardening plan when TUI render seams are involved.
+1. add coverage at the lowest truthful owner lane,
+2. do not introduce new wrapper scripts for tests,
+3. prefer shared helpers and scenario fixtures over ad hoc temp-workspace setup,
+4. keep changes coordinated with `docs/TUI-RUNTIME.md` when TUI render seams are involved,
+5. preserve the build-once merge gate shape unless there is a clear countervailing reason.

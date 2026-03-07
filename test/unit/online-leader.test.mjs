@@ -37,3 +37,59 @@ test("OnlineLeaderClustering records excluded totals", () => {
   const totals = clustering.getTotals();
   assert.equal(totals.totalExcluded, 3);
 });
+
+test("OnlineLeaderClustering assignment order is deterministic for the same input stream", () => {
+  const vectors = [
+    [1, 0, 0],
+    [0.9, 0.1, 0],
+    [0, 1, 0],
+    [0.1, 0.9, 0],
+    [0, 0, 1]
+  ];
+
+  const runOnce = () => {
+    const clustering = new OnlineLeaderClustering({
+      tau: 0.8,
+      centroidUpdateRule: "fixed_leader",
+      groupLimit: 500
+    });
+    return vectors.map((vector, index) =>
+      clustering.assignEmbedding({
+        trial_id: index,
+        vector,
+        batch_number: 0
+      })
+    );
+  };
+
+  const first = runOnce();
+  const second = runOnce();
+  assert.deepEqual(first, second);
+  assert.equal(first.every((assignment) => Number.isInteger(assignment.group_id) && assignment.group_id >= 0), true);
+});
+
+test("OnlineLeaderClustering tracks forced assignments once the group limit is reached", () => {
+  const clustering = new OnlineLeaderClustering({
+    tau: 0.99,
+    centroidUpdateRule: "fixed_leader",
+    groupLimit: 2
+  });
+
+  const assignments = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+    [-1, 0, 0]
+  ].map((vector, index) =>
+    clustering.assignEmbedding({
+      trial_id: index,
+      vector,
+      batch_number: 0
+    })
+  );
+
+  const forcedCount = assignments.filter((assignment) => assignment.forced).length;
+  assert.equal(clustering.getGroupCount(), 2);
+  assert.equal(forcedCount > 0, true);
+  assert.equal(clustering.getTotals().forcedAssignments, forcedCount);
+});
