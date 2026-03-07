@@ -5,33 +5,6 @@
   "type": "object",
   "additionalProperties": false,
   "$defs": {
-    "usage_stats": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "prompt_tokens",
-        "completion_tokens",
-        "total_tokens"
-      ],
-      "properties": {
-        "prompt_tokens": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "completion_tokens": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "total_tokens": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "cost": {
-          "type": "number",
-          "minimum": 0
-        }
-      }
-    },
     "manifest_measurement_summary": {
       "type": "object",
       "additionalProperties": false,
@@ -380,12 +353,12 @@
       ],
       "properties": {
         "totals": {
-          "$ref": "#/$defs/usage_stats"
+          "$ref": "common.schema.json#/$defs/usage_stats"
         },
         "by_model": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/usage_stats"
+            "$ref": "common.schema.json#/$defs/usage_stats"
           }
         }
       }

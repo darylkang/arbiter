@@ -70,6 +70,23 @@ Schema work in this directory should follow these principles:
 
 ## File Families
 
+### 0. Shared Contract Fragments
+
+This helper schema exists to consolidate stable cross-file definitions without forcing premature semantic unification.
+
+- `common.schema.json`
+
+Current shared fragments include:
+
+1. finite label-space contract pieces,
+2. question-evaluation metadata,
+3. interval records,
+4. rung and estimand-path enums,
+5. embed-text source enums,
+6. usage-stat blocks.
+
+Only promote a fragment into `common.schema.json` when it is genuinely shared in meaning, not merely similar in spelling.
+
 ### 1. Estimand-Defining Inputs
 
 These schemas define the experiment contract itself.

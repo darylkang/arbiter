@@ -4,23 +4,6 @@
   "title": "Arbiter Question",
   "type": "object",
   "additionalProperties": false,
-  "$defs": {
-    "finite_label_space": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["type", "labels"],
-      "properties": {
-        "type": { "const": "finite" },
-        "labels": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
-        },
-        "description": { "type": "string", "minLength": 1 }
-      }
-    }
-  },
   "required": ["text"],
   "properties": {
     "schema_version": { "type": "string", "minLength": 1 },
@@ -29,32 +12,7 @@
     "source": { "type": "string", "minLength": 1 },
     "created_at": { "type": "string", "format": "date-time" },
     "evaluation": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "ground_truth_label": { "type": "string", "minLength": 1 },
-        "label_space": { "$ref": "#/$defs/finite_label_space" },
-        "reference_answer": { "type": "string", "minLength": 1 },
-        "dataset": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "dataset_id": { "type": "string", "minLength": 1 },
-            "split": { "type": "string", "minLength": 1 },
-            "record_id": { "type": "string", "minLength": 1 }
-          }
-        },
-        "adjudication": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "source": { "type": "string", "minLength": 1 },
-            "reference_id": { "type": "string", "minLength": 1 },
-            "verified_at": { "type": "string", "format": "date-time" },
-            "notes": { "type": "string" }
-          }
-        }
-      }
+      "$ref": "common.schema.json#/$defs/question_evaluation"
     },
     "metadata": { "type": "object" }
   }

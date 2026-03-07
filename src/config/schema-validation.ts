@@ -4,6 +4,7 @@ import type { ErrorObject, ValidateFunction, Options } from "ajv";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import type { ArbiterCommonSchema } from "../generated/common.types.js";
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterRunManifest } from "../generated/manifest.types.js";
 import type { ArbiterQuestion } from "../generated/question.types.js";
@@ -55,6 +56,8 @@ const compiledValidators = Object.fromEntries(
 
 export const validateConfig =
   compiledValidators.validateConfig as ValidateFunction<ArbiterResolvedConfig>;
+export const validateCommonSchema =
+  compiledValidators.validateCommonSchema as ValidateFunction<ArbiterCommonSchema>;
 export const validateManifest =
   compiledValidators.validateManifest as ValidateFunction<ArbiterRunManifest>;
 export const validateQuestion =

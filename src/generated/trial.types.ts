@@ -44,7 +44,7 @@ export interface ArbiterTrialRecord {
     parse_status: "success" | "fallback" | "failed";
     parser_version: string;
     extraction_method?: string;
-    embed_text_source?: string;
+    embed_text_source?: "decision" | "rationale" | "raw_content";
     confidence?: string | null;
     outcome?: string;
     rationale?: string;

@@ -9,6 +9,12 @@ export const GENERATED_BANNER = "/* This file is generated. Do not edit. */";
 
 export const SCHEMA_REGISTRY = [
   {
+    schemaFile: "common.schema.json",
+    generatedTypeFile: "common.types.ts",
+    validatorExport: "validateCommonSchema",
+    family: "shared"
+  },
+  {
     schemaFile: "config.schema.json",
     generatedTypeFile: "config.types.ts",
     validatorExport: "validateConfig",

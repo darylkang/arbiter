@@ -13,8 +13,7 @@
       "enum": ["fenced", "unfenced", "raw"]
     },
     "embed_text_source": {
-      "type": "string",
-      "enum": ["decision", "rationale", "raw_content"]
+      "$ref": "common.schema.json#/$defs/embed_text_source"
     },
     "confidence": {
       "oneOf": [

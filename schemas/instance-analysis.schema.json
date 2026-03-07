@@ -4,17 +4,6 @@
   "title": "Arbiter Instance Analysis Record",
   "type": "object",
   "additionalProperties": false,
-  "$defs": {
-    "interval": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["lower", "upper"],
-      "properties": {
-        "lower": { "type": "number" },
-        "upper": { "type": "number" }
-      }
-    }
-  },
   "required": [
     "schema_version",
     "question_id",
@@ -29,12 +18,10 @@
     "run_id": { "type": "string", "minLength": 1 },
     "question_id": { "type": "string", "minLength": 1 },
     "rung": {
-      "type": "string",
-      "enum": ["H0", "H1", "H2", "H3", "H4"]
+      "$ref": "common.schema.json#/$defs/rung"
     },
     "estimand_path": {
-      "type": "string",
-      "enum": ["labeled", "semantic"]
+      "$ref": "common.schema.json#/$defs/estimand_path"
     },
     "outcome_source": {
       "type": "string",
@@ -91,9 +78,15 @@
           "additionalProperties": false,
           "minProperties": 1,
           "properties": {
-            "top_choice_mass": { "$ref": "#/$defs/interval" },
-            "top_two_margin": { "$ref": "#/$defs/interval" },
-            "entropy": { "$ref": "#/$defs/interval" }
+            "top_choice_mass": {
+              "$ref": "common.schema.json#/$defs/interval"
+            },
+            "top_two_margin": {
+              "$ref": "common.schema.json#/$defs/interval"
+            },
+            "entropy": {
+              "$ref": "common.schema.json#/$defs/interval"
+            }
           }
         }
       }

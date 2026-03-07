@@ -4,17 +4,6 @@
   "title": "Arbiter Ladder Comparison Summary",
   "type": "object",
   "additionalProperties": false,
-  "$defs": {
-    "interval": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["lower", "upper"],
-      "properties": {
-        "lower": { "type": "number" },
-        "upper": { "type": "number" }
-      }
-    }
-  },
   "required": [
     "schema_version",
     "estimand_path",
@@ -28,8 +17,7 @@
     "schema_version": { "const": "1.0.0" },
     "benchmark_id": { "type": "string", "minLength": 1 },
     "estimand_path": {
-      "type": "string",
-      "enum": ["labeled", "semantic"]
+      "$ref": "common.schema.json#/$defs/estimand_path"
     },
     "primary_signal": {
       "type": "string",
@@ -56,15 +44,13 @@
         "required": ["baseline_rung", "candidate_rung", "value", "instance_count"],
         "properties": {
           "baseline_rung": {
-            "type": "string",
-            "enum": ["H0", "H1", "H2", "H3", "H4"]
+            "$ref": "common.schema.json#/$defs/rung"
           },
           "candidate_rung": {
-            "type": "string",
-            "enum": ["H0", "H1", "H2", "H3", "H4"]
+            "$ref": "common.schema.json#/$defs/rung"
           },
           "value": { "type": "number" },
-          "interval": { "$ref": "#/$defs/interval" },
+          "interval": { "$ref": "common.schema.json#/$defs/interval" },
           "instance_count": { "type": "integer", "minimum": 1 }
         }
       }

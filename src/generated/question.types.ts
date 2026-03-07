@@ -6,24 +6,25 @@ export interface ArbiterQuestion {
   text: string;
   source?: string;
   created_at?: string;
-  evaluation?: {
-    ground_truth_label?: string;
-    label_space?: FiniteLabelSpace;
-    reference_answer?: string;
-    dataset?: {
-      dataset_id?: string;
-      split?: string;
-      record_id?: string;
-    };
-    adjudication?: {
-      source?: string;
-      reference_id?: string;
-      verified_at?: string;
-      notes?: string;
-    };
-  };
+  evaluation?: QuestionEvaluation;
   metadata?: {
     [k: string]: unknown;
+  };
+}
+export interface QuestionEvaluation {
+  ground_truth_label?: string;
+  label_space?: FiniteLabelSpace;
+  reference_answer?: string;
+  dataset?: {
+    dataset_id?: string;
+    split?: string;
+    record_id?: string;
+  };
+  adjudication?: {
+    source?: string;
+    reference_id?: string;
+    verified_at?: string;
+    notes?: string;
   };
 }
 export interface FiniteLabelSpace {
