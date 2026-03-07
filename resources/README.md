@@ -16,7 +16,7 @@ Use this directory for:
 
 ## Subdirectories
 
-### `catalog/`
+### `models/`
 
 Model metadata used by:
 
@@ -26,15 +26,15 @@ Model metadata used by:
 
 Current authority:
 
-- `/Users/darylkang/Developer/arbiter/resources/catalog/models.json`
+- `/Users/darylkang/Developer/arbiter/resources/models/catalog.json`
 
-### `contracts/`
+### `decision-contracts/`
 
 Decision-contract presets and their hash manifest.
 
 Current authority:
 
-1. `/Users/darylkang/Developer/arbiter/resources/contracts/manifest.json`
+1. `/Users/darylkang/Developer/arbiter/resources/decision-contracts/manifest.json`
 2. files referenced by that manifest
 
 These assets are runtime inputs, not examples.
@@ -56,26 +56,29 @@ Curated starter configs.
 
 These are concrete config profiles, not schemas.
 
-Current stable template surface:
+Current authority:
 
-1. `default.config.json`
-   - the baseline profile used by `arbiter init`
-2. `debate_v1.config.json`
-   - debate-specific starter profile
-3. `heterogeneity_mix.config.json`
-   - multi-model and multi-persona distributional profile
-4. `free_quickstart.config.json`
-   - exploration-only free-tier profile
+1. `/Users/darylkang/Developer/arbiter/resources/templates/manifest.json`
+2. files referenced by that manifest
+
+Template roles:
+
+1. `public/`
+   - stabilized product-facing starter configs
+2. `research/`
+   - curated experiment presets used for tests and manual research workflows
+3. `canary/`
+   - narrow operational presets such as guarded live smoke profiles
 
 Important boundary:
 
-1. `arbiter init` currently always writes the `default` template
+1. `arbiter init` resolves the single template entry marked `init_default=true`
 2. the public CLI does not currently support `arbiter init --template ...`
 3. additional template selection is therefore a repo asset/workflow concern, not a stabilized CLI contract
 
 ## Asset Discipline
 
-1. manifests are the authoritative inventory for prompt and contract assets
+1. manifests are the authoritative inventory for prompt, template, and decision-contract assets
 2. runtime code should resolve assets by manifest or stable file path, not by prose docs
 3. if an asset is no longer part of the supported runtime or test surface, remove it rather than leaving stale examples behind
 4. if an asset changes semantics, update the manifest hash and the dependent tests in the same round

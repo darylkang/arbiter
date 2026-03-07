@@ -2,8 +2,9 @@ import { resolve } from "node:path";
 
 import { REPO_ROOT, readJson } from "./workspace.mjs";
 
-const catalog = readJson(resolve(REPO_ROOT, "resources/catalog/models.json"));
+const catalog = readJson(resolve(REPO_ROOT, "resources/models/catalog.json"));
 const promptManifest = readJson(resolve(REPO_ROOT, "resources/prompts/manifest.json"));
+const templateManifest = readJson(resolve(REPO_ROOT, "resources/templates/manifest.json"));
 
 const personas = promptManifest.entries.filter((entry) => entry.type === "participant_persona");
 const protocols = promptManifest.entries.filter(
@@ -16,8 +17,13 @@ const requireCatalogEntries = (requiredPersonas = 1) => {
   }
 };
 
-export const loadTemplateConfig = (name) =>
-  readJson(resolve(REPO_ROOT, "resources/templates", `${name}.config.json`));
+export const loadTemplateConfig = (name) => {
+  const entry = templateManifest.entries.find((candidate) => candidate.id === name);
+  if (!entry) {
+    throw new Error(`Unknown template id: ${name}`);
+  }
+  return readJson(resolve(REPO_ROOT, entry.path));
+};
 
 export const buildIndependentSmokeConfig = (options = {}) => {
   requireCatalogEntries(options.personaCount ?? 1);

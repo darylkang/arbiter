@@ -5,15 +5,17 @@ import test from "node:test";
 
 import { runMockService } from "../../src/run/run-service.ts";
 import { loadTemplateConfig } from "../helpers/scenarios.mjs";
-import { REPO_ROOT, withTempWorkspace, writeJson } from "../helpers/workspace.mjs";
+import { REPO_ROOT, readJson, withTempWorkspace, writeJson } from "../helpers/workspace.mjs";
 
 const noopWarningSink = { warn() {} };
-const templates = [
-  "default",
-  "heterogeneity_mix",
-  "debate_v1",
-  "free_quickstart"
-];
+const templateManifest = readJson(resolve(REPO_ROOT, "resources/templates/manifest.json"));
+const templates = templateManifest.entries.map((entry) => entry.id);
+
+test("template manifest defines exactly one init default", () => {
+  const defaults = templateManifest.entries.filter((entry) => entry.init_default === true);
+  assert.equal(defaults.length, 1);
+  assert.equal(defaults[0]?.id, "default");
+});
 
 for (const templateName of templates) {
   test(`template ${templateName} resolves and runs under the mock service`, { concurrency: false }, async () => {

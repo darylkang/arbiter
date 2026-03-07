@@ -111,6 +111,12 @@ export const SCHEMA_REGISTRY = [
     family: "resources"
   },
   {
+    schemaFile: "template-manifest.schema.json",
+    generatedTypeFile: "template-manifest.types.ts",
+    validatorExport: "validateTemplateManifest",
+    family: "resources"
+  },
+  {
     schemaFile: "contract-manifest.schema.json",
     generatedTypeFile: "contract-manifest.types.ts",
     validatorExport: "validateContractManifest",

@@ -19,6 +19,7 @@ import type { ArbiterMonitoringRecord } from "../generated/monitoring.types.js";
 import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
 import type { ArbiterPromptManifest } from "../generated/prompt-manifest.types.js";
+import type { ArbiterTemplateManifest } from "../generated/template-manifest.types.js";
 import type { ArbiterDecisionContractManifest } from "../generated/contract-manifest.types.js";
 import type { ArbiterDecisionContractPreset } from "../generated/decision-contract.types.js";
 import type { ArbiterOnlineGroupingState } from "../generated/group-state.types.js";
@@ -84,6 +85,8 @@ export const validateCatalog =
   compiledValidators.validateCatalog as ValidateFunction<ArbiterModelCatalog>;
 export const validatePromptManifest =
   compiledValidators.validatePromptManifest as ValidateFunction<ArbiterPromptManifest>;
+export const validateTemplateManifest =
+  compiledValidators.validateTemplateManifest as ValidateFunction<ArbiterTemplateManifest>;
 export const validateContractManifest =
   compiledValidators.validateContractManifest as ValidateFunction<ArbiterDecisionContractManifest>;
 export const validateDecisionContract =

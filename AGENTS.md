@@ -264,7 +264,7 @@ When changing a subsystem, update the governing docs and run the matching valida
   - update schemas and generated types,
   - run `npm run test:provenance` and verify `arbiter verify` invariants.
 - **Contracts**:
-  - update `resources/contracts/` and the resolver/parse path,
+  - update `resources/decision-contracts/` and the resolver/parse path,
   - run `npm run test:contracts` and the relevant protocol tests.
 - **Artifacts**:
   - update `docs/DESIGN.md` artifact semantics and any affected schemas,

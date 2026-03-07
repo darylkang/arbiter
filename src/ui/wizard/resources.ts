@@ -46,7 +46,7 @@ export const loadWizardVersion = (assetRoot: string): string => {
 
 export const loadCatalogModels = (assetRoot: string): CatalogModel[] => {
   const catalog = readJsonFile<ArbiterModelCatalog>(
-    resolve(assetRoot, "resources/catalog/models.json")
+    resolve(assetRoot, "resources/models/catalog.json")
   );
   return catalog.models.map((model) => ({
     slug: model.slug,

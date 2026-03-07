@@ -177,6 +177,7 @@ These schemas govern catalogs, prompt manifests, protocol resources, and decisio
 
 - `catalog.schema.json`
 - `prompt-manifest.schema.json`
+- `template-manifest.schema.json`
 - `contract-manifest.schema.json`
 - `decision-contract.schema.json`
 - `debate-decision-contract.schema.json`

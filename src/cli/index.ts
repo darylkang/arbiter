@@ -19,6 +19,7 @@ import {
   getFlagInteger,
   hasFlag,
   listConfigFiles,
+  loadInitTemplateConfig,
   loadTemplateConfig,
   nextCollisionSafeConfigPath,
   parseArgs,
@@ -61,7 +62,7 @@ const createSilentWarningSink = (): WarningSink => ({
 
 const runInit = (assetRoot: string): void => {
   const targetPath = nextCollisionSafeConfigPath();
-  const template = loadTemplateConfig(assetRoot, "default");
+  const template = loadInitTemplateConfig(assetRoot);
   writeJsonFile(targetPath, template);
 
   process.stdout.write(`created config: ${targetPath}\n`);

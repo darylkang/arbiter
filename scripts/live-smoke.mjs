@@ -19,9 +19,16 @@ if (process.env[ENABLE_ENV] !== "1") {
 const tempRoot = mkdtempSync(resolve(tmpdir(), "arbiter-live-smoke-"));
 const runsDir = resolve(tempRoot, "runs");
 const configPath = resolve(tempRoot, "arbiter.config.json");
+const templateManifest = JSON.parse(
+  readFileSync(resolve("resources/templates/manifest.json"), "utf8")
+);
+const templateEntry = templateManifest.entries.find((entry) => entry.id === "free_quickstart");
+if (!templateEntry) {
+  throw new Error("free_quickstart template not found in template manifest.");
+}
 
 const template = JSON.parse(
-  readFileSync(resolve("resources/templates/free_quickstart.config.json"), "utf8")
+  readFileSync(resolve(templateEntry.path), "utf8")
 );
 
 const models = template?.sampling?.models ?? [];
@@ -31,7 +38,7 @@ if (
   models.some((entry) => typeof entry?.model !== "string" || !entry.model.includes(":free"))
 ) {
   throw new Error(
-    "Live smoke must use free-tier generation models only. Update resources/templates/free_quickstart.config.json if this changes."
+    "Live smoke must use free-tier generation models only. Update the free_quickstart template if this changes."
   );
 }
 

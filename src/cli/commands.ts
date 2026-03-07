@@ -1,6 +1,10 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { formatAjvErrors, validateTemplateManifest } from "../config/schema-validation.js";
+import type { ArbiterTemplateManifest } from "../generated/template-manifest.types.js";
+import { sha256FileHex } from "../utils/hash.js";
+
 export const DEFAULT_CONFIG_FILENAME = "arbiter.config.json";
 const CONFIG_PATTERN = /^arbiter\.config(?:\.[1-9][0-9]*)?\.json$/;
 
@@ -68,6 +72,34 @@ export const writeJsonFile = (path: string, value: unknown): void => {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 };
 
+const loadTemplateManifest = (assetRoot: string): ArbiterTemplateManifest => {
+  const manifestPath = resolve(assetRoot, "resources/templates/manifest.json");
+  const manifest = readJsonFile<ArbiterTemplateManifest>(manifestPath);
+  if (!validateTemplateManifest(manifest)) {
+    const formatted = formatAjvErrors("template manifest", validateTemplateManifest.errors);
+    throw new Error(formatted.length > 0 ? formatted.join("\n") : "template manifest is invalid");
+  }
+  return manifest;
+};
+
+const resolveTemplatePath = (assetRoot: string, templateName: string): string => {
+  const manifest = loadTemplateManifest(assetRoot);
+  const entry = manifest.entries.find((candidate) => candidate.id === templateName);
+  if (!entry) {
+    throw new Error(`Template not found in manifest: ${templateName}`);
+  }
+
+  const templatePath = resolve(assetRoot, entry.path);
+  const templateSha256 = sha256FileHex(templatePath);
+  if (templateSha256 !== entry.sha256) {
+    throw new Error(
+      `Template sha256 mismatch for ${entry.id}: expected ${entry.sha256}, got ${templateSha256}`
+    );
+  }
+
+  return templatePath;
+};
+
 export const listConfigFiles = (cwd = process.cwd()): string[] => {
   const entries = readdirSync(cwd, { withFileTypes: true })
     .filter((entry) => entry.isFile() && CONFIG_PATTERN.test(entry.name))
@@ -94,7 +126,17 @@ export const nextCollisionSafeConfigPath = (cwd = process.cwd()): string => {
   }
 };
 
-export const loadTemplateConfig = (assetRoot: string, templateName: "default" | "debate_v1") => {
-  const templatePath = resolve(assetRoot, "resources/templates", `${templateName}.config.json`);
+export const loadInitTemplateConfig = (assetRoot: string) => {
+  const manifest = loadTemplateManifest(assetRoot);
+  const defaults = manifest.entries.filter((entry) => entry.init_default === true);
+  if (defaults.length !== 1) {
+    throw new Error(`Expected exactly one init_default template, found ${defaults.length}`);
+  }
+  const templatePath = resolveTemplatePath(assetRoot, defaults[0]!.id);
+  return readJsonFile<Record<string, unknown>>(templatePath);
+};
+
+export const loadTemplateConfig = (assetRoot: string, templateName: string) => {
+  const templatePath = resolveTemplatePath(assetRoot, templateName);
   return readJsonFile<Record<string, unknown>>(templatePath);
 };

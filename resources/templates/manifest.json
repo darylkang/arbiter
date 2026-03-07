@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "hash_algorithm": "sha256",
+  "entries": [
+    {
+      "id": "default",
+      "path": "resources/templates/public/default.config.json",
+      "sha256": "7f14a9fef7a2b3ee14ccc78822909ebb613883baf36679a6cba4cd9ce9713bb7",
+      "role": "public",
+      "init_default": true,
+      "description": "Baseline public starter config used by arbiter init."
+    },
+    {
+      "id": "debate_v1",
+      "path": "resources/templates/research/debate_v1.config.json",
+      "sha256": "cf997737c1c48563450af4d2548b43c4933f1571628c560d5bc123efbf4e9a8f",
+      "role": "research",
+      "description": "Debate-specific research starter config."
+    },
+    {
+      "id": "heterogeneity_mix",
+      "path": "resources/templates/research/heterogeneity_mix.config.json",
+      "sha256": "cbc990f25239bfc3413b61378e50ea16def78d18d606a99ab2c268f78e06bf32",
+      "role": "research",
+      "description": "Curated multi-model and multi-persona distributional profile."
+    },
+    {
+      "id": "free_quickstart",
+      "path": "resources/templates/canary/free_quickstart.config.json",
+      "sha256": "728e9b71c9a4f2c758af5988c6af5ba7e77d04bc58213f202a3de09d15eddebc",
+      "role": "canary",
+      "description": "Free-tier canary template used for guarded live smoke checks."
+    }
+  ]
+}

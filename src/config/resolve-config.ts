@@ -101,14 +101,14 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
   const configRoot = options.configRoot ?? process.cwd();
   const assetRoot = options.assetRoot ?? configRoot;
   const configPath = resolve(configRoot, options.configPath ?? "arbiter.config.json");
-  const catalogPath = resolve(assetRoot, options.catalogPath ?? "resources/catalog/models.json");
+  const catalogPath = resolve(assetRoot, options.catalogPath ?? "resources/models/catalog.json");
   const promptManifestPath = resolve(
     assetRoot,
     options.promptManifestPath ?? "resources/prompts/manifest.json"
   );
   const contractManifestPath = resolve(
     assetRoot,
-    options.contractManifestPath ?? "resources/contracts/manifest.json"
+    options.contractManifestPath ?? "resources/decision-contracts/manifest.json"
   );
 
   const sourceConfig = readJsonFile<ArbiterResolvedConfig>(configPath);
