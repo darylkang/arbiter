@@ -2,8 +2,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import type { ErrorObject, ValidateFunction, Options } from "ajv";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 import type { ArbiterResolvedConfig } from "../generated/config.types.js";
 import type { ArbiterRunManifest } from "../generated/manifest.types.js";
@@ -23,11 +22,14 @@ import type { ArbiterOnlineGroupingState } from "../generated/group-state.types.
 import type { ArbiterOnlineGroupAssignmentRecord } from "../generated/group-assignment.types.js";
 import type { ArbiterProtocolSpec } from "../generated/protocol.types.js";
 import type { ArbiterDebateDecisionContract } from "../generated/debate-decision-contract.types.js";
-
-const schemaDir = join(dirname(fileURLToPath(import.meta.url)), "../../schemas");
+import {
+  SCHEMA_DIR,
+  SCHEMA_REGISTRY,
+  type SchemaValidatorName
+} from "./schema-registry.js";
 
 const loadSchema = (fileName: string): unknown => {
-  const raw = readFileSync(join(schemaDir, fileName), "utf8");
+  const raw = readFileSync(join(SCHEMA_DIR, fileName), "utf8");
   return JSON.parse(raw) as unknown;
 };
 
@@ -44,55 +46,46 @@ const ajv = new Ajv2020Ctor({
 const applyFormats = addFormats as unknown as (instance: unknown) => void;
 applyFormats(ajv);
 
-export const validateConfig: ValidateFunction<ArbiterResolvedConfig> = ajv.compile(
-  loadSchema("config.schema.json")
-);
-export const validateManifest: ValidateFunction<ArbiterRunManifest> = ajv.compile(
-  loadSchema("manifest.schema.json")
-);
-export const validateQuestion: ValidateFunction<ArbiterQuestion> = ajv.compile(
-  loadSchema("question.schema.json")
-);
-export const validateTrial: ValidateFunction<ArbiterTrialRecord> = ajv.compile(
-  loadSchema("trial.schema.json")
-);
-export const validateTrialPlan: ValidateFunction<ArbiterTrialPlanRecord> = ajv.compile(
-  loadSchema("trial-plan.schema.json")
-);
-export const validateParsedOutput: ValidateFunction<ArbiterParsedOutputRecord> =
-  ajv.compile(loadSchema("parsed-output.schema.json"));
-export const validateEmbedding: ValidateFunction<ArbiterDebugEmbeddingJSONLRecord> = ajv.compile(
-  loadSchema("embedding.schema.json")
-);
-export const validateEmbeddingsProvenance: ValidateFunction<ArbiterEmbeddingsProvenance> =
-  ajv.compile(loadSchema("embeddings-provenance.schema.json"));
-export const validateMonitoring: ValidateFunction<ArbiterMonitoringRecord> =
-  ajv.compile(loadSchema("monitoring.schema.json"));
-export const validateAggregates: ValidateFunction<ArbiterAggregates> = ajv.compile(
-  loadSchema("aggregates.schema.json")
-);
-export const validateCatalog: ValidateFunction<ArbiterModelCatalog> = ajv.compile(
-  loadSchema("catalog.schema.json")
-);
-export const validatePromptManifest: ValidateFunction<ArbiterPromptManifest> = ajv.compile(
-  loadSchema("prompt-manifest.schema.json")
-);
-export const validateContractManifest: ValidateFunction<ArbiterDecisionContractManifest> = ajv.compile(
-  loadSchema("contract-manifest.schema.json")
-);
-export const validateDecisionContract: ValidateFunction<ArbiterDecisionContractPreset> = ajv.compile(
-  loadSchema("decision-contract.schema.json")
-);
-export const validateGroupState: ValidateFunction<ArbiterOnlineGroupingState> = ajv.compile(
-  loadSchema("group-state.schema.json")
-);
-export const validateGroupAssignment: ValidateFunction<ArbiterOnlineGroupAssignmentRecord> =
-  ajv.compile(loadSchema("group-assignment.schema.json"));
-export const validateProtocolSpec: ValidateFunction<ArbiterProtocolSpec> = ajv.compile(
-  loadSchema("protocol.schema.json")
-);
-export const validateDebateDecisionContract: ValidateFunction<ArbiterDebateDecisionContract> =
-  ajv.compile(loadSchema("debate-decision-contract.schema.json"));
+const compiledValidators = Object.fromEntries(
+  SCHEMA_REGISTRY.map((entry) => [entry.validatorExport, ajv.compile(loadSchema(entry.schemaFile))])
+) as Record<SchemaValidatorName, ValidateFunction<unknown>>;
+
+export const validateConfig =
+  compiledValidators.validateConfig as ValidateFunction<ArbiterResolvedConfig>;
+export const validateManifest =
+  compiledValidators.validateManifest as ValidateFunction<ArbiterRunManifest>;
+export const validateQuestion =
+  compiledValidators.validateQuestion as ValidateFunction<ArbiterQuestion>;
+export const validateTrial =
+  compiledValidators.validateTrial as ValidateFunction<ArbiterTrialRecord>;
+export const validateTrialPlan =
+  compiledValidators.validateTrialPlan as ValidateFunction<ArbiterTrialPlanRecord>;
+export const validateParsedOutput =
+  compiledValidators.validateParsedOutput as ValidateFunction<ArbiterParsedOutputRecord>;
+export const validateEmbedding =
+  compiledValidators.validateEmbedding as ValidateFunction<ArbiterDebugEmbeddingJSONLRecord>;
+export const validateEmbeddingsProvenance =
+  compiledValidators.validateEmbeddingsProvenance as ValidateFunction<ArbiterEmbeddingsProvenance>;
+export const validateMonitoring =
+  compiledValidators.validateMonitoring as ValidateFunction<ArbiterMonitoringRecord>;
+export const validateAggregates =
+  compiledValidators.validateAggregates as ValidateFunction<ArbiterAggregates>;
+export const validateCatalog =
+  compiledValidators.validateCatalog as ValidateFunction<ArbiterModelCatalog>;
+export const validatePromptManifest =
+  compiledValidators.validatePromptManifest as ValidateFunction<ArbiterPromptManifest>;
+export const validateContractManifest =
+  compiledValidators.validateContractManifest as ValidateFunction<ArbiterDecisionContractManifest>;
+export const validateDecisionContract =
+  compiledValidators.validateDecisionContract as ValidateFunction<ArbiterDecisionContractPreset>;
+export const validateGroupState =
+  compiledValidators.validateGroupState as ValidateFunction<ArbiterOnlineGroupingState>;
+export const validateGroupAssignment =
+  compiledValidators.validateGroupAssignment as ValidateFunction<ArbiterOnlineGroupAssignmentRecord>;
+export const validateProtocolSpec =
+  compiledValidators.validateProtocolSpec as ValidateFunction<ArbiterProtocolSpec>;
+export const validateDebateDecisionContract =
+  compiledValidators.validateDebateDecisionContract as ValidateFunction<ArbiterDebateDecisionContract>;
 
 export const formatAjvErrors = (
   schemaName: string,
