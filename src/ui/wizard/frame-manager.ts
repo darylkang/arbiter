@@ -3,15 +3,14 @@ import { stdout as output } from "node:process";
 import { createStdoutFormatter, type Formatter } from "../fmt.js";
 import { countRenderedRows } from "../runtime/live-region.js";
 import {
-  truncate,
   renderBrandBlock,
   renderRailContent,
   renderRailStep,
   renderSeparator,
-  renderStatusStrip,
+  renderStageHeader,
   type RailStep
 } from "../wizard-theme.js";
-import { toApiKeyPresenceLabel, toRunModeLabel } from "../copy.js";
+import { UI_COPY } from "../copy.js";
 import { RAIL_ITEMS, type StepFrame } from "./types.js";
 
 const CURSOR_HIDE = "\x1b[?25l";
@@ -20,6 +19,18 @@ const CURSOR_SHOW = "\x1b[?25h";
 const clearScreen = (): void => {
   output.write("\x1b[2J\x1b[H");
 };
+
+const rewindToFrameStart = (rows: number): void => {
+  if (rows <= 0) {
+    return;
+  }
+  output.write("\r");
+  const moveUp = Math.max(0, rows - 1);
+  if (moveUp > 0) {
+    output.write(`\x1b[${moveUp}A`);
+  }
+};
+
 
 const toRailSteps = (input: {
   currentRailIndex: number;
@@ -37,17 +48,6 @@ const toRailSteps = (input: {
           : "pending",
     summary: input.stepSummaries[item.railIndex]
   }));
-
-const renderCompactBrandBlock = (input: StepFrame, width: number, fmt: Formatter): string => {
-  const versionText = `v${input.version}`;
-  const left = `${fmt.bold(fmt.brand(input.version ? "A R B I T E R" : "Arbiter"))}`;
-  const gap = Math.max(1, width - "A R B I T E R".length - versionText.length);
-  const summary = truncate(
-    `API ${toApiKeyPresenceLabel(input.apiKeyPresent)} · Mode ${toRunModeLabel(input.runMode)} · ${input.configCount} configs`,
-    width
-  );
-  return [`${left}${" ".repeat(gap)}${fmt.muted(versionText)}`, fmt.muted(summary)].join("\n");
-};
 
 const renderCompactRailContent = (lines: string[], fmt: Formatter): string =>
   lines
@@ -71,7 +71,7 @@ export const createWizardFrameManager = () => {
   const leave = (): void => {
     if (interactiveScreenEnabled) {
       if (lastFrameRows > 0) {
-        output.write(`\x1b[${lastFrameRows}A`);
+        rewindToFrameStart(lastFrameRows);
       }
       output.write("\x1b[J");
       if (cursorHidden) {
@@ -105,12 +105,12 @@ export const createWizardFrameManager = () => {
     const width = fmt.termWidth();
     const frameText = buildWizardFrameText(input, fmt, width, output.rows ?? 24);
     if (lastFrameRows > 0) {
-      output.write(`\x1b[${lastFrameRows}A`);
+      rewindToFrameStart(lastFrameRows);
       output.write("\x1b[J");
     } else {
       clearScreen();
     }
-    output.write(`${frameText}\n`);
+    output.write(frameText);
     lastFrameRows = countRenderedRows(frameText, width);
   };
 
@@ -139,24 +139,27 @@ export const buildWizardFrameText = (
     showRunMode: input.showRunMode,
     stepSummaries: input.stepSummaries
   });
+  const headerVariant = compactHeight
+    ? "minimal"
+    : input.currentRailIndex <= 1
+      ? "expanded"
+      : "compact";
 
-  parts.push(renderStatusStrip(input.contextLabel, 0, width, fmt));
-  parts.push(renderSeparator(width, fmt));
+  parts.push(
+    renderBrandBlock(
+      input.version,
+      input.apiKeyPresent,
+      input.runMode,
+      input.configCount,
+      width,
+      fmt,
+      headerVariant
+    )
+  );
+  parts.push("");
+  parts.push(renderStageHeader(UI_COPY.setupHeader, 0, width, fmt));
   if (!compactHeight) {
     parts.push("");
-    parts.push(
-      renderBrandBlock(
-        input.version,
-        input.apiKeyPresent,
-        input.runMode,
-        input.configCount,
-        width,
-        fmt
-      )
-    );
-    parts.push("");
-  } else {
-    parts.push(renderCompactBrandBlock(input, width, fmt));
   }
 
   for (const step of railSteps) {
@@ -171,10 +174,8 @@ export const buildWizardFrameText = (
     }
   }
 
-  if (!compactHeight) {
-    parts.push("");
-  }
+  parts.push("");
   parts.push(renderSeparator(width, fmt));
-  parts.push(input.footerText);
+  parts.push(fmt.muted(input.footerText));
   return parts.join("\n");
 };

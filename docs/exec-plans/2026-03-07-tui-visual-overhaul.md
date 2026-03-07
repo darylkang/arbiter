@@ -1,6 +1,6 @@
 # ExecPlan: TUI Visual Overhaul
 
-Status: proposed
+Status: completed
 Owner: Codex
 Last updated: 2026-03-07
 
@@ -48,9 +48,9 @@ Sequencing constraints:
 ## Progress
 
 - [x] M0 — design direction converged and product-spec docs updated
-- [ ] M1 — Stage 0 and Stage 1 visual overhaul implemented
-- [ ] M2 — Stage 2 and Stage 3 visual overhaul implemented
-- [ ] M3 — validation, capture review, and product-surface re-grade completed
+- [x] M1 — Stage 0 and Stage 1 visual overhaul implemented
+- [x] M2 — Stage 2 and Stage 3 visual overhaul implemented
+- [x] M3 — validation, capture review, and product-surface re-grade completed
 
 ## Surprises & Discoveries
 
@@ -259,3 +259,21 @@ The appended sections `Design Overhaul Proposal` and `Design Overhaul Proposal �
 ## Plan Change Notes
 
 1. 2026-03-07: initial implementation plan created after consensus redesign direction was reached.
+
+## Closeout
+
+Completed in implementation round `caf1a85` + follow-up transcript/runtime alignment in `8b1fe2f` and visual overhaul completion in the current round.
+
+Validation evidence:
+
+1. `npm run test:ui`
+2. `npm run test:e2e:tui`
+3. `npm run test:unit`
+4. `npm run test:guards`
+5. `npm run capture:tui`
+6. `npm run test:merge`
+7. `npm run test:smoke:iterm:tui`
+
+Latest capture pack:
+
+- `/Users/darylkang/Developer/arbiter/output/playwright/tui-visual/2026-03-07T15-38-20-952Z`

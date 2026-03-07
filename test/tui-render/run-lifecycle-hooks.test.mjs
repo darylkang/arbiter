@@ -5,7 +5,7 @@ import { createPlainFormatter } from "../../src/ui/fmt.ts";
 import { buildReceiptDisplayText, buildRunDashboardText } from "../../src/ui/run-lifecycle-hooks.ts";
 
 const buildDashboardVm = (overrides = {}) => ({
-  statusContext: "run / monitoring",
+  statusContext: "▍ RUN",
   elapsedMs: 1_000,
   progressLabel: "Trials: 0/10 · Workers: 2",
   progressPct: 0,
@@ -21,7 +21,7 @@ const buildDashboardVm = (overrides = {}) => ({
     { id: 2, state: "running", trialId: 4, model: "GPT-4o Mini", tick: 1 }
   ],
   usageLines: [{ text: "Usage so far: 0 tokens (in 0, out 0)", tone: "text" }],
-  footerText: "Ctrl+C request graceful stop",
+  footerText: "Ctrl+C to stop gracefully",
   ...overrides
 });
 
@@ -76,14 +76,14 @@ test("receipt display text remains ANSI-free under the plain formatter", () => {
   const fmt = createPlainFormatter({ columns: 80 });
   const text = buildReceiptDisplayText(
     {
-      statusContext: "run / receipt",
+      statusContext: "▍ RECEIPT",
       stopBanner: "Stopped: sampling complete",
       caveatLines: [{ text: "Stopping indicates diminishing novelty, not correctness.", tone: "muted" }],
       summaryRows: [{ key: "Trials", value: "10 / 10 / 10 (planned / completed / eligible)" }],
       groupLines: [],
       artifactRows: ["receipt.txt"],
       reproduceCommand: "arbiter run --config runs/example/config.resolved.json",
-      footerText: "Run complete."
+      footerText: "→ Run complete."
     },
     { width: 80, fmt }
   );

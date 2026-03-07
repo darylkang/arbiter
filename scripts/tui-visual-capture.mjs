@@ -53,7 +53,7 @@ const anchorLineStart = (value, anchorIndex) => {
   for (let index = 0; index < 4 && probeStart > 0; index += 1) {
     const priorStart = previousLineStart(value, probeStart);
     const priorLine = value.slice(priorStart, Math.max(priorStart, probeStart - 1)).trimEnd();
-    if (priorLine.startsWith("› arbiter")) {
+    if (priorLine.startsWith("▍ ")) {
       start = priorStart;
       break;
     }
@@ -63,26 +63,26 @@ const anchorLineStart = (value, anchorIndex) => {
 };
 
 const extractDurableTranscriptText = (renderedText) => {
-  const receiptIndex = renderedText.lastIndexOf("── RECEIPT");
+  const receiptIndex = renderedText.lastIndexOf("▍ RECEIPT");
   if (receiptIndex < 0) {
     return renderedText.trim();
   }
 
-  const progressIndex = renderedText.lastIndexOf("── PROGRESS", receiptIndex);
-  const apiKeyIndex = renderedText.lastIndexOf("API key:", receiptIndex);
+  const runIndex = renderedText.lastIndexOf("▍ RUN", receiptIndex);
+  const setupIndex = renderedText.lastIndexOf("▍ SETUP", receiptIndex);
   const brandIndex =
-    apiKeyIndex >= 0
-      ? renderedText.lastIndexOf("A R B I T E R", apiKeyIndex)
-      : progressIndex >= 0
-        ? renderedText.lastIndexOf("A R B I T E R", progressIndex)
-        : renderedText.lastIndexOf("A R B I T E R", receiptIndex);
-  const entryIndex = renderedText.lastIndexOf("✔  Entry Path", receiptIndex);
+    setupIndex >= 0
+      ? renderedText.lastIndexOf("ARBITER", setupIndex)
+      : runIndex >= 0
+        ? renderedText.lastIndexOf("ARBITER", runIndex)
+        : renderedText.lastIndexOf("ARBITER", receiptIndex);
+  const entryIndex = renderedText.lastIndexOf("◆  Entry Path", receiptIndex);
 
   let anchorIndex = receiptIndex;
   if (brandIndex >= 0 && entryIndex > brandIndex) {
     anchorIndex = brandIndex;
-  } else if (progressIndex >= 0) {
-    anchorIndex = progressIndex;
+  } else if (runIndex >= 0) {
+    anchorIndex = runIndex;
   }
 
   return renderedText.slice(anchorLineStart(renderedText, anchorIndex)).trim();
@@ -294,7 +294,7 @@ export const captureVisualJourney = async (options = {}) => {
   };
 
   try {
-    await waitForText("A R B I T E R");
+    await waitForText("ARBITER");
     await waitForText("Choose how to start");
     await saveSnapshot("step0-entry");
     arrowDown(1);
@@ -305,24 +305,24 @@ export const captureVisualJourney = async (options = {}) => {
     arrowDown(1);
     pressEnter();
 
-    await waitForText("◆  Research Question");
+    await waitForText("▸  Research Question");
     await waitForText("Enter continue · Esc back");
     await saveSnapshot("step1-question");
     session.write("What are the tradeoffs of event sourcing?\r");
 
-    await waitForText("◆  Protocol");
+    await waitForText("▸  Protocol");
     await saveSnapshot("step2-protocol");
     pressEnter();
 
-    await waitForText("◆  Models");
+    await waitForText("▸  Models");
     await saveSnapshot("step3-models");
     pressEnter();
 
-    await waitForText("◆  Personas");
+    await waitForText("▸  Personas");
     await saveSnapshot("step4-personas");
     pressEnter();
 
-    await waitForText("◆  Decode Params");
+    await waitForText("▸  Decode Params");
     await waitForText("Temperature mode");
     await saveSnapshot("step5-decode-mode");
     pressEnter();
@@ -333,19 +333,20 @@ export const captureVisualJourney = async (options = {}) => {
     await waitForText("Seed mode");
     session.write("\u001b[A\r");
 
-    await waitForText("◆  Advanced Settings");
+    await waitForText("▸  Advanced Settings");
     await saveSnapshot("step6-advanced");
     session.write("\u001b[A\r");
 
-    await waitForText("◆  Review and Confirm");
+    await waitForText("▸  Review and Confirm");
     await saveSnapshot("step7-review");
     pressEnter();
 
+    await waitForText("▍ RUN");
     await waitForText("── PROGRESS");
     await delay(200);
-    await saveSnapshot("stage2-run", { endBeforeText: "── RECEIPT" });
+    await saveSnapshot("stage2-run", { endBeforeText: "▍ RECEIPT" });
 
-    await waitForText("── RECEIPT", 45000);
+    await waitForText("▍ RECEIPT", 45000);
     await delay(200);
     await saveSnapshot("stage3-receipt");
 

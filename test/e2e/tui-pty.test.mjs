@@ -192,7 +192,7 @@ test("pty: wizard launches in TTY and exits cleanly from Step 0", { concurrency:
   const session = createPtySession({ cwd });
 
   try {
-    await session.waitForText("A R B I T E R", 25000);
+    await session.waitForText("ARBITER", 25000);
     await session.waitForText("Choose how to start", 25000);
     await session.waitForText("Run existing config", 25000);
     await session.waitForText("Create new study (guided wizard)", 25000);
@@ -239,10 +239,11 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
     await session.waitForText("Review and Confirm", 25000);
     session.pressEnter();
 
-    await session.waitForText("✔  Entry Path", 45000);
+    await session.waitForText("◆  Entry Path", 45000);
+    await session.waitForText("▍ RUN", 45000);
     await session.waitForText("── PROGRESS", 45000);
     await session.waitForText("Mock mode: usage and cost are not tracked.", 45000);
-    await session.waitForText("── RECEIPT", 45000);
+    await session.waitForText("▍ RECEIPT", 45000);
     await session.waitForText("Stopped:", 45000);
 
     const exit = await session.waitForExit(45000);
@@ -262,10 +263,10 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
 
     const output = session.getOutput();
     const finalTranscript = await renderFinalNormalScreenText(session.getRawOutput());
-    const mastheadIndex = output.indexOf("A R B I T E R");
-    const summaryIndex = output.indexOf("✔  Entry Path");
-    const runIndex = output.indexOf("── PROGRESS");
-    const receiptIndex = output.indexOf("── RECEIPT");
+    const mastheadIndex = output.indexOf("ARBITER");
+    const summaryIndex = output.indexOf("◆  Entry Path");
+    const runIndex = output.indexOf("▍ RUN");
+    const receiptIndex = output.indexOf("▍ RECEIPT");
     assert.ok(mastheadIndex >= 0, "expected Stage 0 masthead in output");
     assert.ok(summaryIndex > mastheadIndex, "expected Stage 1 frozen rail after masthead");
     assert.ok(runIndex > summaryIndex, "expected Stage 2 run dashboard after Stage 1 summary");
@@ -275,12 +276,12 @@ test("pty: run-existing mock path reaches RUN and RECEIPT then auto-exits", { co
       false,
       "stage 3 should auto-exit with no next-action menu"
     );
+    assert.equal((finalTranscript.match(/▍ RUN/g) || []).length, 1);
     assert.equal((finalTranscript.match(/── PROGRESS/g) || []).length, 1);
-    assert.equal((finalTranscript.match(/run \/ monitoring/g) || []).length, 1);
-    assert.equal((finalTranscript.match(/── RECEIPT/g) || []).length, 1);
-    assert.equal((finalTranscript.match(/› arbiter  setup \/ review/g) || []).length, 1);
-    assert.equal((finalTranscript.match(/A R B I T E R/g) || []).length, 1);
-    assert.equal((finalTranscript.match(/✔  Entry Path/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/▍ RECEIPT/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/▍ SETUP/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/ARBITER/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/◆  Entry Path/g) || []).length, 1);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });
@@ -302,7 +303,7 @@ test("pty: wizard remains usable at the minimum supported terminal size", { conc
     session.typeText("Minimum size path");
     session.pressEnter();
 
-    await session.waitForText("◆  Protocol", 25000);
+    await session.waitForText("▸  Protocol", 25000);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });
@@ -327,7 +328,7 @@ test("pty: create-new path submits Step 1 question with Enter", { concurrency: f
     session.typeText("Question submit fallback test");
     session.pressEnter();
 
-    await session.waitForText("◆  Protocol", 25000);
+    await session.waitForText("▸  Protocol", 25000);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });
@@ -349,16 +350,16 @@ test("pty: decode numeric input stays inside the Stage 1 TUI renderer", { concur
     session.typeText("Inline decode prompt test");
     session.pressEnter();
 
-    await session.waitForText("◆  Protocol", 25000);
+    await session.waitForText("▸  Protocol", 25000);
     session.pressEnter();
 
-    await session.waitForText("◆  Models", 25000);
+    await session.waitForText("▸  Models", 25000);
     session.pressEnter();
 
-    await session.waitForText("◆  Personas", 25000);
+    await session.waitForText("▸  Personas", 25000);
     session.pressEnter();
 
-    await session.waitForText("◆  Decode Params", 25000);
+    await session.waitForText("▸  Decode Params", 25000);
     await session.waitForText("Temperature mode", 25000);
     session.pressEnter();
 
@@ -396,7 +397,7 @@ test("pty: undersized dashboard path falls back cleanly without live monitor", {
 
     const output = session.getOutput();
     assert.equal(output.includes("── PROGRESS"), false);
-    assert.equal(output.includes("── RECEIPT"), false);
+    assert.equal(output.includes("▍ RECEIPT"), false);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });
@@ -421,7 +422,7 @@ test("pty: dashboard re-renders across a live terminal resize", { concurrency: f
   });
 
   try {
-    await session.waitForText("── PROGRESS", 25000);
+    await session.waitForText("▍ RUN", 25000);
     await session.waitForText("Trials: 1/8", 25000);
 
     session.resize(60, 14);
@@ -432,14 +433,14 @@ test("pty: dashboard re-renders across a live terminal resize", { concurrency: f
 
     session.resize(120, 24);
     await session.waitForText("Trials: 5/8", 45000);
-    await session.waitForText("── RECEIPT", 45000);
+    await session.waitForText("▍ RECEIPT", 45000);
 
     const exit = await session.waitForExit(45000);
     assert.equal(exit.exitCode, 0);
     const finalTranscript = await renderFinalNormalScreenText(session.getRawOutput());
-    assert.equal((finalTranscript.match(/── PROGRESS/g) || []).length, 1);
-    assert.equal((finalTranscript.match(/── RECEIPT/g) || []).length, 1);
-    assert.equal(finalTranscript.includes("✔  Entry Path"), false);
+    assert.equal((finalTranscript.match(/▍ RUN/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/▍ RECEIPT/g) || []).length, 1);
+    assert.equal(finalTranscript.includes("◆  Entry Path"), false);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });

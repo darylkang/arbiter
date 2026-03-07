@@ -5,7 +5,7 @@ import { toStopBanner, UI_COPY } from "../copy.js";
 import { createStdoutFormatter, type Formatter } from "../fmt.js";
 import { buildReceiptModel } from "../receipt-model.js";
 import type { ReceiptVM } from "../runtime-view-models.js";
-import { renderKV, renderRuledSection, renderSeparator, renderStatusStrip } from "../wizard-theme.js";
+import { renderKV, renderRuledSection, renderSeparator, renderStageHeader } from "../wizard-theme.js";
 import { formatClockHMS, renderToneLine, toDisplayConfigPath } from "./render-utils.js";
 
 type ReceiptRenderOptions = {
@@ -81,14 +81,14 @@ export const buildReceiptViewModel = (runDir: string): ReceiptVM => {
   }
 
   return {
-    statusContext: "run / receipt",
+    statusContext: UI_COPY.receiptHeader,
     stopBanner,
     caveatLines: [{ text: UI_COPY.stoppingCaveat, tone: "muted" }],
     summaryRows,
     groupLines,
     artifactRows,
     reproduceCommand: `arbiter run --config ${toDisplayConfigPath(runDir)}`,
-    footerText: "Run complete."
+    footerText: UI_COPY.completionFooter
   };
 };
 
@@ -96,10 +96,7 @@ export const buildReceiptDisplayText = (vm: ReceiptVM, options: ReceiptRenderOpt
   const fmt = options.fmt ?? createStdoutFormatter();
   const width = options.width ?? fmt.termWidth();
   const lines: string[] = [
-    renderStatusStrip(vm.statusContext, 0, width, fmt),
-    renderSeparator(width, fmt),
-    "",
-    renderRuledSection("RECEIPT", width, fmt),
+    renderStageHeader(UI_COPY.receiptHeader, 0, width, fmt),
     "",
     vm.stopBanner,
     ...vm.caveatLines.map((line) => renderToneLine(line.text, line.tone, fmt)),
@@ -119,7 +116,9 @@ export const buildReceiptDisplayText = (vm: ReceiptVM, options: ReceiptRenderOpt
   lines.push("");
   lines.push(renderRuledSection("ARTIFACTS", width, fmt));
   lines.push("");
-  lines.push(...vm.artifactRows.map((line) => fmt.muted(line)));
+  vm.artifactRows.forEach((line, index) => {
+    lines.push(index === 0 ? fmt.muted(line) : fmt.text(line));
+  });
   lines.push("");
   lines.push(renderRuledSection("REPRODUCE", width, fmt));
   lines.push("");

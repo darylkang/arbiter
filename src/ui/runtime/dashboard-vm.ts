@@ -363,7 +363,7 @@ export const buildDashboardViewModel = (
         ];
 
   return {
-    statusContext: "run / monitoring",
+    statusContext: UI_COPY.runHeader,
     elapsedMs,
     progressLabel: `Trials: ${state.attempted}/${state.planned} · Workers: ${state.workers}`,
     progressPct: toPercent(state.attempted, state.planned),
@@ -372,6 +372,6 @@ export const buildDashboardViewModel = (
     caveatLines,
     workerRows,
     usageLines,
-    footerText: "Ctrl+C request graceful stop"
+    footerText: "Ctrl+C to stop gracefully"
   };
 };

@@ -1,7 +1,15 @@
 import { UI_COPY } from "../copy.js";
 import { createStdoutFormatter, type Formatter } from "../fmt.js";
 import type { DashboardVM } from "../runtime-view-models.js";
-import { MASTER_BAR_MAX, renderKV, renderProgressBar, renderRuledSection, renderSeparator, renderStatusStrip, renderWorkerRow } from "../wizard-theme.js";
+import {
+  MASTER_BAR_MAX,
+  renderKV,
+  renderProgressBar,
+  renderRuledSection,
+  renderSeparator,
+  renderStageHeader,
+  renderWorkerRow
+} from "../wizard-theme.js";
 import { countRenderedRows, countRowsForLines } from "./live-region.js";
 import { formatClockHMS, renderToneLine } from "./render-utils.js";
 
@@ -64,9 +72,7 @@ const buildWorkerSection = (
 };
 
 export const buildDashboardTooSmallText = (width: number, fmt: Formatter = createStdoutFormatter()): string =>
-  `${renderStatusStrip("run / monitoring", 0, width, fmt)}\n${renderSeparator(width, fmt)}\n\n${fmt.warn(
-    UI_COPY.dashboardTerminalTooSmall
-  )}\n`;
+  `${renderStageHeader(UI_COPY.runHeader, 0, width, fmt)}\n\n${fmt.warn(UI_COPY.dashboardTerminalTooSmall)}\n`;
 
 export const buildRunDashboardText = (vm: DashboardVM, options: DashboardRenderOptions = {}): string => {
   const fmt = options.fmt ?? createStdoutFormatter();
@@ -95,10 +101,8 @@ export const buildRunDashboardText = (vm: DashboardVM, options: DashboardRenderO
     return true;
   };
 
-  pushBlock([renderStatusStrip(vm.statusContext, vm.elapsedMs, width, fmt), renderSeparator(width, fmt)], true);
-  if (!compact) {
-    pushBlock([""]);
-  }
+  pushBlock([renderStageHeader(UI_COPY.runHeader, vm.elapsedMs, width, fmt)], true);
+  pushBlock([""], true);
   pushBlock(
     [
       renderRuledSection("PROGRESS", width, fmt),

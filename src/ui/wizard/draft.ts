@@ -6,7 +6,7 @@ import {
   renderBrandBlock,
   renderRailStep,
   renderSeparator,
-  renderStatusStrip,
+  renderStageHeader,
   truncate,
   type RailStep
 } from "../wizard-theme.js";
@@ -53,7 +53,7 @@ const summarizeDisplaySelection = (
 ): string =>
   summarizeSelection(values.map((value) => labels?.get(value) ?? value));
 
-const formatReviewRow = (key: string, value: string): string => `${key.padEnd(16)}${value}`;
+const formatReviewRow = (key: string, value: string): string => `${key.padEnd(18)}${value}`;
 
 export const toRailSummaries = (input: {
   draft: WizardDraft;
@@ -155,19 +155,18 @@ export const buildFrozenTranscriptPrefix = (input: {
   const width = fmt.termWidth();
 
   return [
-    renderStatusStrip(input.contextLabel, 0, width, fmt),
-    renderSeparator(width, fmt),
-    "",
     renderBrandBlock(
       input.version,
       input.apiKeyPresent,
       input.runMode,
       input.configCount,
       width,
-      fmt
+      fmt,
+      "expanded"
     ),
     "",
-    renderSeparator(width, fmt),
+    renderStageHeader(UI_COPY.setupHeader, 0, width, fmt),
+    "",
     buildFrozenRailSummary({
       draft: input.draft,
       selectedConfigPath: input.selectedConfigPath,
@@ -177,7 +176,6 @@ export const buildFrozenTranscriptPrefix = (input: {
       personaLabels: input.personaLabels
     }),
     "",
-    renderSeparator(width, fmt),
     fmt.muted(UI_COPY.startingRun)
   ].join("\n");
 };

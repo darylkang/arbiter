@@ -102,15 +102,15 @@ const runDashboardSmoke = async () => {
   try {
     const configPath = createMockConfig(cwd);
     openITermWindow(`cd ${JSON.stringify(REPO_ROOT)} && ARBITER_MOCK_DELAY_MS=120 node ${JSON.stringify(CLI_ENTRY)} run --config ${JSON.stringify(configPath)} --dashboard`);
-    const contents = await waitForSessionText("Run complete.", 30000);
+    const contents = await waitForSessionText("→ Run complete.", 30000);
     const result = {
       path: "dashboard",
+      run: countMatches(contents, /▍ RUN/g),
       progress: countMatches(contents, /── PROGRESS/g),
-      monitoring: countMatches(contents, /run \/ monitoring/g),
-      receipt: countMatches(contents, /── RECEIPT/g)
+      receipt: countMatches(contents, /▍ RECEIPT/g)
     };
+    assert.equal(result.run, 1, `expected one run stage header, saw ${result.run}`);
     assert.equal(result.progress, 1, `expected one dashboard snapshot, saw ${result.progress}`);
-    assert.equal(result.monitoring, 1, `expected one monitoring strip, saw ${result.monitoring}`);
     assert.equal(result.receipt, 1, `expected one receipt, saw ${result.receipt}`);
     return result;
   } finally {
@@ -132,21 +132,21 @@ const runWizardSmoke = async () => {
     sendKeyCode(36); // enter
     await waitForSessionText("Review and Confirm", 20000);
     sendKeyCode(36); // run now
-    const contents = await waitForSessionText("Run complete.", 30000);
+    const contents = await waitForSessionText("→ Run complete.", 30000);
     const result = {
       path: "wizard",
-      status: countMatches(contents, /› arbiter  setup \/ review/g),
-      brand: countMatches(contents, /A R B I T E R/g),
-      entry: countMatches(contents, /✔  Entry Path/g),
+      stage: countMatches(contents, /▍ SETUP/g),
+      brand: countMatches(contents, /ARBITER/g),
+      entry: countMatches(contents, /◆  Entry Path/g),
+      run: countMatches(contents, /▍ RUN/g),
       progress: countMatches(contents, /── PROGRESS/g),
-      monitoring: countMatches(contents, /run \/ monitoring/g),
-      receipt: countMatches(contents, /── RECEIPT/g)
+      receipt: countMatches(contents, /▍ RECEIPT/g)
     };
-    assert.equal(result.status, 1, `expected one persisted Stage 0 status strip, saw ${result.status}`);
+    assert.equal(result.stage, 1, `expected one persisted setup stage header, saw ${result.stage}`);
     assert.equal(result.brand, 1, `expected one persisted header, saw ${result.brand}`);
     assert.equal(result.entry, 1, `expected one frozen wizard summary, saw ${result.entry}`);
+    assert.equal(result.run, 1, `expected one run stage header, saw ${result.run}`);
     assert.equal(result.progress, 1, `expected one dashboard snapshot, saw ${result.progress}`);
-    assert.equal(result.monitoring, 1, `expected one monitoring strip, saw ${result.monitoring}`);
     assert.equal(result.receipt, 1, `expected one receipt, saw ${result.receipt}`);
     return result;
   } finally {

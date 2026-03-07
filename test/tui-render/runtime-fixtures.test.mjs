@@ -21,12 +21,16 @@ test("renderBrandBlock uses the provided width instead of terminal globals", () 
   assert.equal(
     text,
     [
-      "A R B I T E R                                                     v0.1.0",
-      "Distributional reasoning harness",
-      "",
-      "API key:   not detected",
-      "Run mode:  Mock",
-      "Configs:   2 in current directory"
+      "╭──────────────────────────────────────────────────────────────────────╮",
+      "│                                                                      │",
+      "│ ARBITER                                                       v0.1.0 │",
+      "│ Distributional reasoning harness                                     │",
+      "│                                                                      │",
+      "│ ● API key   not detected                                             │",
+      "│ ● Run mode  Mock                                                     │",
+      "│ ● Configs   2 in current directory                                   │",
+      "│                                                                      │",
+      "╰──────────────────────────────────────────────────────────────────────╯"
     ].join("\n")
   );
 });
@@ -36,7 +40,7 @@ test("renderRuledSection and renderWorkerRow produce stable plain fixtures", () 
 
   assert.equal(
     renderRuledSection("monitoring", 40, fmt),
-    "── MONITORING ──────────────────────────"
+    "── MONITORING"
   );
 
   assert.equal(
@@ -51,7 +55,7 @@ test("renderRuledSection and renderWorkerRow produce stable plain fixtures", () 
       fmt,
       80
     ),
-    "W2  ⠙░░░░░░░░░  idle      trial —    —"
+    "W2  ⠙░░░░░░░░░  idle        trial —      —"
   );
 });
 
@@ -91,19 +95,14 @@ test("Stage 1 frame builder has a deterministic plain-text fixture", () => {
   assert.equal(
     text,
     [
-      "› arbiter  setup / question                                                00:00",
-      "────────────────────────────────────────────────────────────────────────────────",
+      "ARBITER                                                                   v0.1.0",
+      "● API key not detected   ● Run mode Mock   ● Configs 2",
       "",
-      "A R B I T E R                                                             v0.1.0",
-      "Distributional reasoning harness",
+      "▍ SETUP                                                                    00:00",
       "",
-      "API key:   not detected",
-      "Run mode:  Mock",
-      "Configs:   2 in current directory",
-      "",
-      "✔  Entry Path         Create new study",
-      "✔  Run Mode           Mock",
-      "◆  Research Question",
+      "◆  Entry Path           Create new study",
+      "◆  Run Mode             Mock",
+      "▸  Research Question",
       "│",
       "│   Include all relevant context. Arbiter samples responses to characterize distributional behavior.",
       "│",
@@ -131,7 +130,7 @@ test("Stage 2 dashboard builder has a deterministic plain-text fixture", () => {
 
   const text = buildRunDashboardText(
     {
-      statusContext: "run / monitoring",
+      statusContext: "▍ RUN",
       elapsedMs: 65_000,
       progressLabel: "Trials: 2/8 · Workers: 2",
       progressPct: 25,
@@ -147,7 +146,7 @@ test("Stage 2 dashboard builder has a deterministic plain-text fixture", () => {
         { id: 2, state: "idle", trialId: undefined, model: "—", tick: 1 }
       ],
       usageLines: [{ text: "Usage so far: 1200 tokens (in 700, out 500)", tone: "text" }],
-      footerText: "Ctrl+C request graceful stop"
+      footerText: "Ctrl+C to stop gracefully"
     },
     { width: 80, fmt }
   );
@@ -155,15 +154,14 @@ test("Stage 2 dashboard builder has a deterministic plain-text fixture", () => {
   assert.equal(
     text,
     [
-      "› arbiter  run / monitoring                                                01:05",
-      "────────────────────────────────────────────────────────────────────────────────",
+      "▍ RUN                                                                      01:05",
       "",
-      "── PROGRESS ────────────────────────────────────────────────────────────────────",
+      "── PROGRESS",
       "",
       "Trials: 2/8 · Workers: 2",
       "███████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   25%    00:01:05  ETA 00:03:00",
       "",
-      "── MONITORING ──────────────────────────────────────────────────────────────────",
+      "── MONITORING",
       "",
       "Novelty rate    0.180 (threshold 0.050)",
       "Patience        2/4",
@@ -171,18 +169,18 @@ test("Stage 2 dashboard builder has a deterministic plain-text fixture", () => {
       "",
       "Stopping indicates diminishing novelty, not correctness.",
       "",
-      "── WORKERS ─────────────────────────────────────────────────────────────────────",
+      "── WORKERS",
       "",
       "ID  Activity      State     Trial     Model",
-      "W1  ░███░░░░░░  running   trial 2    GPT-5",
-      "W2  ⠙░░░░░░░░░  idle      trial —    —",
+      "W1  ░███░░░░░░  running     trial 2      GPT-5",
+      "W2  ⠙░░░░░░░░░  idle        trial —      —",
       "",
-      "── USAGE ───────────────────────────────────────────────────────────────────────",
+      "── USAGE",
       "",
       "Usage so far: 1200 tokens (in 700, out 500)",
       "",
       "────────────────────────────────────────────────────────────────────────────────",
-      "Ctrl+C request graceful stop",
+      "Ctrl+C to stop gracefully",
       ""
     ].join("\n")
   );
@@ -193,7 +191,7 @@ test("Stage 3 receipt builder has a deterministic plain-text fixture", () => {
 
   const text = buildReceiptDisplayText(
     {
-      statusContext: "run / receipt",
+      statusContext: "▍ RECEIPT",
       stopBanner: "Stopped: novelty saturation",
       caveatLines: [{ text: "Stopping indicates diminishing novelty, not correctness.", tone: "muted" }],
       summaryRows: [
@@ -207,7 +205,7 @@ test("Stage 3 receipt builder has a deterministic plain-text fixture", () => {
       ],
       artifactRows: ["Only generated files are listed.", "config.resolved.json", "manifest.json"],
       reproduceCommand: "arbiter run --config ./runs/example/config.resolved.json",
-      footerText: "Run complete."
+      footerText: "→ Run complete."
     },
     { width: 80, fmt }
   );
@@ -215,37 +213,34 @@ test("Stage 3 receipt builder has a deterministic plain-text fixture", () => {
   assert.equal(
     text,
     [
-      "› arbiter  run / receipt                                                   00:00",
-      "────────────────────────────────────────────────────────────────────────────────",
-      "",
-      "── RECEIPT ─────────────────────────────────────────────────────────────────────",
+      "▍ RECEIPT                                                                  00:00",
       "",
       "Stopped: novelty saturation",
       "Stopping indicates diminishing novelty, not correctness.",
       "",
-      "── SUMMARY ─────────────────────────────────────────────────────────────────────",
+      "── SUMMARY",
       "",
       "Stop reason     novelty saturation",
       "Trials          8 / 8 / 8 (planned / completed / eligible)",
       "Duration        00:04:12",
       "",
-      "── GROUPS ──────────────────────────────────────────────────────────────────────",
+      "── GROUPS",
       "",
       "Embedding groups: 3",
       "Groups reflect embedding similarity, not semantic categories.",
       "",
-      "── ARTIFACTS ───────────────────────────────────────────────────────────────────",
+      "── ARTIFACTS",
       "",
       "Only generated files are listed.",
       "config.resolved.json",
       "manifest.json",
       "",
-      "── REPRODUCE ───────────────────────────────────────────────────────────────────",
+      "── REPRODUCE",
       "",
       "arbiter run --config ./runs/example/config.resolved.json",
       "",
       "────────────────────────────────────────────────────────────────────────────────",
-      "Run complete.",
+      "→ Run complete.",
       ""
     ].join("\n")
   );
@@ -255,5 +250,5 @@ test("live-region row counting matches Arbiter's current single-width glyph cont
   const line = "W2  \u001b[33m⠙░░░░░░░░░\u001b[0m  idle      trial —    —";
   assert.equal(countRenderedRows(line, 80), 1);
   assert.equal(countRenderedRows(line, 10), 4);
-  assert.equal(countRowsForLines(["✔  Entry Path", "◆  Research Question"], 80), 2);
+  assert.equal(countRowsForLines(["◆  Entry Path", "▸  Research Question"], 80), 2);
 });

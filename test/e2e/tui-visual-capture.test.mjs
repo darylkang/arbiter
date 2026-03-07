@@ -37,7 +37,8 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
     assert.equal(existsSync(join(outputDir, "index.json")), true, "expected capture json index");
 
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step0-entry"), [
-      "A R B I T E R",
+      "ARBITER",
+      "▍ SETUP",
       "Choose how to start"
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step1-question"), [
@@ -50,12 +51,13 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
       "Run now"
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "stage2-run"), [
+      "▍ RUN",
       "── PROGRESS",
       "Trials:"
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "stage3-receipt"), [
-      "── RECEIPT",
-      "Run complete."
+      "▍ RECEIPT",
+      "→ Run complete."
     ]);
 
     const reviewRendered = readFileSync(getCheckpoint(checkpoints, "step7-review").textPath, "utf8");
@@ -63,7 +65,7 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
 
     const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
     const finalTranscript = await renderFinalNormalScreenText(receiptAnsi);
-    assert.equal(finalTranscript.includes("── RECEIPT"), true);
+    assert.equal(finalTranscript.includes("▍ RECEIPT"), true);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
   }
@@ -81,13 +83,13 @@ test("pty capture preserves the Stage 2 status strip on a 24-row terminal", { co
     });
 
     const runRendered = readFileSync(getCheckpoint(checkpoints, "stage2-run").textPath, "utf8");
-    assert.equal(runRendered.includes("run / monitoring"), true);
+    assert.equal(runRendered.includes("▍ RUN"), true);
 
     const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
     const finalTranscript = await renderFinalNormalScreenText(receiptAnsi, { cols: 120, rows: 24 });
+    assert.equal((finalTranscript.match(/▍ RUN/g) || []).length, 1);
     assert.equal((finalTranscript.match(/── PROGRESS/g) || []).length, 1);
-    assert.equal((finalTranscript.match(/run \/ monitoring/g) || []).length, 1);
-    assert.equal((finalTranscript.match(/── RECEIPT/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/▍ RECEIPT/g) || []).length, 1);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
   }
@@ -105,13 +107,13 @@ test("pty capture preserves the Stage 2 status strip on a 60x24 terminal", { con
     });
 
     const runRendered = readFileSync(getCheckpoint(checkpoints, "stage2-run").textPath, "utf8");
-    assert.equal(runRendered.includes("run / monitoring"), true);
+    assert.equal(runRendered.includes("▍ RUN"), true);
 
     const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
     const finalTranscript = await renderFinalNormalScreenText(receiptAnsi, { cols: 60, rows: 24 });
+    assert.equal((finalTranscript.match(/▍ RUN/g) || []).length, 1);
     assert.equal((finalTranscript.match(/── PROGRESS/g) || []).length, 1);
-    assert.equal((finalTranscript.match(/run \/ monitoring/g) || []).length, 1);
-    assert.equal((finalTranscript.match(/── RECEIPT/g) || []).length, 1);
+    assert.equal((finalTranscript.match(/▍ RECEIPT/g) || []).length, 1);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
   }
@@ -129,17 +131,18 @@ test("pty capture completes at the minimum supported 60x18 size", { concurrency:
     });
 
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step0-entry"), [
-      "A R B I T E R",
+      "ARBITER",
       "Choose how to start"
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "stage2-run"), [
+      "▍ RUN",
       "── PROGRESS",
       "Trials:"
     ]);
     const receiptAnsi = readFileSync(getCheckpoint(checkpoints, "stage3-receipt").ansiPath, "utf8");
     const finalTranscript = await renderFinalNormalScreenText(receiptAnsi, { cols: 60, rows: 18 });
-    assert.equal(finalTranscript.includes("── RECEIPT"), true);
-    assert.equal(finalTranscript.includes("Run complete."), true);
+    assert.equal(finalTranscript.includes("▍ RECEIPT"), true);
+    assert.equal(finalTranscript.includes("→ Run complete."), true);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
   }

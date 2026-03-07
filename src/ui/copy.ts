@@ -1,7 +1,7 @@
 export type UiRunMode = "live" | "mock" | null;
 
 export const UI_COPY = {
-  brand: "A R B I T E R",
+  brand: "ARBITER",
   tagline: "Distributional reasoning harness",
   stoppingCaveat: "Stopping indicates diminishing novelty, not correctness.",
   groupingCaveat: "Groups reflect embedding similarity, not semantic categories.",
@@ -20,8 +20,10 @@ export const UI_COPY = {
     "Graceful stop requested. Finishing in-flight trials and writing partial artifacts.",
   mockUsageSummary: "Mock mode: usage and cost are not tracked.",
   startingRun: "Starting run",
-  runHeader: "── PROGRESS ──",
-  receiptHeader: "── RECEIPT ──"
+  setupHeader: "▍ SETUP",
+  runHeader: "▍ RUN",
+  receiptHeader: "▍ RECEIPT",
+  completionFooter: "→ Run complete."
 } as const;
 
 export const toRunModeLabel = (mode: UiRunMode): string => {

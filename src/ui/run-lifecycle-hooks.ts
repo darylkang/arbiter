@@ -122,11 +122,22 @@ class RunDashboardMonitor {
     this.cursorHidden = false;
   }
 
+  private rewindToFrameStart(): void {
+    if (this.lastFrameRows <= 0) {
+      return;
+    }
+    process.stdout.write("\r");
+    const moveUp = Math.max(0, this.lastFrameRows - 1);
+    if (moveUp > 0) {
+      process.stdout.write(`\x1b[${moveUp}A`);
+    }
+  }
+
   private clearLiveFrame(): void {
     if (this.lastFrameRows <= 0) {
       return;
     }
-    process.stdout.write(`\x1b[${this.lastFrameRows}A`);
+    this.rewindToFrameStart();
     process.stdout.write("\x1b[J");
     this.lastFrameRows = 0;
   }
@@ -181,9 +192,9 @@ class RunDashboardMonitor {
       : buildDashboardTooSmallText(terminalColumns, createStdoutFormatter()).replace(/\n+$/, "");
 
     if (this.lastFrameRows > 0) {
-      process.stdout.write(`\x1b[${this.lastFrameRows}A`);
+      this.rewindToFrameStart();
+      process.stdout.write("\x1b[J");
     }
-    process.stdout.write("\x1b[J");
     process.stdout.write(frameText);
     this.lastFrameRows = countRenderedRows(frameText, terminalColumns);
   }
