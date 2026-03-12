@@ -268,9 +268,10 @@ Locked debate mechanics:
 
 ### Step 4: Personas (`p`)
 
-1. Checkbox list with descriptions.
+1. Checkbox list with compact metadata rows.
 2. At least one selection required.
-3. Default neutral persona selected.
+3. Focused guidance block updates with the active persona and remains fixed-height while the cursor moves.
+4. Default personas are selected from the persona catalog rather than by positional assumption.
 
 ### Pool sampling semantics
 
