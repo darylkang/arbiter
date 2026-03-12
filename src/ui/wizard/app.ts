@@ -75,10 +75,11 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
   }
   const { version, modelOptions, personaOptions } = loadWizardOptions(assetRoot);
   const modelLabelBySlug = new Map(modelOptions.map((model) => [model.slug, model.display]));
-  const personaLabelById = new Map(personaOptions.map((persona) => [persona.id, persona.display]));
+  const personaLabelById = new Map(personaOptions.map((persona) => [persona.id, persona.displayName]));
   const configFilesResolved = listConfigFiles();
   const apiKeyPresent = Boolean(process.env.OPENROUTER_API_KEY);
   let handedOffToRun = false;
+  const defaultPersonaIds = personaOptions.filter((persona) => persona.isDefault).map((persona) => persona.id);
 
   try {
     frameManager.enter();
@@ -88,7 +89,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
       draft: {
         ...buildDraftFromConfig(baseTemplate, {
           modelSlugs: modelOptions.length > 0 ? [modelOptions[0].slug] : [],
-          personaIds: personaOptions.length > 0 ? [personaOptions[0].id] : []
+          personaIds: defaultPersonaIds
         }),
         question: ""
       },

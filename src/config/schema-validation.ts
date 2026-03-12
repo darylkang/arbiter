@@ -18,6 +18,7 @@ import type { ArbiterLadderComparisonSummary } from "../generated/ladder-compari
 import type { ArbiterMonitoringRecord } from "../generated/monitoring.types.js";
 import type { ArbiterAggregates } from "../generated/aggregates.types.js";
 import type { ArbiterModelCatalog } from "../generated/catalog.types.js";
+import type { ArbiterPersonaCatalog } from "../generated/persona-catalog.types.js";
 import type { ArbiterPromptManifest } from "../generated/prompt-manifest.types.js";
 import type { ArbiterTemplateManifest } from "../generated/template-manifest.types.js";
 import type { ArbiterDecisionContractManifest } from "../generated/contract-manifest.types.js";
@@ -83,6 +84,8 @@ export const validateAggregates =
   compiledValidators.validateAggregates as ValidateFunction<ArbiterAggregates>;
 export const validateCatalog =
   compiledValidators.validateCatalog as ValidateFunction<ArbiterModelCatalog>;
+export const validatePersonaCatalog =
+  compiledValidators.validatePersonaCatalog as ValidateFunction<ArbiterPersonaCatalog>;
 export const validatePromptManifest =
   compiledValidators.validatePromptManifest as ValidateFunction<ArbiterPromptManifest>;
 export const validateTemplateManifest =

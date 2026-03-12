@@ -1,8 +1,8 @@
 # ExecPlan: Personas Step Overhaul
 
-Status: proposed
+Status: completed
 Owner: Codex
-Last updated: 2026-03-11
+Last updated: 2026-03-12
 
 ## Purpose / Big Picture
 
@@ -45,10 +45,10 @@ Sequencing constraints:
 
 ## Progress
 
-- [ ] M0 — form contract and catalog shape frozen
-- [ ] M1 — persona catalog schema and loader implemented
-- [ ] M2 — Personas step visual/presentation overhaul implemented
-- [ ] M3 — validation, capture review, and closeout completed
+- [x] M0 — form contract and catalog shape frozen
+- [x] M1 — persona catalog schema and loader implemented
+- [x] M2 — Personas step visual/presentation overhaul implemented
+- [x] M3 — validation, capture review, and closeout completed
 
 ## Surprises & Discoveries
 
@@ -331,3 +331,19 @@ Supporting analysis artifacts:
 3. separate Breezy/ChatGPT Pro prompt requested for persona-substance ideation
 
 ## Plan Change Notes
+
+Implementation completed on 2026-03-12.
+
+Validation evidence:
+
+1. `npm run check:types`
+2. `npm run check:schemas`
+3. `npm run test:unit`
+4. `npm run test:ui`
+5. `npm run test:e2e:tui`
+6. `npm run test:guards`
+7. `npm run capture:tui`
+
+Latest rendered capture pack:
+
+1. `/Users/darylkang/Developer/arbiter/output/playwright/tui-visual/2026-03-12T03-30-26-735Z`

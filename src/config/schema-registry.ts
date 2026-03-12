@@ -105,6 +105,12 @@ export const SCHEMA_REGISTRY = [
     family: "resources"
   },
   {
+    schemaFile: "persona-catalog.schema.json",
+    generatedTypeFile: "persona-catalog.types.ts",
+    validatorExport: "validatePersonaCatalog",
+    family: "resources"
+  },
+  {
     schemaFile: "prompt-manifest.schema.json",
     generatedTypeFile: "prompt-manifest.types.ts",
     validatorExport: "validatePromptManifest",

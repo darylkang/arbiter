@@ -49,8 +49,12 @@ export type CatalogModel = {
 
 export type PersonaOption = {
   id: string;
-  display: string;
-  description: string;
+  displayName: string;
+  subtitle: string;
+  category: string;
+  whenToUse: string;
+  riskNote?: string;
+  isDefault: boolean;
 };
 
 export const SELECT_BACK = "__BACK__";

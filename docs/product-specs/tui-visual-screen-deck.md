@@ -435,6 +435,55 @@ The research-question step is the most important input surface and should look i
   Enter continue · Esc back
 ```
 
+### Step 4 Personas Surface
+
+The Personas step should feel guidance-rich without turning the list into prose.
+
+```text
+▍ SETUP                                                  00:14
+
+  ◆  Entry Path                   Create new study
+  │
+  ◆  Run Mode                     Mock
+  │
+  ◆  Research Question            "Just testing" (12 chars)
+  │
+  ◆  Protocol                     Independent
+  │
+  ◆  Models                       GPT-4o Mini (1 selected)
+  │
+  ▸  Personas
+  │
+  │   Select one or more personas for sampling.
+  │
+  │   Strongest-objection framing
+  │   Use when you want pressure against premature conclusions.
+  │
+  │   ■ Neutral · baseline
+  │   ▸ □ Skeptical · adversarial
+  │     □ Precise · analytical
+  │     □ Exploratory · divergent
+  │
+  ◇  Decode Params
+  ◇  Advanced Settings
+  ◇  Review and Confirm
+
+  ─────────────────────────────────────────────────────────────
+  ↑/↓ move · Space toggle · Enter confirm · Esc back
+```
+
+Rules:
+
+1. Persona rows stay compact and scan-first.
+2. Guidance lives above the list, not inline in every row.
+3. The guidance block is always exactly three content lines tall:
+   - subtitle
+   - when-to-use guidance
+   - optional caution line or blank
+4. The guidance block must not change height while the cursor moves.
+5. `when_to_use` text must fit on one rendered line at supported widths.
+6. Raw manifest descriptions are not rendered in the Personas step once the catalog exists.
+
 ### Stage 1 Frozen Summary
 
 When `Run now` is selected, the editable rail freezes into a durable study rail summary.

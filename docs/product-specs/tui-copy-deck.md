@@ -233,6 +233,14 @@ Rail confirmation:
 1. `LOCKED`: `Personas`
 2. `FLEX`: `Select one or more personas for sampling.`
 3. `LOCKED`: `Fix required: select at least one persona.`
+4. `LOCKED`: persona rows render as `{display_name} · {category}`.
+5. `LOCKED`: the focused guidance block renders exactly three content lines:
+   - line 1: `{subtitle}`
+   - line 2: `{when_to_use}`
+   - line 3: `{risk_note}` or blank
+6. `LOCKED`: first-pass category vocabulary is `baseline`, `adversarial`, `analytical`, `divergent`.
+7. `LOCKED`: visible `recommended` tags are deferred; default personas are communicated by pre-selection only.
+8. `LOCKED`: manifest `description` is not used for Personas-step UI copy once the persona catalog exists.
 
 Rail confirmation:
 

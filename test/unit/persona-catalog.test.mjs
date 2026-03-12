@@ -1,0 +1,105 @@
+import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import test from "node:test";
+
+import { loadPersonaOptions } from "../../src/ui/wizard/resources.ts";
+import { REPO_ROOT } from "../helpers/workspace.mjs";
+
+const writeJson = (filePath, value) => {
+  mkdirSync(dirname(filePath), { recursive: true });
+  writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+};
+
+test("loadPersonaOptions reads presentation metadata from the persona catalog", () => {
+  const personas = loadPersonaOptions(REPO_ROOT);
+
+  assert.deepEqual(
+    personas.map((persona) => ({
+      id: persona.id,
+      displayName: persona.displayName,
+      category: persona.category,
+      isDefault: persona.isDefault
+    })),
+    [
+      {
+        id: "persona_neutral",
+        displayName: "Neutral",
+        category: "baseline",
+        isDefault: true
+      },
+      {
+        id: "persona_skeptical",
+        displayName: "Skeptical",
+        category: "adversarial",
+        isDefault: false
+      },
+      {
+        id: "persona_precise",
+        displayName: "Precise",
+        category: "analytical",
+        isDefault: false
+      },
+      {
+        id: "persona_exploratory",
+        displayName: "Exploratory",
+        category: "divergent",
+        isDefault: false
+      }
+    ]
+  );
+  assert.equal(personas[0]?.whenToUse, "Use as an unframed baseline for study comparisons.");
+});
+
+test("loadPersonaOptions rejects catalog and manifest drift as a hard error", () => {
+  const assetRoot = mkdtempSync(join(tmpdir(), "arbiter-persona-catalog-"));
+
+  try {
+    writeJson(join(assetRoot, "resources/prompts/manifest.json"), {
+      schema_version: "1.0.0",
+      hash_algorithm: "sha256",
+      prompt_bank_stage: "curated",
+      entries: [
+        {
+          id: "persona_neutral",
+          type: "participant_persona",
+          path: "resources/prompts/personas/neutral.txt",
+          sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          description: "Neutral (empty) persona."
+        }
+      ]
+    });
+
+    writeJson(join(assetRoot, "resources/prompts/personas/catalog.json"), {
+      schema_version: "1.0.0",
+      personas: [
+        {
+          id: "persona_neutral",
+          display_name: "Neutral",
+          subtitle: "Default reasoning stance",
+          category: "baseline",
+          when_to_use: "Use as an unframed baseline for study comparisons.",
+          default: true,
+          sort_order: 0
+        },
+        {
+          id: "persona_skeptical",
+          display_name: "Skeptical",
+          subtitle: "Strongest-objection framing",
+          category: "adversarial",
+          when_to_use: "Use when you want pressure against premature conclusions.",
+          default: false,
+          sort_order: 1
+        }
+      ]
+    });
+
+    assert.throws(
+      () => loadPersonaOptions(assetRoot),
+      /persona catalog and prompt manifest are out of sync/
+    );
+  } finally {
+    rmSync(assetRoot, { recursive: true, force: true });
+  }
+});

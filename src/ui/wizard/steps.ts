@@ -154,15 +154,28 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
   },
 
   4: async (state) => {
+    const personaFrame = context.buildStepFrame(4, 3, "Personas");
+    personaFrame.activeLines = ["Select one or more personas for sampling.", ""];
     const selectedPersonas = await selectMany({
       prompt: "Personas",
       choices: context.personaOptions.map((persona) => ({
         id: persona.id,
-        label: persona.description.length > 0 ? `${persona.display} — ${persona.description}` : persona.display
+        label: `${persona.displayName} · ${persona.category}`
       })),
       defaults: state.draft.personaIds,
       emptySelectionError: "Fix required: select at least one persona.",
-      frame: context.buildStepFrame(4, 3, "Personas", "Select one or more personas for sampling."),
+      frame: personaFrame,
+      focusedLines: (index) => {
+        const persona = context.personaOptions[index];
+        if (!persona) {
+          return ["", "", ""];
+        }
+        return [
+          persona.subtitle,
+          persona.whenToUse,
+          persona.riskNote ?? ""
+        ];
+      },
       renderStepFrame: context.renderStepFrame
     });
     if (selectedPersonas === SELECT_EXIT) {
@@ -285,6 +298,7 @@ const assertEditableState = (state: WizardFlowState): WizardStepState => {
 
 export const createWizardControllers = (context: WizardStepContext): Record<WizardStage, WizardController> => {
   const stepControllers = createWizardStepControllers(context);
+  const defaultPersonaIds = context.personaOptions.filter((persona) => persona.isDefault).map((persona) => persona.id);
 
   return {
     entry: async (state) => {
@@ -401,7 +415,7 @@ export const createWizardControllers = (context: WizardStepContext): Record<Wiza
       state.sourceConfig = readJsonFile<ArbiterResolvedConfig>(selectedConfigPath);
       state.draft = buildDraftFromConfig(state.sourceConfig, {
         modelSlugs: context.modelOptions.length > 0 ? [context.modelOptions[0].slug] : [],
-        personaIds: context.personaOptions.length > 0 ? [context.personaOptions[0].id] : []
+        personaIds: defaultPersonaIds
       });
       return { kind: "goto", step: 7 };
     },

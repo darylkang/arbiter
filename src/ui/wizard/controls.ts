@@ -329,6 +329,7 @@ export const selectMany = async (inputControl: {
   defaults: string[];
   emptySelectionError?: string;
   frame: StepFrame;
+  focusedLines?: (index: number) => string[];
   extraLines?: (selected: ReadonlySet<string>) => string[];
   renderStepFrame: (frame: StepFrame) => void;
 }): Promise<SelectManyResult> => {
@@ -338,7 +339,10 @@ export const selectMany = async (inputControl: {
     render: (errorLine) => {
       const includePrompt =
         inputControl.prompt.trim().toLowerCase() !== inputControl.frame.activeLabel.trim().toLowerCase();
-      const lines: string[] = includePrompt ? [inputControl.prompt, ""] : [""];
+      const lines: string[] = includePrompt ? [inputControl.prompt, ""] : [];
+      if (inputControl.focusedLines) {
+        lines.push(...inputControl.focusedLines(selectedIndex));
+      }
       inputControl.choices.forEach((choice, index) => {
         const cursor = index === selectedIndex ? "▸ " : "  ";
         const checked = selectedIds.has(choice.id) ? "■" : "□";

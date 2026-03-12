@@ -46,6 +46,12 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
       "Include all relevant context. Arbiter samples responses to characterize distributional behavior.",
       "Start typing…"
     ]);
+    assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step4-personas"), [
+      "Select one or more personas for sampling.",
+      "Default reasoning stance",
+      "Neutral · baseline",
+      "Skeptical · adversarial"
+    ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step7-review"), [
       "Review and Confirm",
       "Run now"

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbiter.dev/schemas/v1/persona-catalog.schema.json",
+  "title": "Arbiter Persona Catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "personas"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "personas": {
+      "type": "array",
+      "minItems": 1,
+      "contains": {
+        "type": "object",
+        "required": ["default"],
+        "properties": {
+          "default": { "const": true }
+        }
+      },
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "display_name",
+          "subtitle",
+          "category",
+          "when_to_use",
+          "default",
+          "sort_order"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "display_name": { "type": "string", "minLength": 1 },
+          "subtitle": { "type": "string", "minLength": 1 },
+          "category": {
+            "type": "string",
+            "enum": ["baseline", "adversarial", "analytical", "divergent"]
+          },
+          "when_to_use": { "type": "string", "minLength": 1 },
+          "risk_note": { "type": "string", "minLength": 1 },
+          "default": { "type": "boolean" },
+          "sort_order": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}
