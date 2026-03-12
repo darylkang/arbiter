@@ -58,6 +58,7 @@ Sequencing constraints:
    - `Neutral (empty) persona.` is special-cased into `default baseline stance`.
 3. The prompt manifest is serving an integrity role today (existence, type, path/hash), not a rich presentation-catalog role. Overloading it would blur that boundary.
 4. The premium UI problem is not only row text. The step also lacks a strong focused guidance area explaining what each persona is for and when to use it.
+5. The focused guidance block cannot be treated as free-form text. If its height changes while the cursor moves, the list will jump vertically and the step will feel unstable.
 
 ## Decision Log
 
@@ -72,6 +73,12 @@ Sequencing constraints:
 
 4. Decision: grouped persona sections are deferred.
    Rationale: category tags are enough for the current and near-term scale; grouped headers can be introduced later if the catalog grows materially.
+
+5. Decision: the first pass will not render a visible `recommended` tag.
+   Rationale: pre-selection already communicates the default, and a visible recommendation label is too opinionated for a research instrument.
+
+6. Decision: manifest `description` stops being a Personas-step UI field once the catalog lands.
+   Rationale: manifest descriptions remain content/integrity metadata; researcher-facing UI guidance moves to the catalog.
 
 ## Context and Orientation
 
@@ -134,6 +141,13 @@ Exit criteria:
 2. Personas-step row format is frozen.
 3. Focused guidance area content contract is frozen.
 4. Data-driven vs UI-driven responsibilities are frozen.
+5. Concrete M0 artifacts exist in the plan and/or the governing product-spec docs:
+   - catalog field list,
+   - first-pass category vocabulary,
+   - row mockup,
+   - fixed-height guidance mockup,
+   - shared-control extension note,
+   - draft copy/spec updates for Step 4.
 
 ### M1 — Persona Catalog Schema and Loader
 
@@ -147,7 +161,8 @@ Exit criteria:
 2. dedicated catalog data file exists for the current personas,
 3. `PersonaOption` is updated to the richer shape,
 4. `loadPersonaOptions()` reads the catalog rather than deriving presentation from manifest IDs,
-5. there is a validation path ensuring catalog IDs map to actual manifest entries.
+5. there is a validation path ensuring catalog IDs map to actual manifest entries,
+6. Step 4 copy/spec docs are updated before UI implementation depends on the new contract.
 
 ### M2 — Personas Step Presentation Overhaul
 
@@ -161,7 +176,8 @@ Exit criteria:
 2. focused-row guidance replaces the thin generic helper treatment,
 3. defaults/recommended personas are indicated from data rather than positional assumptions,
 4. the step remains usable at minimum supported terminal size,
-5. existing Stage 1 chrome and rail behavior remain intact.
+5. existing Stage 1 chrome and rail behavior remain intact,
+6. the shared `selectMany` control supports cursor-sensitive guidance without introducing list jumpiness.
 
 ### M3 — Validation and Closeout
 
@@ -199,17 +215,27 @@ Proposed first-pass persona catalog fields:
 7. `default`
 8. `sort_order`
 
+Frozen first-pass category vocabulary:
+
+1. `baseline`
+2. `adversarial`
+3. `analytical`
+4. `divergent`
+
 Proposed first-pass row layout:
 
 1. primary row: `{display_name} · {category}`
-2. optional trailing tag: `· recommended` when `default: true`
-3. no long inline prose in the row itself
+2. no visible `recommended` tag in the first pass
+3. default personas are communicated by pre-selection, not by an explicit recommendation label
+4. no long inline prose in the row itself
 
 Proposed first-pass focused guidance layout:
 
 1. line 1: `subtitle`
 2. line 2: `when_to_use`
 3. optional line 3: `risk_note`
+4. the guidance block is always exactly 3 content lines tall; when `risk_note` is absent, line 3 is blank
+5. `when_to_use` must be authored to fit on one rendered line at supported widths; do not rely on variable-height wrapping
 
 ### M1 — Catalog and Loader
 
@@ -221,23 +247,27 @@ Proposed first-pass focused guidance layout:
    - read the persona catalog,
    - validate that every catalog persona maps to a manifest entry,
    - sort by `sort_order`,
-   - stop deriving display labels from IDs.
+   - stop deriving display labels from IDs,
+   - treat catalog/manifest mismatches as hard errors.
+6. Update the governing Step 4 copy/visual specs before UI implementation begins:
+   - `docs/product-specs/tui-copy-deck.md`
+   - `docs/product-specs/tui-visual-screen-deck.md`
 
 ### M2 — Personas Step UI
 
-1. Update `src/ui/wizard/steps.ts` so the Personas row format uses compact inline metadata rather than `display — description`.
-2. Surface focused persona guidance in the step helper area.
-3. Mark recommended/default personas from data.
-4. Keep the list single-column and compact in the first pass.
-5. Update frozen summary/review labels if needed so they use `display_name` cleanly.
+1. Extend the shared `selectMany` control with an explicit cursor-sensitive guidance hook (for example `focusedLines(index)`), treated as shared helper plumbing.
+2. Update `src/ui/wizard/steps.ts` so the Personas row format uses compact inline metadata rather than `display — description`.
+3. Surface fixed-height focused persona guidance in the step helper area.
+4. Mark default personas from data via pre-selection, not via an explicit recommendation tag.
+5. Keep the list single-column and compact in the first pass.
+6. Update frozen summary/review labels if needed so they use `display_name` cleanly.
 
 ### M3 — Validation and Closeout
 
-1. Update `docs/product-specs/tui-copy-deck.md` Step 4 copy contract.
-2. Update `docs/product-specs/tui-visual-screen-deck.md` Step 4 wireframe and guidance.
-3. Update or add tests for persona catalog loading and ID consistency.
-4. Update rendered TUI assertions/captures to match the new layout.
-5. Reassess whether the Personas step now feels premium, guidance-rich, and scalable.
+1. Update or add tests for persona catalog loading and ID consistency.
+2. Update rendered TUI assertions/captures to match the new layout.
+3. Reassess whether the Personas step now feels premium, guidance-rich, and scalable.
+4. Confirm manifest `description` is no longer used for Personas-step UI rendering.
 
 ## Validation and Acceptance
 
@@ -260,12 +290,14 @@ Acceptance criteria:
 5. Recommended/default personas are data-driven.
 6. Current four personas continue to function correctly under the new schema.
 7. The step is structurally ready for a materially larger persona catalog.
+8. The guidance block remains visually stable while moving between options.
 
 ## Idempotence and Recovery
 
 1. This plan adds a new catalog alongside the existing manifest rather than mutating the manifest into a polymorphic structure.
 2. If the catalog integration reveals unexpected schema friction, rollback can be isolated to the new catalog/schema/loader changes.
 3. The current four personas should remain representable in the new shape without changing their underlying prompt files.
+4. If the shared `selectMany` extension proves awkward, fallback is to keep the compact row format and temporarily use static helper text, but do not backslide into long inline persona descriptions.
 
 ## Interfaces and Dependencies
 
@@ -276,6 +308,7 @@ Primary dependencies:
 3. `docs/product-specs/tui-copy-deck.md` — human-facing Step 4 copy.
 4. `docs/product-specs/tui-visual-screen-deck.md` — visual contract for the step.
 5. `src/ui/wizard/controls.ts` — current selection surface mechanics.
+6. `src/ui/wizard/frame-manager.ts` — current Stage 1 layout and available helper area budget.
 
 Potential extension point:
 
