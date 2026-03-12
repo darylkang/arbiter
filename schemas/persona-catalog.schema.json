@@ -4,17 +4,26 @@
   "title": "Arbiter Persona Catalog",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "personas"],
+  "required": [
+    "schema_version",
+    "personas"
+  ],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
+    "schema_version": {
+      "const": "1.0.0"
+    },
     "personas": {
       "type": "array",
       "minItems": 1,
       "contains": {
         "type": "object",
-        "required": ["default"],
+        "required": [
+          "default"
+        ],
         "properties": {
-          "default": { "const": true }
+          "default": {
+            "const": true
+          }
         }
       },
       "items": {
@@ -30,17 +39,43 @@
           "sort_order"
         ],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "display_name": { "type": "string", "minLength": 1 },
-          "subtitle": { "type": "string", "minLength": 1 },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "subtitle": {
+            "type": "string",
+            "minLength": 1
+          },
           "category": {
             "type": "string",
-            "enum": ["baseline", "adversarial", "analytical", "divergent"]
+            "enum": [
+              "baseline",
+              "adversarial",
+              "analytical",
+              "divergent",
+              "decisive"
+            ]
           },
-          "when_to_use": { "type": "string", "minLength": 1 },
-          "risk_note": { "type": "string", "minLength": 1 },
-          "default": { "type": "boolean" },
-          "sort_order": { "type": "integer", "minimum": 0 }
+          "when_to_use": {
+            "type": "string",
+            "minLength": 1
+          },
+          "risk_note": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0
+          }
         }
       }
     }

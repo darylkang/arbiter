@@ -1,6 +1,6 @@
 # ExecPlan: Persona Library v1
 
-Status: proposed
+Status: completed
 Owner: Codex
 Last updated: 2026-03-11
 
@@ -41,10 +41,10 @@ Sequencing constraints:
 
 ## Progress
 
-- [ ] M0 — research boundary and v1 set frozen
-- [ ] M1 — schema, catalog, and doc contract updated
-- [ ] M2 — prompt/content migration and compatibility completed
-- [ ] M3 — validation, capture review, and closeout completed
+- [x] M0 — research boundary and v1 set frozen
+- [x] M1 — schema, catalog, and doc contract updated
+- [x] M2 — prompt/content migration and compatibility completed
+- [x] M3 — validation, capture review, and closeout completed
 
 ## Surprises & Discoveries
 

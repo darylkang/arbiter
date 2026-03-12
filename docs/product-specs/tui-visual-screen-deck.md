@@ -459,10 +459,11 @@ The Personas step should feel guidance-rich without turning the list into prose.
   │   Strongest-objection framing
   │   Use when you want pressure against premature conclusions.
   │
-  │   ■ Neutral · baseline
+  │   ■ Baseline · baseline
   │   ▸ □ Skeptical · adversarial
-  │     □ Precise · analytical
+  │     □ Analytical · analytical
   │     □ Exploratory · divergent
+  │     □ Decisive · decisive
   │
   ◇  Decode Params
   ◇  Advanced Settings
@@ -499,7 +500,7 @@ When `Run now` is selected, the editable rail freezes into a durable study rail 
 │
 ◆  Models                         GPT-4o Mini (1 selected)
 │
-◆  Personas                       Neutral (1 selected)
+◆  Personas                       Baseline (1 selected)
 │
 ◆  Decode Params                  temp 0.7, seed 424242
 │

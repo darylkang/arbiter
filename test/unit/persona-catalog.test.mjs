@@ -25,7 +25,7 @@ test("loadPersonaOptions reads presentation metadata from the persona catalog", 
     [
       {
         id: "persona_neutral",
-        displayName: "Neutral",
+        displayName: "Baseline",
         category: "baseline",
         isDefault: true
       },
@@ -37,7 +37,7 @@ test("loadPersonaOptions reads presentation metadata from the persona catalog", 
       },
       {
         id: "persona_precise",
-        displayName: "Precise",
+        displayName: "Analytical",
         category: "analytical",
         isDefault: false
       },
@@ -46,10 +46,16 @@ test("loadPersonaOptions reads presentation metadata from the persona catalog", 
         displayName: "Exploratory",
         category: "divergent",
         isDefault: false
+      },
+      {
+        id: "persona_decisive",
+        displayName: "Decisive",
+        category: "decisive",
+        isDefault: false
       }
     ]
   );
-  assert.equal(personas[0]?.whenToUse, "Use as an unframed baseline for study comparisons.");
+  assert.equal(personas[0]?.whenToUse, "Use as the reference condition for study comparisons.");
 });
 
 test("loadPersonaOptions rejects catalog and manifest drift as a hard error", () => {
@@ -66,7 +72,7 @@ test("loadPersonaOptions rejects catalog and manifest drift as a hard error", ()
           type: "participant_persona",
           path: "resources/prompts/personas/neutral.txt",
           sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          description: "Neutral (empty) persona."
+          description: "Unframed default reasoning stance."
         }
       ]
     });
@@ -76,10 +82,10 @@ test("loadPersonaOptions rejects catalog and manifest drift as a hard error", ()
       personas: [
         {
           id: "persona_neutral",
-          display_name: "Neutral",
-          subtitle: "Default reasoning stance",
+          display_name: "Baseline",
+          subtitle: "Unframed default reasoning stance",
           category: "baseline",
-          when_to_use: "Use as an unframed baseline for study comparisons.",
+          when_to_use: "Use as the reference condition for study comparisons.",
           default: true,
           sort_order: 0
         },

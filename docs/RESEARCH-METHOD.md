@@ -64,6 +64,33 @@ The heterogeneity ladder remains the central experimental structure:
 
 Interaction is one rung in the ladder, not the entire thesis.
 
+### 2.1) Persona Principle for H2
+
+For the current paper, Arbiter personas are prompt-level reasoning-posture interventions.
+
+They are included in the H2 axis only when all three conditions hold:
+
+1. the persona targets an articulable shift in reasoning behavior,
+2. that shift is expected to induce a measurably different outcome distribution under `Q(c)`,
+3. the shift is not more cleanly controlled by another axis such as decode, protocol, model selection, or output formatting.
+
+This means Arbiter personas are not:
+
+1. characters or roleplay identities,
+2. demographic or occupational framings,
+3. verbosity or formatting controls,
+4. substitutes for protocol or decode choices.
+
+The current v1 H2 posture set is:
+
+1. `Baseline`
+2. `Skeptical`
+3. `Analytical`
+4. `Exploratory`
+5. `Decisive`
+
+These personas are intended to create a small, interpretable library of reasoning postures rather than a broad catalog of stylistic prompt variants.
+
 ## 3) Primary Estimand
 
 ### 3.1) Core Objects

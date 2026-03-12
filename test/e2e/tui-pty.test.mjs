@@ -357,8 +357,8 @@ test("pty: decode numeric input stays inside the Stage 1 TUI renderer", { concur
     session.pressEnter();
 
     await session.waitForText("▸  Personas", 25000);
-    await session.waitForText("Default reasoning stance", 25000);
-    await session.waitForText("Neutral · baseline", 25000);
+    await session.waitForText("Unframed default reasoning stance", 25000);
+    await session.waitForText("Baseline · baseline", 25000);
     session.pressEnter();
 
     await session.waitForText("▸  Decode Params", 25000);

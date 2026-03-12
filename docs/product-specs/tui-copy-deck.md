@@ -238,7 +238,7 @@ Rail confirmation:
    - line 1: `{subtitle}`
    - line 2: `{when_to_use}`
    - line 3: `{risk_note}` or blank
-6. `LOCKED`: first-pass category vocabulary is `baseline`, `adversarial`, `analytical`, `divergent`.
+6. `LOCKED`: first-pass category vocabulary is `baseline`, `adversarial`, `analytical`, `divergent`, `decisive`.
 7. `LOCKED`: visible `recommended` tags are deferred; default personas are communicated by pre-selection only.
 8. `LOCKED`: manifest `description` is not used for Personas-step UI copy once the persona catalog exists.
 

@@ -8,28 +8,35 @@
       "type": "participant_persona",
       "path": "resources/prompts/personas/neutral.txt",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "description": "Neutral (empty) persona."
+      "description": "Unframed default reasoning stance."
     },
     {
       "id": "persona_skeptical",
       "type": "participant_persona",
       "path": "resources/prompts/personas/skeptical.txt",
       "sha256": "d77d0ae033965d7b4edadba2077bd610f6e9f31d27901737b998f60a0bb7617d",
-      "description": "Encourage identifying the strongest objection."
+      "description": "Strongest-objection framing."
     },
     {
       "id": "persona_precise",
       "type": "participant_persona",
       "path": "resources/prompts/personas/precise.txt",
-      "sha256": "4d0ed1a392777886daaabae84b832ae8f7c4a309ae46c50ff31ef0bb30a06cf0",
-      "description": "Define terms and state assumptions."
+      "sha256": "5c782688148fadef5407b1e9d551ef5856f2c6a523a0b473b812a2355af0f28b",
+      "description": "Explicit assumptions and precondition checks."
     },
     {
       "id": "persona_exploratory",
       "type": "participant_persona",
       "path": "resources/prompts/personas/exploratory.txt",
       "sha256": "b74233c005664f545c742ee429cb6286f33a1111df3aeb10872ffe26914bda63",
-      "description": "Consider multiple approaches before selecting one."
+      "description": "Multiple approaches before committing."
+    },
+    {
+      "id": "persona_decisive",
+      "type": "participant_persona",
+      "path": "resources/prompts/personas/decisive.txt",
+      "sha256": "fc2171ca1f9f09fd09e1ec2aa3893cc22333b81104793c16976d0437addf5216",
+      "description": "Single-answer commitment with explicit tradeoffs."
     },
     {
       "id": "protocol_independent_v1_system",

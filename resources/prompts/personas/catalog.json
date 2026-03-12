@@ -3,10 +3,10 @@
   "personas": [
     {
       "id": "persona_neutral",
-      "display_name": "Neutral",
-      "subtitle": "Default reasoning stance",
+      "display_name": "Baseline",
+      "subtitle": "Unframed default reasoning stance",
       "category": "baseline",
-      "when_to_use": "Use as an unframed baseline for study comparisons.",
+      "when_to_use": "Use as the reference condition for study comparisons.",
       "default": true,
       "sort_order": 0
     },
@@ -21,10 +21,10 @@
     },
     {
       "id": "persona_precise",
-      "display_name": "Precise",
-      "subtitle": "Explicit terms and assumptions",
+      "display_name": "Analytical",
+      "subtitle": "Explicit assumptions and precondition checks",
       "category": "analytical",
-      "when_to_use": "Use when exact terms and assumptions must stay explicit.",
+      "when_to_use": "Use when terms, assumptions, and constraints must stay explicit.",
       "default": false,
       "sort_order": 2
     },
@@ -33,9 +33,18 @@
       "display_name": "Exploratory",
       "subtitle": "Multiple approaches before committing",
       "category": "divergent",
-      "when_to_use": "Use when exploring multiple approaches matters first.",
+      "when_to_use": "Use when comparing multiple plausible paths matters first.",
       "default": false,
       "sort_order": 3
+    },
+    {
+      "id": "persona_decisive",
+      "display_name": "Decisive",
+      "subtitle": "Single-answer commitment with explicit tradeoffs",
+      "category": "decisive",
+      "when_to_use": "Use when the study needs a clear recommendation over exhaustive exploration.",
+      "default": false,
+      "sort_order": 4
     }
   ]
 }

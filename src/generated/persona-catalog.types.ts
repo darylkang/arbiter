@@ -10,7 +10,7 @@ export interface ArbiterPersonaCatalog {
       id: string;
       display_name: string;
       subtitle: string;
-      category: "baseline" | "adversarial" | "analytical" | "divergent";
+      category: "baseline" | "adversarial" | "analytical" | "divergent" | "decisive";
       when_to_use: string;
       risk_note?: string;
       default: boolean;
@@ -20,7 +20,7 @@ export interface ArbiterPersonaCatalog {
       id: string;
       display_name: string;
       subtitle: string;
-      category: "baseline" | "adversarial" | "analytical" | "divergent";
+      category: "baseline" | "adversarial" | "analytical" | "divergent" | "decisive";
       when_to_use: string;
       risk_note?: string;
       default: boolean;

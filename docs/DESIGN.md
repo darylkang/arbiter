@@ -121,6 +121,12 @@ Design posture:
 2. negative H4 results are still valid research outcomes,
 3. budget matching is part of experimental discipline and Arbiter records the data needed for budget-aware comparison.
 
+H2 design posture:
+
+1. personas are reasoning-posture interventions, not characters,
+2. personas must remain distinguishable from decode, protocol, model, and output-style controls,
+3. expanding the persona catalog is research-significant because it changes `Q(c)`.
+
 ### 2.4) Claims and Non-Claims
 
 Allowed claims:
