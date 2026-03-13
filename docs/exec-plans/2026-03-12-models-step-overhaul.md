@@ -13,7 +13,7 @@ Today the step is still mostly a curated catalog browser:
 - rows show `{display} · {provider} · {paid/free} · alias`,
 - the focused row does not reveal deeper researcher-facing guidance,
 - `notes` in the catalog are not surfaced in a disciplined way,
-- there is no explicit tier vocabulary beyond `default`, `extended`, and `free`,
+- there is no explicit research-facing tier vocabulary beyond `default`, `extended`, and `free`,
 - the step helps users scan a list, but not confidently decide which models belong in a study.
 
 This plan upgrades the `Models` step from a compact list into a guidance-rich, research-facing selection surface while preserving the current runtime architecture and compact TUI grammar.
@@ -25,7 +25,7 @@ This plan intentionally addresses the **form** of the step first:
 3. research-facing guidance model,
 4. tier vocabulary and grouping semantics.
 
-It intentionally does **not** finalize the long-term model catalog contents or expand the curated set. Catalog curation remains a later step once the form is strong enough to support it.
+It intentionally does **not** finalize the long-term model catalog contents or expand the curated set. But it does freeze the maintenance model and enough catalog structure that later curation and refresh work does not force another schema redesign.
 
 ## Scope Guardrails
 
@@ -39,6 +39,7 @@ It intentionally does **not** finalize the long-term model catalog contents or e
 6. deciding what comes from data versus what remains UI formatting,
 7. updating canonical product-spec docs for Step 3,
 8. defining validation and acceptance criteria for the step overhaul.
+9. freezing the catalog maintenance strategy so schema decisions do not paint us into a corner.
 
 ### Out of scope
 
@@ -57,6 +58,7 @@ It intentionally does **not** finalize the long-term model catalog contents or e
 2. Update canonical product-spec docs before implementation depends on the new contract.
 3. Keep the first pass flat and compact; defer grouped headers and responsive split layouts unless the flat version proves inadequate.
 4. Treat tier-vocabulary changes as schema-significant and product-visible.
+5. Freeze the future catalog maintenance model before freezing schema fields that may need to be programmatically refreshed.
 
 ## Progress
 
@@ -72,6 +74,7 @@ It intentionally does **not** finalize the long-term model catalog contents or e
 2. `metadata_complete` in the model catalog is still `false`, which is an explicit signal that the catalog is not yet presentation-complete.
 3. The current TUI row format is already good enough to keep as the primary compact row grammar. The missing layer is a focused guidance surface, not a more ornate row.
 4. Current `notes` strings in the catalog are informative but not normalized for user-facing guidance. They are useful source material, not yet a finished UI contract.
+5. OpenRouter's live inventory is very large and fast-moving. A fully manual catalog will drift too easily, but a fully automatic catalog would undermine curation and reproducibility. The right long-term shape is a hybrid curated catalog backed by programmatic refresh of factual fields.
 
 ## Decision Log
 
@@ -81,7 +84,9 @@ It intentionally does **not** finalize the long-term model catalog contents or e
    - data-driven defaults and ordering.
 2. Do **not** mirror the `Personas` schema exactly. Models need catalog fields that reflect model-selection tradeoffs, not persona rationale.
 3. Keep the row grammar as compact inline metadata rather than long prose rows.
-4. Defer actual catalog expansion and final model-set curation until the form is ready.
+4. Freeze a hybrid maintenance model: the checked-in catalog remains authoritative, while future refresh tooling may update factual OpenRouter-backed fields for human review rather than mutating the catalog automatically at runtime.
+5. Use a model-specific guidance contract rather than the persona-shaped `subtitle / when_to_use / risk_note` pattern.
+6. Freeze visible tier vocabulary as a cost-capability stratum, not a quality ladder.
 
 ## Context and Orientation
 
@@ -125,6 +130,7 @@ This is clean but thin.
 - **focused guidance block**: the fixed-height region above the list that changes with the cursor
 - **tier vocabulary**: the user-facing grouping language for model selection, separate from raw provider names
 - **presentation contract**: the frozen set of fields and rendering rules the UI depends on
+- **hybrid maintenance model**: a checked-in curated catalog augmented by a future refresh workflow that can pull factual availability data from OpenRouter without making silent runtime changes
 
 ## Plan of Work
 
@@ -132,7 +138,8 @@ The work proceeds in dependency order:
 
 1. freeze the product-facing `Models` step contract,
 2. define the catalog field set needed to render that contract,
-3. implement the loader and UI model,
+3. freeze the catalog maintenance strategy and visible tier language,
+4. implement the loader and UI model,
 4. implement the focused guidance block and row format,
 5. validate through unit tests, PTY, capture, and manual review.
 
@@ -146,6 +153,8 @@ Outcome:
   - row format,
   - focused guidance layout,
   - tier vocabulary,
+  - ordering and default-selection rules,
+  - catalog maintenance strategy,
   - fixed-height rules,
   - truncation/wrapping rules,
   - what comes from catalog data.
@@ -155,7 +164,9 @@ Exit evidence:
 1. this plan records the exact first-pass field set,
 2. `docs/product-specs/tui-copy-deck.md` and `docs/product-specs/tui-visual-screen-deck.md` are updated for Step 3,
 3. `docs/product-specs/tui-wizard.md` reflects the new Step 3 interaction contract,
-4. first-pass tier vocabulary is frozen.
+4. first-pass tier vocabulary is frozen,
+5. ordering principle and default-selection semantics are frozen,
+6. future catalog maintenance strategy is frozen.
 
 Rollback boundary:
 
@@ -173,7 +184,8 @@ Exit evidence:
 2. generated types and validation pipeline are updated,
 3. `resources/models/catalog.json` carries the required presentation fields for the current curated set,
 4. `src/ui/wizard/types.ts` and `src/ui/wizard/resources.ts` expose the richer `CatalogModel` UI shape,
-5. any catalog-data mismatch or missing required presentation field fails validation.
+5. any catalog-data mismatch or missing required presentation field fails validation,
+6. the schema remains compatible with a future hybrid refresh workflow.
 
 Rollback boundary:
 
@@ -230,11 +242,17 @@ First-pass row contract:
 
 Recommended first-pass guidance block contract:
 
-- line 1: `subtitle`
-- line 2: `when_to_use`
+- line 1: `summary_line`
+- line 2: `research_note`
 - line 3: `risk_note` or blank
 - one blank separator line between the guidance block and the list
 - fixed height while the cursor moves
+
+Interpretation:
+
+- `summary_line` is a compact factual characterization of the model, not a persona-style subtitle
+- `research_note` is the one-line researcher-facing selection cue
+- `risk_note` is reserved for alias, free-tier, or other selection-relevant cautions when needed
 
 3. Freeze the first-pass catalog field set.
 
@@ -246,9 +264,10 @@ Recommended first-pass fields for each model entry:
 - `tier`
 - `is_aliased`
 - `context_window`
-- `subtitle`
-- `when_to_use`
+- `summary_line`
+- `research_note`
 - `risk_note` (optional)
+- `default`
 - `sort_order`
 - `notes` (optional, non-UI source material)
 
@@ -257,17 +276,39 @@ Recommended first-pass fields for each model entry:
 Recommended first-pass visible tier values:
 
 - `free`
-- `low`
-- `medium`
-- `high`
+- `budget`
+- `mid`
+- `flagship`
 
 Migration note:
 
 - current schema/catalog use `default`, `extended`, `free`
-- first-pass overhaul should decide whether these remain internal only or whether the visible tier language shifts to `low/medium/high/free`
+- first-pass overhaul should decide whether these remain internal only or whether the visible tier language shifts to `budget / mid / flagship / free`
 - if visible tier language changes, it must be reflected in schema/catalog and all product specs together
+- visible tier language should describe a cost-capability stratum, not imply low-quality vs high-quality judgment
 
-5. Freeze text-flow rules for Step 3.
+5. Freeze ordering and default-selection rules.
+
+Recommended first-pass ordering:
+
+- tier-first: `flagship`, then `mid`, then `budget`, then `free`
+- alphabetical by `display_name` within a tier
+
+Recommended default-selection rule:
+
+- explicit `default: true` in the catalog
+- do not rely on position-zero as an implicit default forever
+
+6. Freeze the catalog maintenance strategy.
+
+Recommended long-term maintenance model:
+
+- the checked-in model catalog remains the authoritative research-facing set
+- a future refresh workflow may pull factual availability and metadata from OpenRouter
+- the refresh workflow should surface candidate changes for human review rather than mutating the catalog silently
+- runtime rendering must not depend on live OpenRouter fetches
+
+7. Freeze text-flow rules for Step 3.
 
 Required rules:
 
@@ -275,9 +316,10 @@ Required rules:
 - prefer truncation over mid-token wrapping in constrained widths,
 - guidance text wraps by word only,
 - raw slugs appear only in a future details surface if explicitly added,
-- notes do not appear inline in rows.
+- notes do not appear inline in rows,
+- `context_window` may be omitted from the guidance line when unknown (`null`)
 
-6. Update the canonical Step 3 specs before code implementation.
+8. Update the canonical Step 3 specs before code implementation.
 
 ### `M2` Implement schema and loader changes
 
@@ -287,9 +329,10 @@ Required rules:
 4. Extend `CatalogModel` in `src/ui/wizard/types.ts`.
 5. Update `loadCatalogModels()` in `src/ui/wizard/resources.ts` to:
    - normalize and expose the chosen display fields,
-   - precompute row metadata if that remains the preferred pattern,
-   - expose focused-guidance fields directly.
+   - expose focused-guidance fields directly,
+   - preserve enough source data that a future refresh workflow can safely reconcile factual model metadata.
 6. Preserve strict schema validation and fail early if required presentation fields are missing.
+7. Keep the schema compatible with a future hybrid refresh script rather than assuming the catalog will remain forever hand-maintained.
 
 ### `M3` Implement the Step 3 surface
 
@@ -298,7 +341,8 @@ Required rules:
 3. Keep the list rows compact.
 4. Route model-selection cautions through the focused guidance block where possible.
 5. Preserve a selected-state warning for global conditions such as free-tier selection if it still adds value beyond per-row guidance.
-6. Ensure the frozen rail summary remains concise and product-facing.
+6. Keep alias visible in the compact row if it remains a first-class reproducibility concern.
+7. Ensure the frozen rail summary remains concise and product-facing.
 
 ### `M4` Validate and close out
 
@@ -317,10 +361,11 @@ The overhaul is complete when all of the following are true:
 2. The compact row format is stable, scan-friendly, and product-facing.
 3. A focused guidance block provides model-specific decision support.
 4. The guidance block does not cause vertical jumpiness.
-5. Tier language is explicit and consistent.
+5. Tier language is explicit, consistent, and does not imply a simplistic quality ladder.
 6. The step helps a researcher understand when and why to select a model, not just what the model is called.
 7. The frozen rail summary remains concise.
 8. Product-spec docs match the shipped behavior.
+9. The catalog shape remains compatible with a future curated+refreshable OpenRouter maintenance model.
 
 ### Required validation commands
 
@@ -362,6 +407,7 @@ Depends on:
 - `docs/product-specs/tui-wizard.md`
 - `docs/product-specs/tui-copy-deck.md`
 - `docs/product-specs/tui-visual-screen-deck.md`
+- future OpenRouter-derived availability data, but not as a runtime dependency
 
 Likely to require coordinated test updates in:
 
