@@ -27,6 +27,8 @@ This plan intentionally addresses the **form** of the step first:
 
 It intentionally does **not** finalize the long-term model catalog contents or expand the curated set. But it does freeze the maintenance model and enough catalog structure that later curation and refresh work does not force another schema redesign.
 
+The current checked-in catalog should be treated as scaffolding, not canon. The form overhaul is free to support a future first-principles rewrite of the curated set rather than preserving the placeholder catalog by inertia.
+
 ## Scope Guardrails
 
 ### In scope
@@ -59,6 +61,7 @@ It intentionally does **not** finalize the long-term model catalog contents or e
 3. Keep the first pass flat and compact; defer grouped headers and responsive split layouts unless the flat version proves inadequate.
 4. Treat tier-vocabulary changes as schema-significant and product-visible.
 5. Freeze the future catalog maintenance model before freezing schema fields that may need to be programmatically refreshed.
+6. Do not treat current inclusion, ordering, or tier assignments as migration truth; the eventual curated set may be rewritten from first principles.
 
 ## Progress
 
@@ -75,6 +78,7 @@ It intentionally does **not** finalize the long-term model catalog contents or e
 3. The current TUI row format is already good enough to keep as the primary compact row grammar. The missing layer is a focused guidance surface, not a more ornate row.
 4. Current `notes` strings in the catalog are informative but not normalized for user-facing guidance. They are useful source material, not yet a finished UI contract.
 5. OpenRouter's live inventory is very large and fast-moving. A fully manual catalog will drift too easily, but a fully automatic catalog would undermine curation and reproducibility. The right long-term shape is a hybrid curated catalog backed by programmatic refresh of factual fields.
+6. The current `default / extended / free` tier values are placeholder-era scaffolding and should not be treated as the long-term visible or internal taxonomy.
 
 ## Decision Log
 
@@ -140,8 +144,8 @@ The work proceeds in dependency order:
 2. define the catalog field set needed to render that contract,
 3. freeze the catalog maintenance strategy and visible tier language,
 4. implement the loader and UI model,
-4. implement the focused guidance block and row format,
-5. validate through unit tests, PTY, capture, and manual review.
+5. implement the focused guidance block and row format,
+6. validate through unit tests, PTY, capture, and manual review.
 
 ## Milestones and Gates
 
@@ -254,6 +258,15 @@ Interpretation:
 - `research_note` is the one-line researcher-facing selection cue
 - `risk_note` is reserved for alias, free-tier, or other selection-relevant cautions when needed
 
+Authoring contract:
+
+- `summary_line` is human-authored and should stay under roughly 60 characters at supported widths
+- preferred grammar: `{capability_note} · {context_fragment} · {slug_type}` when those fragments are known and worth surfacing
+- `context_fragment` is omitted when `context_window` is unknown
+- `slug_type` should be `pinned slug` or `alias slug` when that distinction matters
+- `research_note` describes why a researcher would include the model in a study, not raw technical specifications already visible elsewhere
+- `risk_note` is optional, but `is_aliased: true` should imply `risk_note` is present
+
 3. Freeze the first-pass catalog field set.
 
 Recommended first-pass fields for each model entry:
@@ -283,7 +296,8 @@ Recommended first-pass visible tier values:
 Migration note:
 
 - current schema/catalog use `default`, `extended`, `free`
-- first-pass overhaul should decide whether these remain internal only or whether the visible tier language shifts to `budget / mid / flagship / free`
+- these values are placeholder-era scaffolding and should be reassigned from first principles rather than mechanically mapped
+- `extended` does not map 1:1 to the new vocabulary; per-model reassignment is required
 - if visible tier language changes, it must be reflected in schema/catalog and all product specs together
 - visible tier language should describe a cost-capability stratum, not imply low-quality vs high-quality judgment
 
@@ -308,6 +322,12 @@ Recommended long-term maintenance model:
 - the refresh workflow should surface candidate changes for human review rather than mutating the catalog silently
 - runtime rendering must not depend on live OpenRouter fetches
 
+Field ownership principle:
+
+- human-curated fields: `slug` inclusion, `display_name`, `tier`, `is_aliased`, `summary_line`, `research_note`, `risk_note`, `default`, `sort_order`, `notes`
+- machine-refreshable fields: `provider`, `context_window`, and factual existence/availability checks against OpenRouter
+- a future refresh workflow may propose updates to human-authored fields but must not silently overwrite them
+
 7. Freeze text-flow rules for Step 3.
 
 Required rules:
@@ -319,7 +339,12 @@ Required rules:
 - notes do not appear inline in rows,
 - `context_window` may be omitted from the guidance line when unknown (`null`)
 
-8. Update the canonical Step 3 specs before code implementation.
+8. Freeze the intended scale assumption for the first pass.
+
+- the first-pass form contract should remain comfortable up to roughly 20 catalog entries
+- this assumption constrains row width, guidance density, and the need for explicit grouping
+
+9. Update the canonical Step 3 specs before code implementation.
 
 ### `M2` Implement schema and loader changes
 
@@ -333,6 +358,7 @@ Required rules:
    - preserve enough source data that a future refresh workflow can safely reconcile factual model metadata.
 6. Preserve strict schema validation and fail early if required presentation fields are missing.
 7. Keep the schema compatible with a future hybrid refresh script rather than assuming the catalog will remain forever hand-maintained.
+8. Treat the eventual catalog rewrite as a curated first-principles rewrite if that is cleaner than migrating placeholder-era entries in place.
 
 ### `M3` Implement the Step 3 surface
 
@@ -391,7 +417,7 @@ Run serially from `/Users/darylkang/Developer/arbiter`:
 1. Schema and catalog edits should be repeatable and deterministic.
 2. If the new visible tier vocabulary proves visually or semantically weak, revert only the vocabulary layer while preserving safe schema enrichments.
 3. If the focused guidance surface proves too heavy, revert to the prior flat-list rendering while keeping the richer catalog fields available for a later pass.
-4. Do not remove or mutate existing slugs as part of the form overhaul.
+4. Rewriting the placeholder curated set is allowed, but every included slug must be grounded in OpenRouter availability and justified by the final curation policy.
 
 ## Interfaces and Dependencies
 
