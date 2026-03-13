@@ -49,6 +49,7 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step4-personas"), [
       "Select one or more personas for sampling.",
       "Unframed default reasoning stance",
+      "Caution: contrasts include prompt-presence asymmetry.",
       "Baseline · baseline",
       "Skeptical · adversarial"
     ]);

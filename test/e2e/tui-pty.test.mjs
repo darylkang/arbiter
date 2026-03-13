@@ -358,6 +358,7 @@ test("pty: decode numeric input stays inside the Stage 1 TUI renderer", { concur
 
     await session.waitForText("▸  Personas", 25000);
     await session.waitForText("Unframed default reasoning stance", 25000);
+    await session.waitForText("Caution: contrasts include prompt-presence asymmetry.", 25000);
     await session.waitForText("Baseline · baseline", 25000);
     session.pressEnter();
 

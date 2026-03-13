@@ -458,6 +458,7 @@ The Personas step should feel guidance-rich without turning the list into prose.
   │
   │   Strongest-objection framing
   │   Use when you want pressure against premature conclusions.
+  │   Caution: may bias toward guarded or underconfident answers.
   │
   │   ■ Baseline · baseline
   │   ▸ □ Skeptical · adversarial

@@ -7,6 +7,7 @@
       "subtitle": "Unframed default reasoning stance",
       "category": "baseline",
       "when_to_use": "Use as the reference condition for study comparisons.",
+      "risk_note": "Caution: contrasts include prompt-presence asymmetry.",
       "default": true,
       "sort_order": 0
     },
@@ -16,33 +17,37 @@
       "subtitle": "Strongest-objection framing",
       "category": "adversarial",
       "when_to_use": "Use when you want pressure against premature conclusions.",
+      "risk_note": "Caution: may bias toward guarded or underconfident answers.",
       "default": false,
       "sort_order": 1
     },
     {
       "id": "persona_precise",
       "display_name": "Analytical",
-      "subtitle": "Explicit assumptions and precondition checks",
+      "subtitle": "Explicit assumptions and structural rigor",
       "category": "analytical",
-      "when_to_use": "Use when terms, assumptions, and constraints must stay explicit.",
+      "when_to_use": "Use when assumptions, constraints, and key distinctions must stay explicit.",
+      "risk_note": "Caution: may add structure without improving correctness.",
       "default": false,
       "sort_order": 2
     },
     {
       "id": "persona_exploratory",
       "display_name": "Exploratory",
-      "subtitle": "Multiple approaches before committing",
+      "subtitle": "Multiple plausible approaches before committing",
       "category": "divergent",
-      "when_to_use": "Use when comparing multiple plausible paths matters first.",
+      "when_to_use": "Use when comparing multiple plausible paths matters before narrowing.",
+      "risk_note": "Caution: may broaden reasoning without improving decisional usefulness.",
       "default": false,
       "sort_order": 3
     },
     {
       "id": "persona_decisive",
       "display_name": "Decisive",
-      "subtitle": "Single-answer commitment with explicit tradeoffs",
+      "subtitle": "Clear commitment under stated assumptions",
       "category": "decisive",
-      "when_to_use": "Use when the study needs a clear recommendation over exhaustive exploration.",
+      "when_to_use": "Use when the study needs commitment pressure toward a single recommendation.",
+      "risk_note": "Caution: may increase commitment without proportional evidential support.",
       "default": false,
       "sort_order": 4
     }

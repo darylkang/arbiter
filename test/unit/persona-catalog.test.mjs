@@ -56,6 +56,10 @@ test("loadPersonaOptions reads presentation metadata from the persona catalog", 
     ]
   );
   assert.equal(personas[0]?.whenToUse, "Use as the reference condition for study comparisons.");
+  assert.equal(
+    personas[0]?.riskNote,
+    "Caution: contrasts include prompt-presence asymmetry."
+  );
 });
 
 test("loadPersonaOptions rejects catalog and manifest drift as a hard error", () => {
@@ -86,6 +90,7 @@ test("loadPersonaOptions rejects catalog and manifest drift as a hard error", ()
           subtitle: "Unframed default reasoning stance",
           category: "baseline",
           when_to_use: "Use as the reference condition for study comparisons.",
+          risk_note: "Caution: contrasts include prompt-presence asymmetry.",
           default: true,
           sort_order: 0
         },
@@ -95,6 +100,7 @@ test("loadPersonaOptions rejects catalog and manifest drift as a hard error", ()
           subtitle: "Strongest-objection framing",
           category: "adversarial",
           when_to_use: "Use when you want pressure against premature conclusions.",
+          risk_note: "Caution: may bias toward guarded or underconfident answers.",
           default: false,
           sort_order: 1
         }

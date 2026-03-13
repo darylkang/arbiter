@@ -91,6 +91,8 @@ The current v1 H2 posture set is:
 
 These personas are intended to create a small, interpretable library of reasoning postures rather than a broad catalog of stylistic prompt variants.
 
+The expected distributional effects associated with these personas are design hypotheses, not guarantees. In particular, the v1 `Baseline` condition intentionally preserves an unframed prompt, so it remains a clean anchor while also carrying a prompt-presence asymmetry relative to the other H2 interventions.
+
 ## 3) Primary Estimand
 
 ### 3.1) Core Objects

@@ -342,6 +342,7 @@ export const selectMany = async (inputControl: {
       const lines: string[] = includePrompt ? [inputControl.prompt, ""] : [];
       if (inputControl.focusedLines) {
         lines.push(...inputControl.focusedLines(selectedIndex));
+        lines.push("");
       }
       inputControl.choices.forEach((choice, index) => {
         const cursor = index === selectedIndex ? "▸ " : "  ";

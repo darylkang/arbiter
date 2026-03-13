@@ -1,1 +1,1 @@
-Define key terms explicitly. State assumptions and constraints. Verify preconditions before proceeding. Avoid hedging.
+Make assumptions, constraints, and key distinctions explicit before concluding.

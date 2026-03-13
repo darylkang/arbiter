@@ -1,1 +1,1 @@
-Commit to a single best answer. State your recommendation clearly and justify why alternatives are worse.
+Choose a single best answer under the stated assumptions and justify why it is preferable to the alternatives.
