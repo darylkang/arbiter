@@ -55,8 +55,9 @@ Important current facts:
 
 1. OpenRouter exposes a very large and volatile inventory.
 2. Anthropic maps cleanly to a recognizable family ladder (`Haiku`, `Sonnet`, `Opus`).
-3. OpenAI, Google, and Meta are materially messier and require human curation rather than blind family mirroring.
-4. A research-grade catalog cannot simply mirror the full OpenRouter inventory.
+3. OpenAI, Google, Meta, and xAI are materially messier and require human curation rather than blind family mirroring.
+4. Free-tier offerings on OpenRouter are now broad enough that `:free` variants should be treated as distinct catalog entries rather than as trivial duplicates of paid siblings.
+5. A research-grade catalog cannot simply mirror the full OpenRouter inventory.
 
 ## Decision Log
 
@@ -116,6 +117,7 @@ Default target providers:
 - OpenAI
 - Google
 - Meta
+- xAI
 
 Secondary providers may be included when they fill a meaningful gap in a stratum or provide a scientifically interesting open-weight comparison, but they are not required in the first-pass curated set.
 
@@ -132,6 +134,7 @@ Curation rule:
 
 - every visible tier should have meaningful representation,
 - free must remain explicitly represented,
+- `:free` variants are treated as distinct catalog entries rather than duplicates of paid siblings because they serve a different pilot-study and budget-exploration function,
 - no provider is guaranteed presence in every tier,
 - tiers describe **cost-capability strata**, not quality rankings.
 
@@ -154,6 +157,9 @@ Do not include models by default when they are primarily:
 - preview or unstable variants,
 - multimodal/image/audio specialist variants outside the current text-first workflow,
 - reasoning-specialist models whose behavior would require a separate protocol or evaluation contract,
+- `:thinking` variants or similarly labeled provider-specific reasoning modes,
+- OpenAI `o*` / o-series reasoning families unless a later protocol explicitly adopts them,
+- `R1` and similar reasoning-specialist families unless a later protocol explicitly adopts them,
 - stale older revisions of a family already represented,
 - narrow domain-specialist variants unless the study explicitly needs them.
 
