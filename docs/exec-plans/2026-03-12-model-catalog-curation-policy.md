@@ -40,9 +40,9 @@ It is separate from the `Models`-step form plan. The form plan defines how model
 
 ## Progress
 
-- [ ] `M0` Curation principles frozen.
-- [ ] `M1` Policy and maintenance contract documented.
-- [ ] `M2` Closeout and handoff to catalog implementation.
+- [x] `M0` Curation principles frozen.
+- [x] `M1` Policy and maintenance contract documented.
+- [x] `M2` Closeout and handoff to catalog implementation.
 
 ## Current-State Inputs
 

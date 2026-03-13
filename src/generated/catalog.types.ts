@@ -17,8 +17,13 @@ export interface ArbiterModelCatalog {
       display_name: string;
       provider: string;
       context_window: number | null;
-      is_aliased: boolean | null;
-      tier: "default" | "extended" | "free";
+      is_aliased: boolean;
+      tier: "budget" | "mid" | "flagship" | "free";
+      summary_line: string;
+      research_note: string;
+      risk_note?: string;
+      default: boolean;
+      sort_order: number;
       notes?: string;
     },
     ...{
@@ -26,8 +31,13 @@ export interface ArbiterModelCatalog {
       display_name: string;
       provider: string;
       context_window: number | null;
-      is_aliased: boolean | null;
-      tier: "default" | "extended" | "free";
+      is_aliased: boolean;
+      tier: "budget" | "mid" | "flagship" | "free";
+      summary_line: string;
+      research_note: string;
+      risk_note?: string;
+      default: boolean;
+      sort_order: number;
       notes?: string;
     }[]
   ];

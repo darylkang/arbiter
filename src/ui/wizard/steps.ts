@@ -126,17 +126,33 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
   },
 
   3: async (state) => {
+    const modelFrame = context.buildStepFrame(3, 2, "Models");
+    modelFrame.activeLines = ["Select one or more models for sampling.", ""];
     const selectedModels = await selectMany({
       prompt: "Models",
       choices: context.modelOptions.map((model) => ({
         id: model.slug,
-        label: model.metadata.length > 0 ? `${model.display} · ${model.metadata}` : model.display
+        label: [
+          model.display,
+          model.providerLabel,
+          model.tierLabel,
+          ...(model.isAliased ? ["alias"] : [])
+        ].join(" · ")
       })),
       defaults: state.draft.modelSlugs,
       emptySelectionError: "Fix required: select at least one model.",
-      frame: context.buildStepFrame(3, 2, "Models", "Select one or more models for sampling."),
+      frame: modelFrame,
+      focusedLines: (index) => {
+        const model = context.modelOptions[index];
+        if (!model) {
+          return ["", "", ""];
+        }
+        return [model.summaryLine, model.researchNote, model.riskNote ?? ""];
+      },
       extraLines: (selected) =>
-        Array.from(selected).some((slug) => slug.endsWith(":free"))
+        context.modelOptions
+          .filter((model) => selected.has(model.slug))
+          .some((model) => model.tier === "free")
           ? [
               "Warning: free-tier models selected. Availability may be limited. Use paid models for publishable research."
             ]
@@ -298,6 +314,7 @@ const assertEditableState = (state: WizardFlowState): WizardStepState => {
 
 export const createWizardControllers = (context: WizardStepContext): Record<WizardStage, WizardController> => {
   const stepControllers = createWizardStepControllers(context);
+  const defaultModelSlugs = context.modelOptions.filter((model) => model.isDefault).map((model) => model.slug);
   const defaultPersonaIds = context.personaOptions.filter((persona) => persona.isDefault).map((persona) => persona.id);
 
   return {
@@ -414,7 +431,12 @@ export const createWizardControllers = (context: WizardStepContext): Record<Wiza
       state.selectedConfigPath = selectedConfigPath;
       state.sourceConfig = readJsonFile<ArbiterResolvedConfig>(selectedConfigPath);
       state.draft = buildDraftFromConfig(state.sourceConfig, {
-        modelSlugs: context.modelOptions.length > 0 ? [context.modelOptions[0].slug] : [],
+        modelSlugs:
+          defaultModelSlugs.length > 0
+            ? defaultModelSlugs
+            : context.modelOptions.length > 0
+              ? [context.modelOptions[0].slug]
+              : [],
         personaIds: defaultPersonaIds
       });
       return { kind: "goto", step: 7 };

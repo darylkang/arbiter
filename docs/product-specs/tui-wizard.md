@@ -260,11 +260,16 @@ Locked debate mechanics:
 
 ### Step 3: Models (`m`)
 
-1. Checkbox list with at least one selection required.
-2. Show display name, provider family, cost tier badge, and free badge.
-3. Keep OpenRouter slug in details panel only when row is focused.
-4. Default one baseline model selected.
-5. Free-tier non-blocking warning shown when selected.
+1. Multi-select list with at least one selection required.
+2. Compact row format is `{display_name} · {provider_label} · {tier_label}` with optional trailing `· alias`.
+3. A fixed-height focused guidance block sits above the list and updates with the active model.
+4. The guidance block always renders exactly three content lines plus one blank separator line before the list:
+   - `summary_line`
+   - `research_note`
+   - `risk_note` or blank
+5. Defaults are sourced from the model catalog via `default: true`; multiple defaults are allowed.
+6. Free-tier non-blocking warning is shown when any selected model is in tier `free`.
+7. OpenRouter slugs remain catalog truth and are not rendered in the compact row.
 
 ### Step 4: Personas (`p`)
 

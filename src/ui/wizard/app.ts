@@ -79,6 +79,7 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
   const configFilesResolved = listConfigFiles();
   const apiKeyPresent = Boolean(process.env.OPENROUTER_API_KEY);
   let handedOffToRun = false;
+  const defaultModelSlugs = modelOptions.filter((model) => model.isDefault).map((model) => model.slug);
   const defaultPersonaIds = personaOptions.filter((persona) => persona.isDefault).map((persona) => persona.id);
 
   try {
@@ -88,7 +89,12 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
     const state: WizardFlowState = {
       draft: {
         ...buildDraftFromConfig(baseTemplate, {
-          modelSlugs: modelOptions.length > 0 ? [modelOptions[0].slug] : [],
+          modelSlugs:
+            defaultModelSlugs.length > 0
+              ? defaultModelSlugs
+              : modelOptions.length > 0
+                ? [modelOptions[0].slug]
+                : [],
           personaIds: defaultPersonaIds
         }),
         question: ""

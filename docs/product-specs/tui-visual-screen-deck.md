@@ -435,6 +435,58 @@ The research-question step is the most important input surface and should look i
   Enter continue · Esc back
 ```
 
+### Step 3 Models Surface
+
+The Models step should feel like a disciplined model-selection surface, not just a catalog dump.
+
+```text
+▍ SETUP                                                  00:13
+
+  ◆  Entry Path                   Create new study
+  │
+  ◆  Run Mode                     Mock
+  │
+  ◆  Research Question            "Just testing" (12 chars)
+  │
+  ◆  Protocol                     Independent
+  │
+  ▸  Models
+  │
+  │   Select one or more models for sampling.
+  │
+  │   Mid-tier reasoning · 400K context · alias slug
+  │   Good default for lower-cost cross-provider studies.
+  │   Alias slug: underlying model may change over time.
+  │
+  │   ▸ ■ GPT-5 Mini · OpenAI · mid · alias
+  │     □ Claude Sonnet 4.6 · Anthropic · flagship
+  │     □ Gemini 2.5 Flash · Google · mid
+  │     □ Llama 4 Maverick · Meta · mid
+  │     □ DeepSeek V3.2 · DeepSeek · mid
+  │
+  ◇  Personas
+  ◇  Decode Params
+  ◇  Advanced Settings
+  ◇  Review and Confirm
+
+  ─────────────────────────────────────────────────────────────
+  ↑/↓ move · Space toggle · Enter confirm · Esc back
+```
+
+Rules:
+
+1. Model rows stay compact and scan-first.
+2. The focused guidance block is always exactly three content lines tall:
+   - `summary_line`
+   - `research_note`
+   - `risk_note` or blank
+3. The guidance block is followed by one blank separator line before the list.
+4. `summary_line` is factual and compact; it should not read like a marketing subtitle.
+5. `research_note` explains why a researcher would include the model in a study.
+6. `risk_note` is concise and caution-oriented when present.
+7. Aliased models keep `alias` visible in the row and explain the reproducibility implication in the guidance block.
+8. Selected free-tier models still trigger the global warning beneath the list; that warning is selection-state guidance, not focused-row guidance.
+
 ### Step 4 Personas Surface
 
 The Personas step should feel guidance-rich without turning the list into prose.

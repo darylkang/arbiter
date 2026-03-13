@@ -66,10 +66,10 @@ The current checked-in catalog should be treated as scaffolding, not canon. The 
 ## Progress
 
 - [x] `M0` Current-state audit completed.
-- [ ] `M1` Form contract and spec freeze.
-- [ ] `M2` Schema/catalog and loader implementation.
-- [ ] `M3` Models-step UI implementation.
-- [ ] `M4` Validation, capture review, and closeout.
+- [x] `M1` Form contract and spec freeze.
+- [x] `M2` Schema/catalog and loader implementation.
+- [x] `M3` Models-step UI implementation.
+- [x] `M4` Validation, capture review, and closeout.
 
 ## Surprises & Discoveries
 

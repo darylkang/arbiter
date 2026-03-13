@@ -23,26 +23,13 @@ const PROVIDER_LABELS: Record<string, string> = {
   openai: "OpenAI",
   anthropic: "Anthropic",
   google: "Google",
+  deepseek: "DeepSeek",
+  "x-ai": "xAI",
   meta: "Meta",
   "meta-llama": "Meta"
 };
 
-const normalizeModelDisplay = (value: string): string =>
-  value
-    .replace(/\s*\(\d{4}-\d{2}-\d{2}\)$/, "")
-    .replace(/\s+\d{3}$/, "")
-    .replace(/\s*\(free\)$/i, "")
-    .trim();
-
 const toProviderLabel = (provider: string): string => PROVIDER_LABELS[provider] ?? titleCase(provider);
-
-const toModelMetadata = (input: { provider: string; tier: string; isAliased: boolean }): string => {
-  const parts = [toProviderLabel(input.provider), input.tier === "free" ? "free" : "paid"];
-  if (input.isAliased) {
-    parts.push("alias");
-  }
-  return parts.join(" · ");
-};
 
 export const loadWizardVersion = (assetRoot: string): string => {
   const pkg = readJsonFile<{ version?: string }>(resolve(assetRoot, "package.json"));
@@ -57,18 +44,22 @@ export const loadCatalogModels = (assetRoot: string): CatalogModel[] => {
     const formatted = formatAjvErrors("model catalog", validateCatalog.errors);
     throw new Error(formatted.length > 0 ? formatted.join("\n") : "model catalog is invalid");
   }
-  return catalog.models.map((model) => ({
-    slug: model.slug,
-    display: normalizeModelDisplay(model.display_name),
-    provider: model.provider,
-    tier: model.tier,
-    isAliased: model.is_aliased === true,
-    metadata: toModelMetadata({
+  return [...catalog.models]
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((model) => ({
+      slug: model.slug,
+      display: model.display_name,
       provider: model.provider,
+      providerLabel: toProviderLabel(model.provider),
       tier: model.tier,
-      isAliased: model.is_aliased === true
-    })
-  }));
+      tierLabel: model.tier,
+      isAliased: model.is_aliased,
+      summaryLine: model.summary_line,
+      researchNote: model.research_note,
+      riskNote: model.risk_note,
+      isDefault: model.default,
+      sortOrder: model.sort_order
+    }));
 };
 
 const asSet = (values: string[]): Set<string> => new Set(values);

@@ -42,9 +42,15 @@ export type CatalogModel = {
   slug: string;
   display: string;
   provider: string;
-  tier: string;
+  providerLabel: string;
+  tier: "budget" | "mid" | "flagship" | "free";
+  tierLabel: string;
   isAliased: boolean;
-  metadata: string;
+  summaryLine: string;
+  researchNote: string;
+  riskNote?: string;
+  isDefault: boolean;
+  sortOrder: number;
 };
 
 export type PersonaOption = {

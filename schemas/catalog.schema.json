@@ -25,6 +25,13 @@
     "models": {
       "type": "array",
       "minItems": 1,
+      "contains": {
+        "type": "object",
+        "required": ["default"],
+        "properties": {
+          "default": { "const": true }
+        }
+      },
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -34,15 +41,24 @@
           "provider",
           "context_window",
           "is_aliased",
-          "tier"
+          "tier",
+          "summary_line",
+          "research_note",
+          "default",
+          "sort_order"
         ],
         "properties": {
           "slug": { "type": "string", "minLength": 1 },
           "display_name": { "type": "string", "minLength": 1 },
           "provider": { "type": "string", "minLength": 1 },
           "context_window": { "type": ["integer", "null"], "minimum": 0 },
-          "is_aliased": { "type": ["boolean", "null"] },
-          "tier": { "type": "string", "enum": ["default", "extended", "free"] },
+          "is_aliased": { "type": "boolean" },
+          "tier": { "type": "string", "enum": ["budget", "mid", "flagship", "free"] },
+          "summary_line": { "type": "string", "minLength": 1 },
+          "research_note": { "type": "string", "minLength": 1 },
+          "risk_note": { "type": "string", "minLength": 1 },
+          "default": { "type": "boolean" },
+          "sort_order": { "type": "integer", "minimum": 0 },
           "notes": { "type": "string" }
         }
       }
