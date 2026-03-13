@@ -170,7 +170,8 @@ Exit evidence:
 3. `docs/product-specs/tui-wizard.md` reflects the new Step 3 interaction contract,
 4. first-pass tier vocabulary is frozen,
 5. ordering principle and default-selection semantics are frozen,
-6. future catalog maintenance strategy is frozen.
+6. provider-label rendering strategy is frozen,
+7. future catalog maintenance strategy is frozen.
 
 Rollback boundary:
 
@@ -305,12 +306,14 @@ Migration note:
 
 Recommended first-pass ordering:
 
-- tier-first: `flagship`, then `mid`, then `budget`, then `free`
-- alphabetical by `display_name` within a tier
+- `sort_order` is the canonical ordering key at runtime
+- tier-first (`flagship`, then `mid`, then `budget`, then `free`) and alphabetical within tier is the authoring convention used to assign `sort_order` values
+- the loader should sort by `sort_order` alone rather than re-deriving tier ordering at runtime
 
 Recommended default-selection rule:
 
 - explicit `default: true` in the catalog
+- multiple models may be `default: true` for this multi-select step
 - do not rely on position-zero as an implicit default forever
 
 6. Freeze the catalog maintenance strategy.
