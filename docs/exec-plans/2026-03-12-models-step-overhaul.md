@@ -243,6 +243,12 @@ First-pass row contract:
 - no long notes inline
 - no raw slug in the row
 
+Provider-label rule:
+
+- `provider_label` is derived in the loader from the raw `provider` field
+- do not add a separate catalog field solely for provider display casing
+- keep the normalization map small and explicit
+
 2. Freeze the focused guidance block.
 
 Recommended first-pass guidance block contract:
