@@ -32,6 +32,8 @@ export type WizardDraft = {
 export type Choice = {
   id: string;
   label: string;
+  activeSuffix?: string;
+  kind?: "option" | "group";
   disabled?: boolean;
   disabledReason?: string;
 };

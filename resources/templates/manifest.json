@@ -5,7 +5,7 @@
     {
       "id": "default",
       "path": "resources/templates/public/default.config.json",
-      "sha256": "06650cb1c55f905b14c9bbd32aa5f9eacbec8b91bc63ecad0517da1f8f62bc91",
+      "sha256": "d7ee2e21978815608763ae8a2c47d734528670cb37dd2fbec6affb70d731065b",
       "role": "public",
       "init_default": true,
       "description": "Baseline public starter config used by arbiter init."

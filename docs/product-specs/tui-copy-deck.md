@@ -223,17 +223,18 @@ Rail confirmation:
 2. `FLEX`: `Select one or more models for sampling.`
 3. `LOCKED`: `Fix required: select at least one model.`
 4. `LOCKED`: `Warning: free-tier models selected. Availability may be limited. Use paid models for publishable research.`
-5. `LOCKED`: model rows render as `{display_name} · {provider_label} · {tier_label}` with optional trailing `· alias`.
+5. `LOCKED`: model rows render as `{display_name} · {provider_label}`.
+6. `LOCKED`: models are grouped by tier with non-interactive section headers in this order: `Flagship`, `Mid`, `Budget`, `Free`.
 6. `LOCKED`: the focused guidance block renders exactly three content lines:
    - line 1: `{summary_line}`
    - line 2: `{research_note}`
    - line 3: `{risk_note}` or blank
 7. `LOCKED`: the guidance block is followed by one blank separator line before the model list.
-8. `LOCKED`: visible model tier vocabulary is `flagship`, `mid`, `budget`, `free`.
+8. `LOCKED`: the active model row appends the raw slug as muted secondary metadata.
 9. `LOCKED`: `summary_line` is factual and compact; `research_note` explains why a researcher would include the model in a study; `risk_note` is concise and caution-oriented.
-10. `LOCKED`: `default: true` in the model catalog controls pre-selection; multiple defaults are allowed.
+10. `LOCKED`: `default: true` in the model catalog controls pre-selection; first pass uses exactly one default-selected model.
 11. `LOCKED`: `provider_label` is derived from the raw provider value and is not a separate catalog field.
-12. `LOCKED`: aliased entries should surface `alias` inline and provide an explicit reproducibility caution in `risk_note`.
+12. `LOCKED`: aliased entries keep the row clean and surface reproducibility caveats only through the focused guidance block.
 
 Rail confirmation:
 

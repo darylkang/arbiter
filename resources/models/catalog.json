@@ -118,7 +118,7 @@
       "summary_line": "Mid-tier reasoning · 400K context · alias slug",
       "research_note": "Good default for lower-cost cross-provider studies.",
       "risk_note": "Alias slug: underlying model may change over time.",
-      "default": true,
+      "default": false,
       "sort_order": 140
     },
     {

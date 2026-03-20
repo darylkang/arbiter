@@ -261,15 +261,16 @@ Locked debate mechanics:
 ### Step 3: Models (`m`)
 
 1. Multi-select list with at least one selection required.
-2. Compact row format is `{display_name} · {provider_label} · {tier_label}` with optional trailing `· alias`.
-3. A fixed-height focused guidance block sits above the list and updates with the active model.
-4. The guidance block always renders exactly three content lines plus one blank separator line before the list:
+2. Compact row format is `{display_name} · {provider_label}`.
+3. Models are grouped into non-interactive tier sections (`Flagship`, `Mid`, `Budget`, `Free`) and the cursor skips section headers.
+4. A fixed-height focused guidance block sits above the list and updates with the active model.
+5. The guidance block always renders exactly three content lines plus one blank separator line before the list:
    - `summary_line`
    - `research_note`
    - `risk_note` or blank
-5. Defaults are sourced from the model catalog via `default: true`; multiple defaults are allowed.
-6. Free-tier non-blocking warning is shown when any selected model is in tier `free`.
-7. OpenRouter slugs remain catalog truth and are not rendered in the compact row.
+6. The active row appends the raw slug as muted secondary metadata; non-active rows do not show slugs.
+7. Defaults are sourced from the model catalog via `default: true`; first pass uses exactly one default-selected model.
+8. Free-tier non-blocking warning is shown when any selected model is in tier `free`.
 
 ### Step 4: Personas (`p`)
 

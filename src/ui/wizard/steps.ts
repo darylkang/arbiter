@@ -128,25 +128,45 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
   3: async (state) => {
     const modelFrame = context.buildStepFrame(3, 2, "Models");
     modelFrame.activeLines = ["Select one or more models for sampling.", ""];
+    const tierOrder: CatalogModel["tier"][] = ["flagship", "mid", "budget", "free"];
+    const modelChoices = tierOrder.flatMap((tier) => {
+      const models = context.modelOptions.filter((model) => model.tier === tier);
+      if (models.length === 0) {
+        return [];
+      }
+      return [
+        {
+          kind: "group" as const,
+          choice: {
+            id: `__group__${tier}`,
+            label: `── ${context.modelOptions.find((model) => model.tier === tier)?.tierLabel ?? tier}`,
+            kind: "group" as const,
+            disabled: true
+          }
+        },
+        ...models.map((model) => ({
+          kind: "model" as const,
+          model,
+          choice: {
+            id: model.slug,
+            label: [model.display, model.providerLabel].join(" · "),
+            activeSuffix: model.slug
+          }
+        }))
+      ];
+    });
     const selectedModels = await selectMany({
       prompt: "Models",
-      choices: context.modelOptions.map((model) => ({
-        id: model.slug,
-        label: [
-          model.display,
-          model.providerLabel,
-          model.tierLabel,
-          ...(model.isAliased ? ["alias"] : [])
-        ].join(" · ")
-      })),
+      choices: modelChoices.map((entry) => entry.choice),
       defaults: state.draft.modelSlugs,
       emptySelectionError: "Fix required: select at least one model.",
       frame: modelFrame,
       focusedLines: (index) => {
-        const model = context.modelOptions[index];
-        if (!model) {
+        const entry = modelChoices[index];
+        if (!entry || entry.kind !== "model") {
           return ["", "", ""];
         }
+        const model = entry.model;
         return [model.summaryLine, model.researchNote, model.riskNote ?? ""];
       },
       extraLines: (selected) =>

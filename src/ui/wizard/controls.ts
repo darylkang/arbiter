@@ -2,6 +2,8 @@ import { resolve } from "node:path";
 import { emitKeypressEvents } from "node:readline";
 
 import { UI_COPY } from "../copy.js";
+import { createStdoutFormatter } from "../fmt.js";
+import { stripAnsi } from "../runtime/render-utils.js";
 import type {
   Choice,
   NavigationSignal,
@@ -36,6 +38,15 @@ const nextSelectableIndex = (choices: Choice[], currentIndex: number, delta: num
     }
   }
   return currentIndex;
+};
+
+const visibleLength = (value: string): number => stripAnsi(value).length;
+
+const truncatePlain = (value: string, max: number): string => {
+  if (max <= 1 || value.length <= max) {
+    return value;
+  }
+  return `${value.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 };
 
 const withRawKeyCapture = async <T>(inputControl: {
@@ -333,9 +344,13 @@ export const selectMany = async (inputControl: {
   extraLines?: (selected: ReadonlySet<string>) => string[];
   renderStepFrame: (frame: StepFrame) => void;
 }): Promise<SelectManyResult> => {
+  const fmt = createStdoutFormatter();
   const validChoiceIds = new Set(inputControl.choices.map((choice) => choice.id));
   const selectedIds = new Set(inputControl.defaults.filter((id) => validChoiceIds.has(id)));
-  let selectedIndex = firstEnabledIndex(inputControl.choices, 0);
+  const defaultSelectedIndex = inputControl.choices.findIndex(
+    (choice) => selectedIds.has(choice.id) && !choice.disabled
+  );
+  let selectedIndex = firstEnabledIndex(inputControl.choices, defaultSelectedIndex >= 0 ? defaultSelectedIndex : 0);
   return withRawKeyCapture<SelectManyResult>({
     render: (errorLine) => {
       const includePrompt =
@@ -346,9 +361,19 @@ export const selectMany = async (inputControl: {
         lines.push("");
       }
       inputControl.choices.forEach((choice, index) => {
+        if (choice.kind === "group") {
+          lines.push(fmt.accent(choice.label));
+          return;
+        }
         const cursor = index === selectedIndex ? "▸ " : "  ";
         const checked = selectedIds.has(choice.id) ? "■" : "□";
-        lines.push(`${cursor}${checked} ${choice.label}`);
+        let label = choice.label;
+        if (index === selectedIndex && choice.activeSuffix) {
+          const prefix = `${cursor}${checked} ${choice.label} · `;
+          const room = Math.max(8, fmt.termWidth() - visibleLength(prefix));
+          label = `${choice.label} · ${fmt.muted(truncatePlain(choice.activeSuffix, room))}`;
+        }
+        lines.push(`${cursor}${checked} ${label}`);
       });
       if (inputControl.extraLines) {
         const extras = inputControl.extraLines(selectedIds);

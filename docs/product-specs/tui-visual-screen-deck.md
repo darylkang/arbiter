@@ -454,15 +454,19 @@ The Models step should feel like a disciplined model-selection surface, not just
   │
   │   Select one or more models for sampling.
   │
-  │   Mid-tier reasoning · 400K context · alias slug
-  │   Good default for lower-cost cross-provider studies.
-  │   Alias slug: underlying model may change over time.
+  │   Balanced flagship reasoning · 1M context · pinned slug
+  │   Good default flagship for broad, publishable studies.
+  │   Premium-priced; compare against cheaper mid models.
   │
-  │   ▸ ■ GPT-5 Mini · OpenAI · Mid · alias
-  │     □ Claude Sonnet 4.6 · Anthropic · Flagship
-  │     □ Gemini 2.5 Flash · Google · Mid
-  │     □ Llama 4 Maverick · Meta · Mid
-  │     □ DeepSeek V3.2 · DeepSeek · Mid
+  │   ── Flagship
+  │   ▸ ■ Claude Sonnet 4.6 · Anthropic · anthropic/claude-sonnet-4.6
+  │     □ Claude Opus 4.6 · Anthropic
+  │     □ Gemini 2.5 Pro · Google
+  │     □ GPT-5.4 · OpenAI
+  │     □ Grok 4 · xAI
+  │   ── Mid
+  │     □ Claude Haiku 4.5 · Anthropic
+  │     □ DeepSeek V3.2 · DeepSeek
   │
   ◇  Personas
   ◇  Decode Params
@@ -484,8 +488,10 @@ Rules:
 4. `summary_line` is factual and compact; it should not read like a marketing subtitle.
 5. `research_note` explains why a researcher would include the model in a study.
 6. `risk_note` is concise and caution-oriented when present.
-7. Aliased models keep `alias` visible in the row and explain the reproducibility implication in the guidance block.
-8. Selected free-tier models still trigger the global warning beneath the list; that warning is selection-state guidance, not focused-row guidance.
+7. Models are grouped by tier using non-interactive headers that the cursor skips.
+8. Only the active model row appends the raw slug as muted secondary metadata.
+9. Aliased models explain the reproducibility implication in the guidance block rather than the row.
+10. Selected free-tier models still trigger the global warning beneath the list; that warning is selection-state guidance, not focused-row guidance.
 
 ### Step 4 Personas Surface
 

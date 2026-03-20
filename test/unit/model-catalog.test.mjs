@@ -62,7 +62,7 @@ test("loadCatalogModels reads presentation metadata from the model catalog", () 
 
   assert.deepEqual(
     models.filter((model) => model.isDefault).map((model) => model.slug),
-    ["anthropic/claude-sonnet-4.6", "openai/gpt-5-mini"]
+    ["anthropic/claude-sonnet-4.6"]
   );
 
   assert.equal(
