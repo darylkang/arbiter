@@ -231,8 +231,8 @@ Rail confirmation:
    - line 2: `{research_note}`
    - line 3: `{risk_note}` or blank
 9. `LOCKED`: the guidance block is followed by one blank separator line before the model list.
-10. `LOCKED`: the active model row appends the raw slug as muted secondary metadata.
-11. `LOCKED`: `summary_line` is factual and compact; `research_note` explains why a researcher would include the model in a study; `risk_note` is concise and caution-oriented.
+10. `LOCKED`: the active model row appends a compact capability-and-cost fingerprint as muted secondary metadata (for example `400K ctx · $0.75/$4.5`).
+11. `LOCKED`: `summary_line` is a qualitative capability characterization; `research_note` explains why a researcher would include the model in a study; `risk_note` is concise and caution-oriented.
 12. `LOCKED`: `default: true` in the model catalog controls pre-selection; first pass uses exactly one default-selected model.
 13. `LOCKED`: `provider_label` is derived from the raw provider value and is not a separate catalog field.
 14. `LOCKED`: aliased entries keep the row clean and surface reproducibility caveats only through the focused guidance block.

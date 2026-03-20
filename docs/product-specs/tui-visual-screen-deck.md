@@ -454,7 +454,7 @@ The Models step should feel like a disciplined model-selection surface, not just
   │
   │   Select one or more models for sampling.
   │
-  │   Balanced mainstream reasoning · 400K context · $0.75/$4.5 per 1M
+  │   Balanced mainstream reasoning
   │   Good default model for broad, lower-cost cross-provider studies.
   │   Smaller sibling of GPT-5.4; compare upward when task difficulty is high.
   │
@@ -465,7 +465,7 @@ The Models step should feel like a disciplined model-selection surface, not just
   │     □ Grok 4 · xAI
   │
   │   ── Mid
-  │   ▸ ■ GPT-5.4 Mini · OpenAI · openai/gpt-5.4-mini
+  │   ▸ ■ GPT-5.4 Mini · OpenAI · 400K ctx · $0.75/$4.5
   │     □ Claude Sonnet 4.6 · Anthropic
   │     □ Gemini 2.5 Flash · Google
   │
@@ -491,9 +491,10 @@ Rules:
 6. `risk_note` is concise and caution-oriented when present.
 7. Models are grouped by tier using non-interactive headers that the cursor skips.
 8. Insert one blank line before each non-first tier header to preserve breathing room between sections.
-9. Only the active model row appends the raw slug as muted secondary metadata.
-10. Aliased models explain the reproducibility implication in the guidance block rather than the row.
-11. Selected free-tier models still trigger the global warning beneath the list; that warning is selection-state guidance, not focused-row guidance.
+9. Only the active model row appends a compact capability-and-cost fingerprint as muted secondary metadata.
+10. Exact raw slugs remain backend truth and review-step provenance, not browsing-time row content.
+11. Aliased models explain the reproducibility implication in the guidance block rather than the row.
+12. Selected free-tier models still trigger the global warning beneath the list; that warning is selection-state guidance, not focused-row guidance.
 
 ### Step 4 Personas Surface
 

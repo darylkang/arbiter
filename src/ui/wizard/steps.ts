@@ -163,7 +163,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
           choice: {
             id: model.slug,
             label: [model.display, model.providerLabel].join(" · "),
-            activeSuffix: model.slug
+            activeSuffix: model.activeFingerprint
           }
         }))
       ];

@@ -49,7 +49,7 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step3-models"), [
       "Good default model for broad, lower-cost cross-provider studies.",
       "── Mid",
-      "■ GPT-5.4 Mini · OpenAI · openai/gpt-5.4-mini",
+      "■ GPT-5.4 Mini · OpenAI · 400K ctx · $0.75/$4.5",
       "Claude Sonnet 4.6 · Anthropic",
       "Kimi K2.5 · MoonshotAI",
       "Mistral Small 4 · Mistral"

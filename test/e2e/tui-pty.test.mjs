@@ -398,7 +398,7 @@ test("pty: decode numeric input stays inside the Stage 1 TUI renderer", { concur
 
     await session.waitForText("▸  Models", 25000);
     await session.waitForText("── Mid", 25000);
-    await session.waitForText("■ GPT-5.4 Mini · OpenAI · openai/gpt-5.4-mini", 25000);
+    await session.waitForText("■ GPT-5.4 Mini · OpenAI · 400K ctx · $0.75/$4.5", 25000);
     session.pressEnter();
 
     await session.waitForText("▸  Personas", 25000);
@@ -443,7 +443,7 @@ test("pty: models step blocks confirmation after all visible defaults are desele
     session.pressEnter();
 
     await session.waitForText("▸  Models", 25000);
-    await session.waitForText("■ GPT-5.4 Mini · OpenAI · openai/gpt-5.4-mini", 25000);
+    await session.waitForText("■ GPT-5.4 Mini · OpenAI · 400K ctx · $0.75/$4.5", 25000);
 
     session.typeText(" ");
     session.pressEnter();

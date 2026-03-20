@@ -38,6 +38,44 @@ const toProviderLabel = (provider: string): string => PROVIDER_LABELS[provider] 
 const toTierLabel = (tier: "budget" | "mid" | "flagship" | "free"): string =>
   tier.charAt(0).toUpperCase() + tier.slice(1);
 
+const formatPricePerMillion = (raw: string): string => {
+  const amount = Number(raw) * 1_000_000;
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return "$0";
+  }
+  const precision = amount >= 1 ? 2 : 3;
+  return `$${amount.toFixed(precision).replace(/\.?0+$/, "")}`;
+};
+
+const formatContextWindow = (value: number | null): string | null => {
+  if (!Number.isFinite(value ?? NaN) || value === null || value <= 0) {
+    return null;
+  }
+  if (value >= 1_000_000) {
+    const inMillions = value / 1_000_000;
+    const rendered = inMillions >= 10 ? String(Math.round(inMillions)) : String(Number(inMillions.toFixed(2)));
+    return `${rendered.replace(/\.?0+$/, "")}M ctx`;
+  }
+  const inThousands = Math.round(value / 1000);
+  return `${inThousands}K ctx`;
+};
+
+const toActiveFingerprint = (model: ArbiterModelCatalog["models"][number]): string => {
+  const parts: string[] = [];
+  const context = formatContextWindow(model.openrouter.context_length);
+  if (context) {
+    parts.push(context);
+  }
+  const promptPrice = model.openrouter.pricing.prompt;
+  const completionPrice = model.openrouter.pricing.completion;
+  if (promptPrice === "0" && completionPrice === "0") {
+    parts.push("free");
+  } else {
+    parts.push(`${formatPricePerMillion(promptPrice)}/${formatPricePerMillion(completionPrice)}`);
+  }
+  return parts.join(" · ");
+};
+
 export const loadWizardVersion = (assetRoot: string): string => {
   const pkg = readJsonFile<{ version?: string }>(resolve(assetRoot, "package.json"));
   return pkg.version ?? "0.0.0";
@@ -66,6 +104,7 @@ export const loadCatalogModels = (assetRoot: string): CatalogModel[] => {
       riskNote: model.risk_note,
       isDefault: model.default,
       sortOrder: model.sort_order,
+      activeFingerprint: toActiveFingerprint(model),
       openrouter: {
         canonicalSlug: model.openrouter.canonical_slug,
         addedToOpenRouterAt: model.openrouter.created,

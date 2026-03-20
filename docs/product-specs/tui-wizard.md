@@ -268,7 +268,7 @@ Locked debate mechanics:
    - `summary_line`
    - `research_note`
    - `risk_note` or blank
-6. The active row appends the raw slug as muted secondary metadata; non-active rows do not show slugs.
+6. The active row appends a compact capability-and-cost fingerprint as muted secondary metadata; non-active rows do not show this fingerprint.
 7. Defaults are sourced from the model catalog via `default: true`; first pass uses exactly one default-selected model.
 8. Free-tier non-blocking warning is shown when any selected model is in tier `free`.
 

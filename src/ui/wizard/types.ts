@@ -53,6 +53,7 @@ export type CatalogModel = {
   riskNote?: string;
   isDefault: boolean;
   sortOrder: number;
+  activeFingerprint: string;
   openrouter: {
     canonicalSlug: string;
     addedToOpenRouterAt: number | null;
