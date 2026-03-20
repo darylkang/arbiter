@@ -464,6 +464,7 @@ The Models step should feel like a disciplined model-selection surface, not just
   │     □ Gemini 2.5 Pro · Google
   │     □ GPT-5.4 · OpenAI
   │     □ Grok 4 · xAI
+  │
   │   ── Mid
   │     □ Claude Haiku 4.5 · Anthropic
   │     □ DeepSeek V3.2 · DeepSeek
@@ -489,9 +490,10 @@ Rules:
 5. `research_note` explains why a researcher would include the model in a study.
 6. `risk_note` is concise and caution-oriented when present.
 7. Models are grouped by tier using non-interactive headers that the cursor skips.
-8. Only the active model row appends the raw slug as muted secondary metadata.
-9. Aliased models explain the reproducibility implication in the guidance block rather than the row.
-10. Selected free-tier models still trigger the global warning beneath the list; that warning is selection-state guidance, not focused-row guidance.
+8. Insert one blank line before each non-first tier header to preserve breathing room between sections.
+9. Only the active model row appends the raw slug as muted secondary metadata.
+10. Aliased models explain the reproducibility implication in the guidance block rather than the row.
+11. Selected free-tier models still trigger the global warning beneath the list; that warning is selection-state guidance, not focused-row guidance.
 
 ### Step 4 Personas Surface
 

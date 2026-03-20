@@ -33,7 +33,7 @@ export type Choice = {
   id: string;
   label: string;
   activeSuffix?: string;
-  kind?: "option" | "group";
+  kind?: "option" | "group" | "spacer";
   disabled?: boolean;
   disabledReason?: string;
 };

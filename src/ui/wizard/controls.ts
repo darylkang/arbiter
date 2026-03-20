@@ -361,6 +361,10 @@ export const selectMany = async (inputControl: {
         lines.push("");
       }
       inputControl.choices.forEach((choice, index) => {
+        if (choice.kind === "spacer") {
+          lines.push("");
+          return;
+        }
         if (choice.kind === "group") {
           lines.push(fmt.accent(choice.label));
           return;

@@ -129,12 +129,25 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
     const modelFrame = context.buildStepFrame(3, 2, "Models");
     modelFrame.activeLines = ["Select one or more models for sampling.", ""];
     const tierOrder: CatalogModel["tier"][] = ["flagship", "mid", "budget", "free"];
-    const modelChoices = tierOrder.flatMap((tier) => {
+    const modelChoices = tierOrder.flatMap((tier, tierIndex) => {
       const models = context.modelOptions.filter((model) => model.tier === tier);
       if (models.length === 0) {
         return [];
       }
       return [
+        ...(tierIndex > 0
+          ? [
+              {
+                kind: "spacer" as const,
+                choice: {
+                  id: `__spacer__${tier}`,
+                  label: "",
+                  kind: "spacer" as const,
+                  disabled: true
+                }
+              }
+            ]
+          : []),
         {
           kind: "group" as const,
           choice: {
