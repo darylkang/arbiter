@@ -360,6 +360,46 @@
       }
     },
     {
+      "slug": "meta-llama/llama-4-maverick",
+      "display_name": "Llama 4 Maverick",
+      "provider": "meta-llama",
+      "is_aliased": false,
+      "tier": "mid",
+      "default": false,
+      "sort_order": 150,
+      "summary_line": "Open-weight mainstream model \u00b7 1M context \u00b7 pinned slug",
+      "research_note": "Use as the strongest open-weight mid-tier anchor in H3 studies.",
+      "risk_note": "Open-weight architecture may behave differently from closed-model peers.",
+      "openrouter": {
+        "canonical_slug": "meta-llama/llama-4-maverick-17b-128e-instruct",
+        "created": 1743881822,
+        "description": "Llama 4 Maverick 17B Instruct (128E) is a high-capacity multimodal language model from Meta, built on a mixture-of-experts (MoE) architecture with 128 experts and 17 billion active parameters per forward pass (400B total). It supports multilingual text and image input, and produces multilingual text and code output across 12 supported languages. Optimized for vision-language tasks, Maverick is instruction-tuned for assistant-like behavior, image reasoning, and general-purpose multimodal interaction.\n\nMaverick features early fusion for native multimodality and a 1 million token context window. It was trained on a curated mixture of public, licensed, and Meta-platform data, covering ~22 trillion tokens, with a knowledge cutoff in August 2024. Released on April 5, 2025 under the Llama 4 Community License, Maverick is suited for research and commercial applications requiring advanced multimodal understanding and high model throughput.",
+        "context_length": 1048576,
+        "pricing": {
+          "prompt": "0.00000015",
+          "completion": "0.0000006"
+        },
+        "top_provider": {
+          "context_length": 1048576,
+          "max_completion_tokens": 16384,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text+image->text",
+          "input_modalities": [
+            "text",
+            "image"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Llama4",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
+    },
+    {
       "slug": "deepseek/deepseek-v3.2",
       "display_name": "DeepSeek V3.2",
       "provider": "deepseek",
@@ -435,6 +475,47 @@
             "text"
           ],
           "tokenizer": "Qwen3",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
+    },
+    {
+      "slug": "moonshotai/kimi-k2.5",
+      "display_name": "Kimi K2.5",
+      "provider": "moonshotai",
+      "is_aliased": false,
+      "tier": "mid",
+      "default": false,
+      "sort_order": 180,
+      "summary_line": "Chinese frontier model \u00b7 262K context \u00b7 pinned slug",
+      "research_note": "Use for Moonshot/Kimi representation with optional thinking support.",
+      "risk_note": "Thinking mode is on by default; disable explicitly for non-reasoning comparisons.",
+      "openrouter": {
+        "canonical_slug": "moonshotai/kimi-k2.5-0127",
+        "created": 1769487076,
+        "description": "Kimi K2.5 is Moonshot AI's native multimodal model, delivering state-of-the-art visual coding capability and a self-directed agent swarm paradigm. Built on Kimi K2 with continued pretraining over approximately 15T mixed visual and text tokens, it delivers strong performance in general reasoning, visual coding, and agentic tool-calling.",
+        "context_length": 262144,
+        "pricing": {
+          "prompt": "0.00000045",
+          "completion": "0.0000022",
+          "input_cache_read": "0.000000225"
+        },
+        "top_provider": {
+          "context_length": 262144,
+          "max_completion_tokens": 65535,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text+image->text",
+          "input_modalities": [
+            "text",
+            "image"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Other",
           "instruct_type": null
         },
         "expiration_date": null
@@ -615,6 +696,45 @@
       }
     },
     {
+      "slug": "qwen/qwen3-235b-a22b-2507",
+      "display_name": "Qwen3 235B A22B",
+      "provider": "qwen",
+      "is_aliased": false,
+      "tier": "budget",
+      "default": false,
+      "sort_order": 250,
+      "summary_line": "Budget MoE model \u00b7 262K context \u00b7 pinned slug",
+      "research_note": "Use for lower-cost Chinese-family diversity outside the mainstream tier.",
+      "risk_note": "Large MoE architecture may differ sharply from dense-model peers.",
+      "openrouter": {
+        "canonical_slug": "qwen/qwen3-235b-a22b-07-25",
+        "created": 1753119555,
+        "description": "Qwen3-235B-A22B-Instruct-2507 is a multilingual, instruction-tuned mixture-of-experts language model based on the Qwen3-235B architecture, with 22B active parameters per forward pass. It is optimized for general-purpose text generation, including instruction following, logical reasoning, math, code, and tool usage. The model supports a native 262K context length and does not implement \"thinking mode\" (<think> blocks).\n\nCompared to its base variant, this version delivers significant gains in knowledge coverage, long-context reasoning, coding benchmarks, and alignment with open-ended tasks. It is particularly strong on multilingual understanding, math reasoning (e.g., AIME, HMMT), and alignment evaluations like Arena-Hard and WritingBench.",
+        "context_length": 262144,
+        "pricing": {
+          "prompt": "0.000000071",
+          "completion": "0.0000001"
+        },
+        "top_provider": {
+          "context_length": 262144,
+          "max_completion_tokens": null,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text->text",
+          "input_modalities": [
+            "text"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Qwen3",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
+    },
+    {
       "slug": "mistralai/mistral-small-2603",
       "display_name": "Mistral Small 4",
       "provider": "mistralai",
@@ -769,6 +889,45 @@
           ],
           "tokenizer": "Llama3",
           "instruct_type": "llama3"
+        },
+        "expiration_date": null
+      }
+    },
+    {
+      "slug": "qwen/qwen3-next-80b-a3b-instruct:free",
+      "display_name": "Qwen3 Next 80B A3B",
+      "provider": "qwen",
+      "is_aliased": false,
+      "tier": "free",
+      "default": false,
+      "sort_order": 340,
+      "summary_line": "Free Chinese-family model \u00b7 262K context \u00b7 pinned slug",
+      "research_note": "Use for zero-cost Chinese-family diversity in pilot studies.",
+      "risk_note": "Free tier: availability may change faster than paid entries.",
+      "openrouter": {
+        "canonical_slug": "qwen/qwen3-next-80b-a3b-instruct-2509",
+        "created": 1757612213,
+        "description": "Qwen3-Next-80B-A3B-Instruct is an instruction-tuned chat model in the Qwen3-Next series optimized for fast, stable responses without \u201cthinking\u201d traces. It targets complex tasks across reasoning, code generation, knowledge QA, and multilingual use, while remaining robust on alignment and formatting. Compared with prior Qwen3 instruct variants, it focuses on higher throughput and stability on ultra-long inputs and multi-turn dialogues, making it well-suited for RAG, tool use, and agentic workflows that require consistent final answers rather than visible chain-of-thought.\n\nThe model employs scaling-efficient training and decoding to improve parameter efficiency and inference speed, and has been validated on a broad set of public benchmarks where it reaches or approaches larger Qwen3 systems in several categories while outperforming earlier mid-sized baselines. It is best used as a general assistant, code helper, and long-context task solver in production settings where deterministic, instruction-following outputs are preferred.",
+        "context_length": 262144,
+        "pricing": {
+          "prompt": "0",
+          "completion": "0"
+        },
+        "top_provider": {
+          "context_length": 262144,
+          "max_completion_tokens": null,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text->text",
+          "input_modalities": [
+            "text"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Qwen3",
+          "instruct_type": null
         },
         "expiration_date": null
       }
