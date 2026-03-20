@@ -354,6 +354,8 @@ test("pty: decode numeric input stays inside the Stage 1 TUI renderer", { concur
     session.pressEnter();
 
     await session.waitForText("▸  Models", 25000);
+    await session.waitForText("■ Claude Sonnet 4.6 · Anthropic · Flagship", 25000);
+    await session.waitForText("■ GPT-5 Mini · OpenAI · Mid · alias", 25000);
     session.pressEnter();
 
     await session.waitForText("▸  Personas", 25000);
@@ -373,6 +375,41 @@ test("pty: decode numeric input stays inside the Stage 1 TUI renderer", { concur
       false,
       "decode step should not fall back to readline-style prompts"
     );
+  } finally {
+    await session.stop();
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("pty: models step blocks confirmation after all visible defaults are deselected", { concurrency: false }, async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-models-empty-"));
+  const session = createPtySession({ cwd });
+
+  try {
+    await session.waitForText("Choose how to start", 25000);
+    session.pressEnter();
+
+    await session.waitForText("Choose run mode", 25000);
+    session.pressEnter();
+
+    await session.waitForText("Research Question", 25000);
+    session.typeText("Models empty selection guard");
+    session.pressEnter();
+
+    await session.waitForText("▸  Protocol", 25000);
+    session.pressEnter();
+
+    await session.waitForText("▸  Models", 25000);
+    await session.waitForText("■ Claude Sonnet 4.6 · Anthropic · Flagship", 25000);
+    await session.waitForText("■ GPT-5 Mini · OpenAI · Mid · alias", 25000);
+
+    session.arrowDown(1);
+    session.typeText(" ");
+    session.arrowDown(7);
+    session.typeText(" ");
+    session.pressEnter();
+
+    await session.waitForText("Fix required: select at least one model.", 25000);
   } finally {
     await session.stop();
     rmSync(cwd, { recursive: true, force: true });

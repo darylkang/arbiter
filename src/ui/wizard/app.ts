@@ -86,17 +86,19 @@ export const launchWizardTUI = async (options?: { assetRoot?: string }): Promise
     frameManager.enter();
 
     const baseTemplate = loadTemplateConfig(assetRoot, "default") as ArbiterResolvedConfig;
+    const initialDraft = buildDraftFromConfig(baseTemplate, {
+      modelSlugs:
+        defaultModelSlugs.length > 0
+          ? defaultModelSlugs
+          : modelOptions.length > 0
+            ? [modelOptions[0].slug]
+            : [],
+      personaIds: defaultPersonaIds
+    });
     const state: WizardFlowState = {
       draft: {
-        ...buildDraftFromConfig(baseTemplate, {
-          modelSlugs:
-            defaultModelSlugs.length > 0
-              ? defaultModelSlugs
-              : modelOptions.length > 0
-                ? [modelOptions[0].slug]
-                : [],
-          personaIds: defaultPersonaIds
-        }),
+        ...initialDraft,
+        modelSlugs: defaultModelSlugs.length > 0 ? defaultModelSlugs : initialDraft.modelSlugs,
         question: ""
       },
       runMode: null,

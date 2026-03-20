@@ -31,6 +31,9 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 const toProviderLabel = (provider: string): string => PROVIDER_LABELS[provider] ?? titleCase(provider);
 
+const toTierLabel = (tier: "budget" | "mid" | "flagship" | "free"): string =>
+  tier.charAt(0).toUpperCase() + tier.slice(1);
+
 export const loadWizardVersion = (assetRoot: string): string => {
   const pkg = readJsonFile<{ version?: string }>(resolve(assetRoot, "package.json"));
   return pkg.version ?? "0.0.0";
@@ -52,7 +55,7 @@ export const loadCatalogModels = (assetRoot: string): CatalogModel[] => {
       provider: model.provider,
       providerLabel: toProviderLabel(model.provider),
       tier: model.tier,
-      tierLabel: model.tier,
+      tierLabel: toTierLabel(model.tier),
       isAliased: model.is_aliased,
       summaryLine: model.summary_line,
       researchNote: model.research_note,

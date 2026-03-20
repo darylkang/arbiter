@@ -458,11 +458,11 @@ The Models step should feel like a disciplined model-selection surface, not just
   │   Good default for lower-cost cross-provider studies.
   │   Alias slug: underlying model may change over time.
   │
-  │   ▸ ■ GPT-5 Mini · OpenAI · mid · alias
-  │     □ Claude Sonnet 4.6 · Anthropic · flagship
-  │     □ Gemini 2.5 Flash · Google · mid
-  │     □ Llama 4 Maverick · Meta · mid
-  │     □ DeepSeek V3.2 · DeepSeek · mid
+  │   ▸ ■ GPT-5 Mini · OpenAI · Mid · alias
+  │     □ Claude Sonnet 4.6 · Anthropic · Flagship
+  │     □ Gemini 2.5 Flash · Google · Mid
+  │     □ Llama 4 Maverick · Meta · Mid
+  │     □ DeepSeek V3.2 · DeepSeek · Mid
   │
   ◇  Personas
   ◇  Decode Params

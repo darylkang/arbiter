@@ -13,6 +13,7 @@ test("loadCatalogModels reads presentation metadata from the model catalog", () 
       display: model.display,
       providerLabel: model.providerLabel,
       tier: model.tier,
+      tierLabel: model.tierLabel,
       isDefault: model.isDefault
     })),
     [
@@ -21,6 +22,7 @@ test("loadCatalogModels reads presentation metadata from the model catalog", () 
         display: "Claude Opus 4.6",
         providerLabel: "Anthropic",
         tier: "flagship",
+        tierLabel: "Flagship",
         isDefault: false
       },
       {
@@ -28,6 +30,7 @@ test("loadCatalogModels reads presentation metadata from the model catalog", () 
         display: "Claude Sonnet 4.6",
         providerLabel: "Anthropic",
         tier: "flagship",
+        tierLabel: "Flagship",
         isDefault: true
       },
       {
@@ -35,6 +38,7 @@ test("loadCatalogModels reads presentation metadata from the model catalog", () 
         display: "Gemini 2.5 Pro",
         providerLabel: "Google",
         tier: "flagship",
+        tierLabel: "Flagship",
         isDefault: false
       },
       {
@@ -42,6 +46,7 @@ test("loadCatalogModels reads presentation metadata from the model catalog", () 
         display: "GPT-5.4",
         providerLabel: "OpenAI",
         tier: "flagship",
+        tierLabel: "Flagship",
         isDefault: false
       },
       {
@@ -49,6 +54,7 @@ test("loadCatalogModels reads presentation metadata from the model catalog", () 
         display: "Grok 4",
         providerLabel: "xAI",
         tier: "flagship",
+        tierLabel: "Flagship",
         isDefault: false
       }
     ]

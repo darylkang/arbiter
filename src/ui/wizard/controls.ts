@@ -333,7 +333,8 @@ export const selectMany = async (inputControl: {
   extraLines?: (selected: ReadonlySet<string>) => string[];
   renderStepFrame: (frame: StepFrame) => void;
 }): Promise<SelectManyResult> => {
-  const selectedIds = new Set(inputControl.defaults);
+  const validChoiceIds = new Set(inputControl.choices.map((choice) => choice.id));
+  const selectedIds = new Set(inputControl.defaults.filter((id) => validChoiceIds.has(id)));
   let selectedIndex = firstEnabledIndex(inputControl.choices, 0);
   return withRawKeyCapture<SelectManyResult>({
     render: (errorLine) => {
