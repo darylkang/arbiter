@@ -335,6 +335,49 @@ test("pty: create-new path submits Step 1 question with Enter", { concurrency: f
   }
 });
 
+test("pty: Esc back walks back through setup stages", { concurrency: false }, async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-esc-back-"));
+  const session = createPtySession({ cwd });
+
+  try {
+    await session.waitForText("Choose how to start", 25000);
+    session.pressEnter();
+
+    await session.waitForText("Choose run mode", 25000);
+    session.pressEnter();
+
+    await session.waitForText("Research Question", 25000);
+    session.escape();
+    await session.waitForText("Choose run mode", 25000);
+
+    session.escape();
+    await session.waitForText("Choose how to start", 25000);
+
+    session.pressEnter();
+    await session.waitForText("Choose run mode", 25000);
+    session.pressEnter();
+    await session.waitForText("Research Question", 25000);
+    session.typeText("Back nav coverage");
+    session.pressEnter();
+
+    await session.waitForText("▸  Protocol", 25000);
+    session.pressEnter();
+    await session.waitForText("▸  Models", 25000);
+    session.escape();
+    await session.waitForText("▸  Protocol", 25000);
+
+    session.pressEnter();
+    await session.waitForText("▸  Models", 25000);
+    session.pressEnter();
+    await session.waitForText("▸  Personas", 25000);
+    session.escape();
+    await session.waitForText("▸  Models", 25000);
+  } finally {
+    await session.stop();
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("pty: decode numeric input stays inside the Stage 1 TUI renderer", { concurrency: false }, async () => {
   const cwd = mkdtempSync(join(tmpdir(), "arbiter-tui-e2e-decode-inline-"));
   const session = createPtySession({ cwd });

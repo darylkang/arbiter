@@ -85,7 +85,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
       return { kind: "exit", message: "Wizard exited." };
     }
     if (questionInput === SELECT_BACK) {
-      return { kind: "goto", step: 1 };
+      return { kind: "goto", step: "mode" };
     }
     state.draft.question = questionInput;
     return { kind: "goto", step: 2 };
