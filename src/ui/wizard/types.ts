@@ -53,6 +53,36 @@ export type CatalogModel = {
   riskNote?: string;
   isDefault: boolean;
   sortOrder: number;
+  openrouter: {
+    canonicalSlug: string;
+    addedToOpenRouterAt: number | null;
+    description: string | null;
+    contextLength: number | null;
+    pricing: {
+      prompt: string;
+      completion: string;
+      inputCacheRead?: string;
+      inputCacheWrite?: string;
+      webSearch?: string;
+      audio?: string;
+      image?: string;
+      internalReasoning?: string;
+      request?: string;
+    };
+    topProvider: {
+      contextLength: number | null;
+      maxCompletionTokens: number | null;
+      isModerated: boolean | null;
+    };
+    architecture: {
+      modality: string | null;
+      inputModalities: string[];
+      outputModalities: string[];
+      tokenizer: string | null;
+      instructType: string | null;
+    };
+      expirationDate: number | string | null;
+  };
 };
 
 export type PersonaOption = {

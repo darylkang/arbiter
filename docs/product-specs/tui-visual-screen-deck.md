@@ -454,20 +454,20 @@ The Models step should feel like a disciplined model-selection surface, not just
   │
   │   Select one or more models for sampling.
   │
-  │   Balanced flagship reasoning · 1M context · pinned slug
-  │   Good default flagship for broad, publishable studies.
-  │   Premium-priced; compare against cheaper mid models.
+  │   Balanced mainstream reasoning · 400K context · pinned slug
+  │   Good default model for broad, lower-cost cross-provider studies.
+  │   Smaller sibling of GPT-5.4; compare upward when task difficulty is high.
   │
   │   ── Flagship
-  │   ▸ ■ Claude Sonnet 4.6 · Anthropic · anthropic/claude-sonnet-4.6
+  │     □ GPT-5.4 · OpenAI
   │     □ Claude Opus 4.6 · Anthropic
   │     □ Gemini 2.5 Pro · Google
-  │     □ GPT-5.4 · OpenAI
   │     □ Grok 4 · xAI
   │
   │   ── Mid
-  │     □ Claude Haiku 4.5 · Anthropic
-  │     □ DeepSeek V3.2 · DeepSeek
+  │   ▸ ■ GPT-5.4 Mini · OpenAI · openai/gpt-5.4-mini
+  │     □ Claude Sonnet 4.6 · Anthropic
+  │     □ Gemini 2.5 Flash · Google
   │
   ◇  Personas
   ◇  Decode Params

@@ -25,6 +25,10 @@ const PROVIDER_LABELS: Record<string, string> = {
   google: "Google",
   deepseek: "DeepSeek",
   "x-ai": "xAI",
+  qwen: "Qwen",
+  mistralai: "Mistral",
+  minimax: "MiniMax",
+  moonshotai: "MoonshotAI",
   meta: "Meta",
   "meta-llama": "Meta"
 };
@@ -61,7 +65,37 @@ export const loadCatalogModels = (assetRoot: string): CatalogModel[] => {
       researchNote: model.research_note,
       riskNote: model.risk_note,
       isDefault: model.default,
-      sortOrder: model.sort_order
+      sortOrder: model.sort_order,
+      openrouter: {
+        canonicalSlug: model.openrouter.canonical_slug,
+        addedToOpenRouterAt: model.openrouter.created,
+        description: model.openrouter.description,
+        contextLength: model.openrouter.context_length,
+        pricing: {
+          prompt: model.openrouter.pricing.prompt,
+          completion: model.openrouter.pricing.completion,
+          inputCacheRead: model.openrouter.pricing.input_cache_read,
+          inputCacheWrite: model.openrouter.pricing.input_cache_write,
+          webSearch: model.openrouter.pricing.web_search,
+          audio: model.openrouter.pricing.audio,
+          image: model.openrouter.pricing.image,
+          internalReasoning: model.openrouter.pricing.internal_reasoning,
+          request: model.openrouter.pricing.request
+        },
+        topProvider: {
+          contextLength: model.openrouter.top_provider.context_length,
+          maxCompletionTokens: model.openrouter.top_provider.max_completion_tokens,
+          isModerated: model.openrouter.top_provider.is_moderated
+        },
+        architecture: {
+          modality: model.openrouter.architecture.modality,
+          inputModalities: model.openrouter.architecture.input_modalities,
+          outputModalities: model.openrouter.architecture.output_modalities,
+          tokenizer: model.openrouter.architecture.tokenizer,
+          instructType: model.openrouter.architecture.instruct_type
+        },
+        expirationDate: model.openrouter.expiration_date
+      }
     }));
 };
 

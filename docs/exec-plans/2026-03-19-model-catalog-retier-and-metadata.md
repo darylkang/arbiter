@@ -62,10 +62,10 @@ It intentionally does **not** redesign the Models-step UI again in this round. T
 
 ## Progress
 
-- [ ] `M0` Metadata and tiering contract frozen.
-- [ ] `M1` Schema and catalog shape updated.
-- [ ] `M2` Curated candidate pool and committed set frozen.
-- [ ] `M3` Catalog rewrite and validation completed.
+- [x] `M0` Metadata and tiering contract frozen.
+- [x] `M1` Schema and catalog shape updated.
+- [x] `M2` Curated candidate pool and committed set frozen.
+- [x] `M3` Catalog rewrite and validation completed.
 
 ## Surprises & Discoveries
 

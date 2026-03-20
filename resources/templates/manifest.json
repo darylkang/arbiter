@@ -5,7 +5,7 @@
     {
       "id": "default",
       "path": "resources/templates/public/default.config.json",
-      "sha256": "d7ee2e21978815608763ae8a2c47d734528670cb37dd2fbec6affb70d731065b",
+      "sha256": "641302e63a5ea283bdc7653284b722900dbc42aa1072be72d2cd50463999b9de",
       "role": "public",
       "init_default": true,
       "description": "Baseline public starter config used by arbiter init."
@@ -13,14 +13,14 @@
     {
       "id": "debate_v1",
       "path": "resources/templates/research/debate_v1.config.json",
-      "sha256": "d9ea04e585239ef47f13842e5e4ec6d04fd70230eb238769336ef5df699dc8ce",
+      "sha256": "0dd0084fcf0dc728aab81929362320d63acf97bc060208480dd6e0c7ea5c8ac0",
       "role": "research",
       "description": "Debate-specific research starter config."
     },
     {
       "id": "heterogeneity_mix",
       "path": "resources/templates/research/heterogeneity_mix.config.json",
-      "sha256": "fccce7c407437ba0fa75e5690b2801acaa8e69694897953ae6422a04b02089ca",
+      "sha256": "7f428f2b142e36f3a96ffae94ee7ba4882e4ceebcf6188f4eb22458b2768199a",
       "role": "research",
       "description": "Curated multi-model and multi-persona distributional profile."
     },

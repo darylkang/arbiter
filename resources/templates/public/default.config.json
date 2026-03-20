@@ -14,7 +14,7 @@
   },
   "sampling": {
     "models": [
-      { "model": "anthropic/claude-sonnet-4.6", "weight": 1 }
+      { "model": "openai/gpt-5.4-mini", "weight": 1 }
     ],
     "personas": [
       { "persona": "persona_neutral", "weight": 1 }

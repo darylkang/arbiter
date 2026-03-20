@@ -48,10 +48,10 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step3-models"), [
       "Select one or more models for sampling.",
-      "Balanced flagship reasoning · 1M context · pinned slug",
-      "── Flagship",
-      "■ Claude Sonnet 4.6 · Anthropic · anthropic/claude-sonnet-4.6",
-      "Claude Opus 4.6 · Anthropic"
+      "Balanced mainstream reasoning · 400K context · pinned slug",
+      "── Mid",
+      "■ GPT-5.4 Mini · OpenAI · openai/gpt-5.4-mini",
+      "Claude Sonnet 4.6 · Anthropic"
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step4-personas"), [
       "Select one or more personas for sampling.",

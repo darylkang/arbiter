@@ -41,19 +41,18 @@
           "slug",
           "display_name",
           "provider",
-          "context_window",
           "is_aliased",
           "tier",
           "summary_line",
           "research_note",
           "default",
-          "sort_order"
+          "sort_order",
+          "openrouter"
         ],
         "properties": {
           "slug": { "type": "string", "minLength": 1 },
           "display_name": { "type": "string", "minLength": 1 },
           "provider": { "type": "string", "minLength": 1 },
-          "context_window": { "type": ["integer", "null"], "minimum": 0 },
           "is_aliased": { "type": "boolean" },
           "tier": { "type": "string", "enum": ["budget", "mid", "flagship", "free"] },
           "summary_line": { "type": "string", "minLength": 1 },
@@ -61,7 +60,78 @@
           "risk_note": { "type": "string", "minLength": 1 },
           "default": { "type": "boolean" },
           "sort_order": { "type": "integer", "minimum": 0 },
-          "notes": { "type": "string" }
+          "notes": { "type": "string" },
+          "openrouter": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "canonical_slug",
+              "created",
+              "description",
+              "context_length",
+              "pricing",
+              "top_provider",
+              "architecture",
+              "expiration_date"
+            ],
+            "properties": {
+              "canonical_slug": { "type": "string", "minLength": 1 },
+              "created": { "type": ["integer", "null"] },
+              "description": { "type": ["string", "null"] },
+              "context_length": { "type": ["integer", "null"], "minimum": 0 },
+              "pricing": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["prompt", "completion"],
+                "properties": {
+                  "prompt": { "type": "string", "minLength": 1 },
+                  "completion": { "type": "string", "minLength": 1 },
+                  "input_cache_read": { "type": "string", "minLength": 1 },
+                  "input_cache_write": { "type": "string", "minLength": 1 },
+                  "web_search": { "type": "string", "minLength": 1 },
+                  "audio": { "type": "string", "minLength": 1 },
+                  "image": { "type": "string", "minLength": 1 },
+                  "internal_reasoning": { "type": "string", "minLength": 1 },
+                  "request": { "type": "string", "minLength": 1 }
+                }
+              },
+              "top_provider": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["context_length", "max_completion_tokens", "is_moderated"],
+                "properties": {
+                  "context_length": { "type": ["integer", "null"], "minimum": 0 },
+                  "max_completion_tokens": { "type": ["integer", "null"], "minimum": 0 },
+                  "is_moderated": { "type": ["boolean", "null"] }
+                }
+              },
+              "architecture": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["modality", "input_modalities", "output_modalities", "tokenizer", "instruct_type"],
+                "properties": {
+                  "modality": { "type": ["string", "null"] },
+                  "input_modalities": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 }
+                  },
+                  "output_modalities": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 }
+                  },
+                  "tokenizer": { "type": ["string", "null"] },
+                  "instruct_type": { "type": ["string", "null"] }
+                }
+              },
+              "expiration_date": {
+                "anyOf": [
+                  { "type": "integer" },
+                  { "type": "null" },
+                  { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+                ]
+              }
+            }
+          }
         }
       }
     }

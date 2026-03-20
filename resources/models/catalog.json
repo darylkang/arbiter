@@ -1,229 +1,809 @@
 {
   "schema_version": "1.0.0",
-  "catalog_version": "2026.03.12",
-  "catalog_stage": "curated",
+  "catalog_version": "2026.03.19",
+  "catalog_stage": "research",
   "metadata_complete": true,
   "models": [
+    {
+      "slug": "openai/gpt-5.4",
+      "display_name": "GPT-5.4",
+      "provider": "openai",
+      "is_aliased": false,
+      "tier": "flagship",
+      "summary_line": "Frontier flagship reasoning \u00b7 1.05M context \u00b7 pinned slug",
+      "research_note": "Use as OpenAI's top-end anchor for flagship comparisons.",
+      "risk_note": "Premium-priced; reserve for hardest tasks and flagship baselines.",
+      "default": false,
+      "sort_order": 10,
+      "openrouter": {
+        "canonical_slug": "openai/gpt-5.4-20260305",
+        "created": 1772734352,
+        "description": "GPT-5.4 is OpenAI\u2019s latest frontier model, unifying the Codex and GPT lines into a single system. It features a 1M+ token context window (922K input, 128K output) with support for text and image inputs, enabling high-context reasoning, coding, and multimodal analysis within the same workflow.\n\nThe model delivers improved performance in coding, document understanding, tool use, and instruction following. It is designed as a strong default for both general-purpose tasks and software engineering, capable of generating production-quality code, synthesizing information across multiple sources, and executing complex multi-step workflows with fewer iterations and greater token efficiency.",
+        "context_length": 1050000,
+        "pricing": {
+          "prompt": "0.0000025",
+          "completion": "0.000015",
+          "input_cache_read": "0.00000025",
+          "web_search": "0.01"
+        },
+        "top_provider": {
+          "context_length": 1050000,
+          "max_completion_tokens": 128000,
+          "is_moderated": true
+        },
+        "architecture": {
+          "modality": "text+image+file->text",
+          "input_modalities": [
+            "text",
+            "image",
+            "file"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "GPT",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
+    },
     {
       "slug": "anthropic/claude-opus-4.6",
       "display_name": "Claude Opus 4.6",
       "provider": "anthropic",
-      "context_window": 1000000,
       "is_aliased": false,
       "tier": "flagship",
-      "summary_line": "Premium flagship reasoning · 1M context · pinned slug",
-      "research_note": "Use for hardest tasks or an Anthropic premium anchor.",
-      "risk_note": "Highest cost in the catalog; use selectively.",
+      "summary_line": "Premium flagship reasoning \u00b7 1M context \u00b7 pinned slug",
+      "research_note": "Use as the Anthropic flagship anchor for hardest-task comparisons.",
+      "risk_note": "Highest price in the catalog; use selectively.",
       "default": false,
-      "sort_order": 10
-    },
-    {
-      "slug": "anthropic/claude-sonnet-4.6",
-      "display_name": "Claude Sonnet 4.6",
-      "provider": "anthropic",
-      "context_window": 1000000,
-      "is_aliased": false,
-      "tier": "flagship",
-      "summary_line": "Balanced flagship reasoning · 1M context · pinned slug",
-      "research_note": "Good default flagship for broad, publishable studies.",
-      "risk_note": "Premium-priced; compare against cheaper mid models.",
-      "default": true,
-      "sort_order": 20
+      "sort_order": 20,
+      "openrouter": {
+        "canonical_slug": "anthropic/claude-4.6-opus-20260205",
+        "created": 1770219050,
+        "description": "Opus 4.6 is Anthropic\u2019s strongest model for coding and long-running professional tasks. It is built for agents that operate across entire workflows rather than single prompts, making it especially effective for large codebases, complex refactors, and multi-step debugging that unfolds over time. The model shows deeper contextual understanding, stronger problem decomposition, and greater reliability on hard engineering tasks than prior generations.\n\nBeyond coding, Opus 4.6 excels at sustained knowledge work. It produces near-production-ready documents, plans, and analyses in a single pass, and maintains coherence across very long outputs and extended sessions. This makes it a strong default for tasks that require persistence, judgment, and follow-through, such as technical design, migration planning, and end-to-end project execution.\n\nFor users upgrading from earlier Opus versions, see our [official migration guide here](https://openrouter.ai/docs/guides/guides/model-migrations/claude-4-6-opus)\n",
+        "context_length": 1000000,
+        "pricing": {
+          "prompt": "0.000005",
+          "completion": "0.000025",
+          "input_cache_read": "0.0000005",
+          "input_cache_write": "0.00000625",
+          "web_search": "0.01"
+        },
+        "top_provider": {
+          "context_length": 1000000,
+          "max_completion_tokens": 128000,
+          "is_moderated": true
+        },
+        "architecture": {
+          "modality": "text+image->text",
+          "input_modalities": [
+            "text",
+            "image"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Claude",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
     },
     {
       "slug": "google/gemini-2.5-pro",
       "display_name": "Gemini 2.5 Pro",
       "provider": "google",
-      "context_window": 1048576,
       "is_aliased": false,
       "tier": "flagship",
-      "summary_line": "Flagship reasoning · 1M context · pinned slug",
-      "research_note": "Use for strong Google coverage with long-context tasks.",
-      "risk_note": "Long-context strength may dominate some comparisons.",
+      "summary_line": "Flagship multimodal reasoning \u00b7 1M context \u00b7 pinned slug",
+      "research_note": "Use for Google flagship coverage, especially on long-context tasks.",
+      "risk_note": "Very long context can dominate comparisons if tasks are retrieval-heavy.",
       "default": false,
-      "sort_order": 30
-    },
-    {
-      "slug": "openai/gpt-5.4",
-      "display_name": "GPT-5.4",
-      "provider": "openai",
-      "context_window": 1050000,
-      "is_aliased": false,
-      "tier": "flagship",
-      "summary_line": "Flagship reasoning · 1.05M context · pinned slug",
-      "research_note": "Use as OpenAI's current top-end general-purpose anchor.",
-      "risk_note": "Premium-priced; may be unnecessary for pilot studies.",
-      "default": false,
-      "sort_order": 40
+      "sort_order": 30,
+      "openrouter": {
+        "canonical_slug": "google/gemini-2.5-pro",
+        "created": 1750169544,
+        "description": "Gemini 2.5 Pro is Google\u2019s state-of-the-art AI model designed for advanced reasoning, coding, mathematics, and scientific tasks. It employs \u201cthinking\u201d capabilities, enabling it to reason through responses with enhanced accuracy and nuanced context handling. Gemini 2.5 Pro achieves top-tier performance on multiple benchmarks, including first-place positioning on the LMArena leaderboard, reflecting superior human-preference alignment and complex problem-solving abilities.",
+        "context_length": 1048576,
+        "pricing": {
+          "prompt": "0.00000125",
+          "completion": "0.00001",
+          "input_cache_read": "0.000000125",
+          "input_cache_write": "0.000000375",
+          "audio": "0.00000125",
+          "image": "0.00000125",
+          "internal_reasoning": "0.00001"
+        },
+        "top_provider": {
+          "context_length": 1048576,
+          "max_completion_tokens": 65536,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text+image+file+audio+video->text",
+          "input_modalities": [
+            "text",
+            "image",
+            "file",
+            "audio",
+            "video"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Gemini",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
     },
     {
       "slug": "x-ai/grok-4",
       "display_name": "Grok 4",
       "provider": "x-ai",
-      "context_window": 256000,
       "is_aliased": false,
       "tier": "flagship",
-      "summary_line": "Flagship reasoning · 256K context · pinned slug",
+      "summary_line": "Flagship reasoning \u00b7 256K context \u00b7 pinned slug",
       "research_note": "Use when xAI representation matters in flagship comparisons.",
       "risk_note": "Shorter context than other flagships in the catalog.",
       "default": false,
-      "sort_order": 50
+      "sort_order": 40,
+      "openrouter": {
+        "canonical_slug": "x-ai/grok-4-07-09",
+        "created": 1752087689,
+        "description": "Grok 4 is xAI's latest reasoning model with a 256k context window. It supports parallel tool calling, structured outputs, and both image and text inputs. Note that reasoning is not exposed, reasoning cannot be disabled, and the reasoning effort cannot be specified. Pricing increases once the total tokens in a given request is greater than 128k tokens. See more details on the [xAI docs](https://docs.x.ai/docs/models/grok-4-0709)",
+        "context_length": 256000,
+        "pricing": {
+          "prompt": "0.000003",
+          "completion": "0.000015",
+          "input_cache_read": "0.00000075",
+          "web_search": "0.005"
+        },
+        "top_provider": {
+          "context_length": 256000,
+          "max_completion_tokens": null,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text+image->text",
+          "input_modalities": [
+            "image",
+            "text"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Grok",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
     },
     {
-      "slug": "anthropic/claude-haiku-4.5",
-      "display_name": "Claude Haiku 4.5",
+      "slug": "openai/gpt-5.4-mini",
+      "display_name": "GPT-5.4 Mini",
+      "provider": "openai",
+      "is_aliased": false,
+      "tier": "mid",
+      "summary_line": "Balanced mainstream reasoning \u00b7 400K context \u00b7 pinned slug",
+      "research_note": "Good default model for broad, lower-cost cross-provider studies.",
+      "risk_note": "Smaller sibling of GPT-5.4; compare upward when task difficulty is high.",
+      "default": true,
+      "sort_order": 110,
+      "openrouter": {
+        "canonical_slug": "openai/gpt-5.4-mini-20260317",
+        "created": 1773748178,
+        "description": "GPT-5.4 mini brings the core capabilities of GPT-5.4 to a faster, more efficient model optimized for high-throughput workloads. It supports text and image inputs with strong performance across reasoning, coding, and tool use, while reducing latency and cost for large-scale deployments.\n\nThe model is designed for production environments that require a balance of capability and efficiency, making it well suited for chat applications, coding assistants, and agent workflows that operate at scale. GPT-5.4 mini delivers reliable instruction following, solid multi-step reasoning, and consistent performance across diverse tasks with improved cost efficiency.",
+        "context_length": 400000,
+        "pricing": {
+          "prompt": "0.00000075",
+          "completion": "0.0000045",
+          "input_cache_read": "0.000000075",
+          "web_search": "0.01"
+        },
+        "top_provider": {
+          "context_length": 400000,
+          "max_completion_tokens": 128000,
+          "is_moderated": true
+        },
+        "architecture": {
+          "modality": "text+image+file->text",
+          "input_modalities": [
+            "file",
+            "image",
+            "text"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "GPT",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
+    },
+    {
+      "slug": "anthropic/claude-sonnet-4.6",
+      "display_name": "Claude Sonnet 4.6",
       "provider": "anthropic",
-      "context_window": 200000,
       "is_aliased": false,
       "tier": "mid",
-      "summary_line": "Fast Anthropic model · 200K context · pinned slug",
-      "research_note": "Use for Anthropic coverage below flagship pricing.",
-      "risk_note": "Priced above some other mid models despite Haiku branding.",
+      "summary_line": "Balanced mainstream reasoning \u00b7 1M context \u00b7 pinned slug",
+      "research_note": "Use as Anthropic's mainstream anchor and the closest analogue to the default workflow model.",
+      "risk_note": "Priced like a premium mid-tier model relative to most peers.",
       "default": false,
-      "sort_order": 110
-    },
-    {
-      "slug": "deepseek/deepseek-v3.2",
-      "display_name": "DeepSeek V3.2",
-      "provider": "deepseek",
-      "context_window": 163840,
-      "is_aliased": false,
-      "tier": "mid",
-      "summary_line": "Open-weight reasoning · 164K context · pinned slug",
-      "research_note": "Use for Chinese-family diversity in mid-tier studies.",
-      "risk_note": "Secondary provider; compare against mainstream anchors.",
-      "default": false,
-      "sort_order": 120
+      "sort_order": 120,
+      "openrouter": {
+        "canonical_slug": "anthropic/claude-4.6-sonnet-20260217",
+        "created": 1771342990,
+        "description": "Sonnet 4.6 is Anthropic's most capable Sonnet-class model yet, with frontier performance across coding, agents, and professional work. It excels at iterative development, complex codebase navigation, end-to-end project management with memory, polished document creation, and confident computer use for web QA and workflow automation.",
+        "context_length": 1000000,
+        "pricing": {
+          "prompt": "0.000003",
+          "completion": "0.000015",
+          "input_cache_read": "0.0000003",
+          "input_cache_write": "0.00000375",
+          "web_search": "0.01"
+        },
+        "top_provider": {
+          "context_length": 1000000,
+          "max_completion_tokens": 128000,
+          "is_moderated": true
+        },
+        "architecture": {
+          "modality": "text+image->text",
+          "input_modalities": [
+            "text",
+            "image"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Claude",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
     },
     {
       "slug": "google/gemini-2.5-flash",
       "display_name": "Gemini 2.5 Flash",
       "provider": "google",
-      "context_window": 1048576,
       "is_aliased": false,
       "tier": "mid",
-      "summary_line": "Fast long-context model · 1M context · pinned slug",
-      "research_note": "Good default for lower-cost long-context comparisons.",
+      "summary_line": "Fast long-context model \u00b7 1M context \u00b7 pinned slug",
+      "research_note": "Use for Google mainstream coverage and efficient long-context comparisons.",
       "risk_note": "May favor throughput and context over raw reasoning depth.",
       "default": false,
-      "sort_order": 130
-    },
-    {
-      "slug": "openai/gpt-5-mini",
-      "display_name": "GPT-5 Mini",
-      "provider": "openai",
-      "context_window": 400000,
-      "is_aliased": true,
-      "tier": "mid",
-      "summary_line": "Mid-tier reasoning · 400K context · alias slug",
-      "research_note": "Good default for lower-cost cross-provider studies.",
-      "risk_note": "Alias slug: underlying model may change over time.",
-      "default": false,
-      "sort_order": 140
+      "sort_order": 130,
+      "openrouter": {
+        "canonical_slug": "google/gemini-2.5-flash",
+        "created": 1750172488,
+        "description": "Gemini 2.5 Flash is Google's state-of-the-art workhorse model, specifically designed for advanced reasoning, coding, mathematics, and scientific tasks. It includes built-in \"thinking\" capabilities, enabling it to provide responses with greater accuracy and nuanced context handling. \n\nAdditionally, Gemini 2.5 Flash is configurable through the \"max tokens for reasoning\" parameter, as described in the documentation (https://openrouter.ai/docs/use-cases/reasoning-tokens#max-tokens-for-reasoning).",
+        "context_length": 1048576,
+        "pricing": {
+          "prompt": "0.0000003",
+          "completion": "0.0000025",
+          "input_cache_read": "0.00000003",
+          "input_cache_write": "0.00000008333333333333334",
+          "audio": "0.000001",
+          "image": "0.0000003",
+          "internal_reasoning": "0.0000025"
+        },
+        "top_provider": {
+          "context_length": 1048576,
+          "max_completion_tokens": 65535,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text+image+file+audio+video->text",
+          "input_modalities": [
+            "file",
+            "image",
+            "text",
+            "audio",
+            "video"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Gemini",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
     },
     {
       "slug": "meta-llama/llama-4-maverick",
       "display_name": "Llama 4 Maverick",
       "provider": "meta-llama",
-      "context_window": 1048576,
       "is_aliased": false,
       "tier": "mid",
-      "summary_line": "Open-weight mid model · 1M context · pinned slug",
-      "research_note": "Use for strong open-weight coverage at mid-tier cost.",
-      "risk_note": "Different architecture family than the closed-model mid tier.",
+      "summary_line": "Open-weight mainstream model \u00b7 1M context \u00b7 pinned slug",
+      "research_note": "Use as the strongest open-weight mid-tier anchor in H3 studies.",
+      "risk_note": "Open-weight architecture may behave differently from closed-model peers.",
       "default": false,
-      "sort_order": 150
+      "sort_order": 140,
+      "openrouter": {
+        "canonical_slug": "meta-llama/llama-4-maverick-17b-128e-instruct",
+        "created": 1743881822,
+        "description": "Llama 4 Maverick 17B Instruct (128E) is a high-capacity multimodal language model from Meta, built on a mixture-of-experts (MoE) architecture with 128 experts and 17 billion active parameters per forward pass (400B total). It supports multilingual text and image input, and produces multilingual text and code output across 12 supported languages. Optimized for vision-language tasks, Maverick is instruction-tuned for assistant-like behavior, image reasoning, and general-purpose multimodal interaction.\n\nMaverick features early fusion for native multimodality and a 1 million token context window. It was trained on a curated mixture of public, licensed, and Meta-platform data, covering ~22 trillion tokens, with a knowledge cutoff in August 2024. Released on April 5, 2025 under the Llama 4 Community License, Maverick is suited for research and commercial applications requiring advanced multimodal understanding and high model throughput.",
+        "context_length": 1048576,
+        "pricing": {
+          "prompt": "0.00000015",
+          "completion": "0.0000006"
+        },
+        "top_provider": {
+          "context_length": 1048576,
+          "max_completion_tokens": 16384,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text+image->text",
+          "input_modalities": [
+            "text",
+            "image"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Llama4",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
     },
     {
-      "slug": "x-ai/grok-4.1-fast",
-      "display_name": "Grok 4.1 Fast",
-      "provider": "x-ai",
-      "context_window": 2000000,
+      "slug": "deepseek/deepseek-v3.2",
+      "display_name": "DeepSeek V3.2",
+      "provider": "deepseek",
       "is_aliased": false,
       "tier": "mid",
-      "summary_line": "Fast xAI model · 2M context · pinned slug",
-      "research_note": "Use when xAI coverage and very long context both matter.",
-      "risk_note": "Context advantage may dominate direct capability comparisons.",
+      "summary_line": "Chinese-family reasoning model \u00b7 164K context \u00b7 pinned slug",
+      "research_note": "Use for Chinese-family diversity in mainstream cross-provider studies.",
+      "risk_note": "Reasoning controls exist; compare carefully against non-DeepSeek defaults.",
       "default": false,
-      "sort_order": 160
+      "sort_order": 150,
+      "openrouter": {
+        "canonical_slug": "deepseek/deepseek-v3.2-20251201",
+        "created": 1764594642,
+        "description": "DeepSeek-V3.2 is a large language model designed to harmonize high computational efficiency with strong reasoning and agentic tool-use performance. It introduces DeepSeek Sparse Attention (DSA), a fine-grained sparse attention mechanism that reduces training and inference cost while preserving quality in long-context scenarios. A scalable reinforcement learning post-training framework further improves reasoning, with reported performance in the GPT-5 class, and the model has demonstrated gold-medal results on the 2025 IMO and IOI. V3.2 also uses a large-scale agentic task synthesis pipeline to better integrate reasoning into tool-use settings, boosting compliance and generalization in interactive environments.\n\nUsers can control the reasoning behaviour with the `reasoning` `enabled` boolean. [Learn more in our docs](https://openrouter.ai/docs/use-cases/reasoning-tokens#enable-reasoning-with-default-config)",
+        "context_length": 163840,
+        "pricing": {
+          "prompt": "0.00000026",
+          "completion": "0.00000038",
+          "input_cache_read": "0.00000013"
+        },
+        "top_provider": {
+          "context_length": 163840,
+          "max_completion_tokens": null,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text->text",
+          "input_modalities": [
+            "text"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "DeepSeek",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
+    },
+    {
+      "slug": "qwen/qwen3.5-plus-02-15",
+      "display_name": "Qwen3.5 Plus",
+      "provider": "qwen",
+      "is_aliased": false,
+      "tier": "mid",
+      "summary_line": "Chinese-family mainstream model \u00b7 1M context \u00b7 pinned slug",
+      "research_note": "Use for Alibaba/Qwen representation with strong long-context support.",
+      "risk_note": "Vision-language architecture may differ from text-first peers.",
+      "default": false,
+      "sort_order": 160,
+      "openrouter": {
+        "canonical_slug": "qwen/qwen3.5-plus-20260216",
+        "created": 1771229416,
+        "description": "The Qwen3.5 native vision-language series Plus models are built on a hybrid architecture that integrates linear attention mechanisms with sparse mixture-of-experts models, achieving higher inference efficiency. In a variety of task evaluations, the 3.5 series consistently demonstrates performance on par with state-of-the-art leading models. Compared to the 3 series, these models show a leap forward in both pure-text and multimodal capabilities.",
+        "context_length": 1000000,
+        "pricing": {
+          "prompt": "0.00000026",
+          "completion": "0.00000156"
+        },
+        "top_provider": {
+          "context_length": 1000000,
+          "max_completion_tokens": 65536,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text+image+video->text",
+          "input_modalities": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Qwen3",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
+    },
+    {
+      "slug": "openai/gpt-5.4-nano",
+      "display_name": "GPT-5.4 Nano",
+      "provider": "openai",
+      "is_aliased": false,
+      "tier": "budget",
+      "summary_line": "Budget reasoning model \u00b7 400K context \u00b7 pinned slug",
+      "research_note": "Use for the cheapest paid OpenAI coverage and broad pilot sweeps.",
+      "risk_note": "Optimized for speed and cost, not deep reasoning.",
+      "default": false,
+      "sort_order": 210,
+      "openrouter": {
+        "canonical_slug": "openai/gpt-5.4-nano-20260317",
+        "created": 1773748187,
+        "description": "GPT-5.4 nano is the most lightweight and cost-efficient variant of the GPT-5.4 family, optimized for speed-critical and high-volume tasks. It supports text and image inputs and is designed for low-latency use cases such as classification, data extraction, ranking, and sub-agent execution.\n\nThe model prioritizes responsiveness and efficiency over deep reasoning, making it ideal for pipelines that require fast, reliable outputs at scale. GPT-5.4 nano is well suited for background tasks, real-time systems, and distributed agent architectures where minimizing cost and latency is essential.",
+        "context_length": 400000,
+        "pricing": {
+          "prompt": "0.0000002",
+          "completion": "0.00000125",
+          "input_cache_read": "0.00000002",
+          "web_search": "0.01"
+        },
+        "top_provider": {
+          "context_length": 400000,
+          "max_completion_tokens": 128000,
+          "is_moderated": true
+        },
+        "architecture": {
+          "modality": "text+image+file->text",
+          "input_modalities": [
+            "file",
+            "image",
+            "text"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "GPT",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
+    },
+    {
+      "slug": "anthropic/claude-haiku-4.5",
+      "display_name": "Claude Haiku 4.5",
+      "provider": "anthropic",
+      "is_aliased": false,
+      "tier": "budget",
+      "summary_line": "Fast budget reasoning \u00b7 200K context \u00b7 pinned slug",
+      "research_note": "Use as Anthropic's cost-optimized budget entry.",
+      "risk_note": "Still more expensive than many budget peers despite the Haiku positioning.",
+      "default": false,
+      "sort_order": 220,
+      "openrouter": {
+        "canonical_slug": "anthropic/claude-4.5-haiku-20251001",
+        "created": 1760547638,
+        "description": "Claude Haiku 4.5 is Anthropic\u2019s fastest and most efficient model, delivering near-frontier intelligence at a fraction of the cost and latency of larger Claude models. Matching Claude Sonnet 4\u2019s performance across reasoning, coding, and computer-use tasks, Haiku 4.5 brings frontier-level capability to real-time and high-volume applications.\n\nIt introduces extended thinking to the Haiku line; enabling controllable reasoning depth, summarized or interleaved thought output, and tool-assisted workflows with full support for coding, bash, web search, and computer-use tools. Scoring >73% on SWE-bench Verified, Haiku 4.5 ranks among the world\u2019s best coding models while maintaining exceptional responsiveness for sub-agents, parallelized execution, and scaled deployment.",
+        "context_length": 200000,
+        "pricing": {
+          "prompt": "0.000001",
+          "completion": "0.000005",
+          "input_cache_read": "0.0000001",
+          "input_cache_write": "0.00000125",
+          "web_search": "0.01"
+        },
+        "top_provider": {
+          "context_length": 200000,
+          "max_completion_tokens": 64000,
+          "is_moderated": true
+        },
+        "architecture": {
+          "modality": "text+image->text",
+          "input_modalities": [
+            "image",
+            "text"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Claude",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
     },
     {
       "slug": "google/gemini-2.5-flash-lite",
       "display_name": "Gemini 2.5 Flash Lite",
       "provider": "google",
-      "context_window": 1048576,
       "is_aliased": false,
       "tier": "budget",
-      "summary_line": "Budget long-context model · 1M context · pinned slug",
+      "summary_line": "Budget long-context model \u00b7 1M context \u00b7 pinned slug",
       "research_note": "Use for very low-cost Google coverage in broad sweeps.",
       "risk_note": "Budget pricing may trade off depth for throughput.",
       "default": false,
-      "sort_order": 210
+      "sort_order": 230,
+      "openrouter": {
+        "canonical_slug": "google/gemini-2.5-flash-lite",
+        "created": 1753200276,
+        "description": "Gemini 2.5 Flash-Lite is a lightweight reasoning model in the Gemini 2.5 family, optimized for ultra-low latency and cost efficiency. It offers improved throughput, faster token generation, and better performance across common benchmarks compared to earlier Flash models. By default, \"thinking\" (i.e. multi-pass reasoning) is disabled to prioritize speed, but developers can enable it via the [Reasoning API parameter](https://openrouter.ai/docs/use-cases/reasoning-tokens) to selectively trade off cost for intelligence. ",
+        "context_length": 1048576,
+        "pricing": {
+          "prompt": "0.0000001",
+          "completion": "0.0000004",
+          "input_cache_read": "0.00000001",
+          "input_cache_write": "0.00000008333333333333334",
+          "audio": "0.0000003",
+          "image": "0.0000001",
+          "internal_reasoning": "0.0000004"
+        },
+        "top_provider": {
+          "context_length": 1048576,
+          "max_completion_tokens": 65535,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text+image+file+audio+video->text",
+          "input_modalities": [
+            "text",
+            "image",
+            "file",
+            "audio",
+            "video"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Gemini",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
     },
     {
-      "slug": "openai/gpt-5-nano",
-      "display_name": "GPT-5 Nano",
-      "provider": "openai",
-      "context_window": 400000,
-      "is_aliased": true,
-      "tier": "budget",
-      "summary_line": "Budget reasoning · 400K context · alias slug",
-      "research_note": "Use for cheapest paid OpenAI coverage and pilot sweeps.",
-      "risk_note": "Alias slug: underlying model may change over time.",
-      "default": false,
-      "sort_order": 220
-    },
-    {
-      "slug": "meta-llama/llama-4-scout",
-      "display_name": "Llama 4 Scout",
-      "provider": "meta-llama",
-      "context_window": 327680,
+      "slug": "qwen/qwen3-235b-a22b-2507",
+      "display_name": "Qwen3 235B A22B",
+      "provider": "qwen",
       "is_aliased": false,
       "tier": "budget",
-      "summary_line": "Budget open-weight model · 328K context · pinned slug",
-      "research_note": "Use for low-cost open-weight comparisons in H3 studies.",
-      "risk_note": "Smaller model than Maverick; expect a weaker ceiling.",
+      "summary_line": "Budget MoE model \u00b7 262K context \u00b7 pinned slug",
+      "research_note": "Use for lower-cost Chinese-family diversity outside the mainstream tier.",
+      "risk_note": "Large MoE architecture may differ sharply from dense-model peers.",
       "default": false,
-      "sort_order": 230
+      "sort_order": 240,
+      "openrouter": {
+        "canonical_slug": "qwen/qwen3-235b-a22b-07-25",
+        "created": 1753119555,
+        "description": "Qwen3-235B-A22B-Instruct-2507 is a multilingual, instruction-tuned mixture-of-experts language model based on the Qwen3-235B architecture, with 22B active parameters per forward pass. It is optimized for general-purpose text generation, including instruction following, logical reasoning, math, code, and tool usage. The model supports a native 262K context length and does not implement \"thinking mode\" (<think> blocks).\n\nCompared to its base variant, this version delivers significant gains in knowledge coverage, long-context reasoning, coding benchmarks, and alignment with open-ended tasks. It is particularly strong on multilingual understanding, math reasoning (e.g., AIME, HMMT), and alignment evaluations like Arena-Hard and WritingBench.",
+        "context_length": 262144,
+        "pricing": {
+          "prompt": "0.000000071",
+          "completion": "0.0000001"
+        },
+        "top_provider": {
+          "context_length": 262144,
+          "max_completion_tokens": null,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text->text",
+          "input_modalities": [
+            "text"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Qwen3",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
     },
     {
-      "slug": "google/gemma-3-27b-it:free",
-      "display_name": "Gemma 3 27B IT",
-      "provider": "google",
-      "context_window": 131072,
+      "slug": "mistralai/mistral-small-3.2-24b-instruct",
+      "display_name": "Mistral Small 3.2",
+      "provider": "mistralai",
       "is_aliased": false,
-      "tier": "free",
-      "summary_line": "Free open-weight model · 131K context · pinned slug",
-      "research_note": "Use for zero-cost pilots with a strong Google free option.",
-      "risk_note": "Free tier: rate-limited and subject to substitution.",
+      "tier": "budget",
+      "summary_line": "Budget European model \u00b7 128K context \u00b7 pinned slug",
+      "research_note": "Use for European-provider diversity in budget-tier studies.",
+      "risk_note": "Smaller model family; compare against stronger mid-tier anchors when task difficulty rises.",
       "default": false,
-      "sort_order": 310
+      "sort_order": 250,
+      "openrouter": {
+        "canonical_slug": "mistralai/mistral-small-3.2-24b-instruct-2506",
+        "created": 1750443016,
+        "description": "Mistral-Small-3.2-24B-Instruct-2506 is an updated 24B parameter model from Mistral optimized for instruction following, repetition reduction, and improved function calling. Compared to the 3.1 release, version 3.2 significantly improves accuracy on WildBench and Arena Hard, reduces infinite generations, and delivers gains in tool use and structured output tasks.\n\nIt supports image and text inputs with structured outputs, function/tool calling, and strong performance across coding (HumanEval+, MBPP), STEM (MMLU, MATH, GPQA), and vision benchmarks (ChartQA, DocVQA).",
+        "context_length": 128000,
+        "pricing": {
+          "prompt": "0.000000075",
+          "completion": "0.0000002"
+        },
+        "top_provider": {
+          "context_length": 128000,
+          "max_completion_tokens": null,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text+image->text",
+          "input_modalities": [
+            "image",
+            "text"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Mistral",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
     },
     {
       "slug": "openai/gpt-oss-120b:free",
       "display_name": "GPT-OSS 120B",
       "provider": "openai",
-      "context_window": 131072,
       "is_aliased": false,
       "tier": "free",
-      "summary_line": "Free 120B open model · 131K context · pinned slug",
+      "summary_line": "Free 120B open model \u00b7 131K context \u00b7 pinned slug",
       "research_note": "Use for zero-cost OpenAI-family pilots and open-model checks.",
       "risk_note": "Free tier: newer family with less field characterization.",
       "default": false,
-      "sort_order": 320
+      "sort_order": 310,
+      "openrouter": {
+        "canonical_slug": "openai/gpt-oss-120b",
+        "created": 1754414231,
+        "description": "gpt-oss-120b is an open-weight, 117B-parameter Mixture-of-Experts (MoE) language model from OpenAI designed for high-reasoning, agentic, and general-purpose production use cases. It activates 5.1B parameters per forward pass and is optimized to run on a single H100 GPU with native MXFP4 quantization. The model supports configurable reasoning depth, full chain-of-thought access, and native tool use, including function calling, browsing, and structured output generation.",
+        "context_length": 131072,
+        "pricing": {
+          "prompt": "0",
+          "completion": "0"
+        },
+        "top_provider": {
+          "context_length": 131072,
+          "max_completion_tokens": 131072,
+          "is_moderated": true
+        },
+        "architecture": {
+          "modality": "text->text",
+          "input_modalities": [
+            "text"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "GPT",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
+    },
+    {
+      "slug": "google/gemma-3-27b-it:free",
+      "display_name": "Gemma 3 27B IT",
+      "provider": "google",
+      "is_aliased": false,
+      "tier": "free",
+      "summary_line": "Free open-weight model \u00b7 131K context \u00b7 pinned slug",
+      "research_note": "Use for zero-cost Google coverage and lightweight pilot runs.",
+      "risk_note": "Free tier: rate-limited and subject to substitution.",
+      "default": false,
+      "sort_order": 320,
+      "openrouter": {
+        "canonical_slug": "google/gemma-3-27b-it",
+        "created": 1741756359,
+        "description": "Gemma 3 introduces multimodality, supporting vision-language input and text outputs. It handles context windows up to 128k tokens, understands over 140 languages, and offers improved math, reasoning, and chat capabilities, including structured outputs and function calling. Gemma 3 27B is Google's latest open source model, successor to [Gemma 2](google/gemma-2-27b-it)",
+        "context_length": 131072,
+        "pricing": {
+          "prompt": "0",
+          "completion": "0"
+        },
+        "top_provider": {
+          "context_length": 131072,
+          "max_completion_tokens": 8192,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text+image->text",
+          "input_modalities": [
+            "text",
+            "image"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Gemini",
+          "instruct_type": "gemma"
+        },
+        "expiration_date": null
+      }
     },
     {
       "slug": "meta-llama/llama-3.3-70b-instruct:free",
       "display_name": "Llama 3.3 70B Instruct",
       "provider": "meta-llama",
-      "context_window": 128000,
       "is_aliased": false,
       "tier": "free",
-      "summary_line": "Free 70B instruct model · 128K context · pinned slug",
+      "summary_line": "Free 70B instruct model \u00b7 64K context \u00b7 pinned slug",
       "research_note": "Use for zero-cost Meta coverage and pilot-scale H3 runs.",
       "risk_note": "Free tier: previous generation and subject to substitution.",
       "default": false,
-      "sort_order": 330
+      "sort_order": 330,
+      "openrouter": {
+        "canonical_slug": "meta-llama/llama-3.3-70b-instruct",
+        "created": 1733506137,
+        "description": "The Meta Llama 3.3 multilingual large language model (LLM) is a pretrained and instruction tuned generative model in 70B (text in/text out). The Llama 3.3 instruction tuned text only model is optimized for multilingual dialogue use cases and outperforms many of the available open source and closed chat models on common industry benchmarks.\n\nSupported languages: English, German, French, Italian, Portuguese, Hindi, Spanish, and Thai.\n\n[Model Card](https://github.com/meta-llama/llama-models/blob/main/models/llama3_3/MODEL_CARD.md)",
+        "context_length": 65536,
+        "pricing": {
+          "prompt": "0",
+          "completion": "0"
+        },
+        "top_provider": {
+          "context_length": 65536,
+          "max_completion_tokens": null,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text->text",
+          "input_modalities": [
+            "text"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Llama3",
+          "instruct_type": "llama3"
+        },
+        "expiration_date": null
+      }
+    },
+    {
+      "slug": "qwen/qwen3-next-80b-a3b-instruct:free",
+      "display_name": "Qwen3 Next 80B A3B",
+      "provider": "qwen",
+      "is_aliased": false,
+      "tier": "free",
+      "summary_line": "Free Chinese-family model \u00b7 262K context \u00b7 pinned slug",
+      "research_note": "Use for zero-cost Chinese-family diversity in pilot studies.",
+      "risk_note": "Free tier: availability may change faster than paid entries.",
+      "default": false,
+      "sort_order": 340,
+      "openrouter": {
+        "canonical_slug": "qwen/qwen3-next-80b-a3b-instruct-2509",
+        "created": 1757612213,
+        "description": "Qwen3-Next-80B-A3B-Instruct is an instruction-tuned chat model in the Qwen3-Next series optimized for fast, stable responses without \u201cthinking\u201d traces. It targets complex tasks across reasoning, code generation, knowledge QA, and multilingual use, while remaining robust on alignment and formatting. Compared with prior Qwen3 instruct variants, it focuses on higher throughput and stability on ultra-long inputs and multi-turn dialogues, making it well-suited for RAG, tool use, and agentic workflows that require consistent final answers rather than visible chain-of-thought.\n\nThe model employs scaling-efficient training and decoding to improve parameter efficiency and inference speed, and has been validated on a broad set of public benchmarks where it reaches or approaches larger Qwen3 systems in several categories while outperforming earlier mid-sized baselines. It is best used as a general assistant, code helper, and long-context task solver in production settings where deterministic, instruction-following outputs are preferred.",
+        "context_length": 262144,
+        "pricing": {
+          "prompt": "0",
+          "completion": "0"
+        },
+        "top_provider": {
+          "context_length": 262144,
+          "max_completion_tokens": null,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text->text",
+          "input_modalities": [
+            "text"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Qwen3",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
     }
   ]
 }
