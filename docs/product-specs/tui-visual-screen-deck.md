@@ -454,7 +454,7 @@ The Models step should feel like a disciplined model-selection surface, not just
   │
   │   Select one or more models for sampling.
   │
-  │   Balanced mainstream reasoning · 400K context · pinned slug
+  │   Balanced mainstream reasoning · 400K context · $0.75/$4.5 per 1M
   │   Good default model for broad, lower-cost cross-provider studies.
   │   Smaller sibling of GPT-5.4; compare upward when task difficulty is high.
   │
