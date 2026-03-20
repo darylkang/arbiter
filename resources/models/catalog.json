@@ -136,7 +136,8 @@
           "instruct_type": null
         },
         "expiration_date": null
-      }
+      },
+      "notes": "Gemini 3.x remains preview-only on OpenRouter as of 2026-03-20."
     },
     {
       "slug": "x-ai/grok-4",
@@ -221,7 +222,8 @@
           "instruct_type": null
         },
         "expiration_date": null
-      }
+      },
+      "notes": "Default selection chosen for broad, lower-cost cross-provider studies."
     },
     {
       "slug": "anthropic/claude-sonnet-4.6",
@@ -312,31 +314,34 @@
           "instruct_type": null
         },
         "expiration_date": null
-      }
+      },
+      "notes": "Gemini 3.x Flash remains preview-only on OpenRouter as of 2026-03-20."
     },
     {
-      "slug": "meta-llama/llama-4-maverick",
-      "display_name": "Llama 4 Maverick",
-      "provider": "meta-llama",
+      "slug": "x-ai/grok-4.1-fast",
+      "display_name": "Grok 4.1 Fast",
+      "provider": "x-ai",
       "is_aliased": false,
       "tier": "mid",
-      "summary_line": "Open-weight mainstream model \u00b7 1M context \u00b7 pinned slug",
-      "research_note": "Use as the strongest open-weight mid-tier anchor in H3 studies.",
-      "risk_note": "Open-weight architecture may behave differently from closed-model peers.",
+      "summary_line": "Fast mainstream reasoning \u00b7 2M context \u00b7 pinned slug",
+      "research_note": "Use when xAI coverage and very long context both matter.",
+      "risk_note": "Context advantage may dominate direct capability comparisons.",
       "default": false,
       "sort_order": 140,
       "openrouter": {
-        "canonical_slug": "meta-llama/llama-4-maverick-17b-128e-instruct",
-        "created": 1743881822,
-        "description": "Llama 4 Maverick 17B Instruct (128E) is a high-capacity multimodal language model from Meta, built on a mixture-of-experts (MoE) architecture with 128 experts and 17 billion active parameters per forward pass (400B total). It supports multilingual text and image input, and produces multilingual text and code output across 12 supported languages. Optimized for vision-language tasks, Maverick is instruction-tuned for assistant-like behavior, image reasoning, and general-purpose multimodal interaction.\n\nMaverick features early fusion for native multimodality and a 1 million token context window. It was trained on a curated mixture of public, licensed, and Meta-platform data, covering ~22 trillion tokens, with a knowledge cutoff in August 2024. Released on April 5, 2025 under the Llama 4 Community License, Maverick is suited for research and commercial applications requiring advanced multimodal understanding and high model throughput.",
-        "context_length": 1048576,
+        "canonical_slug": "x-ai/grok-4.1-fast",
+        "created": 1763587502,
+        "description": "Grok 4.1 Fast is xAI's best agentic tool calling model that shines in real-world use cases like customer support and deep research. 2M context window.\n\nReasoning can be enabled/disabled using the `reasoning` `enabled` parameter in the API. [Learn more in our docs](https://openrouter.ai/docs/use-cases/reasoning-tokens#controlling-reasoning-tokens)",
+        "context_length": 2000000,
         "pricing": {
-          "prompt": "0.00000015",
-          "completion": "0.0000006"
+          "prompt": "0.0000002",
+          "completion": "0.0000005",
+          "input_cache_read": "0.00000005",
+          "web_search": "0.005"
         },
         "top_provider": {
-          "context_length": 1048576,
-          "max_completion_tokens": 16384,
+          "context_length": 2000000,
+          "max_completion_tokens": 30000,
           "is_moderated": false
         },
         "architecture": {
@@ -348,7 +353,7 @@
           "output_modalities": [
             "text"
           ],
-          "tokenizer": "Llama4",
+          "tokenizer": "Grok",
           "instruct_type": null
         },
         "expiration_date": null
@@ -364,7 +369,7 @@
       "research_note": "Use for Chinese-family diversity in mainstream cross-provider studies.",
       "risk_note": "Reasoning controls exist; compare carefully against non-DeepSeek defaults.",
       "default": false,
-      "sort_order": 150,
+      "sort_order": 160,
       "openrouter": {
         "canonical_slug": "deepseek/deepseek-v3.2-20251201",
         "created": 1764594642,
@@ -404,7 +409,7 @@
       "research_note": "Use for Alibaba/Qwen representation with strong long-context support.",
       "risk_note": "Vision-language architecture may differ from text-first peers.",
       "default": false,
-      "sort_order": 160,
+      "sort_order": 170,
       "openrouter": {
         "canonical_slug": "qwen/qwen3.5-plus-20260216",
         "created": 1771229416,
@@ -570,24 +575,65 @@
       }
     },
     {
-      "slug": "qwen/qwen3-235b-a22b-2507",
-      "display_name": "Qwen3 235B A22B",
-      "provider": "qwen",
+      "slug": "meta-llama/llama-4-scout",
+      "display_name": "Llama 4 Scout",
+      "provider": "meta-llama",
       "is_aliased": false,
       "tier": "budget",
-      "summary_line": "Budget MoE model \u00b7 262K context \u00b7 pinned slug",
-      "research_note": "Use for lower-cost Chinese-family diversity outside the mainstream tier.",
-      "risk_note": "Large MoE architecture may differ sharply from dense-model peers.",
+      "summary_line": "Budget open-weight model \u00b7 328K context \u00b7 pinned slug",
+      "research_note": "Use for low-cost open-weight comparisons in H3 studies.",
+      "risk_note": "Smaller sibling of Maverick; expect a lower reasoning ceiling.",
       "default": false,
       "sort_order": 240,
       "openrouter": {
-        "canonical_slug": "qwen/qwen3-235b-a22b-07-25",
-        "created": 1753119555,
-        "description": "Qwen3-235B-A22B-Instruct-2507 is a multilingual, instruction-tuned mixture-of-experts language model based on the Qwen3-235B architecture, with 22B active parameters per forward pass. It is optimized for general-purpose text generation, including instruction following, logical reasoning, math, code, and tool usage. The model supports a native 262K context length and does not implement \"thinking mode\" (<think> blocks).\n\nCompared to its base variant, this version delivers significant gains in knowledge coverage, long-context reasoning, coding benchmarks, and alignment with open-ended tasks. It is particularly strong on multilingual understanding, math reasoning (e.g., AIME, HMMT), and alignment evaluations like Arena-Hard and WritingBench.",
+        "canonical_slug": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "created": 1743881519,
+        "description": "Llama 4 Scout 17B Instruct (16E) is a mixture-of-experts (MoE) language model developed by Meta, activating 17 billion parameters out of a total of 109B. It supports native multimodal input (text and image) and multilingual output (text and code) across 12 supported languages. Designed for assistant-style interaction and visual reasoning, Scout uses 16 experts per forward pass and features a context length of 10 million tokens, with a training corpus of ~40 trillion tokens.\n\nBuilt for high efficiency and local or commercial deployment, Llama 4 Scout incorporates early fusion for seamless modality integration. It is instruction-tuned for use in multilingual chat, captioning, and image understanding tasks. Released under the Llama 4 Community License, it was last trained on data up to August 2024 and launched publicly on April 5, 2025.",
+        "context_length": 327680,
+        "pricing": {
+          "prompt": "0.00000008",
+          "completion": "0.0000003"
+        },
+        "top_provider": {
+          "context_length": 327680,
+          "max_completion_tokens": 16384,
+          "is_moderated": false
+        },
+        "architecture": {
+          "modality": "text+image->text",
+          "input_modalities": [
+            "text",
+            "image"
+          ],
+          "output_modalities": [
+            "text"
+          ],
+          "tokenizer": "Llama4",
+          "instruct_type": null
+        },
+        "expiration_date": null
+      }
+    },
+    {
+      "slug": "mistralai/mistral-small-2603",
+      "display_name": "Mistral Small 4",
+      "provider": "mistralai",
+      "is_aliased": false,
+      "tier": "budget",
+      "summary_line": "Budget European model \u00b7 262K context \u00b7 pinned slug",
+      "research_note": "Use for European-provider diversity in budget-tier studies.",
+      "risk_note": "New generation; compare against stronger mid-tier anchors when task difficulty rises.",
+      "default": false,
+      "sort_order": 260,
+      "openrouter": {
+        "canonical_slug": "mistralai/mistral-small-2603",
+        "created": 1773695685,
+        "description": "Mistral Small 4 is the next major release in the Mistral Small family, unifying the capabilities of several flagship Mistral models into a single system. It combines strong reasoning from Magistral, multimodal understanding from Pixtral, and agentic coding capabilities from Devstral, enabling one model to handle complex analysis, software development, and visual tasks within the same workflow.",
         "context_length": 262144,
         "pricing": {
-          "prompt": "0.000000071",
-          "completion": "0.0000001"
+          "prompt": "0.00000015",
+          "completion": "0.0000006",
+          "input_cache_read": "0.000000015"
         },
         "top_provider": {
           "context_length": 262144,
@@ -595,49 +641,10 @@
           "is_moderated": false
         },
         "architecture": {
-          "modality": "text->text",
-          "input_modalities": [
-            "text"
-          ],
-          "output_modalities": [
-            "text"
-          ],
-          "tokenizer": "Qwen3",
-          "instruct_type": null
-        },
-        "expiration_date": null
-      }
-    },
-    {
-      "slug": "mistralai/mistral-small-3.2-24b-instruct",
-      "display_name": "Mistral Small 3.2",
-      "provider": "mistralai",
-      "is_aliased": false,
-      "tier": "budget",
-      "summary_line": "Budget European model \u00b7 128K context \u00b7 pinned slug",
-      "research_note": "Use for European-provider diversity in budget-tier studies.",
-      "risk_note": "Smaller model family; compare against stronger mid-tier anchors when task difficulty rises.",
-      "default": false,
-      "sort_order": 250,
-      "openrouter": {
-        "canonical_slug": "mistralai/mistral-small-3.2-24b-instruct-2506",
-        "created": 1750443016,
-        "description": "Mistral-Small-3.2-24B-Instruct-2506 is an updated 24B parameter model from Mistral optimized for instruction following, repetition reduction, and improved function calling. Compared to the 3.1 release, version 3.2 significantly improves accuracy on WildBench and Arena Hard, reduces infinite generations, and delivers gains in tool use and structured output tasks.\n\nIt supports image and text inputs with structured outputs, function/tool calling, and strong performance across coding (HumanEval+, MBPP), STEM (MMLU, MATH, GPQA), and vision benchmarks (ChartQA, DocVQA).",
-        "context_length": 128000,
-        "pricing": {
-          "prompt": "0.000000075",
-          "completion": "0.0000002"
-        },
-        "top_provider": {
-          "context_length": 128000,
-          "max_completion_tokens": null,
-          "is_moderated": false
-        },
-        "architecture": {
           "modality": "text+image->text",
           "input_modalities": [
-            "image",
-            "text"
+            "text",
+            "image"
           ],
           "output_modalities": [
             "text"
@@ -762,45 +769,6 @@
           ],
           "tokenizer": "Llama3",
           "instruct_type": "llama3"
-        },
-        "expiration_date": null
-      }
-    },
-    {
-      "slug": "qwen/qwen3-next-80b-a3b-instruct:free",
-      "display_name": "Qwen3 Next 80B A3B",
-      "provider": "qwen",
-      "is_aliased": false,
-      "tier": "free",
-      "summary_line": "Free Chinese-family model \u00b7 262K context \u00b7 pinned slug",
-      "research_note": "Use for zero-cost Chinese-family diversity in pilot studies.",
-      "risk_note": "Free tier: availability may change faster than paid entries.",
-      "default": false,
-      "sort_order": 340,
-      "openrouter": {
-        "canonical_slug": "qwen/qwen3-next-80b-a3b-instruct-2509",
-        "created": 1757612213,
-        "description": "Qwen3-Next-80B-A3B-Instruct is an instruction-tuned chat model in the Qwen3-Next series optimized for fast, stable responses without \u201cthinking\u201d traces. It targets complex tasks across reasoning, code generation, knowledge QA, and multilingual use, while remaining robust on alignment and formatting. Compared with prior Qwen3 instruct variants, it focuses on higher throughput and stability on ultra-long inputs and multi-turn dialogues, making it well-suited for RAG, tool use, and agentic workflows that require consistent final answers rather than visible chain-of-thought.\n\nThe model employs scaling-efficient training and decoding to improve parameter efficiency and inference speed, and has been validated on a broad set of public benchmarks where it reaches or approaches larger Qwen3 systems in several categories while outperforming earlier mid-sized baselines. It is best used as a general assistant, code helper, and long-context task solver in production settings where deterministic, instruction-following outputs are preferred.",
-        "context_length": 262144,
-        "pricing": {
-          "prompt": "0",
-          "completion": "0"
-        },
-        "top_provider": {
-          "context_length": 262144,
-          "max_completion_tokens": null,
-          "is_moderated": false
-        },
-        "architecture": {
-          "modality": "text->text",
-          "input_modalities": [
-            "text"
-          ],
-          "output_modalities": [
-            "text"
-          ],
-          "tokenizer": "Qwen3",
-          "instruct_type": null
         },
         "expiration_date": null
       }
