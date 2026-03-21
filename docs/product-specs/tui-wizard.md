@@ -263,8 +263,8 @@ Locked debate mechanics:
 1. Multi-select list with at least one selection required.
 2. Compact row format is `{display_name} · {provider_label}`.
 3. Models are grouped into non-interactive tier sections (`Flagship`, `Mid`, `Budget`, `Free`) and the cursor skips section headers.
-4. A fixed-height focused guidance block sits above the list and updates with the active model.
-5. The guidance block always renders exactly three content lines plus one blank separator line before the list:
+4. A fixed-height focused guidance block sits below the list and updates with the active model.
+5. The guidance block always renders exactly three content lines plus one blank separator line after the list:
    - `summary_line`
    - `research_note`
    - `risk_note` or blank
@@ -344,6 +344,7 @@ Summary should list changed values only.
    - Save config and exit
    - Revise
    - Quit without saving
+4. When one to three models are selected, the review screen lists the exact selected model slugs on indented continuation lines beneath the `Models` summary row.
 
 Revise routing semantics:
 

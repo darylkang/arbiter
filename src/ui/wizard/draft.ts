@@ -53,7 +53,11 @@ const summarizeDisplaySelection = (
 ): string =>
   summarizeSelection(values.map((value) => labels?.get(value) ?? value));
 
-const formatReviewRow = (key: string, value: string): string => `${key.padEnd(18)}${value}`;
+const REVIEW_KEY_WIDTH = 18;
+
+const formatReviewRow = (key: string, value: string): string => `${key.padEnd(REVIEW_KEY_WIDTH)}${value}`;
+
+const formatReviewContinuation = (value: string): string => `${" ".repeat(REVIEW_KEY_WIDTH)}${value}`;
 
 export const toRailSummaries = (input: {
   draft: WizardDraft;
@@ -285,6 +289,15 @@ export const buildReviewLines = (input: {
   personaLabels?: Map<string, string>;
 }): string[] => {
   const { draft, runMode, selectedConfigPath, isExistingPath, modelLabels, personaLabels } = input;
+  const modelLines = [
+    formatReviewRow(
+      "Models",
+      `${summarizeDisplaySelection(draft.modelSlugs, modelLabels)} (${draft.modelSlugs.length} selected)`
+    ),
+    ...(draft.modelSlugs.length > 0 && draft.modelSlugs.length <= 3
+      ? draft.modelSlugs.map((slug) => formatReviewContinuation(slug))
+      : [])
+  ];
   const lines = [
     "Review settings, run checks, and choose how to proceed.",
     "",
@@ -298,10 +311,7 @@ export const buildReviewLines = (input: {
     "Config Summary",
     formatReviewRow("Question", `"${truncate(draft.question.trim(), 72)}"`),
     formatReviewRow("Protocol", formatProtocol(draft)),
-    formatReviewRow(
-      "Models",
-      `${summarizeDisplaySelection(draft.modelSlugs, modelLabels)} (${draft.modelSlugs.length} selected)`
-    ),
+    ...modelLines,
     formatReviewRow(
       "Personas",
       `${summarizeDisplaySelection(draft.personaIds, personaLabels)} (${draft.personaIds.length} selected)`

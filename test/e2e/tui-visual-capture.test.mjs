@@ -47,12 +47,12 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
       "Start typing…"
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step3-models"), [
-      "Good default model for broad, lower-cost cross-provider studies.",
       "── Mid",
       "■ GPT-5.4 Mini · OpenAI · 400K ctx · $0.75/$4.5",
       "Claude Sonnet 4.6 · Anthropic",
       "Kimi K2.5 · MoonshotAI",
-      "Mistral Small 4 · Mistral"
+      "Mistral Small 4 · Mistral",
+      "Good default model for broad, lower-cost cross-provider studies."
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step4-personas"), [
       "Select one or more personas for sampling.",
@@ -63,8 +63,16 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step7-review"), [
       "Review and Confirm",
+      "openai/gpt-5.4-mini",
       "Run now"
     ]);
+
+    const modelsRendered = readFileSync(getCheckpoint(checkpoints, "step3-models").textPath, "utf8");
+    assert.ok(
+      modelsRendered.indexOf("■ GPT-5.4 Mini · OpenAI · 400K ctx · $0.75/$4.5") <
+        modelsRendered.indexOf("Balanced mainstream reasoning"),
+      "expected models guidance to render below the list"
+    );
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "stage2-run"), [
       "▍ RUN",
       "── PROGRESS",

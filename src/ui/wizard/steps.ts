@@ -182,6 +182,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
         const model = entry.model;
         return [model.summaryLine, model.researchNote, model.riskNote ?? ""];
       },
+      focusedLinesPlacement: "after",
       extraLines: (selected) =>
         context.modelOptions
           .filter((model) => selected.has(model.slug))
