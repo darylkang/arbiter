@@ -454,6 +454,10 @@ The Models step should feel like a disciplined model-selection surface, not just
   │
   │   Select one or more models for sampling.
   │
+  │   Balanced mainstream reasoning
+  │   Good default model for broad, lower-cost cross-provider studies.
+  │   Smaller sibling of GPT-5.4; compare upward when task difficulty is high.
+  │
   │   ── Flagship
   │     □ GPT-5.4 · OpenAI
   │     □ Claude Opus 4.6 · Anthropic
@@ -464,10 +468,6 @@ The Models step should feel like a disciplined model-selection surface, not just
   │   ▸ ■ GPT-5.4 Mini · OpenAI · 400K ctx · $0.75/$4.5
   │     □ Claude Sonnet 4.6 · Anthropic
   │     □ Gemini 2.5 Flash · Google
-  │
-  │   Balanced mainstream reasoning
-  │   Good default model for broad, lower-cost cross-provider studies.
-  │   Smaller sibling of GPT-5.4; compare upward when task difficulty is high.
   │
   ◇  Personas
   ◇  Decode Params
@@ -481,21 +481,20 @@ The Models step should feel like a disciplined model-selection surface, not just
 Rules:
 
 1. Model rows stay compact and scan-first.
-2. The focused guidance block sits below the list so it remains visible on longer catalogs.
-3. The focused guidance block is always exactly three content lines tall:
+2. The focused guidance block is always exactly three content lines tall:
    - `summary_line`
    - `research_note`
    - `risk_note` or blank
-4. Insert one blank separator line between the list and the guidance block.
-5. `summary_line` is factual and compact; it should not read like a marketing subtitle.
-6. `research_note` explains why a researcher would include the model in a study.
-7. `risk_note` is concise and caution-oriented when present.
-8. Models are grouped by tier using non-interactive headers that the cursor skips.
-9. Insert one blank line before each non-first tier header to preserve breathing room between sections.
-10. Only the active model row appends a compact capability-and-cost fingerprint as muted secondary metadata.
-11. Exact raw slugs remain backend truth and review-step provenance, not browsing-time row content.
-12. Aliased models explain the reproducibility implication in the guidance block rather than the row.
-13. Selected free-tier models still trigger the global warning beneath the guidance block; that warning is selection-state guidance, not focused-row guidance.
+3. The guidance block is followed by one blank separator line before the list.
+4. `summary_line` is factual and compact; it should not read like a marketing subtitle.
+5. `research_note` explains why a researcher would include the model in a study.
+6. `risk_note` is concise and caution-oriented when present.
+7. Models are grouped by tier using non-interactive headers that the cursor skips.
+8. Insert one blank line before each non-first tier header to preserve breathing room between sections.
+9. Only the active model row appends a compact capability-and-cost fingerprint as muted secondary metadata.
+10. Exact raw slugs remain backend truth and review-step provenance, not browsing-time row content.
+11. Aliased models explain the reproducibility implication in the guidance block rather than the row.
+12. Selected free-tier models still trigger the global warning beneath the list; that warning is selection-state guidance, not focused-row guidance.
 
 ### Step 4 Personas Surface
 

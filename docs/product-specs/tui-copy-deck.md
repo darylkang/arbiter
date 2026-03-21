@@ -226,11 +226,11 @@ Rail confirmation:
 5. `LOCKED`: model rows render as `{display_name} · {provider_label}`.
 6. `LOCKED`: models are grouped by tier with non-interactive section headers in this order: `Flagship`, `Mid`, `Budget`, `Free`.
 7. `LOCKED`: insert one blank line before each non-first tier header to create breathing room between sections.
-8. `LOCKED`: the focused guidance block renders exactly three content lines below the list:
+8. `LOCKED`: the focused guidance block renders exactly three content lines:
    - line 1: `{summary_line}`
    - line 2: `{research_note}`
    - line 3: `{risk_note}` or blank
-9. `LOCKED`: insert one blank separator line between the model list and the focused guidance block.
+9. `LOCKED`: the guidance block is followed by one blank separator line before the model list.
 10. `LOCKED`: the active model row appends a compact capability-and-cost fingerprint as muted secondary metadata (for example `400K ctx · $0.75/$4.5`).
 11. `LOCKED`: `summary_line` is a qualitative capability characterization; `research_note` explains why a researcher would include the model in a study; `risk_note` is concise and caution-oriented.
 12. `LOCKED`: `default: true` in the model catalog controls pre-selection; first pass uses exactly one default-selected model.
@@ -310,7 +310,6 @@ Rail confirmation:
 12. `LOCKED`: `Starting run`
 13. `LOCKED`: `Returning to Step 1 with your selections preserved.`
 14. `LOCKED`: `Config Summary`
-15. `LOCKED`: when one to three models are selected, the review screen lists the exact model slugs on indented continuation lines beneath the `Models` summary row.
 
 ## Stage 1 Frozen Study Rail (Run Path)
 

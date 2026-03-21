@@ -341,7 +341,6 @@ export const selectMany = async (inputControl: {
   emptySelectionError?: string;
   frame: StepFrame;
   focusedLines?: (index: number) => string[];
-  focusedLinesPlacement?: "before" | "after";
   extraLines?: (selected: ReadonlySet<string>) => string[];
   renderStepFrame: (frame: StepFrame) => void;
 }): Promise<SelectManyResult> => {
@@ -357,10 +356,8 @@ export const selectMany = async (inputControl: {
       const includePrompt =
         inputControl.prompt.trim().toLowerCase() !== inputControl.frame.activeLabel.trim().toLowerCase();
       const lines: string[] = includePrompt ? [inputControl.prompt, ""] : [];
-      const focusedLines = inputControl.focusedLines?.(selectedIndex) ?? [];
-      const focusedPlacement = inputControl.focusedLinesPlacement ?? "before";
-      if (inputControl.focusedLines && focusedPlacement === "before") {
-        lines.push(...focusedLines);
+      if (inputControl.focusedLines) {
+        lines.push(...inputControl.focusedLines(selectedIndex));
         lines.push("");
       }
       inputControl.choices.forEach((choice, index) => {
@@ -382,10 +379,6 @@ export const selectMany = async (inputControl: {
         }
         lines.push(`${cursor}${checked} ${label}`);
       });
-      if (inputControl.focusedLines && focusedPlacement === "after") {
-        lines.push("");
-        lines.push(...focusedLines);
-      }
       if (inputControl.extraLines) {
         const extras = inputControl.extraLines(selectedIds);
         if (extras.length > 0) {
