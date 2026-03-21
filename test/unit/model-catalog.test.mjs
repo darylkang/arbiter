@@ -71,6 +71,32 @@ test("loadCatalogModels reads presentation metadata from the model catalog", () 
   );
   assert.equal(
     models.find((model) => model.slug === "deepseek/deepseek-v3.2")?.researchNote,
-    "Use for Chinese-family diversity in mainstream cross-provider studies."
+    "Use for text-first DeepSeek coverage in mainstream cross-provider studies."
   );
+  assert.deepEqual(
+    models.map((model) => model.isAliased),
+    models.map((model) => model.slug.replace(/:free$/, "") !== model.openrouter.canonicalSlug)
+  );
+  const tierOrder = ["flagship", "mid", "budget", "free"];
+  const providerOrder = ["openai", "anthropic", "google", "x-ai", "meta-llama", "deepseek", "qwen", "mistralai", "minimax", "moonshotai"];
+  const tierRank = new Map(tierOrder.map((tier, index) => [tier, index]));
+  const providerRank = new Map(providerOrder.map((provider, index) => [provider, index]));
+  const orderingSignature = models.map((model) => `${model.tier}:${model.provider}:${model.sortOrder}`);
+  const expectedSignature = [...models]
+    .sort((left, right) => {
+      const tierDelta =
+        (tierRank.get(left.tier) ?? Number.MAX_SAFE_INTEGER) - (tierRank.get(right.tier) ?? Number.MAX_SAFE_INTEGER);
+      if (tierDelta !== 0) {
+        return tierDelta;
+      }
+      const providerDelta =
+        (providerRank.get(left.provider) ?? Number.MAX_SAFE_INTEGER) -
+        (providerRank.get(right.provider) ?? Number.MAX_SAFE_INTEGER);
+      if (providerDelta !== 0) {
+        return providerDelta;
+      }
+      return left.sortOrder - right.sortOrder;
+    })
+    .map((model) => `${model.tier}:${model.provider}:${model.sortOrder}`);
+  assert.deepEqual(orderingSignature, expectedSignature);
 });
