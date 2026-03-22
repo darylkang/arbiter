@@ -312,6 +312,12 @@ export const captureVisualJourney = async (options = {}) => {
 
     await waitForText("▸  Protocol");
     await saveSnapshot("step2-protocol");
+    arrowDown(1);
+    pressEnter();
+
+    await waitForText("Debate (2P, 1R, 3 turns)");
+    await waitForText("2 participants, 1 round (3 turns)");
+    await saveSnapshot("step2-debate-config");
     pressEnter();
 
     await waitForText("▸  Models");

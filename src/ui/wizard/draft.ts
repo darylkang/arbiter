@@ -10,7 +10,7 @@ import {
   truncate,
   type RailStep
 } from "../wizard-theme.js";
-import { debateRoleReviewSummary } from "../../protocols/debate-v1/roles.js";
+import { debateConfigSummary, debateRoleReviewSummary } from "../../protocols/debate-v1/roles.js";
 import { RAIL_ITEMS, type EntryPath, type RunMode, type WizardDraft } from "./types.js";
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -24,7 +24,7 @@ const asNonEmptyArray = <T>(items: T[], label: string): [T, ...T[]] => {
 
 export const formatProtocol = (draft: WizardDraft): string =>
   draft.protocolType === "debate_v1"
-    ? `Debate (${draft.participants} participants, ${draft.rounds} rounds)`
+    ? debateConfigSummary(draft.participants, draft.rounds)
     : "Independent";
 
 const formatDebateRoleSummary = (draft: WizardDraft): string =>
@@ -93,7 +93,7 @@ export const toRailSummaries = (input: {
   if (input.currentStep >= 2) {
     summaries[3] =
       draft.protocolType === "debate_v1"
-        ? `Debate (${draft.participants}P, ${draft.rounds}R)`
+        ? debateConfigSummary(draft.participants, draft.rounds)
         : "Independent";
   }
   if (input.currentStep >= 3 && draft.modelSlugs.length > 0) {

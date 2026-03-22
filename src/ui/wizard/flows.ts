@@ -6,6 +6,12 @@ import type { ArbiterResolvedConfig } from "../../generated/config.types.js";
 import { resolveConfig } from "../../config/resolve-config.js";
 import { writeJsonFile } from "../../cli/commands.js";
 import {
+  DEBATE_PRIMARY_MATRIX,
+  debateConfigLabel,
+  debateConfigSummary,
+  debateRoleReviewSummary
+} from "../../protocols/debate-v1/roles.js";
+import {
   askFloatInput,
   askIntegerInput,
   askTextInput,
@@ -115,49 +121,43 @@ export const configureDebateProtocol = async (input: {
   buildStepFrame: StepFrameBuilder;
   renderStepFrame: (frame: StepFrame) => void;
 }): Promise<"done" | NavigationSignal> => {
-  while (true) {
-    const participants = await askIntegerInput({
-      frame: input.buildStepFrame(
-        2,
-        1,
-        "Protocol",
-        "Each round: all participants speak in order; after R rounds, participant A gives the final response."
-      ),
-      title: "Participants (P)",
-      helperLines: ["Research-grade range: 2 to 4 participants."],
-      defaultValue: input.draft.participants,
-      min: 2,
-      max: 4,
-      renderStepFrame: input.renderStepFrame
-    });
-    if (participants === SELECT_BACK || participants === SELECT_EXIT) {
-      return participants;
-    }
-    input.draft.participants = participants;
-
-    const rounds = await askIntegerInput({
-      frame: input.buildStepFrame(
-        2,
-        1,
-        "Protocol",
-        "Each round: all participants speak in order; after R rounds, participant A gives the final response."
-      ),
-      title: "Rounds (R)",
-      helperLines: ["Research-grade range: 1 to 2 rounds."],
-      defaultValue: input.draft.rounds,
-      min: 1,
-      max: 2,
-      renderStepFrame: input.renderStepFrame
-    });
-    if (rounds === SELECT_EXIT) {
-      return rounds;
-    }
-    if (rounds === SELECT_BACK) {
-      continue;
-    }
-    input.draft.rounds = rounds;
-    return "done";
+  const defaultIndex = Math.max(
+    0,
+    DEBATE_PRIMARY_MATRIX.findIndex(
+      (option) => option.participants === input.draft.participants && option.rounds === input.draft.rounds
+    )
+  );
+  const selection = await selectOne({
+    prompt: "Protocol",
+    choices: DEBATE_PRIMARY_MATRIX.map((option) => ({
+      id: option.id,
+      label: debateConfigLabel(option.participants, option.rounds)
+    })),
+    defaultIndex,
+    frame: input.buildStepFrame(2, 1, "Protocol", "Select how each trial is structured."),
+    focusedLines: (index) => {
+      const option = DEBATE_PRIMARY_MATRIX[index] ?? DEBATE_PRIMARY_MATRIX[0];
+      if (!option) {
+        return ["", "", ""];
+      }
+      return [
+        debateConfigSummary(option.participants, option.rounds),
+        debateRoleReviewSummary(option.participants),
+        option.rationale
+      ];
+    },
+    renderStepFrame: input.renderStepFrame
+  });
+  if (selection === SELECT_BACK || selection === SELECT_EXIT) {
+    return selection;
   }
+  const selected = DEBATE_PRIMARY_MATRIX.find((option) => option.id === selection);
+  if (!selected) {
+    throw new Error(`Unknown debate matrix selection: ${selection}`);
+  }
+  input.draft.participants = selected.participants;
+  input.draft.rounds = selected.rounds;
+  return "done";
 };
 
 export const configureDecodeParams = async (input: {

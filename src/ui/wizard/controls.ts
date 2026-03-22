@@ -292,6 +292,7 @@ export const selectOne = async (inputControl: {
   choices: Choice[];
   defaultIndex?: number;
   frame: StepFrame;
+  focusedLines?: (index: number) => string[];
   renderStepFrame: (frame: StepFrame) => void;
 }): Promise<SelectOneResult> => {
   let selectedIndex = firstEnabledIndex(inputControl.choices, inputControl.defaultIndex ?? 0);
@@ -299,7 +300,11 @@ export const selectOne = async (inputControl: {
     render: (errorLine) => {
       const includePrompt =
         inputControl.prompt.trim().toLowerCase() !== inputControl.frame.activeLabel.trim().toLowerCase();
-      const lines: string[] = includePrompt ? [inputControl.prompt, ""] : [""];
+      const lines: string[] = includePrompt ? [inputControl.prompt, ""] : [];
+      if (inputControl.focusedLines) {
+        lines.push(...inputControl.focusedLines(selectedIndex));
+        lines.push("");
+      }
       inputControl.choices.forEach((choice, index) => {
         const marker = index === selectedIndex ? "▸ " : "  ";
         const selectedGlyph = index === selectedIndex ? "●" : "○";

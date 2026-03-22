@@ -1,5 +1,11 @@
 export type DebateRoleKind = "lead" | "challenger" | "counter" | "auditor";
 export type DebateConditionId = "D1" | "D2" | "D3" | "D4";
+export type DebateMatrixOption = {
+  id: DebateConditionId;
+  participants: number;
+  rounds: number;
+  rationale: string;
+};
 
 export const DEBATE_RESPONDER_ROLE_CYCLE: DebateRoleKind[] = ["challenger", "counter", "auditor"];
 
@@ -92,6 +98,46 @@ export const resolveDebateCondition = (
   }
   return null;
 };
+
+export const DEBATE_PRIMARY_MATRIX: DebateMatrixOption[] = [
+  {
+    id: "D1",
+    participants: 2,
+    rounds: 1,
+    rationale: "Minimal interaction: does any structured debate shift the outcome distribution?"
+  },
+  {
+    id: "D2",
+    participants: 3,
+    rounds: 1,
+    rationale: "Role diversity: does adding a competing answer change the outcome?"
+  },
+  {
+    id: "D3",
+    participants: 2,
+    rounds: 2,
+    rationale: "Round depth: does a second exchange improve the lead's final synthesis?"
+  },
+  {
+    id: "D4",
+    participants: 4,
+    rounds: 1,
+    rationale: "Full saturation: all four role types active in a single-round debate."
+  }
+];
+
+export const debateTurnCount = (participants: number, rounds: number): number =>
+  participants * rounds + 1;
+
+export const debateConfigLabel = (participants: number, rounds: number): string => {
+  const turns = debateTurnCount(participants, rounds);
+  const participantLabel = participants === 1 ? "participant" : "participants";
+  const roundLabel = rounds === 1 ? "round" : "rounds";
+  return `${participants} ${participantLabel}, ${rounds} ${roundLabel} (${turns} turns)`;
+};
+
+export const debateConfigSummary = (participants: number, rounds: number): string =>
+  `Debate (${participants}P, ${rounds}R, ${debateTurnCount(participants, rounds)} turns)`;
 
 export const debateRoleReviewSummary = (participants: number): string =>
   Array.from({ length: participants }, (_, index) => {
