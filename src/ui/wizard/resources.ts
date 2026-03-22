@@ -34,7 +34,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 const PERSONA_CATEGORY_LABELS: Record<string, string> = {
-  baseline: "neutral",
+  baseline: "control",
   adversarial: "adversarial",
   analytical: "structured",
   divergent: "divergent",

@@ -56,10 +56,10 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
       "Mistral Small 4 · Mistral"
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step4-personas"), [
-      "Baseline",
-      "Unprompted control condition",
-      "Use as the no-persona anchor for H2 comparisons.",
-      "■ Baseline · neutral",
+      "Neutral",
+      "Format-matched control condition",
+      "Use as the format-matched control for prompted-persona comparisons.",
+      "■ Neutral · control",
       "Skeptical"
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step7-review"), [

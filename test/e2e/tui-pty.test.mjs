@@ -402,10 +402,10 @@ test("pty: decode numeric input stays inside the Stage 1 TUI renderer", { concur
     session.pressEnter();
 
     await session.waitForText("▸  Personas", 25000);
-    await session.waitForText("Baseline", 25000);
-    await session.waitForText("Unprompted control condition", 25000);
-    await session.waitForText("Use as the no-persona anchor for H2 comparisons.", 25000);
-    await session.waitForText("■ Baseline · neutral", 25000);
+    await session.waitForText("Neutral", 25000);
+    await session.waitForText("Format-matched control condition", 25000);
+    await session.waitForText("Use as the format-matched control for prompted-persona comparisons.", 25000);
+    await session.waitForText("■ Neutral · control", 25000);
     session.pressEnter();
 
     await session.waitForText("▸  Decode Params", 25000);

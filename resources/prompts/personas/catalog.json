@@ -3,21 +3,21 @@
   "personas": [
     {
       "id": "persona_neutral",
-      "display_name": "Baseline",
-      "subtitle": "Unprompted control condition",
+      "display_name": "Neutral",
+      "subtitle": "Format-matched control condition",
       "category": "baseline",
-      "when_to_use": "Use as the no-persona anchor for H2 comparisons.",
-      "expected_effect": "Expected to anchor the reference distribution while preserving prompt-presence asymmetry against prompted personas.",
+      "when_to_use": "Use as the format-matched control for prompted-persona comparisons.",
+      "expected_effect": "Expected to absorb prompt-presence effects without steering answers toward a specific reasoning posture.",
       "default": true,
       "sort_order": 0
     },
     {
       "id": "persona_skeptical",
       "display_name": "Skeptical",
-      "subtitle": "Counter-argument and failure-mode pressure",
+      "subtitle": "Strongest-objection stress test",
       "category": "adversarial",
-      "when_to_use": "Use when you want models to test their own answer against objections before committing.",
-      "expected_effect": "Expected to widen the distribution by increasing cautious, qualified, or self-critical outputs.",
+      "when_to_use": "Use when you want models to challenge their own answer before committing.",
+      "expected_effect": "Expected to widen the distribution by increasing objections, caveats, or reversals.",
       "default": false,
       "sort_order": 1
     },
@@ -26,18 +26,18 @@
       "display_name": "Analytical",
       "subtitle": "Problem decomposition before synthesis",
       "category": "analytical",
-      "when_to_use": "Use when you want models to break complex questions into separable parts before answering.",
-      "expected_effect": "Expected to increase structured, assumption-sensitive answers and reduce leaps to conclusion.",
+      "when_to_use": "Use when you want models to break complex questions into parts before answering.",
+      "expected_effect": "Expected to increase structured, decomposition-led answers and reduce leaps to conclusion.",
       "default": false,
       "sort_order": 2
     },
     {
       "id": "persona_exploratory",
       "display_name": "Exploratory",
-      "subtitle": "Multiple plausible paths before narrowing",
+      "subtitle": "Multiple candidate answers before narrowing",
       "category": "divergent",
       "when_to_use": "Use when you want breadth before commitment on ambiguous questions.",
-      "expected_effect": "Expected to widen the distribution by increasing alternative framings or candidate conclusions.",
+      "expected_effect": "Expected to widen the distribution by surfacing more alternative framings or candidate conclusions.",
       "default": false,
       "sort_order": 3
     },

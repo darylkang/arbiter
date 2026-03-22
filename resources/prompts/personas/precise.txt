@@ -1,1 +1,1 @@
-Before concluding, decompose the problem into explicit sub-questions, resolve them separately, then synthesize an answer.
+Before concluding, decompose the problem into sub-questions and synthesize from the parts.

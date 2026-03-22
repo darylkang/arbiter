@@ -7,35 +7,35 @@
       "id": "persona_neutral",
       "type": "participant_persona",
       "path": "resources/prompts/personas/neutral.txt",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "description": "Unprompted control condition."
+      "sha256": "40b4c34ffb101c0870429062b3140e0cb107593f78db94f413d8c5ea9339e509",
+      "description": "Format-matched control condition."
     },
     {
       "id": "persona_skeptical",
       "type": "participant_persona",
       "path": "resources/prompts/personas/skeptical.txt",
-      "sha256": "d6988b059f346f57d9218710f3516d7f09688cb9af11cd016445b44e8d2aea7b",
-      "description": "Counter-argument and failure-mode pressure."
+      "sha256": "3bba1f46ded837ab0ada81bdb6d78e01ca0da469bd10817bd4bee887cc45ab96",
+      "description": "Strongest-objection stress test."
     },
     {
       "id": "persona_precise",
       "type": "participant_persona",
       "path": "resources/prompts/personas/precise.txt",
-      "sha256": "ff248f3833a76374dd5bd990d67d0cac913025d6c31fc8200c8b0c84d81a983a",
+      "sha256": "a4170288f03271a3509b955fcf8cbddf33e9b8a0461fb0e94e349b4877e1379f",
       "description": "Problem decomposition before synthesis."
     },
     {
       "id": "persona_exploratory",
       "type": "participant_persona",
       "path": "resources/prompts/personas/exploratory.txt",
-      "sha256": "72ca6130a48f3df11de482acd59c47dad09bb7909a83f7256ac7164e04c4ae2f",
-      "description": "Multiple plausible paths before narrowing."
+      "sha256": "14db9458011f2a8d8616affa1fda95a4bb908b3d90fceb61422779a442443506",
+      "description": "Multiple candidate answers before narrowing."
     },
     {
       "id": "persona_decisive",
       "type": "participant_persona",
       "path": "resources/prompts/personas/decisive.txt",
-      "sha256": "994e2724c748c3732db5ab6007d39dc1363fcd37d4dc239a82eefb77c36d0857",
+      "sha256": "85d38a8f20f8598d4df32002f15007fd28c5248915ad6b094b73ba3ec65f85fd",
       "description": "Single-best-answer commitment."
     },
     {

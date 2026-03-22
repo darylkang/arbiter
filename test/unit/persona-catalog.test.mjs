@@ -26,9 +26,9 @@ test("loadPersonaOptions reads presentation metadata from the persona catalog", 
     [
       {
         id: "persona_neutral",
-        displayName: "Baseline",
+        displayName: "Neutral",
         category: "baseline",
-        categoryLabel: "neutral",
+        categoryLabel: "control",
         isDefault: true
       },
       {
@@ -61,7 +61,7 @@ test("loadPersonaOptions reads presentation metadata from the persona catalog", 
       }
     ]
   );
-  assert.equal(personas[0]?.whenToUse, "Use as the no-persona anchor for H2 comparisons.");
+  assert.equal(personas[0]?.whenToUse, "Use as the format-matched control for prompted-persona comparisons.");
 });
 
 test("loadPersonaOptions rejects catalog and manifest drift as a hard error", () => {
@@ -77,8 +77,8 @@ test("loadPersonaOptions rejects catalog and manifest drift as a hard error", ()
           id: "persona_neutral",
           type: "participant_persona",
           path: "resources/prompts/personas/neutral.txt",
-          sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          description: "Unprompted control condition."
+          sha256: "40b4c34ffb101c0870429062b3140e0cb107593f78db94f413d8c5ea9339e509",
+          description: "Format-matched control condition."
         }
       ]
     });
@@ -88,23 +88,23 @@ test("loadPersonaOptions rejects catalog and manifest drift as a hard error", ()
       personas: [
         {
           id: "persona_neutral",
-          display_name: "Baseline",
-          subtitle: "Unprompted control condition",
+          display_name: "Neutral",
+          subtitle: "Format-matched control condition",
           category: "baseline",
-          when_to_use: "Use as the no-persona anchor for H2 comparisons.",
+          when_to_use: "Use as the format-matched control for prompted-persona comparisons.",
           expected_effect:
-            "Expected to anchor the reference distribution while preserving prompt-presence asymmetry against prompted personas.",
+            "Expected to absorb prompt-presence effects without steering answers toward a specific reasoning posture.",
           default: true,
           sort_order: 0
         },
         {
           id: "persona_skeptical",
           display_name: "Skeptical",
-          subtitle: "Counter-argument and failure-mode pressure",
+          subtitle: "Strongest-objection stress test",
           category: "adversarial",
-          when_to_use: "Use when you want models to test their own answer against objections before committing.",
+          when_to_use: "Use when you want models to challenge their own answer before committing.",
           expected_effect:
-            "Expected to widen the distribution by increasing cautious, qualified, or self-critical outputs.",
+            "Expected to widen the distribution by increasing objections, caveats, or reversals.",
           default: false,
           sort_order: 1
         }
