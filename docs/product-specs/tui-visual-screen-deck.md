@@ -520,7 +520,7 @@ The Personas step should feel guidance-rich without turning the list into prose.
   │   Strongest-objection framing
   │   Use when you want pressure against premature conclusions.
   │
-  │   ■ Baseline
+  │   ■ Baseline · neutral
   │   ▸ □ Skeptical · adversarial
   │     ○ Analytical
   │     ○ Exploratory
@@ -543,7 +543,7 @@ Rules:
    - subtitle
    - when-to-use guidance
 4. Line 1 names the focused persona directly, but uses a calmer secondary emphasis than the active row itself.
-5. Persona category is treated as secondary metadata and appears only as the active-row tail reveal.
+5. Persona category is treated as secondary metadata and appears only as the active-row tail reveal using a researcher-facing category label.
 5. Subtitle and when-to-use guidance both use the normal body style.
 4. The guidance block must not change height while the cursor moves.
 5. `when_to_use` text must fit on one rendered line at supported widths.

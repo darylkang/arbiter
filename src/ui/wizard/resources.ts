@@ -33,6 +33,14 @@ const PROVIDER_LABELS: Record<string, string> = {
   "meta-llama": "Meta"
 };
 
+const PERSONA_CATEGORY_LABELS: Record<string, string> = {
+  baseline: "neutral",
+  adversarial: "adversarial",
+  analytical: "structured",
+  divergent: "divergent",
+  decisive: "convergent"
+};
+
 const toProviderLabel = (provider: string): string => PROVIDER_LABELS[provider] ?? titleCase(provider);
 
 const toTierLabel = (tier: "budget" | "mid" | "flagship" | "free"): string =>
@@ -204,6 +212,7 @@ export const loadPersonaOptions = (assetRoot: string): PersonaOption[] => {
       displayName: persona.display_name,
       subtitle: persona.subtitle,
       category: persona.category,
+      categoryLabel: PERSONA_CATEGORY_LABELS[persona.category] ?? persona.category,
       whenToUse: persona.when_to_use,
       riskNote: persona.risk_note,
       isDefault: persona.default

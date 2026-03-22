@@ -57,9 +57,9 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step4-personas"), [
       "Baseline",
-      "Unframed default reasoning stance",
-      "Use as the reference condition for study comparisons.",
-      "■ Baseline · baseline",
+      "Unprompted control condition",
+      "Use as the no-persona anchor for H2 comparisons.",
+      "■ Baseline · neutral",
       "Skeptical"
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step7-review"), [

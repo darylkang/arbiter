@@ -91,7 +91,25 @@ The current v1 H2 posture set is:
 
 These personas are intended to create a small, interpretable library of reasoning postures rather than a broad catalog of stylistic prompt variants.
 
+Implementation note:
+
+1. stable config/artifact IDs currently remain `persona_neutral` -> `Baseline` and `persona_precise` -> `Analytical` for backward-compatible v1 continuity,
+2. display labels are the researcher-facing names and should be used in UI and analysis narration.
+
 The expected distributional effects associated with these personas are design hypotheses, not guarantees. In particular, the v1 `Baseline` condition intentionally preserves an unframed prompt, so it remains a clean anchor while also carrying a prompt-presence asymmetry relative to the other H2 interventions.
+
+Current v1 directional hypotheses:
+
+1. `Baseline`: anchor condition; expected to preserve the reference distribution while mixing no-posture and no-extra-prompt effects.
+2. `Skeptical`: expected to widen the distribution by increasing objections, caveats, and self-critical revisions.
+3. `Analytical`: expected to increase structured, decomposition-led answers and reduce leaps to conclusion.
+4. `Exploratory`: expected to widen the distribution by surfacing more alternative framings or candidate conclusions.
+5. `Decisive`: expected to tighten the distribution around clearer top-choice outputs.
+
+Interpretation guidance:
+
+1. `Baseline` versus any prompted persona is not a pure posture-only contrast, because it also differs in prompt presence.
+2. Debate-role interactions are not equally interpretable across slots: persona effects are easiest to interpret on proposer roles and more conflated on critic roles whose protocol prompt already demands objection-finding behavior.
 
 ## 3) Primary Estimand
 

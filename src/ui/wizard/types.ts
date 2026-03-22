@@ -91,6 +91,7 @@ export type PersonaOption = {
   displayName: string;
   subtitle: string;
   category: string;
+  categoryLabel: string;
   whenToUse: string;
   riskNote?: string;
   isDefault: boolean;

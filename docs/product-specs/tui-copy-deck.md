@@ -248,7 +248,7 @@ Rail confirmation:
 1. `LOCKED`: `Personas`
 2. `FLEX`: the focused guidance block itself provides the primary explanatory copy for this step.
 3. `LOCKED`: `Fix required: select at least one persona.`
-4. `LOCKED`: persona rows render as `{display_name}`; the active row appends `{category}` as muted secondary metadata.
+4. `LOCKED`: persona rows render as `{display_name}`; the active row appends a researcher-facing category label as muted secondary metadata.
 5. `LOCKED`: the focused guidance block renders exactly three content lines:
    - line 1: `{display_name}`
    - line 2: `{subtitle}`

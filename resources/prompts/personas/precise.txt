@@ -1,1 +1,1 @@
-Make assumptions, constraints, and key distinctions explicit before concluding.
+Before concluding, decompose the problem into explicit sub-questions, resolve them separately, then synthesize an answer.

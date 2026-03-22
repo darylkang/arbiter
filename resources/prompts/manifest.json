@@ -8,35 +8,35 @@
       "type": "participant_persona",
       "path": "resources/prompts/personas/neutral.txt",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "description": "Unframed default reasoning stance."
+      "description": "Unprompted control condition."
     },
     {
       "id": "persona_skeptical",
       "type": "participant_persona",
       "path": "resources/prompts/personas/skeptical.txt",
-      "sha256": "31fa7ee57c7a6a87a92ebc6597f3f63e5a6a060473a78dc4a515a44eb5937e80",
-      "description": "Strongest-objection framing."
+      "sha256": "d6988b059f346f57d9218710f3516d7f09688cb9af11cd016445b44e8d2aea7b",
+      "description": "Counter-argument and failure-mode pressure."
     },
     {
       "id": "persona_precise",
       "type": "participant_persona",
       "path": "resources/prompts/personas/precise.txt",
-      "sha256": "16ad2fe568fa5e05d9ee2b97465d39f157c74e1ce837cc36c2c23c1f7657540b",
-      "description": "Explicit assumptions and structural rigor."
+      "sha256": "ff248f3833a76374dd5bd990d67d0cac913025d6c31fc8200c8b0c84d81a983a",
+      "description": "Problem decomposition before synthesis."
     },
     {
       "id": "persona_exploratory",
       "type": "participant_persona",
       "path": "resources/prompts/personas/exploratory.txt",
-      "sha256": "5c680442e0badc444d9b39529bad39a1fb0658490ab49692918a6f1336cffc1f",
-      "description": "Multiple plausible approaches before committing."
+      "sha256": "72ca6130a48f3df11de482acd59c47dad09bb7909a83f7256ac7164e04c4ae2f",
+      "description": "Multiple plausible paths before narrowing."
     },
     {
       "id": "persona_decisive",
       "type": "participant_persona",
       "path": "resources/prompts/personas/decisive.txt",
-      "sha256": "6fdf2048ca87d5db2b222997e5a7cb06144589972dd00f82194af47f9eb1ebc2",
-      "description": "Clear commitment under stated assumptions."
+      "sha256": "994e2724c748c3732db5ab6007d39dc1363fcd37d4dc239a82eefb77c36d0857",
+      "description": "Single-best-answer commitment."
     },
     {
       "id": "protocol_independent_v1_system",

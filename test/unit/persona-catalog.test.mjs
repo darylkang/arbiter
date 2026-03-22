@@ -20,6 +20,7 @@ test("loadPersonaOptions reads presentation metadata from the persona catalog", 
       id: persona.id,
       displayName: persona.displayName,
       category: persona.category,
+      categoryLabel: persona.categoryLabel,
       isDefault: persona.isDefault
     })),
     [
@@ -27,38 +28,43 @@ test("loadPersonaOptions reads presentation metadata from the persona catalog", 
         id: "persona_neutral",
         displayName: "Baseline",
         category: "baseline",
+        categoryLabel: "neutral",
         isDefault: true
       },
       {
         id: "persona_skeptical",
         displayName: "Skeptical",
         category: "adversarial",
+        categoryLabel: "adversarial",
         isDefault: false
       },
       {
         id: "persona_precise",
         displayName: "Analytical",
         category: "analytical",
+        categoryLabel: "structured",
         isDefault: false
       },
       {
         id: "persona_exploratory",
         displayName: "Exploratory",
         category: "divergent",
+        categoryLabel: "divergent",
         isDefault: false
       },
       {
         id: "persona_decisive",
         displayName: "Decisive",
         category: "decisive",
+        categoryLabel: "convergent",
         isDefault: false
       }
     ]
   );
-  assert.equal(personas[0]?.whenToUse, "Use as the reference condition for study comparisons.");
+  assert.equal(personas[0]?.whenToUse, "Use as the no-persona anchor for H2 comparisons.");
   assert.equal(
     personas[0]?.riskNote,
-    "Caution: contrasts include prompt-presence asymmetry."
+    "Baseline versus prompted-persona contrasts mix posture effects with prompt-presence effects."
   );
 });
 
@@ -76,7 +82,7 @@ test("loadPersonaOptions rejects catalog and manifest drift as a hard error", ()
           type: "participant_persona",
           path: "resources/prompts/personas/neutral.txt",
           sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          description: "Unframed default reasoning stance."
+          description: "Unprompted control condition."
         }
       ]
     });
@@ -87,20 +93,24 @@ test("loadPersonaOptions rejects catalog and manifest drift as a hard error", ()
         {
           id: "persona_neutral",
           display_name: "Baseline",
-          subtitle: "Unframed default reasoning stance",
+          subtitle: "Unprompted control condition",
           category: "baseline",
-          when_to_use: "Use as the reference condition for study comparisons.",
-          risk_note: "Caution: contrasts include prompt-presence asymmetry.",
+          when_to_use: "Use as the no-persona anchor for H2 comparisons.",
+          expected_effect:
+            "Expected to anchor the reference distribution while preserving prompt-presence asymmetry against prompted personas.",
+          risk_note: "Baseline versus prompted-persona contrasts mix posture effects with prompt-presence effects.",
           default: true,
           sort_order: 0
         },
         {
           id: "persona_skeptical",
           display_name: "Skeptical",
-          subtitle: "Strongest-objection framing",
+          subtitle: "Counter-argument and failure-mode pressure",
           category: "adversarial",
-          when_to_use: "Use when you want pressure against premature conclusions.",
-          risk_note: "Caution: may bias toward guarded or underconfident answers.",
+          when_to_use: "Use when you want models to test their own answer against objections before committing.",
+          expected_effect:
+            "Expected to widen the distribution by increasing cautious, qualified, or self-critical outputs.",
+          risk_note: "May shift outputs toward caution or non-commitment.",
           default: false,
           sort_order: 1
         }

@@ -213,7 +213,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
       choices: context.personaOptions.map((persona) => ({
         id: persona.id,
         label: persona.displayName,
-        activeSuffix: persona.category
+        activeSuffix: persona.categoryLabel
       })),
       defaults: state.draft.personaIds,
       emptySelectionError: "Fix required: select at least one persona.",
