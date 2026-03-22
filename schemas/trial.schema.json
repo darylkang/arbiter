@@ -119,6 +119,40 @@
             "null"
           ]
         },
+        "system_prompt_components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "text"],
+            "properties": {
+              "source": {
+                "type": "string",
+                "enum": ["role_prompt", "persona_prompt", "contract_clause"]
+              },
+              "id": {
+                "type": ["string", "null"]
+              },
+              "sha256": {
+                "type": ["string", "null"],
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "turn_instruction_id": {
+          "type": ["string", "null"]
+        },
+        "turn_instruction_sha256": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "turn_instruction_text": {
+          "type": ["string", "null"]
+        },
         "usage": {
           "$ref": "common.schema.json#/$defs/usage_stats"
         },
@@ -348,6 +382,18 @@
     },
     "metadata": {
       "type": "object"
+    },
+    "debate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "participants": { "type": "integer", "minimum": 2 },
+        "rounds": { "type": "integer", "minimum": 1 },
+        "condition": {
+          "type": ["string", "null"],
+          "enum": ["D1", "D2", "D3", "D4", null]
+        }
+      }
     },
     "usage": {
       "$ref": "common.schema.json#/$defs/usage_stats"

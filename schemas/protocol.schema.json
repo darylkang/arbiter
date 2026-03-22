@@ -11,6 +11,7 @@
     "role_cycle",
     "finalizer_slot",
     "prompts",
+    "turn_instructions",
     "outcome_extraction"
   ],
   "properties": {
@@ -47,6 +48,24 @@
         "counter_system": { "type": "string", "minLength": 1 },
         "auditor_system": { "type": "string", "minLength": 1 },
         "lead_final_system": { "type": "string", "minLength": 1 }
+      }
+    },
+    "turn_instructions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lead_turn",
+        "challenger_turn",
+        "counter_turn",
+        "auditor_turn",
+        "lead_final_turn"
+      ],
+      "properties": {
+        "lead_turn": { "type": "string", "minLength": 1 },
+        "challenger_turn": { "type": "string", "minLength": 1 },
+        "counter_turn": { "type": "string", "minLength": 1 },
+        "auditor_turn": { "type": "string", "minLength": 1 },
+        "lead_final_turn": { "type": "string", "minLength": 1 }
       }
     },
     "outcome_extraction": {

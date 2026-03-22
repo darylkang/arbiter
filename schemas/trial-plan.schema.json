@@ -62,7 +62,11 @@
       "required": ["participants", "rounds"],
       "properties": {
         "participants": { "type": "integer", "minimum": 2 },
-        "rounds": { "type": "integer", "minimum": 1 }
+        "rounds": { "type": "integer", "minimum": 1 },
+        "condition": {
+          "type": ["string", "null"],
+          "enum": ["D1", "D2", "D3", "D4", null]
+        }
       }
     }
   }

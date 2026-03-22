@@ -12,7 +12,11 @@ import {
   shouldExcludeMockContractFailure,
   type MockTrialExecutionContext
 } from "../../engine/mock-trial-context.js";
-import { debateRolePromptKey, resolveDebateRoleKind } from "./roles.js";
+import {
+  debateRolePromptKey,
+  debateTurnInstructionPromptKey,
+  resolveDebateRoleKind
+} from "./roles.js";
 
 const sortedSlots = (roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]>): string[] =>
   Object.keys(roleAssignments).sort((a, b) => {
@@ -64,6 +68,16 @@ export const executeMockDebateTrial = async (input: {
     for (const slotId of slots) {
       const content = `Slot ${slotId} round ${round} response for trial ${entry.trial_id}`;
       const assignment = roleAssignments[slotId] ?? roleAssignments[slotA];
+      const rolePromptKey = debateRolePromptKey(assignment.role_kind, false);
+      const rolePrompt = resolvedConfig.protocol.prompts?.[rolePromptKey];
+      if (!rolePrompt) {
+        throw new Error(`Missing resolved debate prompt for ${rolePromptKey}`);
+      }
+      const turnInstructionKey = debateTurnInstructionPromptKey(assignment.role_kind, false);
+      const turnInstruction = resolvedConfig.protocol.turn_instructions?.[turnInstructionKey];
+      if (!turnInstruction) {
+        throw new Error(`Missing resolved debate turn instruction for ${turnInstructionKey}`);
+      }
       calls.push({
         call_index: callIndex,
         turn,
@@ -76,9 +90,17 @@ export const executeMockDebateTrial = async (input: {
           round,
           role_kind: assignment.role_kind,
           role_prompt_id: assignment.role_prompt_id,
-          role_prompt_sha256: assignment.role_prompt_sha256
+          role_prompt_sha256: assignment.role_prompt_sha256,
+          turn_instruction_id: turnInstruction.id,
+          turn_instruction_sha256: turnInstruction.sha256
         },
         response_payload: { content },
+        system_prompt_components: [
+          { source: "role_prompt", id: rolePrompt.id, sha256: rolePrompt.sha256, text: rolePrompt.text }
+        ],
+        turn_instruction_id: turnInstruction.id,
+        turn_instruction_sha256: turnInstruction.sha256,
+        turn_instruction_text: turnInstruction.text,
         attempt: {
           started_at: new Date().toISOString(),
           completed_at: new Date().toISOString(),
@@ -87,8 +109,6 @@ export const executeMockDebateTrial = async (input: {
         },
         error_message: null
       });
-      const rolePromptKey = debateRolePromptKey(assignment.role_kind, false);
-      const rolePrompt = resolvedConfig.protocol.prompts?.[rolePromptKey];
       transcript.push({
         turn,
         turn_index: turn,
@@ -121,6 +141,10 @@ export const executeMockDebateTrial = async (input: {
         : `Raw final content ${entry.trial_id}`;
 
   const slotAFinalAssignment = roleAssignments[slotA] ?? roleAssignments[slots[0]];
+  const finalTurnInstruction = resolvedConfig.protocol.turn_instructions?.lead_final_turn;
+  if (!finalTurnInstruction) {
+    throw new Error("Missing resolved debate turn instruction for lead_final_turn");
+  }
   calls.push({
     call_index: callIndex,
     turn,
@@ -134,9 +158,23 @@ export const executeMockDebateTrial = async (input: {
       role_kind: slotAFinalAssignment.role_kind,
       role_prompt_id: resolvedConfig.protocol.prompts?.lead_final_system.id ?? slotAFinalAssignment.role_prompt_id,
       role_prompt_sha256:
-        resolvedConfig.protocol.prompts?.lead_final_system.sha256 ?? slotAFinalAssignment.role_prompt_sha256
+        resolvedConfig.protocol.prompts?.lead_final_system.sha256 ?? slotAFinalAssignment.role_prompt_sha256,
+      turn_instruction_id: finalTurnInstruction.id,
+      turn_instruction_sha256: finalTurnInstruction.sha256
     },
     response_payload: { content: finalPayload },
+    system_prompt_components: [
+      {
+        source: "role_prompt",
+        id: resolvedConfig.protocol.prompts?.lead_final_system.id ?? slotAFinalAssignment.role_prompt_id,
+        sha256:
+          resolvedConfig.protocol.prompts?.lead_final_system.sha256 ?? slotAFinalAssignment.role_prompt_sha256,
+        text: resolvedConfig.protocol.prompts?.lead_final_system.text ?? ""
+      }
+    ],
+    turn_instruction_id: finalTurnInstruction.id,
+    turn_instruction_sha256: finalTurnInstruction.sha256,
+    turn_instruction_text: finalTurnInstruction.text,
     attempt: {
       started_at: new Date().toISOString(),
       completed_at: new Date().toISOString(),
@@ -189,6 +227,7 @@ export const executeMockDebateTrial = async (input: {
     calls,
     transcript,
     transcript_hash: sha256Hex(canonicalStringify(transcript)),
+    ...(entry.debate ? { debate: entry.debate } : {}),
     raw_assistant_text: finalPayload,
     parsed: {
       parse_status: parsedRecord.parse_status,

@@ -40,6 +40,11 @@ export interface ArbiterTrialRecord {
   metadata?: {
     [k: string]: unknown;
   };
+  debate?: {
+    participants?: number;
+    rounds?: number;
+    condition?: "D1" | "D2" | "D3" | "D4" | null;
+  };
   usage?: UsageStats;
   parsed?: {
     parse_status: "success" | "fallback" | "failed";
@@ -96,6 +101,15 @@ export interface CallRecord {
   response_payload: {
     [k: string]: unknown;
   } | null;
+  system_prompt_components?: {
+    source: "role_prompt" | "persona_prompt" | "contract_clause";
+    id?: string | null;
+    sha256?: string | null;
+    text: string;
+  }[];
+  turn_instruction_id?: string | null;
+  turn_instruction_sha256?: string | null;
+  turn_instruction_text?: string | null;
   usage?: UsageStats;
   attempt: {
     started_at: string;

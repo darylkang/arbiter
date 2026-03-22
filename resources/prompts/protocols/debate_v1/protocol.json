@@ -11,6 +11,13 @@
     "auditor_system": "protocol_debate_v1_auditor_system",
     "lead_final_system": "protocol_debate_v1_lead_final_system"
   },
+  "turn_instructions": {
+    "lead_turn": "protocol_debate_v1_lead_turn",
+    "challenger_turn": "protocol_debate_v1_challenger_turn",
+    "counter_turn": "protocol_debate_v1_counter_turn",
+    "auditor_turn": "protocol_debate_v1_auditor_turn",
+    "lead_final_turn": "protocol_debate_v1_lead_final_turn"
+  },
   "outcome_extraction": {
     "method": "debate_v1_decision_contract"
   }

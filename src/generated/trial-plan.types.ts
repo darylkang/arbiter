@@ -15,6 +15,7 @@ export interface ArbiterTrialPlanRecord {
   debate?: {
     participants: number;
     rounds: number;
+    condition?: "D1" | "D2" | "D3" | "D4" | null;
   };
 }
 export interface DecodeParams {

@@ -265,6 +265,24 @@
             "auditor_system": { "$ref": "#/$defs/embedded_prompt" },
             "lead_final_system": { "$ref": "#/$defs/embedded_prompt" }
           }
+        },
+        "turn_instructions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "lead_turn",
+            "challenger_turn",
+            "counter_turn",
+            "auditor_turn",
+            "lead_final_turn"
+          ],
+          "properties": {
+            "lead_turn": { "$ref": "#/$defs/embedded_prompt" },
+            "challenger_turn": { "$ref": "#/$defs/embedded_prompt" },
+            "counter_turn": { "$ref": "#/$defs/embedded_prompt" },
+            "auditor_turn": { "$ref": "#/$defs/embedded_prompt" },
+            "lead_final_turn": { "$ref": "#/$defs/embedded_prompt" }
+          }
         }
       }
     },

@@ -297,6 +297,36 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
       "participant_protocol_template",
       assetRoot
     );
+    const leadTurnInstruction = resolvePromptEntry(
+      promptMap,
+      protocolSpec.turn_instructions.lead_turn,
+      "participant_protocol_template",
+      assetRoot
+    );
+    const challengerTurnInstruction = resolvePromptEntry(
+      promptMap,
+      protocolSpec.turn_instructions.challenger_turn,
+      "participant_protocol_template",
+      assetRoot
+    );
+    const counterTurnInstruction = resolvePromptEntry(
+      promptMap,
+      protocolSpec.turn_instructions.counter_turn,
+      "participant_protocol_template",
+      assetRoot
+    );
+    const auditorTurnInstruction = resolvePromptEntry(
+      promptMap,
+      protocolSpec.turn_instructions.auditor_turn,
+      "participant_protocol_template",
+      assetRoot
+    );
+    const leadFinalTurnInstruction = resolvePromptEntry(
+      promptMap,
+      protocolSpec.turn_instructions.lead_final_turn,
+      "participant_protocol_template",
+      assetRoot
+    );
 
     resolvedConfig.protocol.roles = protocolSpec.roles as DebateRoleKind[];
     resolvedConfig.protocol.role_cycle = protocolSpec.role_cycle as Exclude<DebateRoleKind, "lead">[];
@@ -326,6 +356,33 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
         id: protocolSpec.prompts.lead_final_system,
         sha256: leadFinalPrompt.sha256,
         text: leadFinalPrompt.text
+      }
+    };
+    resolvedConfig.protocol.turn_instructions = {
+      lead_turn: {
+        id: protocolSpec.turn_instructions.lead_turn,
+        sha256: leadTurnInstruction.sha256,
+        text: leadTurnInstruction.text
+      },
+      challenger_turn: {
+        id: protocolSpec.turn_instructions.challenger_turn,
+        sha256: challengerTurnInstruction.sha256,
+        text: challengerTurnInstruction.text
+      },
+      counter_turn: {
+        id: protocolSpec.turn_instructions.counter_turn,
+        sha256: counterTurnInstruction.sha256,
+        text: counterTurnInstruction.text
+      },
+      auditor_turn: {
+        id: protocolSpec.turn_instructions.auditor_turn,
+        sha256: auditorTurnInstruction.sha256,
+        text: auditorTurnInstruction.text
+      },
+      lead_final_turn: {
+        id: protocolSpec.turn_instructions.lead_final_turn,
+        sha256: leadFinalTurnInstruction.sha256,
+        text: leadFinalTurnInstruction.text
       }
     };
   }

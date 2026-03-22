@@ -17,6 +17,13 @@ test("template manifest defines exactly one init default", () => {
   assert.equal(defaults[0]?.id, "default");
 });
 
+test("template manifest ships the primary debate matrix entries", () => {
+  const ids = new Set(templateManifest.entries.map((entry) => entry.id));
+  for (const id of ["debate_d1", "debate_d2", "debate_d3", "debate_d4"]) {
+    assert.equal(ids.has(id), true, `missing ${id}`);
+  }
+});
+
 for (const templateName of templates) {
   test(`template ${templateName} resolves and runs under the mock service`, { concurrency: false }, async () => {
     await withTempWorkspace(`arbiter-template-${templateName}-`, async (cwd) => {

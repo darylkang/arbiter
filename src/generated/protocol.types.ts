@@ -30,6 +30,13 @@ export interface ArbiterProtocolSpec {
     auditor_system: string;
     lead_final_system: string;
   };
+  turn_instructions: {
+    lead_turn: string;
+    challenger_turn: string;
+    counter_turn: string;
+    auditor_turn: string;
+    lead_final_turn: string;
+  };
   outcome_extraction: {
     method: "debate_v1_decision_contract";
   };

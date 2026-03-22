@@ -79,6 +79,41 @@
       "path": "resources/prompts/protocols/debate_v1/lead_final_system.md",
       "sha256": "45ddf6405e753dfa843ffa4965d0489f8978fec8bd5e049b826410a4b97c4176",
       "description": "Debate lead final system prompt."
+    },
+    {
+      "id": "protocol_debate_v1_lead_turn",
+      "type": "participant_protocol_template",
+      "path": "resources/prompts/protocols/debate_v1/lead_turn.md",
+      "sha256": "a8ae0aff2023d12fff59db675c341a776595f5efa8a4c4a2082d62b25d5463b3",
+      "description": "Debate lead turn instruction."
+    },
+    {
+      "id": "protocol_debate_v1_challenger_turn",
+      "type": "participant_protocol_template",
+      "path": "resources/prompts/protocols/debate_v1/challenger_turn.md",
+      "sha256": "08cf61bf27799cf0fffd7fc443d0ac99da6c824618a26e444801d0b5e8d25aab",
+      "description": "Debate challenger turn instruction."
+    },
+    {
+      "id": "protocol_debate_v1_counter_turn",
+      "type": "participant_protocol_template",
+      "path": "resources/prompts/protocols/debate_v1/counter_turn.md",
+      "sha256": "962840b0034afab3d66188dc27efc258dd008d719551152e3e671916db111c94",
+      "description": "Debate counter turn instruction."
+    },
+    {
+      "id": "protocol_debate_v1_auditor_turn",
+      "type": "participant_protocol_template",
+      "path": "resources/prompts/protocols/debate_v1/auditor_turn.md",
+      "sha256": "5b2f255f5022d629060f61c917e2e5e1a54f164b9a462755d79989dd977db5bf",
+      "description": "Debate auditor turn instruction."
+    },
+    {
+      "id": "protocol_debate_v1_lead_final_turn",
+      "type": "participant_protocol_template",
+      "path": "resources/prompts/protocols/debate_v1/lead_final_turn.md",
+      "sha256": "29b2813e9d957e344ed279217da4f889acce6fc613af4247d7da07ac8924aac9",
+      "description": "Debate lead final turn instruction."
     }
   ]
 }

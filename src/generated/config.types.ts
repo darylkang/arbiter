@@ -72,6 +72,13 @@ export type ArbiterResolvedConfig = {
       auditor_system: EmbeddedPrompt;
       lead_final_system: EmbeddedPrompt;
     };
+    turn_instructions?: {
+      lead_turn: EmbeddedPrompt;
+      challenger_turn: EmbeddedPrompt;
+      counter_turn: EmbeddedPrompt;
+      auditor_turn: EmbeddedPrompt;
+      lead_final_turn: EmbeddedPrompt;
+    };
   };
   execution: {
     k_max: number;

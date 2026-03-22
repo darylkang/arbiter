@@ -27,7 +27,10 @@ import {
   type LiveTrialExecutionContext
 } from "../../engine/live-trial-context.js";
 import { sha256Hex } from "../../utils/hash.js";
-import { debateRolePromptKey, debateRoleTurnInstruction } from "./roles.js";
+import {
+  debateRolePromptKey,
+  debateTurnInstructionPromptKey
+} from "./roles.js";
 
 const sortedSlots = (roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]>): string[] =>
   Object.keys(roleAssignments).sort((a, b) => {
@@ -47,9 +50,10 @@ const buildDebatePrompt = (input: {
   roleKind: string;
   round: number;
   isFinal: boolean;
+  turnInstructionText: string;
 }): string => {
   const currentTurn = `Current turn:\nround ${input.round}, slot ${input.slotId}, role ${input.roleKind}`;
-  const task = `Your task for this turn:\n${debateRoleTurnInstruction(input.roleKind as never, input.isFinal)}`;
+  const task = `Your task for this turn:\n${input.turnInstructionText}`;
 
   if (input.transcript.length === 0) {
     return `Question:\n${input.question}\n\n${currentTurn}\n\n${task}`;
@@ -198,6 +202,28 @@ export const executeLiveDebateTrial = async (input: {
     if (!rolePrompt) {
       return { error: new Error(`Missing resolved debate prompt for ${rolePromptKey}`) };
     }
+    const turnInstructionKey = debateTurnInstructionPromptKey(assignment.role_kind, callInput.isFinal);
+    const turnInstruction = resolvedConfig.protocol.turn_instructions?.[turnInstructionKey];
+    if (!turnInstruction) {
+      return { error: new Error(`Missing resolved debate turn instruction for ${turnInstructionKey}`) };
+    }
+    const systemPromptComponents = [
+      { source: "role_prompt" as const, id: rolePrompt.id, sha256: rolePrompt.sha256, text: rolePrompt.text },
+      ...(personaText && personaText.trim().length > 0
+        ? [
+            {
+              source: "persona_prompt" as const,
+              id: assignment.persona_id,
+              sha256:
+                assignment.persona_id ? context.personaMap.get(assignment.persona_id)?.sha256 ?? null : null,
+              text: personaText
+            }
+          ]
+        : []),
+      ...(callInput.isFinal && contractClause
+        ? [{ source: "contract_clause" as const, id: resolvedConfig.protocol.decision_contract?.id ?? null, sha256: null, text: contractClause }]
+        : [])
+    ];
     const systemPrompt = [
       rolePrompt.text,
       personaText && personaText.trim().length > 0 ? personaText : null,
@@ -220,7 +246,8 @@ export const executeLiveDebateTrial = async (input: {
           slotId: callInput.slotId,
           roleKind: assignment.role_kind,
           round: callInput.round,
-          isFinal: callInput.isFinal
+          isFinal: callInput.isFinal,
+          turnInstructionText: turnInstruction.text
         })
       }
     ];
@@ -257,9 +284,15 @@ export const executeLiveDebateTrial = async (input: {
           ...result.requestPayload,
           role_kind: assignment.role_kind,
           role_prompt_id: rolePrompt.id,
-          role_prompt_sha256: rolePrompt.sha256
+          role_prompt_sha256: rolePrompt.sha256,
+          turn_instruction_id: turnInstruction.id,
+          turn_instruction_sha256: turnInstruction.sha256
         },
         response_payload: asObject(result.responseBody) ?? null,
+        system_prompt_components: systemPromptComponents,
+        turn_instruction_id: turnInstruction.id,
+        turn_instruction_sha256: turnInstruction.sha256,
+        turn_instruction_text: turnInstruction.text,
         usage: result.usage ?? undefined,
         attempt: {
           started_at: callStarted,
@@ -304,9 +337,15 @@ export const executeLiveDebateTrial = async (input: {
         ...(error instanceof OpenRouterError ? (error.requestPayload ?? {}) : {}),
         role_kind: assignment.role_kind,
         role_prompt_id: rolePrompt.id,
-        role_prompt_sha256: rolePrompt.sha256
+        role_prompt_sha256: rolePrompt.sha256,
+        turn_instruction_id: turnInstruction.id,
+        turn_instruction_sha256: turnInstruction.sha256
       },
       response_payload: asObject(responsePayload) ?? null,
+      system_prompt_components: systemPromptComponents,
+      turn_instruction_id: turnInstruction.id,
+      turn_instruction_sha256: turnInstruction.sha256,
+      turn_instruction_text: turnInstruction.text,
       attempt: {
         started_at: callStarted,
         completed_at: new Date().toISOString(),
@@ -442,6 +481,7 @@ export const executeLiveDebateTrial = async (input: {
     calls,
     transcript,
     transcript_hash: sha256Hex(canonicalStringify(transcript)),
+    ...(entry.debate ? { debate: entry.debate } : {}),
     raw_assistant_text: finalContent
   };
   attachParseSummary(trialRecord, parsedRecord);

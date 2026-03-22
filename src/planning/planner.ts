@@ -3,7 +3,12 @@ import type { ArbiterTrialRecord } from "../generated/trial.types.js";
 import { canonicalStringify } from "../utils/canonical-json.js";
 import { sha256Hex } from "../utils/hash.js";
 import { createRngForTrial } from "../utils/seeded-rng.js";
-import { debateRolePromptKey, resolveDebateRoleKind, resolveDebateSlotId } from "../protocols/debate-v1/roles.js";
+import {
+  debateRolePromptKey,
+  resolveDebateCondition,
+  resolveDebateRoleKind,
+  resolveDebateSlotId
+} from "../protocols/debate-v1/roles.js";
 
 type WeightedItem<T> = { weight: number } & T;
 
@@ -15,6 +20,7 @@ export type TrialPlanEntry = {
   debate?: {
     participants: number;
     rounds: number;
+    condition?: "D1" | "D2" | "D3" | "D4" | null;
   };
 };
 
@@ -127,7 +133,8 @@ export const generateTrialPlan = (
         role_assignments: roleAssignments,
         debate: {
           participants,
-          rounds
+          rounds,
+          condition: resolveDebateCondition(participants, rounds)
         }
       });
     } else {

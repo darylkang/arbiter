@@ -22,6 +22,7 @@ export type LiveTrialExecutionState = {
 
 export type PersonaEntry = {
   text?: string | null;
+  sha256?: string | null;
 };
 
 export type ProtocolEntry = {

@@ -1,4 +1,5 @@
 export type DebateRoleKind = "lead" | "challenger" | "counter" | "auditor";
+export type DebateConditionId = "D1" | "D2" | "D3" | "D4";
 
 export const DEBATE_RESPONDER_ROLE_CYCLE: DebateRoleKind[] = ["challenger", "counter", "auditor"];
 
@@ -52,19 +53,44 @@ export const debateRolePromptKey = (
   return "auditor_system";
 };
 
-export const debateRoleTurnInstruction = (roleKind: DebateRoleKind, isFinal: boolean): string => {
+export const debateTurnInstructionPromptKey = (
+  roleKind: DebateRoleKind,
+  isFinal: boolean
+):
+  | "lead_turn"
+  | "challenger_turn"
+  | "counter_turn"
+  | "auditor_turn"
+  | "lead_final_turn" => {
   if (roleKind === "lead") {
-    return isFinal
-      ? "Synthesize the debate into the final answer."
-      : "Advance the current best answer while engaging prior objections and counters.";
+    return isFinal ? "lead_final_turn" : "lead_turn";
   }
   if (roleKind === "challenger") {
-    return "Apply the strongest objection or failure-mode pressure to the current lead answer.";
+    return "challenger_turn";
   }
   if (roleKind === "counter") {
-    return "Present the strongest competing answer that differs from the current lead position.";
+    return "counter_turn";
   }
-  return "Surface the most important unstated assumption and explain what changes if it fails.";
+  return "auditor_turn";
+};
+
+export const resolveDebateCondition = (
+  participants: number,
+  rounds: number
+): DebateConditionId | null => {
+  if (participants === 2 && rounds === 1) {
+    return "D1";
+  }
+  if (participants === 3 && rounds === 1) {
+    return "D2";
+  }
+  if (participants === 2 && rounds === 2) {
+    return "D3";
+  }
+  if (participants === 4 && rounds === 1) {
+    return "D4";
+  }
+  return null;
 };
 
 export const debateRoleReviewSummary = (participants: number): string =>

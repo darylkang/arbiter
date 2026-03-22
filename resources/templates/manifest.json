@@ -13,9 +13,37 @@
     {
       "id": "debate_v1",
       "path": "resources/templates/research/debate_v1.config.json",
-      "sha256": "0dd0084fcf0dc728aab81929362320d63acf97bc060208480dd6e0c7ea5c8ac0",
+      "sha256": "e1fd304fe6b4161605534f0b113822ce149c539320eaf0b4d1f6136f5b26b778",
       "role": "research",
-      "description": "Debate-specific research starter config."
+      "description": "Generic debate_v1 research starter config."
+    },
+    {
+      "id": "debate_d1",
+      "path": "resources/templates/research/debate_d1.config.json",
+      "sha256": "39d398f3e7d76c9eda37ba8f30b8027252a61a4d626461c7b0aa126c1db1d727",
+      "role": "research",
+      "description": "Primary H4 matrix D1: minimal interaction baseline (P2 R1)."
+    },
+    {
+      "id": "debate_d2",
+      "path": "resources/templates/research/debate_d2.config.json",
+      "sha256": "c1e4ee69ef3dcbb52f0cf05dee0822ed9656cf1a2e43025bf3ebc9a243270c05",
+      "role": "research",
+      "description": "Primary H4 matrix D2: add counter role diversity (P3 R1)."
+    },
+    {
+      "id": "debate_d3",
+      "path": "resources/templates/research/debate_d3.config.json",
+      "sha256": "38c91782c428c925d09eba22d70e245c9a124129192f64bf0f8d9c8964d3eceb",
+      "role": "research",
+      "description": "Primary H4 matrix D3: add round depth (P2 R2)."
+    },
+    {
+      "id": "debate_d4",
+      "path": "resources/templates/research/debate_d4.config.json",
+      "sha256": "3bfcdad690e1fd84a568e1ac5ed9423fb3813b24dce6fa9e24e7b69b3506a1ff",
+      "role": "research",
+      "description": "Primary H4 matrix D4: full role saturation (P4 R1)."
     },
     {
       "id": "heterogeneity_mix",

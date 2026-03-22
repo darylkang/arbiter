@@ -39,7 +39,10 @@ export interface LiveRunResult extends RunOrchestrationResult {
 
 export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> => {
   const personaMap = new Map(
-    options.resolvedConfig.sampling.personas.map((persona) => [persona.persona, persona])
+    options.resolvedConfig.sampling.personas.map((persona) => [
+      persona.persona,
+      { text: persona.text, sha256: persona.sha256 }
+    ])
   );
   const protocolMap = new Map(
     options.resolvedConfig.sampling.protocols.map((protocol) => [protocol.protocol, protocol])
