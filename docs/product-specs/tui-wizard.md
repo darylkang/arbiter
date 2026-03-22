@@ -239,16 +239,24 @@ Primary selection:
 
 Debate parameters:
 
-1. Participants `P` integer >= 2, default 2.
-2. Rounds `R` integer >= 1, default 1.
+1. Participants `P` is chosen from a constrained research-grade set, default `2`.
+2. Rounds `R` is chosen from a constrained research-grade set, default `1`.
+3. Current primary UI range should expose `P in {2,3,4}` and `R in {1,2}` rather than arbitrary integers.
 
 Locked debate mechanics:
 
 1. Total turns per trial = `P * R + 1`.
 2. Round order is participant slots `A..P` repeated `R` times, then slot `A` final.
-3. Slot assignments are sampled once per trial and fixed within that trial.
-4. For each slot, model, persona, and decode assignment are sampled independently with replacement from selected pools.
-5. No distinctness constraints apply across slots.
+3. `debate_v1` is a lead/finalizer protocol: slot `A` proposes and finalizes.
+4. Slot roles are fixed by position:
+   - `A = lead`
+   - `B = challenger`
+   - `C = counter`
+   - `D = auditor`
+   - `E+` cycle responder roles in that order.
+5. Slot assignments are sampled once per trial and fixed within that trial.
+6. For each slot, model, persona, and decode assignment are sampled independently with replacement from selected pools.
+7. No distinctness constraints apply across slots.
 
 ### Debate output semantics (required)
 
@@ -257,6 +265,7 @@ Locked debate mechanics:
 3. `embed_text` is derived from that final output, or from contract `embed_text_source` derived from that final output.
 4. Intermediate debate turns must be persisted for auditability.
 5. Intermediate debate turns are persisted in `trials.jsonl` as per-trial `transcript` records.
+6. Review surfaces may show the fixed role mapping as read-only protocol metadata, but role structure is not a configurable knob in the wizard.
 
 ### Step 3: Models (`m`)
 
@@ -339,7 +348,8 @@ Summary should list changed values only.
    - live connectivity is verified at run start after the wizard hands off to Stage 2; it is not a blocking network probe inside the review screen
    - if run mode is Live and action is `Save config and exit`, show warning: `Live mode requires OPENROUTER_API_KEY to run; config saved but not executed.`
    - warnings for risky settings
-3. Actions:
+3. When protocol is Debate, the review surface may show the fixed role mapping as read-only metadata (for example `A lead · B challenger` or `A lead · B challenger · C counter · D auditor`).
+4. Actions:
    - Run now
    - Save config and exit
    - Revise

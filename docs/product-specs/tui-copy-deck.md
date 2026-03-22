@@ -209,8 +209,10 @@ Rail confirmation:
 6. `LOCKED`: `Rounds (R)`
 7. `LOCKED`: `Total turns per trial: P × R + 1`
 8. `LOCKED`: `Turn order: A..P for each round, then A final`
-9. `LOCKED`: `Slot assignments are sampled once per trial and remain fixed for that trial.`
-10. `LOCKED`: `Model, persona, and decode are sampled per slot with replacement.`
+9. `LOCKED`: `Participant count uses the research-grade range 2–4; round count uses the research-grade range 1–2.`
+10. `LOCKED`: `Role structure is fixed by slot: A lead, B challenger, C counter, D auditor.`
+11. `LOCKED`: `Slot assignments are sampled once per trial and remain fixed for that trial.`
+12. `LOCKED`: `Model, persona, and decode are sampled per slot with replacement.`
 
 Rail confirmation:
 
@@ -312,6 +314,7 @@ Rail confirmation:
 12. `LOCKED`: `Starting run`
 13. `LOCKED`: `Returning to Step 1 with your selections preserved.`
 14. `LOCKED`: `Config Summary`
+15. `LOCKED`: when protocol is Debate, the review step may show the fixed role mapping as read-only metadata beneath the protocol summary.
 
 ## Stage 1 Frozen Study Rail (Run Path)
 

@@ -349,11 +349,20 @@ For Debate runs:
 2. `rounds = R` with `R >= 1`,
 3. total turns per trial are `P * R + 1`,
 4. turn order is slots `A..P` repeated for each round, then slot `A` final,
-5. slot assignments are sampled once per trial and remain fixed within that trial,
-6. model, persona, and decode assignments are sampled per slot with replacement from the configured pools,
-7. the final response from slot `A` is the canonical trial output,
-8. parsing, normalized decision output, and embedding derivation apply to that final slot `A` output only,
-9. intermediate turns must be preserved for auditability in per-trial `transcript` records.
+5. `debate_v1` is a judge-less lead/finalizer protocol; slot `A` is the lead and finalizer,
+6. slot roles are fixed by position, not sampled:
+   - `A = lead`
+   - `B = challenger`
+   - `C = counter`
+   - `D = auditor`
+   - `E+` cycle responder roles in the order challenger -> counter -> auditor,
+7. slot assignments are sampled once per trial and remain fixed within that trial,
+8. model, persona, and decode assignments are sampled per slot with replacement from the configured pools,
+9. role prompts define what each slot is supposed to do; sampled personas modulate how that slot reasons while doing it,
+10. role prompts precede persona prompts in prompt composition,
+11. the final response from slot `A` is the canonical trial output,
+12. parsing, normalized decision output, and embedding derivation apply to that final slot `A` output only,
+13. intermediate turns must be preserved for auditability in per-trial `transcript` records with role and round metadata.
 
 This final-output rule is a measurement semantic, not only a UI or reporting convention.
 

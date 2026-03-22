@@ -64,6 +64,15 @@ The heterogeneity ladder remains the central experimental structure:
 
 Interaction is one rung in the ladder, not the entire thesis.
 
+For Arbiter's current debate family, H4 should be interpreted as a structured lead/finalizer multi-agent protocol rather than a judge-mediated oversight game. The primary research-grade debate matrix is:
+
+1. `D1 = P2, R1` — minimal interaction,
+2. `D2 = P3, R1` — add a counter role,
+3. `D3 = P2, R2` — add round depth,
+4. `D4 = P4, R1` — add an auditor role.
+
+This matrix is preferred over an open parameter sweep because each condition adds one interpretable protocol factor at a time. Larger settings such as `P > 4` or `P = 4, R = 2` may still be useful, but should be treated as exploratory unless the study explicitly budgets for them.
+
 ### 2.1) Persona Principle for H2
 
 For the current paper, Arbiter personas are prompt-level reasoning-posture interventions.
@@ -110,7 +119,8 @@ Interpretation guidance:
 
 1. `Neutral` provides a prompt-present control, so contrasts against the four treatment personas better isolate posture effects than the prior empty-baseline design.
 2. The current 5-condition design no longer measures the effect of prompt presence alone; recovering that comparison would require a separate no-prompt control condition.
-3. Debate-role interactions are not equally interpretable across slots: persona effects are easiest to interpret on proposer roles and more conflated on critic roles whose protocol prompt already demands objection-finding behavior.
+3. In debate, sampled personas modulate all slot roles; these persona × role interactions are part of the H2 × H4 story, not something the protocol tries to suppress.
+4. Debate-role interactions are not equally interpretable across slots: persona effects are easiest to interpret on the lead/finalizer and challenger roles, and role separability is expected to be cleaner at `R >= 2` than at `R = 1`.
 
 ## 3) Primary Estimand
 
