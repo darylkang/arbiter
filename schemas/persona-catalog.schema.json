@@ -38,7 +38,6 @@
           "category",
           "when_to_use",
           "expected_effect",
-          "risk_note",
           "default",
           "sort_order"
         ],
@@ -70,10 +69,6 @@
             "minLength": 1
           },
           "expected_effect": {
-            "type": "string",
-            "minLength": 1
-          },
-          "risk_note": {
             "type": "string",
             "minLength": 1
           },

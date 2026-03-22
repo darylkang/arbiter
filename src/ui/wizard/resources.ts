@@ -109,7 +109,6 @@ export const loadCatalogModels = (assetRoot: string): CatalogModel[] => {
       isAliased: model.is_aliased,
       summaryLine: model.summary_line,
       researchNote: model.research_note,
-      riskNote: model.risk_note,
       isDefault: model.default,
       sortOrder: model.sort_order,
       activeFingerprint: toActiveFingerprint(model),
@@ -214,7 +213,6 @@ export const loadPersonaOptions = (assetRoot: string): PersonaOption[] => {
       category: persona.category,
       categoryLabel: PERSONA_CATEGORY_LABELS[persona.category] ?? persona.category,
       whenToUse: persona.when_to_use,
-      riskNote: persona.risk_note,
       isDefault: persona.default
     }));
 };

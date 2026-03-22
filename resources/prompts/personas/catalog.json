@@ -8,7 +8,6 @@
       "category": "baseline",
       "when_to_use": "Use as the no-persona anchor for H2 comparisons.",
       "expected_effect": "Expected to anchor the reference distribution while preserving prompt-presence asymmetry against prompted personas.",
-      "risk_note": "Baseline versus prompted-persona contrasts mix posture effects with prompt-presence effects.",
       "default": true,
       "sort_order": 0
     },
@@ -19,7 +18,6 @@
       "category": "adversarial",
       "when_to_use": "Use when you want models to test their own answer against objections before committing.",
       "expected_effect": "Expected to widen the distribution by increasing cautious, qualified, or self-critical outputs.",
-      "risk_note": "May shift outputs toward caution or non-commitment.",
       "default": false,
       "sort_order": 1
     },
@@ -30,7 +28,6 @@
       "category": "analytical",
       "when_to_use": "Use when you want models to break complex questions into separable parts before answering.",
       "expected_effect": "Expected to increase structured, assumption-sensitive answers and reduce leaps to conclusion.",
-      "risk_note": "May add structure without improving final answer quality.",
       "default": false,
       "sort_order": 2
     },
@@ -41,7 +38,6 @@
       "category": "divergent",
       "when_to_use": "Use when you want breadth before commitment on ambiguous questions.",
       "expected_effect": "Expected to widen the distribution by increasing alternative framings or candidate conclusions.",
-      "risk_note": "May broaden the answer space and reduce decisiveness.",
       "default": false,
       "sort_order": 3
     },
@@ -52,7 +48,6 @@
       "category": "decisive",
       "when_to_use": "Use when you want models to converge on one answer under stated assumptions.",
       "expected_effect": "Expected to tighten the distribution around clearer top-choice outputs.",
-      "risk_note": "May narrow the distribution by suppressing caveats or alternative paths.",
       "default": false,
       "sort_order": 4
     }

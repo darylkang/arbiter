@@ -20,7 +20,6 @@ export interface ArbiterModelCatalog {
       tier: "budget" | "mid" | "flagship" | "free";
       summary_line: string;
       research_note: string;
-      risk_note?: string;
       default: boolean;
       sort_order: number;
       notes?: string;
@@ -63,7 +62,6 @@ export interface ArbiterModelCatalog {
       tier: "budget" | "mid" | "flagship" | "free";
       summary_line: string;
       research_note: string;
-      risk_note?: string;
       default: boolean;
       sort_order: number;
       notes?: string;

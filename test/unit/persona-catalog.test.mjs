@@ -62,10 +62,6 @@ test("loadPersonaOptions reads presentation metadata from the persona catalog", 
     ]
   );
   assert.equal(personas[0]?.whenToUse, "Use as the no-persona anchor for H2 comparisons.");
-  assert.equal(
-    personas[0]?.riskNote,
-    "Baseline versus prompted-persona contrasts mix posture effects with prompt-presence effects."
-  );
 });
 
 test("loadPersonaOptions rejects catalog and manifest drift as a hard error", () => {
@@ -98,7 +94,6 @@ test("loadPersonaOptions rejects catalog and manifest drift as a hard error", ()
           when_to_use: "Use as the no-persona anchor for H2 comparisons.",
           expected_effect:
             "Expected to anchor the reference distribution while preserving prompt-presence asymmetry against prompted personas.",
-          risk_note: "Baseline versus prompted-persona contrasts mix posture effects with prompt-presence effects.",
           default: true,
           sort_order: 0
         },
@@ -110,7 +105,6 @@ test("loadPersonaOptions rejects catalog and manifest drift as a hard error", ()
           when_to_use: "Use when you want models to test their own answer against objections before committing.",
           expected_effect:
             "Expected to widen the distribution by increasing cautious, qualified, or self-critical outputs.",
-          risk_note: "May shift outputs toward caution or non-commitment.",
           default: false,
           sort_order: 1
         }

@@ -50,7 +50,6 @@ export type CatalogModel = {
   isAliased: boolean;
   summaryLine: string;
   researchNote: string;
-  riskNote?: string;
   isDefault: boolean;
   sortOrder: number;
   activeFingerprint: string;
@@ -93,7 +92,6 @@ export type PersonaOption = {
   category: string;
   categoryLabel: string;
   whenToUse: string;
-  riskNote?: string;
   isDefault: boolean;
 };
 

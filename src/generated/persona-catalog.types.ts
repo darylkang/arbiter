@@ -13,7 +13,6 @@ export interface ArbiterPersonaCatalog {
       category: "baseline" | "adversarial" | "analytical" | "divergent" | "decisive";
       when_to_use: string;
       expected_effect: string;
-      risk_note: string;
       default: boolean;
       sort_order: number;
     },
@@ -24,7 +23,6 @@ export interface ArbiterPersonaCatalog {
       category: "baseline" | "adversarial" | "analytical" | "divergent" | "decisive";
       when_to_use: string;
       expected_effect: string;
-      risk_note: string;
       default: boolean;
       sort_order: number;
     }[]
