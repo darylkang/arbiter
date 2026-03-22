@@ -12,7 +12,7 @@ Use this directory for:
 
 1. feature-level or migration-level ExecPlans,
 2. plans that track multi-step implementation or rollout work,
-3. historical completed or superseded plans retained for traceability.
+3. plans that still add active execution value or meaningful traceability.
 
 Do not use this directory for:
 
@@ -38,6 +38,10 @@ Examples:
 2. Continue updating an existing plan when the work is clearly the same rollout.
 3. If a plan is replaced, mark the old one as superseded and name the replacement explicitly.
 4. Keep one plan focused on one primary outcome whenever possible.
+5. Delete or archive a completed or superseded plan when:
+   - its durable truth has already been migrated into canonical docs,
+   - it no longer records unique decisions or evidence worth keeping,
+   - and retaining it would add more directory noise than traceability value.
 
 ## Canonical Contract Reminder
 

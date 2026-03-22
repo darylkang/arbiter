@@ -47,7 +47,7 @@ The core outcomes are:
 - [x] 2026-03-07 UTC: re-read planning contract, research-method contract, schema policy docs, and the relevant runtime/schema files.
 - [x] 2026-03-07 UTC: implemented schema substance alignment across config, question, contract, manifest, and analysis artifact schemas.
 - [x] 2026-03-07 UTC: regenerated generated types and ran schema/contract validation.
-- [in_progress] 2026-03-07 UTC: finalize documentation sync and commit the round.
+- [x] 2026-03-07 UTC: finalize documentation sync and commit the round (`completed`).
 
 ## Surprises & Discoveries
 
