@@ -237,6 +237,7 @@ Rail confirmation:
 13. `LOCKED`: `provider_label` is derived from the raw provider value and is not a separate catalog field.
 14. `LOCKED`: provenance details do not repeat in the focused guidance block; browsing-time guidance stays selection-oriented.
 15. `LOCKED`: the active row is the primary visual focal point: its label is bold and brand-colored, the active cursor and checkbox glyph use the same brand treatment, selected square glyphs remain brand-colored even when inactive, and the appended fingerprint tail remains muted.
+16. `LOCKED`: inline `·` separators render in muted text and do not inherit row emphasis.
 
 Rail confirmation:
 

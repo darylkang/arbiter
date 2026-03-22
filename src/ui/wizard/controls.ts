@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { emitKeypressEvents } from "node:readline";
 
 import { UI_COPY } from "../copy.js";
-import { createStdoutFormatter } from "../fmt.js";
+import { createStdoutFormatter, type Formatter } from "../fmt.js";
 import { stripAnsi } from "../runtime/render-utils.js";
 import type {
   Choice,
@@ -41,12 +41,26 @@ const nextSelectableIndex = (choices: Choice[], currentIndex: number, delta: num
 };
 
 const visibleLength = (value: string): number => stripAnsi(value).length;
+const INLINE_SEPARATOR = " · ";
 
 const truncatePlain = (value: string, max: number): string => {
   if (max <= 1 || value.length <= max) {
     return value;
   }
   return `${value.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+};
+
+const renderInlineLabel = (label: string, input: { active: boolean; fmt: Formatter }): string => {
+  const parts = label.split(INLINE_SEPARATOR);
+  if (parts.length === 1) {
+    return input.active ? input.fmt.bold(input.fmt.brand(label)) : label;
+  }
+  return parts
+    .map((part, index) => {
+      const renderedPart = input.active ? input.fmt.bold(input.fmt.brand(part)) : part;
+      return index === 0 ? renderedPart : `${input.fmt.muted(INLINE_SEPARATOR)}${renderedPart}`;
+    })
+    .join("");
 };
 
 const withRawKeyCapture = async <T>(inputControl: {
@@ -373,14 +387,15 @@ export const selectMany = async (inputControl: {
         const isSelected = selectedIds.has(choice.id);
         const cursor = isActive ? fmt.brand("▸ ") : "  ";
         const checked = isSelected ? fmt.brand("■") : isActive ? fmt.brand("□") : "□";
-        let label = choice.label;
+        let label = renderInlineLabel(choice.label, { active: isActive, fmt });
         if (isActive && choice.activeSuffix) {
           const prefix = `${cursor}${checked} ${choice.label} · `;
           const room = Math.max(8, fmt.termWidth() - visibleLength(prefix));
-          label = `${choice.label}${fmt.muted(` · ${truncatePlain(choice.activeSuffix, room)}`)}`;
+          label = `${renderInlineLabel(choice.label, { active: true, fmt })}${fmt.muted(
+            ` · ${truncatePlain(choice.activeSuffix, room)}`
+          )}`;
         }
-        const rowLabel = isActive ? fmt.bold(fmt.brand(label)) : label;
-        lines.push(`${cursor}${checked} ${rowLabel}`);
+        lines.push(`${cursor}${checked} ${label}`);
       });
       if (inputControl.extraLines) {
         const extras = inputControl.extraLines(selectedIds);
