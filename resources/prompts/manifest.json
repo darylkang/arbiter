@@ -46,25 +46,39 @@
       "description": "Independent protocol system prompt."
     },
     {
-      "id": "protocol_debate_v1_proposer_system",
+      "id": "protocol_debate_v1_lead_system",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/proposer_system.md",
-      "sha256": "9760fd1f579bd4ce26984e75d2796aa930abfb31acfa2e6c695eee5eb8f49bb7",
-      "description": "Debate proposer system prompt."
+      "path": "resources/prompts/protocols/debate_v1/lead_system.md",
+      "sha256": "3ca39fa973a7c514c3ecd3e09d3bb81bcf3262b661ad30299ec524b5714efd36",
+      "description": "Debate lead system prompt."
     },
     {
-      "id": "protocol_debate_v1_critic_system",
+      "id": "protocol_debate_v1_challenger_system",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/critic_system.md",
-      "sha256": "c3208ef9da0222b06e06fbada3b6b7caf3e8370b0d9d17501dcd250efd2b7f57",
-      "description": "Debate critic system prompt."
+      "path": "resources/prompts/protocols/debate_v1/challenger_system.md",
+      "sha256": "e7dc6c0b6bfeed85511a62b2937663bc3f5c8fcf0636bb964f620616b87c2776",
+      "description": "Debate challenger system prompt."
     },
     {
-      "id": "protocol_debate_v1_proposer_final_system",
+      "id": "protocol_debate_v1_counter_system",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/proposer_final_system.md",
-      "sha256": "982a63e136c74cd49fbe6f53979a5b43a95c177849a70b2f25b17f57f672f265",
-      "description": "Debate proposer final system prompt."
+      "path": "resources/prompts/protocols/debate_v1/counter_system.md",
+      "sha256": "ce2bdd3f9ec71b4140a4f44eab8ff4b5970cba458e278312df5b5f0b9b9b1a93",
+      "description": "Debate counter system prompt."
+    },
+    {
+      "id": "protocol_debate_v1_auditor_system",
+      "type": "participant_protocol_template",
+      "path": "resources/prompts/protocols/debate_v1/auditor_system.md",
+      "sha256": "e0ed7c96a61200011297822b1c34761907b04472f1711b59a9fada9b256d7175",
+      "description": "Debate auditor system prompt."
+    },
+    {
+      "id": "protocol_debate_v1_lead_final_system",
+      "type": "participant_protocol_template",
+      "path": "resources/prompts/protocols/debate_v1/lead_final_system.md",
+      "sha256": "45ddf6405e753dfa843ffa4965d0489f8978fec8bd5e049b826410a4b97c4176",
+      "description": "Debate lead final system prompt."
     }
   ]
 }

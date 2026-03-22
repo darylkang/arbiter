@@ -1,6 +1,7 @@
 import type { ArbiterTrialRecord } from "../../generated/trial.types.js";
 import type { ArbiterDebugEmbeddingJSONLRecord } from "../../generated/embedding.types.js";
 import type { TrialPlanEntry } from "../../planning/planner.js";
+import { canonicalStringify } from "../../utils/canonical-json.js";
 import { encodeFloat32Base64 } from "../../utils/float32-base64.js";
 import { sha256Hex } from "../../utils/hash.js";
 import { buildDebateParsedOutput } from "./parser.js";
@@ -11,6 +12,7 @@ import {
   shouldExcludeMockContractFailure,
   type MockTrialExecutionContext
 } from "../../engine/mock-trial-context.js";
+import { debateRolePromptKey, resolveDebateRoleKind } from "./roles.js";
 
 const sortedSlots = (roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]>): string[] =>
   Object.keys(roleAssignments).sort((a, b) => {
@@ -31,7 +33,18 @@ export const executeMockDebateTrial = async (input: {
   const { context, entry, embedRng } = input;
   const { bus, resolvedConfig } = context;
 
-  const roleAssignments = entry.role_assignments ?? { A: { model_slug: entry.assigned_config.model, persona_id: entry.assigned_config.persona } };
+  const roleAssignments =
+    entry.role_assignments ?? {
+      A: {
+        model_slug: entry.assigned_config.model,
+        persona_id: entry.assigned_config.persona,
+        role_kind: "lead",
+        role_prompt_id: resolvedConfig.protocol.prompts?.lead_system.id ?? "protocol_debate_v1_lead_system",
+        role_prompt_sha256:
+          resolvedConfig.protocol.prompts?.lead_system.sha256 ??
+          "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    };
   const slots = sortedSlots(roleAssignments);
   const slotA = slots.includes("A") ? "A" : slots[0];
   const rounds = entry.debate?.rounds ?? resolvedConfig.protocol.rounds ?? 1;
@@ -51,7 +64,14 @@ export const executeMockDebateTrial = async (input: {
         role: slotId,
         model_requested: assignment.model_slug,
         model_actual: assignment.model_slug,
-        request_payload: { mock: true, slot: slotId, round },
+        request_payload: {
+          mock: true,
+          slot: slotId,
+          round,
+          role_kind: assignment.role_kind,
+          role_prompt_id: assignment.role_prompt_id,
+          role_prompt_sha256: assignment.role_prompt_sha256
+        },
         response_payload: { content },
         attempt: {
           started_at: new Date().toISOString(),
@@ -61,7 +81,19 @@ export const executeMockDebateTrial = async (input: {
         },
         error_message: null
       });
-      transcript.push({ turn, role: slotId, content });
+      const rolePromptKey = debateRolePromptKey(assignment.role_kind, false);
+      const rolePrompt = resolvedConfig.protocol.prompts?.[rolePromptKey];
+      transcript.push({
+        turn,
+        turn_index: turn,
+        round,
+        slot: slotId,
+        role: slotId,
+        role_kind: assignment.role_kind,
+        role_prompt_id: rolePrompt?.id ?? assignment.role_prompt_id,
+        role_prompt_sha256: rolePrompt?.sha256 ?? assignment.role_prompt_sha256,
+        content
+      });
       callIndex += 1;
       turn += 1;
     }
@@ -89,7 +121,15 @@ export const executeMockDebateTrial = async (input: {
     role: slotA,
     model_requested: slotAFinalAssignment.model_slug,
     model_actual: slotAFinalAssignment.model_slug,
-    request_payload: { mock: true, slot: slotA, final: true },
+    request_payload: {
+      mock: true,
+      slot: slotA,
+      final: true,
+      role_kind: slotAFinalAssignment.role_kind,
+      role_prompt_id: resolvedConfig.protocol.prompts?.lead_final_system.id ?? slotAFinalAssignment.role_prompt_id,
+      role_prompt_sha256:
+        resolvedConfig.protocol.prompts?.lead_final_system.sha256 ?? slotAFinalAssignment.role_prompt_sha256
+    },
     response_payload: { content: finalPayload },
     attempt: {
       started_at: new Date().toISOString(),
@@ -99,7 +139,18 @@ export const executeMockDebateTrial = async (input: {
     },
     error_message: null
   });
-  transcript.push({ turn, role: slotA, content: finalPayload });
+  transcript.push({
+    turn,
+    turn_index: turn,
+    round: rounds,
+    slot: slotA,
+    role: slotA,
+    role_kind: resolveDebateRoleKind(slotA),
+    role_prompt_id: resolvedConfig.protocol.prompts?.lead_final_system.id ?? slotAFinalAssignment.role_prompt_id,
+    role_prompt_sha256:
+      resolvedConfig.protocol.prompts?.lead_final_system.sha256 ?? slotAFinalAssignment.role_prompt_sha256,
+    content: finalPayload
+  });
 
   const parsedRecord = buildDebateParsedOutput(
     entry.trial_id,
@@ -131,6 +182,7 @@ export const executeMockDebateTrial = async (input: {
     role_assignments: roleAssignments,
     calls,
     transcript,
+    transcript_hash: sha256Hex(canonicalStringify(transcript)),
     raw_assistant_text: finalPayload,
     parsed: {
       parse_status: parsedRecord.parse_status,

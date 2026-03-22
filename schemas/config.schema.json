@@ -208,6 +208,15 @@
         "type": { "type": "string", "enum": ["independent", "debate_v1"] },
         "participants": { "type": "integer", "minimum": 2 },
         "rounds": { "type": "integer", "minimum": 1 },
+        "roles": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["lead", "challenger", "counter", "auditor"] }
+        },
+        "role_cycle": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["challenger", "counter", "auditor"] }
+        },
+        "finalizer_slot": { "type": "string", "minLength": 1 },
         "timeouts": {
           "type": "object",
           "additionalProperties": false,
@@ -243,14 +252,18 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "proposer_system",
-            "critic_system",
-            "proposer_final_system"
+            "lead_system",
+            "challenger_system",
+            "counter_system",
+            "auditor_system",
+            "lead_final_system"
           ],
           "properties": {
-            "proposer_system": { "$ref": "#/$defs/embedded_prompt" },
-            "critic_system": { "$ref": "#/$defs/embedded_prompt" },
-            "proposer_final_system": { "$ref": "#/$defs/embedded_prompt" }
+            "lead_system": { "$ref": "#/$defs/embedded_prompt" },
+            "challenger_system": { "$ref": "#/$defs/embedded_prompt" },
+            "counter_system": { "$ref": "#/$defs/embedded_prompt" },
+            "auditor_system": { "$ref": "#/$defs/embedded_prompt" },
+            "lead_final_system": { "$ref": "#/$defs/embedded_prompt" }
           }
         }
       }

@@ -10,6 +10,7 @@ import {
   truncate,
   type RailStep
 } from "../wizard-theme.js";
+import { debateRoleReviewSummary } from "../../protocols/debate-v1/roles.js";
 import { RAIL_ITEMS, type EntryPath, type RunMode, type WizardDraft } from "./types.js";
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -25,6 +26,9 @@ export const formatProtocol = (draft: WizardDraft): string =>
   draft.protocolType === "debate_v1"
     ? `Debate (${draft.participants} participants, ${draft.rounds} rounds)`
     : "Independent";
+
+const formatDebateRoleSummary = (draft: WizardDraft): string =>
+  draft.protocolType === "debate_v1" ? debateRoleReviewSummary(draft.participants) : "";
 
 export const toDecodeSummary = (draft: WizardDraft): string => {
   const tempSummary =
@@ -298,6 +302,7 @@ export const buildReviewLines = (input: {
     "Config Summary",
     formatReviewRow("Question", `"${truncate(draft.question.trim(), 72)}"`),
     formatReviewRow("Protocol", formatProtocol(draft)),
+    ...(draft.protocolType === "debate_v1" ? [formatReviewRow("", formatDebateRoleSummary(draft))] : []),
     formatReviewRow(
       "Models",
       `${summarizeDisplaySelection(draft.modelSlugs, modelLabels)} (${draft.modelSlugs.length} selected)`

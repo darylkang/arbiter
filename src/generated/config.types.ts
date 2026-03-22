@@ -47,6 +47,9 @@ export type ArbiterResolvedConfig = {
     type: "independent" | "debate_v1";
     participants?: number;
     rounds?: number;
+    roles?: ("lead" | "challenger" | "counter" | "auditor")[];
+    role_cycle?: ("challenger" | "counter" | "auditor")[];
+    finalizer_slot?: string;
     timeouts: {
       per_call_timeout_ms: number;
       per_call_max_retries: number;
@@ -63,9 +66,11 @@ export type ArbiterResolvedConfig = {
       rationale_max_chars?: number;
     };
     prompts?: {
-      proposer_system: EmbeddedPrompt;
-      critic_system: EmbeddedPrompt;
-      proposer_final_system: EmbeddedPrompt;
+      lead_system: EmbeddedPrompt;
+      challenger_system: EmbeddedPrompt;
+      counter_system: EmbeddedPrompt;
+      auditor_system: EmbeddedPrompt;
+      lead_final_system: EmbeddedPrompt;
     };
   };
   execution: {

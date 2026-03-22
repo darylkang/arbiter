@@ -46,6 +46,14 @@ test("debate mock runs produce debate trials, transcripts, and embedding rows", 
         assert.equal(record.calls.length, 3);
         assert.equal(Array.isArray(record.transcript), true);
         assert.equal(record.transcript.length, 3);
+        assert.equal(typeof record.transcript_hash, "string");
+        assert.equal(typeof record.role_assignments?.A?.role_kind, "string");
+        assert.equal(record.role_assignments?.A?.role_kind, "lead");
+        assert.equal(record.role_assignments?.B?.role_kind, "challenger");
+        assert.equal(record.transcript[0]?.slot, "A");
+        assert.equal(record.transcript[0]?.role_kind, "lead");
+        assert.equal(record.transcript[1]?.slot, "B");
+        assert.equal(record.transcript[1]?.role_kind, "challenger");
         assert.equal(typeof record.parsed?.parse_status, "string");
       }
       if (!record.parsed) {

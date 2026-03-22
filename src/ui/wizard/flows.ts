@@ -124,9 +124,10 @@ export const configureDebateProtocol = async (input: {
         "Each round: all participants speak in order; after R rounds, participant A gives the final response."
       ),
       title: "Participants (P)",
-      helperLines: ["Enter the number of participants in the debate."],
+      helperLines: ["Research-grade range: 2 to 4 participants."],
       defaultValue: input.draft.participants,
       min: 2,
+      max: 4,
       renderStepFrame: input.renderStepFrame
     });
     if (participants === SELECT_BACK || participants === SELECT_EXIT) {
@@ -142,9 +143,10 @@ export const configureDebateProtocol = async (input: {
         "Each round: all participants speak in order; after R rounds, participant A gives the final response."
       ),
       title: "Rounds (R)",
-      helperLines: ["Enter the number of debate rounds."],
+      helperLines: ["Research-grade range: 1 to 2 rounds."],
       defaultValue: input.draft.rounds,
       min: 1,
+      max: 2,
       renderStepFrame: input.renderStepFrame
     });
     if (rounds === SELECT_EXIT) {

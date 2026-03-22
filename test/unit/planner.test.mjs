@@ -46,7 +46,14 @@ const buildDebateConfig = (seed = "debate-seed") => ({
   protocol: {
     type: "debate_v1",
     participants: 2,
-    rounds: 1
+    rounds: 1,
+    prompts: {
+      lead_system: { id: "lead", sha256: "a".repeat(64), text: "lead" },
+      challenger_system: { id: "challenger", sha256: "b".repeat(64), text: "challenger" },
+      counter_system: { id: "counter", sha256: "c".repeat(64), text: "counter" },
+      auditor_system: { id: "auditor", sha256: "d".repeat(64), text: "auditor" },
+      lead_final_system: { id: "lead_final", sha256: "e".repeat(64), text: "lead_final" }
+    }
   }
 });
 
@@ -97,6 +104,10 @@ test("generateTrialPlan emits debate role assignments", () => {
     assert.ok(entry.role_assignments.B);
     assert.equal(entry.role_assignments.A.model_slug, entry.assigned_config.model);
     assert.equal(entry.role_assignments.A.persona_id, entry.assigned_config.persona);
+    assert.equal(entry.role_assignments.A.role_kind, "lead");
+    assert.equal(entry.role_assignments.B.role_kind, "challenger");
+    assert.equal(entry.role_assignments.A.role_prompt_id, "lead");
+    assert.equal(entry.role_assignments.B.role_prompt_id, "challenger");
     assert.equal(entry.debate?.participants, 2);
     assert.equal(entry.debate?.rounds, 1);
     assert.equal(Number.isInteger(entry.role_assignments.A.decode?.max_tokens), true);

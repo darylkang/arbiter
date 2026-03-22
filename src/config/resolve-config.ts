@@ -19,6 +19,7 @@ import type { ArbiterProtocolSpec } from "../generated/protocol.types.js";
 import { EMBED_TEXT_NORMALIZATION } from "../core/constants.js";
 import { sha256Hex } from "../utils/hash.js";
 import { DEFAULT_EMBEDDING_MAX_CHARS, DEFAULT_STOP_POLICY } from "./defaults.js";
+import type { DebateRoleKind } from "../protocols/debate-v1/roles.js";
 
 export interface ResolveConfigOptions {
   configPath?: string;
@@ -266,40 +267,65 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
     const protocolSpec = readJsonFile<ArbiterProtocolSpec>(protocolPath);
     assertValid("protocol spec", validateProtocolSpec(protocolSpec), validateProtocolSpec.errors);
 
-    const proposerPrompt = resolvePromptEntry(
+    const leadPrompt = resolvePromptEntry(
       promptMap,
-      protocolSpec.prompts.proposer_system,
+      protocolSpec.prompts.lead_system,
       "participant_protocol_template",
       assetRoot
     );
-    const criticPrompt = resolvePromptEntry(
+    const challengerPrompt = resolvePromptEntry(
       promptMap,
-      protocolSpec.prompts.critic_system,
+      protocolSpec.prompts.challenger_system,
       "participant_protocol_template",
       assetRoot
     );
-    const proposerFinalPrompt = resolvePromptEntry(
+    const counterPrompt = resolvePromptEntry(
       promptMap,
-      protocolSpec.prompts.proposer_final_system,
+      protocolSpec.prompts.counter_system,
+      "participant_protocol_template",
+      assetRoot
+    );
+    const auditorPrompt = resolvePromptEntry(
+      promptMap,
+      protocolSpec.prompts.auditor_system,
+      "participant_protocol_template",
+      assetRoot
+    );
+    const leadFinalPrompt = resolvePromptEntry(
+      promptMap,
+      protocolSpec.prompts.lead_final_system,
       "participant_protocol_template",
       assetRoot
     );
 
+    resolvedConfig.protocol.roles = protocolSpec.roles as DebateRoleKind[];
+    resolvedConfig.protocol.role_cycle = protocolSpec.role_cycle as Exclude<DebateRoleKind, "lead">[];
+    resolvedConfig.protocol.finalizer_slot = protocolSpec.finalizer_slot;
     resolvedConfig.protocol.prompts = {
-      proposer_system: {
-        id: protocolSpec.prompts.proposer_system,
-        sha256: proposerPrompt.sha256,
-        text: proposerPrompt.text
+      lead_system: {
+        id: protocolSpec.prompts.lead_system,
+        sha256: leadPrompt.sha256,
+        text: leadPrompt.text
       },
-      critic_system: {
-        id: protocolSpec.prompts.critic_system,
-        sha256: criticPrompt.sha256,
-        text: criticPrompt.text
+      challenger_system: {
+        id: protocolSpec.prompts.challenger_system,
+        sha256: challengerPrompt.sha256,
+        text: challengerPrompt.text
       },
-      proposer_final_system: {
-        id: protocolSpec.prompts.proposer_final_system,
-        sha256: proposerFinalPrompt.sha256,
-        text: proposerFinalPrompt.text
+      counter_system: {
+        id: protocolSpec.prompts.counter_system,
+        sha256: counterPrompt.sha256,
+        text: counterPrompt.text
+      },
+      auditor_system: {
+        id: protocolSpec.prompts.auditor_system,
+        sha256: auditorPrompt.sha256,
+        text: auditorPrompt.text
+      },
+      lead_final_system: {
+        id: protocolSpec.prompts.lead_final_system,
+        sha256: leadFinalPrompt.sha256,
+        text: leadFinalPrompt.text
       }
     };
   }

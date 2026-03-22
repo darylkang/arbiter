@@ -1,7 +1,7 @@
 {
-  "_readme": "Arbiter debate_v1 template (proposer–critic–revision). Edit then run: arbiter run.",
+  "_readme": "Arbiter debate_v1 template (lead/challenger/counter/auditor). Edit then run: arbiter run.",
   "template_id": "debate_v1",
-  "display_name": "Debate protocol (proposer–critic–revision)",
+  "display_name": "Debate protocol (lead/challenger/counter/auditor)",
   "description": "Multi-call protocol with critique and revision; lower concurrency recommended.",
   "schema_version": "1.0.0",
   "run": {

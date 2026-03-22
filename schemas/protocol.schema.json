@@ -8,7 +8,8 @@
     "schema_version",
     "protocol_id",
     "roles",
-    "turns",
+    "role_cycle",
+    "finalizer_slot",
     "prompts",
     "outcome_extraction"
   ],
@@ -17,36 +18,35 @@
     "protocol_id": { "const": "debate_v1" },
     "roles": {
       "type": "array",
-      "minItems": 2,
+      "minItems": 4,
       "uniqueItems": true,
-      "items": { "type": "string", "enum": ["proposer", "critic"] }
+      "items": { "type": "string", "enum": ["lead", "challenger", "counter", "auditor"] }
     },
-    "turns": {
+    "role_cycle": {
       "type": "array",
       "minItems": 3,
       "maxItems": 3,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["turn", "role"],
-        "properties": {
-          "turn": { "type": "integer", "minimum": 0, "maximum": 2 },
-          "role": { "type": "string", "enum": ["proposer", "critic"] }
-        }
-      }
+      "items": { "type": "string", "enum": ["challenger", "counter", "auditor"] }
+    },
+    "finalizer_slot": {
+      "const": "A"
     },
     "prompts": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "proposer_system",
-        "critic_system",
-        "proposer_final_system"
+        "lead_system",
+        "challenger_system",
+        "counter_system",
+        "auditor_system",
+        "lead_final_system"
       ],
       "properties": {
-        "proposer_system": { "type": "string", "minLength": 1 },
-        "critic_system": { "type": "string", "minLength": 1 },
-        "proposer_final_system": { "type": "string", "minLength": 1 }
+        "lead_system": { "type": "string", "minLength": 1 },
+        "challenger_system": { "type": "string", "minLength": 1 },
+        "counter_system": { "type": "string", "minLength": 1 },
+        "auditor_system": { "type": "string", "minLength": 1 },
+        "lead_final_system": { "type": "string", "minLength": 1 }
       }
     },
     "outcome_extraction": {

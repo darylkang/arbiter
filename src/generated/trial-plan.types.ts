@@ -31,5 +31,8 @@ export interface DecodeParams {
 export interface RoleAssignment {
   model_slug: string;
   persona_id: string | null;
+  role_kind: "lead" | "challenger" | "counter" | "auditor";
+  role_prompt_id: string;
+  role_prompt_sha256: string;
   decode?: DecodeParams;
 }

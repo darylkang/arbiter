@@ -1,6 +1,7 @@
 import type { ArbiterParsedOutputRecord } from "../../generated/parsed-output.types.js";
 import type { ArbiterTrialRecord } from "../../generated/trial.types.js";
 import type { TrialPlanEntry } from "../../planning/planner.js";
+import { canonicalStringify } from "../../utils/canonical-json.js";
 import {
   chatCompletion,
   embedText,
@@ -25,6 +26,8 @@ import {
   shouldExcludeContractFailure,
   type LiveTrialExecutionContext
 } from "../../engine/live-trial-context.js";
+import { sha256Hex } from "../../utils/hash.js";
+import { debateRolePromptKey, debateRoleTurnInstruction } from "./roles.js";
 
 const sortedSlots = (roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]>): string[] =>
   Object.keys(roleAssignments).sort((a, b) => {
@@ -41,38 +44,25 @@ const buildDebatePrompt = (input: {
   question: string;
   transcript: NonNullable<ArbiterTrialRecord["transcript"]>;
   slotId: string;
+  roleKind: string;
   round: number;
   isFinal: boolean;
 }): string => {
-  const prefix = input.isFinal
-    ? `You are slot ${input.slotId}. Provide the final response.`
-    : `You are slot ${input.slotId}. Provide your response for round ${input.round}.`;
+  const currentTurn = `Current turn:\nround ${input.round}, slot ${input.slotId}, role ${input.roleKind}`;
+  const task = `Your task for this turn:\n${debateRoleTurnInstruction(input.roleKind as never, input.isFinal)}`;
 
   if (input.transcript.length === 0) {
-    return `${prefix}\n\nQuestion:\n${input.question}`;
+    return `Question:\n${input.question}\n\n${currentTurn}\n\n${task}`;
   }
 
   const transcriptText = input.transcript
-    .map((entry) => `Turn ${entry.turn} [${entry.role}]: ${entry.content}`)
+    .map((entry) => `Turn ${entry.turn_index} [${entry.slot} / ${entry.role_kind}]: ${entry.content}`)
     .join("\n");
 
-  return `${prefix}\n\nQuestion:\n${input.question}\n\nPrior turns:\n${transcriptText}`;
+  return `Question:\n${input.question}\n\n${currentTurn}\n\n${task}\n\nPrior turns:\n${transcriptText}`;
 };
-
-const resolveRolePrompt = (input: {
-  slotId: string;
-  isFinal: boolean;
-  protocolPrompts: NonNullable<ArbiterTrialRecord["metadata"]> & {
-    proposerSystem: string;
-    criticSystem: string;
-    proposerFinalSystem: string;
-  };
-}): string => {
-  if (input.slotId === "A") {
-    return input.isFinal ? input.protocolPrompts.proposerFinalSystem : input.protocolPrompts.proposerSystem;
-  }
-  return input.protocolPrompts.criticSystem;
-};
+const DEBATE_PROTOCOL_INVARIANTS =
+  "Engage prior turns directly. Add new information instead of repeating the full debate.";
 
 const buildFailureTrialRecord = (input: {
   entry: TrialPlanEntry;
@@ -97,6 +87,7 @@ const buildFailureTrialRecord = (input: {
     role_assignments: input.roleAssignments,
     calls: input.calls,
     transcript: input.transcript,
+    ...(input.transcript.length > 0 ? { transcript_hash: sha256Hex(canonicalStringify(input.transcript)) } : {}),
     error: {
       message: input.error?.message ?? "Debate call failed",
       code: normalizeErrorCode(input.error instanceof OpenRouterError ? input.error.code : undefined),
@@ -162,12 +153,6 @@ export const executeLiveDebateTrial = async (input: {
 
   const rounds = entry.debate?.rounds ?? resolvedConfig.protocol.rounds ?? 1;
 
-  const protocolPrompts = {
-    proposerSystem: resolvedConfig.protocol.prompts.proposer_system.text,
-    criticSystem: resolvedConfig.protocol.prompts.critic_system.text,
-    proposerFinalSystem: resolvedConfig.protocol.prompts.proposer_final_system.text
-  };
-
   const calls: NonNullable<ArbiterTrialRecord["calls"]> = [];
   const transcript: NonNullable<ArbiterTrialRecord["transcript"]> = [];
   const trialStartedMs = Date.now();
@@ -208,17 +193,24 @@ export const executeLiveDebateTrial = async (input: {
     const personaText = assignment.persona_id
       ? (context.personaMap.get(assignment.persona_id)?.text ?? "")
       : "";
-    const rolePrompt = resolveRolePrompt({
-      slotId: callInput.slotId,
-      isFinal: callInput.isFinal,
-      protocolPrompts
-    });
-    const systemPrompt = callInput.isFinal && contractClause ? `${rolePrompt}\n\n${contractClause}` : rolePrompt;
+    const rolePromptKey = debateRolePromptKey(assignment.role_kind, callInput.isFinal);
+    const rolePrompt = resolvedConfig.protocol.prompts?.[rolePromptKey];
+    if (!rolePrompt) {
+      return { error: new Error(`Missing resolved debate prompt for ${rolePromptKey}`) };
+    }
+    const systemPrompt = [
+      rolePrompt.text,
+      personaText && personaText.trim().length > 0 ? personaText : null,
+      DEBATE_PROTOCOL_INVARIANTS,
+      callInput.isFinal && contractClause ? contractClause : null
+    ]
+      .filter((part): part is string => Boolean(part))
+      .join("\n\n");
 
     const messages = [
       {
         role: "system" as const,
-        content: personaText && personaText.trim().length > 0 ? `${personaText}\n\n---\n\n${systemPrompt}` : systemPrompt
+        content: systemPrompt
       },
       {
         role: "user" as const,
@@ -226,6 +218,7 @@ export const executeLiveDebateTrial = async (input: {
           question: resolvedConfig.question.text,
           transcript,
           slotId: callInput.slotId,
+          roleKind: assignment.role_kind,
           round: callInput.round,
           isFinal: callInput.isFinal
         })
@@ -260,7 +253,12 @@ export const executeLiveDebateTrial = async (input: {
         role: callInput.slotId,
         model_requested: assignment.model_slug,
         model_actual: result.model ?? null,
-        request_payload: result.requestPayload,
+        request_payload: {
+          ...result.requestPayload,
+          role_kind: assignment.role_kind,
+          role_prompt_id: rolePrompt.id,
+          role_prompt_sha256: rolePrompt.sha256
+        },
         response_payload: asObject(result.responseBody) ?? null,
         usage: result.usage ?? undefined,
         attempt: {
@@ -271,7 +269,17 @@ export const executeLiveDebateTrial = async (input: {
         },
         error_message: null
       });
-      transcript.push({ turn: callInput.turn, role: callInput.slotId, content });
+      transcript.push({
+        turn: callInput.turn,
+        turn_index: callInput.turn,
+        round: callInput.round,
+        slot: callInput.slotId,
+        role: callInput.slotId,
+        role_kind: assignment.role_kind,
+        role_prompt_id: rolePrompt.id,
+        role_prompt_sha256: rolePrompt.sha256,
+        content
+      });
       return { content, modelActual: result.model ?? null };
     }
 
@@ -292,7 +300,12 @@ export const executeLiveDebateTrial = async (input: {
       role: callInput.slotId,
       model_requested: assignment.model_slug,
       model_actual: modelActual,
-      request_payload: error instanceof OpenRouterError ? (error.requestPayload ?? {}) : {},
+      request_payload: {
+        ...(error instanceof OpenRouterError ? (error.requestPayload ?? {}) : {}),
+        role_kind: assignment.role_kind,
+        role_prompt_id: rolePrompt.id,
+        role_prompt_sha256: rolePrompt.sha256
+      },
       response_payload: asObject(responsePayload) ?? null,
       attempt: {
         started_at: callStarted,
@@ -428,6 +441,7 @@ export const executeLiveDebateTrial = async (input: {
     role_assignments: roleAssignments,
     calls,
     transcript,
+    transcript_hash: sha256Hex(canonicalStringify(transcript)),
     raw_assistant_text: finalContent
   };
   attachParseSummary(trialRecord, parsedRecord);

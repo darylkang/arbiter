@@ -36,6 +36,7 @@ export interface ArbiterTrialRecord {
   };
   calls?: CallRecord[];
   transcript?: TranscriptEntry[];
+  transcript_hash?: string;
   metadata?: {
     [k: string]: unknown;
   };
@@ -78,6 +79,9 @@ export interface DecodeParams {
 export interface RoleAssignment {
   model_slug: string;
   persona_id: string | null;
+  role_kind: "lead" | "challenger" | "counter" | "auditor";
+  role_prompt_id: string;
+  role_prompt_sha256: string;
   decode?: DecodeParams;
 }
 export interface CallRecord {
@@ -109,6 +113,12 @@ export interface UsageStats {
 }
 export interface TranscriptEntry {
   turn: number;
+  turn_index: number;
+  round: number;
+  slot: string;
   role: string;
+  role_kind: "lead" | "challenger" | "counter" | "auditor";
+  role_prompt_id: string;
+  role_prompt_sha256: string;
   content: string;
 }

@@ -39,7 +39,10 @@
       "additionalProperties": false,
       "required": [
         "model_slug",
-        "persona_id"
+        "persona_id",
+        "role_kind",
+        "role_prompt_id",
+        "role_prompt_sha256"
       ],
       "properties": {
         "model_slug": {
@@ -52,6 +55,18 @@
             "null"
           ],
           "minLength": 1
+        },
+        "role_kind": {
+          "type": "string",
+          "enum": ["lead", "challenger", "counter", "auditor"]
+        },
+        "role_prompt_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role_prompt_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
         },
         "decode": {
           "$ref": "#/$defs/decode_params"
@@ -148,7 +163,13 @@
       "additionalProperties": false,
       "required": [
         "turn",
+        "turn_index",
+        "round",
+        "slot",
         "role",
+        "role_kind",
+        "role_prompt_id",
+        "role_prompt_sha256",
         "content"
       ],
       "properties": {
@@ -156,9 +177,33 @@
           "type": "integer",
           "minimum": 0
         },
+        "turn_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "round": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "slot": {
+          "type": "string",
+          "minLength": 1
+        },
         "role": {
           "type": "string",
           "minLength": 1
+        },
+        "role_kind": {
+          "type": "string",
+          "enum": ["lead", "challenger", "counter", "auditor"]
+        },
+        "role_prompt_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role_prompt_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
         },
         "content": {
           "type": "string"
@@ -296,6 +341,10 @@
       "items": {
         "$ref": "#/$defs/transcript_entry"
       }
+    },
+    "transcript_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
     },
     "metadata": {
       "type": "object"

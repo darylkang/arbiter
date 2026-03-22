@@ -203,6 +203,7 @@ export const askIntegerInput = async (inputControl: {
   helperLines?: string[];
   defaultValue: number;
   min: number;
+  max?: number;
   onInvalid?: () => string;
   renderStepFrame: (frame: StepFrame) => void;
 }): Promise<PromptResult<number>> =>
@@ -215,14 +216,17 @@ export const askIntegerInput = async (inputControl: {
     parse: (raw) => {
       const value = raw.trim().length === 0 ? String(inputControl.defaultValue) : raw.trim();
       const parsed = Number(value);
-      if (Number.isInteger(parsed) && parsed >= inputControl.min) {
+      const withinMax = inputControl.max === undefined || parsed <= inputControl.max;
+      if (Number.isInteger(parsed) && parsed >= inputControl.min && withinMax) {
         return { ok: true, value: parsed };
       }
       return {
         ok: false,
         error:
           inputControl.onInvalid?.() ??
-          `Fix required: ${inputControl.title.toLowerCase()} must be an integer greater than or equal to ${inputControl.min}.`
+          `Fix required: ${inputControl.title.toLowerCase()} must be an integer within [${
+            inputControl.min
+          }, ${inputControl.max ?? "∞"}].`
       };
     }
   });

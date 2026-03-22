@@ -3,6 +3,7 @@ import type { ArbiterTrialRecord } from "../generated/trial.types.js";
 import { canonicalStringify } from "../utils/canonical-json.js";
 import { sha256Hex } from "../utils/hash.js";
 import { createRngForTrial } from "../utils/seeded-rng.js";
+import { debateRolePromptKey, resolveDebateRoleKind, resolveDebateSlotId } from "../protocols/debate-v1/roles.js";
 
 type WeightedItem<T> = { weight: number } & T;
 
@@ -79,13 +80,6 @@ export const generateTrialPlan = (
 ): { plan: TrialPlanEntry[]; planSha256: string } => {
   const plan: TrialPlanEntry[] = [];
 
-  const resolveSlotId = (index: number): string => {
-    if (index < 26) {
-      return String.fromCharCode(65 + index);
-    }
-    return `P${index + 1}`;
-  };
-
   for (let trialId = 0; trialId < config.execution.k_max; trialId += 1) {
     const planRng = createRngForTrial(config.run.seed, "plan", trialId);
 
@@ -95,7 +89,13 @@ export const generateTrialPlan = (
       const roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]> = {};
 
       for (let participantIndex = 0; participantIndex < participants; participantIndex += 1) {
-        const slotId = resolveSlotId(participantIndex);
+        const slotId = resolveDebateSlotId(participantIndex);
+        const roleKind = resolveDebateRoleKind(slotId);
+        const rolePromptKey = debateRolePromptKey(roleKind, false);
+        const rolePrompt = config.protocol.prompts?.[rolePromptKey];
+        if (!rolePrompt) {
+          throw new Error(`Missing debate prompt for role ${roleKind} (${rolePromptKey})`);
+        }
         const sampledModel = sampleWeighted(config.sampling.models, planRng);
         const sampledPersona = sampleWeighted(config.sampling.personas, planRng);
         const slotDecodeRng = createRngForTrial(config.run.seed, `decode:${slotId}`, trialId);
@@ -103,6 +103,9 @@ export const generateTrialPlan = (
         roleAssignments[slotId] = {
           model_slug: sampledModel.model,
           persona_id: sampledPersona.persona,
+          role_kind: roleKind,
+          role_prompt_id: rolePrompt.id,
+          role_prompt_sha256: rolePrompt.sha256,
           decode
         };
       }
