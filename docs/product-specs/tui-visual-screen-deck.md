@@ -488,10 +488,10 @@ Rules:
 3. The guidance block is followed by one blank separator line before the list.
 4. Line 1 names the focused model directly, but uses a calmer secondary emphasis than the active row itself.
 5. `summary_line` and `research_note` both use the normal body style; do not dim line 3 by default.
-6. The active row is the strongest focal point in the widget: bold brand label, brand selected-square glyph, muted fingerprint tail.
+6. The active row is the strongest focal point in the widget: bold brand label, brand cursor, brand checkbox glyph, muted fingerprint tail.
 7. Models are grouped by tier using non-interactive headers that the cursor skips.
 8. Insert one blank line before each non-first tier header to preserve breathing room between sections.
-9. Only the active model row appends a compact capability-and-cost fingerprint as muted secondary metadata.
+9. Selected square glyphs stay brand-colored even when their row is not active; only the active model row appends a compact capability-and-cost fingerprint as muted secondary metadata.
 10. Exact raw slugs remain backend truth and review-step provenance, not browsing-time row content.
 11. The focused guidance block stays selection-oriented; provenance details belong in review or artifacts, not per-row browsing copy.
 12. Selected free-tier models still trigger the global warning beneath the list; that warning is selection-state guidance, not focused-row guidance.

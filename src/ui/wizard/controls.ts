@@ -369,17 +369,18 @@ export const selectMany = async (inputControl: {
           lines.push(fmt.accent(choice.label));
           return;
         }
-        const cursor = index === selectedIndex ? "▸ " : "  ";
-        const checked = selectedIds.has(choice.id) ? "■" : "□";
+        const isActive = index === selectedIndex;
+        const isSelected = selectedIds.has(choice.id);
+        const cursor = isActive ? fmt.brand("▸ ") : "  ";
+        const checked = isSelected ? fmt.brand("■") : isActive ? fmt.brand("□") : "□";
         let label = choice.label;
-        if (index === selectedIndex && choice.activeSuffix) {
+        if (isActive && choice.activeSuffix) {
           const prefix = `${cursor}${checked} ${choice.label} · `;
           const room = Math.max(8, fmt.termWidth() - visibleLength(prefix));
           label = `${choice.label}${fmt.muted(` · ${truncatePlain(choice.activeSuffix, room)}`)}`;
         }
-        const rowLabel = index === selectedIndex ? fmt.bold(fmt.brand(label)) : label;
-        const rowChecked = index === selectedIndex && selectedIds.has(choice.id) ? fmt.brand(checked) : checked;
-        lines.push(`${cursor}${rowChecked} ${rowLabel}`);
+        const rowLabel = isActive ? fmt.bold(fmt.brand(label)) : label;
+        lines.push(`${cursor}${checked} ${rowLabel}`);
       });
       if (inputControl.extraLines) {
         const extras = inputControl.extraLines(selectedIds);

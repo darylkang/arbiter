@@ -236,7 +236,7 @@ Rail confirmation:
 12. `LOCKED`: `default: true` in the model catalog controls pre-selection; first pass uses exactly one default-selected model.
 13. `LOCKED`: `provider_label` is derived from the raw provider value and is not a separate catalog field.
 14. `LOCKED`: provenance details do not repeat in the focused guidance block; browsing-time guidance stays selection-oriented.
-15. `LOCKED`: the active row is the primary visual focal point: its label is bold and brand-colored, the selected square glyph is brand-colored when focused, and the appended fingerprint tail remains muted.
+15. `LOCKED`: the active row is the primary visual focal point: its label is bold and brand-colored, the active cursor and checkbox glyph use the same brand treatment, selected square glyphs remain brand-colored even when inactive, and the appended fingerprint tail remains muted.
 
 Rail confirmation:
 
