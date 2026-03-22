@@ -1,6 +1,7 @@
 import type { ArbiterResolvedConfig } from "../../generated/config.types.js";
 import { readJsonFile } from "../../cli/commands.js";
 import { UI_COPY } from "../copy.js";
+import { createStdoutFormatter } from "../fmt.js";
 import { askMultilineQuestion, chooseConfigFile, selectMany, selectOne } from "./controls.js";
 import {
   buildConfigFromDraft,
@@ -74,7 +75,9 @@ type WizardStepState = WizardFlowState & {
   entryPath: EntryPath;
 };
 
-export const createWizardStepControllers = (context: WizardStepContext): Record<EditableStepIndex, WizardStepController> => ({
+export const createWizardStepControllers = (context: WizardStepContext): Record<EditableStepIndex, WizardStepController> => {
+  const fmt = createStdoutFormatter();
+  return {
   1: async (state) => {
     const questionInput = await askMultilineQuestion({
       initial: state.draft.question,
@@ -127,7 +130,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
 
   3: async (state) => {
     const modelFrame = context.buildStepFrame(3, 2, "Models");
-    modelFrame.activeLines = ["Select one or more models for sampling.", ""];
+    modelFrame.activeLines = [];
     const tierOrder: CatalogModel["tier"][] = ["flagship", "mid", "budget", "free"];
     const modelChoices = tierOrder.flatMap((tier, tierIndex) => {
       const models = context.modelOptions.filter((model) => model.tier === tier);
@@ -180,7 +183,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
           return ["", "", ""];
         }
         const model = entry.model;
-        return [model.summaryLine, model.researchNote, model.riskNote ?? ""];
+        return [fmt.bold(fmt.brand(model.display)), model.summaryLine, fmt.muted(model.researchNote)];
       },
       extraLines: (selected) =>
         context.modelOptions
@@ -332,7 +335,8 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
       revised: state.revised
     };
   }
-});
+  };
+};
 
 const assertEditableState = (state: WizardFlowState): WizardStepState => {
   if (!state.entryPath || !state.runMode) {

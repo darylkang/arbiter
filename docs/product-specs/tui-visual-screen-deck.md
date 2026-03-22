@@ -454,9 +454,9 @@ The Models step should feel like a disciplined model-selection surface, not just
   │
   │   Select one or more models for sampling.
   │
-  │   Balanced mainstream reasoning
-  │   Good default model for broad, lower-cost cross-provider studies.
-  │   Smaller sibling of GPT-5.4; compare upward when task difficulty is high.
+  │   GPT-5.4 Mini
+  │   Strong default for broad mid-tier cross-provider studies.
+  │   Start here, then compare upward to flagships on harder tasks.
   │
   │   ── Flagship
   │     □ GPT-5.4 · OpenAI
@@ -482,18 +482,18 @@ Rules:
 
 1. Model rows stay compact and scan-first.
 2. The focused guidance block is always exactly three content lines tall:
+   - `display_name`
    - `summary_line`
    - `research_note`
-   - `risk_note` or blank
 3. The guidance block is followed by one blank separator line before the list.
-4. `summary_line` is factual and compact; it should not read like a marketing subtitle.
-5. `research_note` explains why a researcher would include the model in a study.
-6. `risk_note` is concise and caution-oriented when present.
+4. Line 1 is the strongest visual element in the block and names the focused model directly.
+5. `summary_line` is the primary reason to include the model in a study.
+6. `research_note` is the secondary study-design guidance line and may be visually quieter than lines 1-2.
 7. Models are grouped by tier using non-interactive headers that the cursor skips.
 8. Insert one blank line before each non-first tier header to preserve breathing room between sections.
 9. Only the active model row appends a compact capability-and-cost fingerprint as muted secondary metadata.
 10. Exact raw slugs remain backend truth and review-step provenance, not browsing-time row content.
-11. Aliased models explain the reproducibility implication in the guidance block rather than the row.
+11. The focused guidance block stays selection-oriented; provenance details belong in review or artifacts, not per-row browsing copy.
 12. Selected free-tier models still trigger the global warning beneath the list; that warning is selection-state guidance, not focused-row guidance.
 
 ### Step 4 Personas Surface

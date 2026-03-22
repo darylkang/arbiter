@@ -265,9 +265,9 @@ Locked debate mechanics:
 3. Models are grouped into non-interactive tier sections (`Flagship`, `Mid`, `Budget`, `Free`) and the cursor skips section headers.
 4. A fixed-height focused guidance block sits above the list and updates with the active model.
 5. The guidance block always renders exactly three content lines plus one blank separator line before the list:
+   - `display_name`
    - `summary_line`
    - `research_note`
-   - `risk_note` or blank
 6. The active row appends a compact capability-and-cost fingerprint as muted secondary metadata; non-active rows do not show this fingerprint.
 7. Defaults are sourced from the model catalog via `default: true`; first pass uses exactly one default-selected model.
 8. Free-tier non-blocking warning is shown when any selected model is in tier `free`.

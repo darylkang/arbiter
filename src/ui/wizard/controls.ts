@@ -375,7 +375,7 @@ export const selectMany = async (inputControl: {
         if (index === selectedIndex && choice.activeSuffix) {
           const prefix = `${cursor}${checked} ${choice.label} · `;
           const room = Math.max(8, fmt.termWidth() - visibleLength(prefix));
-          label = `${choice.label} · ${fmt.muted(truncatePlain(choice.activeSuffix, room))}`;
+          label = `${choice.label}${fmt.muted(` · ${truncatePlain(choice.activeSuffix, room)}`)}`;
         }
         lines.push(`${cursor}${checked} ${label}`);
       });

@@ -227,15 +227,15 @@ Rail confirmation:
 6. `LOCKED`: models are grouped by tier with non-interactive section headers in this order: `Flagship`, `Mid`, `Budget`, `Free`.
 7. `LOCKED`: insert one blank line before each non-first tier header to create breathing room between sections.
 8. `LOCKED`: the focused guidance block renders exactly three content lines:
-   - line 1: `{summary_line}`
-   - line 2: `{research_note}`
-   - line 3: `{risk_note}` or blank
+   - line 1: `{display_name}`
+   - line 2: `{summary_line}`
+   - line 3: `{research_note}`
 9. `LOCKED`: the guidance block is followed by one blank separator line before the model list.
-10. `LOCKED`: the active model row appends a compact capability-and-cost fingerprint as muted secondary metadata (for example `400K ctx · $0.75/$4.5`).
-11. `LOCKED`: `summary_line` is a qualitative capability characterization; `research_note` explains why a researcher would include the model in a study; `risk_note` is concise and caution-oriented.
+10. `LOCKED`: the active model row appends a compact capability-and-cost fingerprint as fully muted secondary metadata (for example `400K ctx · $0.75/$4.5`).
+11. `LOCKED`: line 1 is the focused model title in the strongest visual treatment; `summary_line` is the primary reason to include the model in a study; `research_note` is the secondary study-design guidance line.
 12. `LOCKED`: `default: true` in the model catalog controls pre-selection; first pass uses exactly one default-selected model.
 13. `LOCKED`: `provider_label` is derived from the raw provider value and is not a separate catalog field.
-14. `LOCKED`: aliased entries keep the row clean and surface reproducibility caveats only through the focused guidance block.
+14. `LOCKED`: provenance details do not repeat in the focused guidance block; browsing-time guidance stays selection-oriented.
 
 Rail confirmation:
 

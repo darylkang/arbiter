@@ -71,7 +71,7 @@ test("loadCatalogModels reads presentation metadata from the model catalog", () 
   );
   assert.equal(
     models.find((model) => model.slug === "deepseek/deepseek-v3.2")?.researchNote,
-    "Useful for text-first DeepSeek coverage in mainstream cross-provider studies."
+    "Helpful for separating text-only reasoning behavior from multimodal peers."
   );
   assert.deepEqual(
     models.map((model) => model.isAliased),
