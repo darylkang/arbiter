@@ -116,7 +116,7 @@ Inline metadata pattern:
 ### Controls
 
 1. `LOCKED`: single-choice structure: `○ {option}` (unselected), `● {option}` (selected).
-2. `LOCKED`: multi-choice structure: `□ {option}` (unselected), `■ {option}` (selected).
+2. `LOCKED`: multi-choice structure: `○ {option}` (unselected), `● {option}` (selected).
 3. `LOCKED`: focus cursor `▸` marks the current actionable row.
 4. `LOCKED`: do not use `[ ]` or `[x]` in premium-mode selectors.
 
@@ -236,8 +236,8 @@ Rail confirmation:
 12. `LOCKED`: `default: true` in the model catalog controls pre-selection; first pass uses exactly one default-selected model.
 13. `LOCKED`: `provider_label` is derived from the raw provider value and is not a separate catalog field.
 14. `LOCKED`: provenance details do not repeat in the focused guidance block; browsing-time guidance stays selection-oriented.
-15. `LOCKED`: the active row is the primary visual focal point: its label is bold and brand-colored, the active cursor and checkbox glyph use the same brand treatment, selected square glyphs remain brand-colored even when inactive, and the appended fingerprint tail remains muted.
-16. `LOCKED`: inline `·` separators render in muted text and do not inherit row emphasis.
+15. `LOCKED`: the active row is the primary visual focal point: its label is bold and brand-colored, the active cursor and checkbox glyph use the same brand treatment, selected round glyphs remain brand-colored even when inactive, and the appended fingerprint tail remains muted.
+16. `LOCKED`: inline `·` separators stay neutral and do not inherit row emphasis.
 
 Rail confirmation:
 

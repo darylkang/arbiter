@@ -207,8 +207,8 @@ Rules:
 |---------|-------|-------|
 | single selected | `●` | `accent.primary` |
 | single unselected | `○` | `fg.muted` |
-| multi selected | `■` | `accent.primary` |
-| multi unselected | `□` | `fg.muted` |
+| multi selected | `●` | `accent.primary` |
+| multi unselected | `○` | `fg.muted` |
 | focus cursor | `▸` | `accent.primary` |
 
 The only shared glyph between rail and controls is `▸`, and in both contexts it means “currently active.”
@@ -491,8 +491,8 @@ Rules:
 6. The active row is the strongest focal point in the widget: bold brand label, brand cursor, brand checkbox glyph, muted fingerprint tail.
 7. Models are grouped by tier using non-interactive headers that the cursor skips.
 8. Insert one blank line before each non-first tier header to preserve breathing room between sections.
-9. Selected square glyphs stay brand-colored even when their row is not active; only the active model row appends a compact capability-and-cost fingerprint as muted secondary metadata.
-10. Inline `·` separators stay muted and do not inherit the row's stronger emphasis.
+9. Selected round glyphs stay brand-colored even when their row is not active; only the active model row appends a compact capability-and-cost fingerprint as muted secondary metadata.
+10. Inline `·` separators stay neutral and do not inherit the row's stronger emphasis.
 11. Exact raw slugs remain backend truth and review-step provenance, not browsing-time row content.
 12. The focused guidance block stays selection-oriented; provenance details belong in review or artifacts, not per-row browsing copy.
 13. Selected free-tier models still trigger the global warning beneath the list; that warning is selection-state guidance, not focused-row guidance.

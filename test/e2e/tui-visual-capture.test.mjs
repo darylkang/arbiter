@@ -50,7 +50,7 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
       "GPT-5.4 Mini",
       "Start here, then compare upward to flagships on harder tasks.",
       "── Mid",
-      "■ GPT-5.4 Mini · OpenAI · 400K ctx · $0.75/$4.5",
+      "● GPT-5.4 Mini · OpenAI · 400K ctx · $0.75/$4.5",
       "Claude Sonnet 4.6 · Anthropic",
       "Kimi K2.5 · MoonshotAI",
       "Mistral Small 4 · Mistral"

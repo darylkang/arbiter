@@ -58,7 +58,7 @@ const renderInlineLabel = (label: string, input: { active: boolean; fmt: Formatt
   return parts
     .map((part, index) => {
       const renderedPart = input.active ? input.fmt.bold(input.fmt.brand(part)) : part;
-      return index === 0 ? renderedPart : `${input.fmt.muted(INLINE_SEPARATOR)}${renderedPart}`;
+      return index === 0 ? renderedPart : `${INLINE_SEPARATOR}${renderedPart}`;
     })
     .join("");
 };
@@ -386,7 +386,7 @@ export const selectMany = async (inputControl: {
         const isActive = index === selectedIndex;
         const isSelected = selectedIds.has(choice.id);
         const cursor = isActive ? fmt.brand("▸ ") : "  ";
-        const checked = isSelected ? fmt.brand("■") : isActive ? fmt.brand("□") : "□";
+        const checked = isSelected ? fmt.brand("●") : isActive ? fmt.brand("○") : "○";
         let label = renderInlineLabel(choice.label, { active: isActive, fmt });
         if (isActive && choice.activeSuffix) {
           const prefix = `${cursor}${checked} ${choice.label} · `;
