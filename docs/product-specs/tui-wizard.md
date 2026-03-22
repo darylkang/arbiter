@@ -276,7 +276,7 @@ Locked debate mechanics:
 
 1. Checkbox list with compact metadata rows.
 2. At least one selection required.
-3. Focused guidance block updates with the active persona and remains fixed-height while the cursor moves.
+3. Focused guidance block updates with the active persona and remains fixed-height while the cursor moves using `display_name`, `subtitle`, and `when_to_use`.
 4. Default personas are selected from the persona catalog rather than by positional assumption.
 
 ### Pool sampling semantics

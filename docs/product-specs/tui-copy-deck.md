@@ -116,7 +116,7 @@ Inline metadata pattern:
 ### Controls
 
 1. `LOCKED`: single-choice structure: `○ {option}` (unselected), `● {option}` (selected).
-2. `LOCKED`: multi-choice structure: `○ {option}` (unselected), `● {option}` (selected).
+2. `LOCKED`: multi-choice structure: `□ {option}` (unselected), `■ {option}` (selected).
 3. `LOCKED`: focus cursor `▸` marks the current actionable row.
 4. `LOCKED`: do not use `[ ]` or `[x]` in premium-mode selectors.
 
@@ -246,17 +246,17 @@ Rail confirmation:
 ### Step 4 Personas
 
 1. `LOCKED`: `Personas`
-2. `FLEX`: `Select one or more personas for sampling.`
+2. `FLEX`: the focused guidance block itself provides the primary explanatory copy for this step.
 3. `LOCKED`: `Fix required: select at least one persona.`
-4. `LOCKED`: persona rows render as `{display_name} · {category}`.
+4. `LOCKED`: persona rows render as `{display_name}`; the active row appends `{category}` as muted secondary metadata.
 5. `LOCKED`: the focused guidance block renders exactly three content lines:
-   - line 1: `{subtitle}`
-   - line 2: `{when_to_use}`
-   - line 3: `{risk_note}` or blank
+   - line 1: `{display_name}`
+   - line 2: `{subtitle}`
+   - line 3: `{when_to_use}`
 6. `LOCKED`: first-pass category vocabulary is `baseline`, `adversarial`, `analytical`, `divergent`, `decisive`.
 7. `LOCKED`: visible `recommended` tags are deferred; default personas are communicated by pre-selection only.
 8. `LOCKED`: manifest `description` is not used for Personas-step UI copy once the persona catalog exists.
-9. `LOCKED`: persona `risk_note` copy should be concise, caution-oriented, and fit on one rendered line at supported widths.
+9. `LOCKED`: line 1 uses a calmer secondary emphasis than the active row; lines 2 and 3 use the normal body style.
 
 Rail confirmation:
 

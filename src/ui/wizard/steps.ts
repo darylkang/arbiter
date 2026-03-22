@@ -207,12 +207,13 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
 
   4: async (state) => {
     const personaFrame = context.buildStepFrame(4, 3, "Personas");
-    personaFrame.activeLines = ["Select one or more personas for sampling.", ""];
+    personaFrame.activeLines = [];
     const selectedPersonas = await selectMany({
       prompt: "Personas",
       choices: context.personaOptions.map((persona) => ({
         id: persona.id,
-        label: `${persona.displayName} · ${persona.category}`
+        label: persona.displayName,
+        activeSuffix: persona.category
       })),
       defaults: state.draft.personaIds,
       emptySelectionError: "Fix required: select at least one persona.",
@@ -222,11 +223,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
         if (!persona) {
           return ["", "", ""];
         }
-        return [
-          persona.subtitle,
-          persona.whenToUse,
-          persona.riskNote ?? ""
-        ];
+        return [fmt.bold(fmt.success(persona.displayName)), fmt.text(persona.subtitle), fmt.text(persona.whenToUse)];
       },
       renderStepFrame: context.renderStepFrame
     });

@@ -207,8 +207,8 @@ Rules:
 |---------|-------|-------|
 | single selected | `●` | `accent.primary` |
 | single unselected | `○` | `fg.muted` |
-| multi selected | `●` | `accent.primary` |
-| multi unselected | `○` | `fg.muted` |
+| multi selected | `■` | `accent.primary` |
+| multi unselected | `□` | `fg.muted` |
 | focus cursor | `▸` | `accent.primary` |
 
 The only shared glyph between rail and controls is `▸`, and in both contexts it means “currently active.”
@@ -516,17 +516,15 @@ The Personas step should feel guidance-rich without turning the list into prose.
   │
   ▸  Personas
   │
-  │   Select one or more personas for sampling.
-  │
+  │   Skeptical
   │   Strongest-objection framing
   │   Use when you want pressure against premature conclusions.
-  │   Caution: may bias toward guarded or underconfident answers.
   │
-  │   ■ Baseline · baseline
+  │   ■ Baseline
   │   ▸ □ Skeptical · adversarial
-  │     □ Analytical · analytical
-  │     □ Exploratory · divergent
-  │     □ Decisive · decisive
+  │     ○ Analytical
+  │     ○ Exploratory
+  │     ○ Decisive
   │
   ◇  Decode Params
   ◇  Advanced Settings
@@ -541,9 +539,12 @@ Rules:
 1. Persona rows stay compact and scan-first.
 2. Guidance lives above the list, not inline in every row.
 3. The guidance block is always exactly three content lines tall:
+   - display name
    - subtitle
    - when-to-use guidance
-   - optional caution line or blank
+4. Line 1 names the focused persona directly, but uses a calmer secondary emphasis than the active row itself.
+5. Persona category is treated as secondary metadata and appears only as the active-row tail reveal.
+5. Subtitle and when-to-use guidance both use the normal body style.
 4. The guidance block must not change height while the cursor moves.
 5. `when_to_use` text must fit on one rendered line at supported widths.
 6. Raw manifest descriptions are not rendered in the Personas step once the catalog exists.

@@ -386,7 +386,7 @@ export const selectMany = async (inputControl: {
         const isActive = index === selectedIndex;
         const isSelected = selectedIds.has(choice.id);
         const cursor = isActive ? fmt.brand("▸ ") : "  ";
-        const checked = isSelected ? fmt.brand("●") : isActive ? fmt.brand("○") : "○";
+        const checked = isSelected ? fmt.brand("■") : isActive ? fmt.brand("□") : "□";
         let label = renderInlineLabel(choice.label, { active: isActive, fmt });
         if (isActive && choice.activeSuffix) {
           const prefix = `${cursor}${checked} ${choice.label} · `;
