@@ -73,3 +73,45 @@ test("debate mock runs produce debate trials, transcripts, and embedding rows", 
     assert.equal(table.numRows, 4);
   });
 });
+
+test("debate mock runs assign the full role taxonomy at P=4", { concurrency: false }, async () => {
+  await withTempWorkspace("arbiter-debate-run-p4-", async (cwd) => {
+    const configPath = resolve(cwd, "arbiter.config.json");
+    writeJson(
+      configPath,
+      buildDebateSmokeConfig({
+        questionText: "Debate mock prompt P4",
+        questionId: "mock_debate_q2",
+        kMax: 2,
+        batchSize: 1,
+        workers: 1,
+        participants: 4,
+        rounds: 1
+      })
+    );
+
+    const result = await runMockService({
+      configPath,
+      assetRoot: REPO_ROOT,
+      runsDir: resolve(cwd, "runs"),
+      quiet: true,
+      debug: false,
+      warningSink: noopWarningSink
+    });
+
+    const trials = readJsonl(resolve(result.runDir, "trials.jsonl"));
+    for (const record of trials) {
+      assert.equal(record.protocol, "debate_v1");
+      assert.equal(record.role_assignments?.A?.role_kind, "lead");
+      assert.equal(record.role_assignments?.B?.role_kind, "challenger");
+      assert.equal(record.role_assignments?.C?.role_kind, "counter");
+      assert.equal(record.role_assignments?.D?.role_kind, "auditor");
+      assert.equal(record.transcript[0]?.role_kind, "lead");
+      assert.equal(record.transcript[1]?.role_kind, "challenger");
+      assert.equal(record.transcript[2]?.role_kind, "counter");
+      assert.equal(record.transcript[3]?.role_kind, "auditor");
+      assert.equal(record.calls?.length, 5);
+      assert.equal(record.transcript?.length, 5);
+    }
+  });
+});

@@ -39,10 +39,16 @@ export const executeMockDebateTrial = async (input: {
         model_slug: entry.assigned_config.model,
         persona_id: entry.assigned_config.persona,
         role_kind: "lead",
-        role_prompt_id: resolvedConfig.protocol.prompts?.lead_system.id ?? "protocol_debate_v1_lead_system",
+        role_prompt_id:
+          resolvedConfig.protocol.prompts?.lead_system.id ??
+          (() => {
+            throw new Error("Missing resolved debate lead prompt");
+          })(),
         role_prompt_sha256:
           resolvedConfig.protocol.prompts?.lead_system.sha256 ??
-          "0000000000000000000000000000000000000000000000000000000000000000"
+          (() => {
+            throw new Error("Missing resolved debate lead prompt hash");
+          })()
       }
     };
   const slots = sortedSlots(roleAssignments);
