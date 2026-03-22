@@ -377,7 +377,9 @@ export const selectMany = async (inputControl: {
           const room = Math.max(8, fmt.termWidth() - visibleLength(prefix));
           label = `${choice.label}${fmt.muted(` · ${truncatePlain(choice.activeSuffix, room)}`)}`;
         }
-        lines.push(`${cursor}${checked} ${label}`);
+        const rowLabel = index === selectedIndex ? fmt.bold(fmt.brand(label)) : label;
+        const rowChecked = index === selectedIndex && selectedIds.has(choice.id) ? fmt.brand(checked) : checked;
+        lines.push(`${cursor}${rowChecked} ${rowLabel}`);
       });
       if (inputControl.extraLines) {
         const extras = inputControl.extraLines(selectedIds);

@@ -486,9 +486,9 @@ Rules:
    - `summary_line`
    - `research_note`
 3. The guidance block is followed by one blank separator line before the list.
-4. Line 1 is the strongest visual element in the block and names the focused model directly.
-5. `summary_line` is the primary reason to include the model in a study.
-6. `research_note` is the secondary study-design guidance line and may be visually quieter than lines 1-2.
+4. Line 1 names the focused model directly, but uses a calmer secondary emphasis than the active row itself.
+5. `summary_line` and `research_note` both use the normal body style; do not dim line 3 by default.
+6. The active row is the strongest focal point in the widget: bold brand label, brand selected-square glyph, muted fingerprint tail.
 7. Models are grouped by tier using non-interactive headers that the cursor skips.
 8. Insert one blank line before each non-first tier header to preserve breathing room between sections.
 9. Only the active model row appends a compact capability-and-cost fingerprint as muted secondary metadata.

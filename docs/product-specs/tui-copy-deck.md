@@ -232,10 +232,11 @@ Rail confirmation:
    - line 3: `{research_note}`
 9. `LOCKED`: the guidance block is followed by one blank separator line before the model list.
 10. `LOCKED`: the active model row appends a compact capability-and-cost fingerprint as fully muted secondary metadata (for example `400K ctx · $0.75/$4.5`).
-11. `LOCKED`: line 1 is the focused model title in the strongest visual treatment; `summary_line` is the primary reason to include the model in a study; `research_note` is the secondary study-design guidance line.
+11. `LOCKED`: line 1 uses a calmer secondary emphasis than the active row; lines 2 and 3 use the normal body style.
 12. `LOCKED`: `default: true` in the model catalog controls pre-selection; first pass uses exactly one default-selected model.
 13. `LOCKED`: `provider_label` is derived from the raw provider value and is not a separate catalog field.
 14. `LOCKED`: provenance details do not repeat in the focused guidance block; browsing-time guidance stays selection-oriented.
+15. `LOCKED`: the active row is the primary visual focal point: its label is bold and brand-colored, the selected square glyph is brand-colored when focused, and the appended fingerprint tail remains muted.
 
 Rail confirmation:
 

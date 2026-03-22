@@ -183,7 +183,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
           return ["", "", ""];
         }
         const model = entry.model;
-        return [fmt.bold(fmt.brand(model.display)), model.summaryLine, fmt.muted(model.researchNote)];
+        return [fmt.bold(fmt.success(model.display)), fmt.text(model.summaryLine), fmt.text(model.researchNote)];
       },
       extraLines: (selected) =>
         context.modelOptions
