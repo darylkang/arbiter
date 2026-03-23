@@ -460,6 +460,131 @@ export const selectMany = async (inputControl: {
   });
 };
 
+export const selectSectionedSingle = async (inputControl: {
+  prompt: string;
+  sections: Array<{
+    key: string;
+    title: string;
+    options: Array<{ id: string; label: string }>;
+  }>;
+  values: Record<string, string>;
+  frame: StepFrame;
+  focusedLines?: (previewValues: Record<string, string>) => string[];
+  renderStepFrame: (frame: StepFrame) => void;
+}): Promise<Record<string, string> | NavigationSignal> => {
+  const fmt = createStdoutFormatter();
+  const sectionKeys = new Set(inputControl.sections.map((section) => section.key));
+  const selectedValues: Record<string, string> = {};
+  for (const section of inputControl.sections) {
+    const defaultOption = section.options.find((option) => option.id === inputControl.values[section.key]) ?? section.options[0];
+    if (!defaultOption) {
+      throw new Error(`Section ${section.key} must contain at least one option`);
+    }
+    selectedValues[section.key] = defaultOption.id;
+  }
+
+  const rows = inputControl.sections.flatMap((section) => [
+    { kind: "group" as const, title: section.title },
+    ...section.options.map((option) => ({ kind: "option" as const, sectionKey: section.key, option }))
+  ]);
+  const firstOptionIndex = rows.findIndex((row) => row.kind === "option");
+  let focusedIndex = firstEnabledIndex(
+    rows.map((row) => ({ id: row.kind === "option" ? row.option.id : row.title, label: "", disabled: row.kind !== "option" })),
+    firstOptionIndex >= 0 ? firstOptionIndex : 0
+  );
+
+  const previewValues = (): Record<string, string> => {
+    const focused = rows[focusedIndex];
+    if (!focused || focused.kind !== "option") {
+      return { ...selectedValues };
+    }
+    return {
+      ...selectedValues,
+      [focused.sectionKey]: focused.option.id
+    };
+  };
+
+  return withRawKeyCapture<Record<string, string> | NavigationSignal>({
+    render: (errorLine) => {
+      const includePrompt =
+        inputControl.prompt.trim().toLowerCase() !== inputControl.frame.activeLabel.trim().toLowerCase();
+      const lines: string[] = includePrompt ? [inputControl.prompt, ""] : [];
+      if (inputControl.focusedLines) {
+        lines.push(...inputControl.focusedLines(previewValues()));
+        lines.push("");
+      }
+      rows.forEach((row, index) => {
+        if (row.kind === "group") {
+          lines.push(fmt.accent(`── ${row.title}`));
+          return;
+        }
+        const isActive = index === focusedIndex;
+        const isSelected = selectedValues[row.sectionKey] === row.option.id;
+        const cursor = isActive ? fmt.brand("▸ ") : "  ";
+        const glyph = isSelected ? fmt.brand("●") : isActive ? fmt.brand("○") : "○";
+        const label = isActive ? fmt.bold(fmt.brand(row.option.label)) : row.option.label;
+        lines.push(`${cursor}${glyph} ${label}`);
+      });
+      if (errorLine) {
+        lines.push("");
+        lines.push(errorLine);
+      }
+      inputControl.renderStepFrame({
+        ...inputControl.frame,
+        activeLines: [...inputControl.frame.activeLines, ...lines],
+        footerText: "↑/↓ move · Space select · Enter confirm · Esc back"
+      });
+    },
+    onKey: (_str, key) => {
+      if (key.ctrl && key.name === "c") {
+        return { done: true, value: SELECT_EXIT };
+      }
+      if (key.name === "up") {
+        focusedIndex = nextSelectableIndex(
+          rows.map((row) => ({ id: row.kind === "option" ? row.option.id : row.title, label: "", disabled: row.kind !== "option" })),
+          focusedIndex,
+          -1
+        );
+        return { done: false };
+      }
+      if (key.name === "down") {
+        focusedIndex = nextSelectableIndex(
+          rows.map((row) => ({ id: row.kind === "option" ? row.option.id : row.title, label: "", disabled: row.kind !== "option" })),
+          focusedIndex,
+          1
+        );
+        return { done: false };
+      }
+      if (key.name === "escape") {
+        return { done: true, value: SELECT_BACK };
+      }
+      if (key.name === "space") {
+        const focused = rows[focusedIndex];
+        if (focused && focused.kind === "option") {
+          selectedValues[focused.sectionKey] = focused.option.id;
+        }
+        return { done: false };
+      }
+      if (key.name === "return" || key.sequence === "\r") {
+        const focused = rows[focusedIndex];
+        if (focused && focused.kind === "option") {
+          if (selectedValues[focused.sectionKey] !== focused.option.id) {
+            selectedValues[focused.sectionKey] = focused.option.id;
+            return { done: false };
+          }
+        }
+        for (const keyName of sectionKeys) {
+          if (!selectedValues[keyName]) {
+            return { done: false, error: "Fix required: select one option in each debate section." };
+          }
+        }
+        return { done: true, value: { ...selectedValues } };
+      }
+      return { done: false };
+    }
+  });
+};
+
 export const askMultilineQuestion = async (inputControl: {
   initial: string;
   frame: StepFrame;

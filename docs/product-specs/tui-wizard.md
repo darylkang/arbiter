@@ -239,9 +239,14 @@ Primary selection:
 
 Debate parameters:
 
-1. Participants `P` is chosen from a constrained research-grade set, default `2`.
-2. Rounds `R` is chosen from a constrained research-grade set, default `1`.
-3. Current primary UI range should expose `P in {2,3,4}` and `R in {1,2}` rather than arbitrary integers.
+1. Selecting `Debate` opens a dedicated debate-configuration page before the Models step.
+2. Participants `P` and rounds `R` are configured together on that page rather than through separate integer prompts.
+3. Participants `P` is chosen from the constrained research-grade set `P in {2,3,4}`, default `2`.
+4. Rounds `R` is chosen from the constrained research-grade set `R in {1,2}`, default `1`.
+5. The top block on that page always renders the combined debate summary, fixed role mapping, and a short research-facing rationale for the current `(P, R)` selection.
+6. The page uses two grouped sections:
+   - `Participants`
+   - `Rounds`
 
 Locked debate mechanics:
 

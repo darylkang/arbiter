@@ -50,8 +50,10 @@ test("pty capture emits rendered snapshots for key journey checkpoints", { concu
       "Debate (2P, 1R, 3 turns)",
       "A lead · B challenger",
       "Minimal interaction: does any structured debate shift the outcome distribution?",
-      "2 participants, 1 round (3 turns)",
-      "4 participants, 1 round (5 turns)"
+      "── Participants",
+      "2 participants",
+      "── Rounds",
+      "2 rounds"
     ]);
     assertRenderedSnapshotIncludes(getCheckpoint(checkpoints, "step3-models"), [
       "GPT-5.4 Mini",

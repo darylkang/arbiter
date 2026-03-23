@@ -316,7 +316,8 @@ export const captureVisualJourney = async (options = {}) => {
     pressEnter();
 
     await waitForText("Debate (2P, 1R, 3 turns)");
-    await waitForText("2 participants, 1 round (3 turns)");
+    await waitForText("2 participants");
+    await waitForText("1 round");
     await saveSnapshot("step2-debate-config");
     pressEnter();
 

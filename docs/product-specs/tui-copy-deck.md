@@ -213,6 +213,12 @@ Rail confirmation:
 10. `LOCKED`: `Role structure is fixed by slot: A lead, B challenger, C counter, D auditor.`
 11. `LOCKED`: `Slot assignments are sampled once per trial and remain fixed for that trial.`
 12. `LOCKED`: `Model, persona, and decode are sampled per slot with replacement.`
+13. `LOCKED`: the debate configuration page uses two grouped sections on one screen: `Participants` and `Rounds`.
+14. `LOCKED`: the top block on that page shows:
+   - line 1: combined debate summary, e.g. `Debate (2P, 1R, 3 turns)`
+   - line 2: fixed role mapping, e.g. `A lead · B challenger`
+   - line 3: short research-facing rationale for the current `(P, R)` selection
+15. `LOCKED`: footer text for the debate-configuration page is `↑/↓ move · Space select · Enter confirm · Esc back`.
 
 Rail confirmation:
 

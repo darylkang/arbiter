@@ -126,6 +126,34 @@ export const DEBATE_PRIMARY_MATRIX: DebateMatrixOption[] = [
   }
 ];
 
+export const debateConfigRationale = (participants: number, rounds: number): string => {
+  if (participants === 2 && rounds === 1) {
+    return "Minimal debate: one challenge round before the final answer.";
+  }
+  if (participants === 3 && rounds === 1) {
+    return "Adds a competing-answer role alongside the challenger.";
+  }
+  if (participants === 2 && rounds === 2) {
+    return "Two exchange rounds before the final answer.";
+  }
+  if (participants === 4 && rounds === 1) {
+    return "All four role types active in a single round.";
+  }
+  if (participants === 3 && rounds === 2) {
+    return "Two rounds with three distinct roles.";
+  }
+  if (participants === 4 && rounds === 2) {
+    return "Full role set with two exchange rounds; longest debate configuration.";
+  }
+  return "Configured debate with fixed roles and a final lead synthesis.";
+};
+
+export const debateParticipantsLabel = (participants: number): string =>
+  `${participants} ${participants === 1 ? "participant" : "participants"}`;
+
+export const debateRoundsLabel = (rounds: number): string =>
+  `${rounds} ${rounds === 1 ? "round" : "rounds"}`;
+
 export const debateTurnCount = (participants: number, rounds: number): number =>
   participants * rounds + 1;
 
