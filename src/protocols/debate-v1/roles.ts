@@ -173,3 +173,16 @@ export const debateRoleReviewSummary = (participants: number): string =>
     const roleKind = resolveDebateRoleKind(slotId);
     return `${slotId} ${roleKind}`;
   }).join(" · ");
+
+export const debateRoleConfigSummary = (participants: number): string => {
+  if (participants === 2) {
+    return "A lead · B challenger";
+  }
+  if (participants === 3) {
+    return "A lead · B challenger · C counter";
+  }
+  if (participants === 4) {
+    return "A lead · B challenger · C counter · D auditor";
+  }
+  return debateRoleReviewSummary(participants);
+};

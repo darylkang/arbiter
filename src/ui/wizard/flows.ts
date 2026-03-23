@@ -9,9 +9,11 @@ import {
   DEBATE_PRIMARY_MATRIX,
   debateConfigSummary,
   debateConfigRationale,
+  debateRoleConfigSummary,
   debateParticipantsLabel,
   debateRoleReviewSummary
 } from "../../protocols/debate-v1/roles.js";
+import { createStdoutFormatter } from "../fmt.js";
 import {
   askFloatInput,
   askIntegerInput,
@@ -123,6 +125,7 @@ export const configureDebateProtocol = async (input: {
   buildStepFrame: StepFrameBuilder;
   renderStepFrame: (frame: StepFrame) => void;
 }): Promise<"done" | NavigationSignal> => {
+  const fmt = createStdoutFormatter();
   const selection = await selectSectionedSingle({
     prompt: "Protocol",
     sections: [
@@ -131,7 +134,8 @@ export const configureDebateProtocol = async (input: {
         title: "Participants",
         options: [2, 3, 4].map((participants) => ({
           id: String(participants),
-          label: debateParticipantsLabel(participants)
+          label: debateParticipantsLabel(participants),
+          activeSuffix: debateRoleConfigSummary(participants)
         }))
       },
       {
@@ -139,7 +143,8 @@ export const configureDebateProtocol = async (input: {
         title: "Rounds",
         options: [1, 2].map((rounds) => ({
           id: String(rounds),
-          label: `${rounds} ${rounds === 1 ? "round" : "rounds"}`
+          label: `${rounds} ${rounds === 1 ? "round" : "rounds"}`,
+          activeSuffix: rounds === 1 ? "single exchange" : "double exchange"
         }))
       }
     ],
@@ -147,7 +152,10 @@ export const configureDebateProtocol = async (input: {
       participants: String(input.draft.participants),
       rounds: String(input.draft.rounds)
     },
-    frame: input.buildStepFrame(2, 1, "Protocol", "Select how each trial is structured."),
+    frame: {
+      ...input.buildStepFrame(2, 1, "Protocol", "Select how each trial is structured."),
+      activeLines: ["Choose participants and rounds for the debate.", ""]
+    },
     focusedLines: (preview) => {
       const participants = Number(preview.participants);
       const rounds = Number(preview.rounds);
@@ -158,9 +166,9 @@ export const configureDebateProtocol = async (input: {
         (candidate) => candidate.participants === participants && candidate.rounds === rounds
       );
       return [
-        debateConfigSummary(participants, rounds),
-        debateRoleReviewSummary(participants),
-        option?.rationale ?? debateConfigRationale(participants, rounds)
+        fmt.bold(fmt.success(debateConfigSummary(participants, rounds))),
+        fmt.text(debateRoleReviewSummary(participants)),
+        fmt.text(option?.rationale ?? debateConfigRationale(participants, rounds))
       ];
     },
     renderStepFrame: input.renderStepFrame

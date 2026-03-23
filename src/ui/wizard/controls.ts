@@ -295,6 +295,7 @@ export const selectOne = async (inputControl: {
   focusedLines?: (index: number) => string[];
   renderStepFrame: (frame: StepFrame) => void;
 }): Promise<SelectOneResult> => {
+  const fmt = createStdoutFormatter();
   let selectedIndex = firstEnabledIndex(inputControl.choices, inputControl.defaultIndex ?? 0);
   return withRawKeyCapture<SelectOneResult>({
     render: (errorLine) => {
@@ -306,9 +307,18 @@ export const selectOne = async (inputControl: {
         lines.push("");
       }
       inputControl.choices.forEach((choice, index) => {
-        const marker = index === selectedIndex ? "▸ " : "  ";
-        const selectedGlyph = index === selectedIndex ? "●" : "○";
-        lines.push(`${marker}${selectedGlyph} ${choice.label}`);
+        const isActive = index === selectedIndex;
+        const marker = isActive ? fmt.brand("▸ ") : "  ";
+        const selectedGlyph = isActive ? fmt.brand("●") : "○";
+        let label = renderInlineLabel(choice.label, { active: isActive, fmt });
+        if (isActive && choice.activeSuffix) {
+          const prefix = `${marker}${selectedGlyph} ${choice.label} · `;
+          const room = Math.max(8, fmt.termWidth() - visibleLength(prefix));
+          label = `${renderInlineLabel(choice.label, { active: true, fmt })}${fmt.muted(
+            ` · ${truncatePlain(choice.activeSuffix, room)}`
+          )}`;
+        }
+        lines.push(`${marker}${selectedGlyph} ${label}`);
       });
       const disabledReasons = inputControl.choices
         .filter((choice) => choice.disabled && typeof choice.disabledReason === "string")
@@ -465,7 +475,7 @@ export const selectSectionedSingle = async (inputControl: {
   sections: Array<{
     key: string;
     title: string;
-    options: Array<{ id: string; label: string }>;
+    options: Array<{ id: string; label: string; activeSuffix?: string }>;
   }>;
   values: Record<string, string>;
   frame: StepFrame;
@@ -483,13 +493,18 @@ export const selectSectionedSingle = async (inputControl: {
     selectedValues[section.key] = defaultOption.id;
   }
 
-  const rows = inputControl.sections.flatMap((section) => [
+  const rows = inputControl.sections.flatMap((section, sectionIndex) => [
+    ...(sectionIndex > 0 ? [{ kind: "spacer" as const }] : []),
     { kind: "group" as const, title: section.title },
     ...section.options.map((option) => ({ kind: "option" as const, sectionKey: section.key, option }))
   ]);
   const firstOptionIndex = rows.findIndex((row) => row.kind === "option");
   let focusedIndex = firstEnabledIndex(
-    rows.map((row) => ({ id: row.kind === "option" ? row.option.id : row.title, label: "", disabled: row.kind !== "option" })),
+    rows.map((row) => ({
+      id: row.kind === "option" ? row.option.id : row.kind === "group" ? row.title : "__spacer__",
+      label: "",
+      disabled: row.kind !== "option"
+    })),
     firstOptionIndex >= 0 ? firstOptionIndex : 0
   );
 
@@ -514,6 +529,10 @@ export const selectSectionedSingle = async (inputControl: {
         lines.push("");
       }
       rows.forEach((row, index) => {
+        if (row.kind === "spacer") {
+          lines.push("");
+          return;
+        }
         if (row.kind === "group") {
           lines.push(fmt.accent(`── ${row.title}`));
           return;
@@ -522,7 +541,14 @@ export const selectSectionedSingle = async (inputControl: {
         const isSelected = selectedValues[row.sectionKey] === row.option.id;
         const cursor = isActive ? fmt.brand("▸ ") : "  ";
         const glyph = isSelected ? fmt.brand("●") : isActive ? fmt.brand("○") : "○";
-        const label = isActive ? fmt.bold(fmt.brand(row.option.label)) : row.option.label;
+        let label = renderInlineLabel(row.option.label, { active: isActive, fmt });
+        if (isActive && row.option.activeSuffix) {
+          const prefix = `${cursor}${glyph} ${row.option.label} · `;
+          const room = Math.max(8, fmt.termWidth() - visibleLength(prefix));
+          label = `${renderInlineLabel(row.option.label, { active: true, fmt })}${fmt.muted(
+            ` · ${truncatePlain(row.option.activeSuffix, room)}`
+          )}`;
+        }
         lines.push(`${cursor}${glyph} ${label}`);
       });
       if (errorLine) {
@@ -541,7 +567,11 @@ export const selectSectionedSingle = async (inputControl: {
       }
       if (key.name === "up") {
         focusedIndex = nextSelectableIndex(
-          rows.map((row) => ({ id: row.kind === "option" ? row.option.id : row.title, label: "", disabled: row.kind !== "option" })),
+          rows.map((row) => ({
+            id: row.kind === "option" ? row.option.id : row.kind === "group" ? row.title : "__spacer__",
+            label: "",
+            disabled: row.kind !== "option"
+          })),
           focusedIndex,
           -1
         );
@@ -549,7 +579,11 @@ export const selectSectionedSingle = async (inputControl: {
       }
       if (key.name === "down") {
         focusedIndex = nextSelectableIndex(
-          rows.map((row) => ({ id: row.kind === "option" ? row.option.id : row.title, label: "", disabled: row.kind !== "option" })),
+          rows.map((row) => ({
+            id: row.kind === "option" ? row.option.id : row.kind === "group" ? row.title : "__spacer__",
+            label: "",
+            disabled: row.kind !== "option"
+          })),
           focusedIndex,
           1
         );

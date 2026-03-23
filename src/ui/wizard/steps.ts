@@ -95,14 +95,31 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
   },
 
   2: async (state) => {
+    const protocolFrame = context.buildStepFrame(2, 1, "Protocol", "Select how each trial is structured.");
+    protocolFrame.activeLines = ["Select how each trial is structured.", ""];
     const protocolSelection = await selectOne({
       prompt: "Protocol",
       choices: [
         { id: "independent", label: "Independent" },
-        { id: "debate_v1", label: "Debate" }
+        { id: "debate_v1", label: "Debate", activeSuffix: "P and R" }
       ],
       defaultIndex: state.draft.protocolType === "debate_v1" ? 1 : 0,
-      frame: context.buildStepFrame(2, 1, "Protocol", "Select how each trial is structured."),
+      frame: protocolFrame,
+      focusedLines: (index) => {
+        const choice = index === 1 ? "debate_v1" : "independent";
+        if (choice === "debate_v1") {
+          return [
+            fmt.bold(fmt.success("Debate")),
+            fmt.text("Multiple participants speak in order, then the lead gives the final answer."),
+            fmt.text("Use when interaction itself should be part of the treatment.")
+          ];
+        }
+        return [
+          fmt.bold(fmt.success("Independent")),
+          fmt.text("One participant gives the canonical answer with no interaction."),
+          fmt.text("Best default for direct distributional sampling and baseline comparisons.")
+        ];
+      },
       renderStepFrame: context.renderStepFrame
     });
     if (protocolSelection === SELECT_EXIT) {
