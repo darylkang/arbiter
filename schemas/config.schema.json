@@ -14,6 +14,53 @@
     "measurement",
     "output"
   ],
+  "allOf": [
+    {
+      "if": {
+        "required": ["protocol"],
+        "properties": {
+          "protocol": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": { "const": "independent" }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "sampling": {
+            "required": ["models", "personas", "protocols"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["protocol"],
+        "properties": {
+          "protocol": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": { "const": "debate" }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "sampling": {
+            "required": ["models", "personas"],
+            "not": {
+              "required": ["protocols"]
+            }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "seed": {
       "oneOf": [
@@ -145,7 +192,7 @@
     "sampling": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["models", "personas", "protocols"],
+      "required": ["models", "personas"],
       "properties": {
         "models": {
           "type": "array",

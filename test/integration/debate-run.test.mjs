@@ -55,6 +55,12 @@ test("debate mock runs produce debate trials, transcripts, and embedding rows", 
         assert.equal(record.transcript[1]?.slot, "B");
         assert.equal(record.transcript[1]?.role_kind, "challenger");
         assert.equal(typeof record.parsed?.parse_status, "string");
+        assert.equal(
+          record.calls?.[0]?.system_prompt_components?.some(
+            (component) => component.source === "persona_prompt"
+          ),
+          true
+        );
       }
       if (!record.parsed) {
         continue;

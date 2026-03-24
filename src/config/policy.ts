@@ -33,6 +33,19 @@ const isAliasedModel = (slug: string, catalog: ArbiterModelCatalog): boolean => 
 
 const isSyntacticSlug = (slug: string): boolean => slug.includes("/");
 
+const computeDiscreteConfigBucketCount = (resolvedConfig: ArbiterResolvedConfig): number => {
+  const modelCount = resolvedConfig.sampling.models.length;
+  const personaCount = resolvedConfig.sampling.personas.length;
+
+  if (resolvedConfig.protocol.type === "debate") {
+    const participants = resolvedConfig.protocol.participants ?? 2;
+    return Math.pow(modelCount * personaCount, participants);
+  }
+
+  const protocolCount = resolvedConfig.sampling.protocols?.length ?? 0;
+  return modelCount * personaCount * protocolCount;
+};
+
 export const evaluatePolicy = (input: {
   resolvedConfig: ArbiterResolvedConfig;
   catalog: ArbiterModelCatalog;
@@ -85,24 +98,18 @@ export const evaluatePolicy = (input: {
     }
   }
 
-  const modelCount = resolvedConfig.sampling.models.length;
-  const personaCount = resolvedConfig.sampling.personas.length;
-  const protocolCount =
-    resolvedConfig.protocol.type === "independent"
-      ? resolvedConfig.sampling.protocols.length
-      : 1;
-  const cellCount =
-    resolvedConfig.protocol.type === "debate"
-      ? modelCount * personaCount * personaCount
-      : modelCount * personaCount * protocolCount;
+  const discreteBucketCount = computeDiscreteConfigBucketCount(resolvedConfig);
 
-  if (cellCount > 0) {
-    const expectedPerCell = resolvedConfig.execution.k_max / cellCount;
-    if (expectedPerCell < 2) {
+  if (discreteBucketCount > 0) {
+    const expectedPerBucket = resolvedConfig.execution.k_max / discreteBucketCount;
+    if (expectedPerBucket < 2) {
+      const decodeNote = resolvedConfig.sampling.decode
+        ? " Decode variation may further thin effective coverage."
+        : "";
       warnings.push(
-        `Expected samples per configuration cell is low (${expectedPerCell.toFixed(
+        `Expected trials per discrete sampled configuration is low (${expectedPerBucket.toFixed(
           2
-        )}). Consider increasing k_max for stability.`
+        )} across ${discreteBucketCount} configurations). Consider increasing k_max for stability.${decodeNote}`
       );
     }
   }

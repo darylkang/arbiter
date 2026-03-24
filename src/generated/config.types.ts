@@ -33,7 +33,7 @@ export type ArbiterResolvedConfig = {
     /**
      * @minItems 1
      */
-    protocols: [WeightedProtocol, ...WeightedProtocol[]];
+    protocols?: [WeightedProtocol, ...WeightedProtocol[]];
     instruments?: InstrumentPrompt[];
     decode?: {
       temperature?: NumberOrRange;

@@ -137,6 +137,12 @@ Interpretation guidance:
 - `s_k`: raw free-form model output observed on trial `k`.
 - `M`: measurement procedure that maps raw outputs into measurement-defined outcome structure.
 
+Protocol-specific note:
+
+1. for `independent`, `Q(c)` may include protocol-template sampling as part of `pi`,
+2. for `debate`, the protocol family and debate parameters are fixed by the selected study config rather than sampled per trial,
+3. debate heterogeneity therefore comes from slot-level model, persona, and decode draws plus the fixed debate parameterization, not from a separate protocol-template pool.
+
 ### 3.2) Primary Path: Free-Form Semantic Outcome Estimation
 
 For the current paper, the primary path is not a fixed discrete task label supplied from outside the harness.
@@ -257,6 +263,7 @@ For the current paper:
 1. online monitoring is operational first,
 2. semantic outcome estimation is scientific first,
 3. overlap between the two is allowed but must be explicit.
+4. artifact consumers should treat `monitoring_complete` and its recorded counts as an integrity prerequisite before relying on online-monitoring traces.
 
 Important boundary:
 
@@ -292,6 +299,12 @@ Secondary quantities must still be logged and reported:
 1. tokens,
 2. cost,
 3. latency.
+
+Coverage-warning note:
+
+1. Arbiter's built-in coverage warning is a heuristic over discrete sampled configurations,
+2. for debate this space grows with independent per-slot draws,
+3. decode variation can further thin effective coverage beyond the baseline heuristic and should be treated conservatively in analysis planning.
 
 If two rung comparisons are call-matched but materially diverge on token or cost budgets, that sensitivity must be reported in the analysis.
 
@@ -334,7 +347,7 @@ Current schema alignment is strongest in:
 
 1. `Q(c)` materialization and deterministic trial planning,
 2. raw trial evidence, parsing records, and provenance,
-3. measurement inputs and embedding provenance,
+3. measurement inputs and embedding provenance, including explicit embedding-model conflict surfacing,
 4. minimal stable paper-facing analysis artifacts.
 
 Current schema alignment remains thinner in:

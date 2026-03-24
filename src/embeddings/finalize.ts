@@ -32,6 +32,7 @@ export interface FinalizeEmbeddingsOptions {
   provenance?: {
     requestedEmbeddingModel?: string;
     actualEmbeddingModel?: string | null;
+    embeddingModelConflict?: boolean;
     generationIds?: string[];
     embedTextStrategy?: string;
     normalization?: string;
@@ -120,6 +121,7 @@ export const finalizeEmbeddingsToArrow = async (
       dimensions: options.dimensions,
       requested_embedding_model: options.provenance?.requestedEmbeddingModel,
       actual_embedding_model: options.provenance?.actualEmbeddingModel ?? null,
+      embedding_model_conflict: options.provenance?.embeddingModelConflict ?? false,
       generation_ids:
         options.provenance?.generationIds && options.provenance.generationIds.length > 0
           ? options.provenance.generationIds
@@ -150,6 +152,7 @@ export const finalizeEmbeddingsToArrow = async (
       jsonl_encoding: "float32le_base64",
       requested_embedding_model: options.provenance?.requestedEmbeddingModel,
       actual_embedding_model: options.provenance?.actualEmbeddingModel ?? null,
+      embedding_model_conflict: options.provenance?.embeddingModelConflict ?? false,
       generation_ids:
         options.provenance?.generationIds && options.provenance.generationIds.length > 0
           ? options.provenance.generationIds

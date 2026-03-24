@@ -6,8 +6,8 @@ import { evaluatePolicy } from "../../src/config/policy.ts";
 const makeResolvedConfig = (overrides = {}) => ({
   sampling: {
     models: [{ model: "openai/gpt-4o-mini", catalog_status: "listed" }],
-    personas: [{ id: "p1" }],
-    protocols: [{ id: "default" }],
+    personas: [{ persona: "p1" }],
+    protocols: [{ protocol: "default", weight: 1 }],
     ...(overrides.sampling ?? {})
   },
   protocol: {
@@ -30,8 +30,8 @@ test("evaluatePolicy reports catalog, slug, and stability warnings", () => {
         { model: "acme/unknown-model", catalog_status: "unknown_to_catalog" },
         { model: "bare-model", catalog_status: "listed" }
       ],
-      personas: [{ id: "p1" }, { id: "p2" }],
-      protocols: [{ id: "a" }, { id: "b" }]
+      personas: [{ persona: "p1" }, { persona: "p2" }],
+      protocols: [{ protocol: "a", weight: 1 }, { protocol: "b", weight: 1 }]
     },
     execution: {
       k_max: 1,
@@ -60,7 +60,11 @@ test("evaluatePolicy reports catalog, slug, and stability warnings", () => {
   );
   assert.ok(result.warnings.some((warning) => warning.includes("Models not found in catalog")));
   assert.ok(result.warnings.some((warning) => warning.includes("Free-tier models")));
-  assert.ok(result.warnings.some((warning) => warning.includes("Expected samples per configuration cell is low")));
+  assert.ok(
+    result.warnings.some((warning) =>
+      warning.includes("Expected trials per discrete sampled configuration is low")
+    )
+  );
   assert.ok(result.warnings.some((warning) => warning.includes("k_min is smaller than batch_size")));
 });
 
@@ -131,4 +135,50 @@ test("evaluatePolicy allows strict mode bypass with explicit flags", () => {
   assert.equal(result.policy.contract_failure_policy, "exclude");
   assert.ok(result.warnings.some((warning) => warning.includes("Free-tier models")));
   assert.ok(result.warnings.some((warning) => warning.includes("Aliased models")));
+});
+
+test("evaluatePolicy warns on debate coverage using full slot assignment space", () => {
+  const resolvedConfig = makeResolvedConfig({
+    sampling: {
+      models: [
+        { model: "openai/gpt-4o-mini", catalog_status: "listed" },
+        { model: "anthropic/claude-sonnet", catalog_status: "listed" }
+      ],
+      personas: [{ persona: "p1" }, { persona: "p2" }]
+    },
+    protocol: {
+      type: "debate",
+      participants: 3,
+      rounds: 1
+    },
+    execution: {
+      k_max: 8,
+      k_min: 1,
+      batch_size: 1
+    }
+  });
+
+  delete resolvedConfig.sampling.protocols;
+
+  const catalog = {
+    models: [
+      { slug: "openai/gpt-4o-mini", tier: "paid", is_aliased: false },
+      { slug: "anthropic/claude-sonnet", tier: "paid", is_aliased: false }
+    ]
+  };
+
+  const result = evaluatePolicy({
+    resolvedConfig,
+    catalog,
+    strict: false,
+    allowFree: false,
+    allowAliased: false,
+    contractFailurePolicy: "warn"
+  });
+
+  assert.ok(
+    result.warnings.some((warning) =>
+      warning.includes("0.13 across 64 configurations")
+    )
+  );
 });

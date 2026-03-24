@@ -100,6 +100,7 @@ export const buildDebateSmokeConfig = (options = {}) => {
     rounds: options.rounds ?? 1,
     timeouts: config.protocol.timeouts
   };
+  delete config.sampling.protocols;
 
   return config;
 };

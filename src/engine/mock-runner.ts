@@ -42,6 +42,12 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
   const embeddingDimensions = options.embeddingDimensions ?? 4;
   const delayMs = Number(process.env.ARBITER_MOCK_DELAY_MS ?? 0);
   const forceEmptyEmbedText = process.env.ARBITER_MOCK_EMPTY_EMBED === "1";
+  const personaMap = new Map(
+    options.resolvedConfig.sampling.personas.map((persona) => [
+      persona.persona,
+      { text: persona.text, sha256: persona.sha256 }
+    ])
+  );
 
   return runOrchestration<MockTrialExecutionState>({
     bus: options.bus,
@@ -65,6 +71,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       createMockTrialExecutor({
         bus: context.bus,
         resolvedConfig: context.resolvedConfig,
+        personaMap,
         embeddingDimensions,
         embeddingMaxChars: context.embeddingMaxChars,
         forceEmptyEmbedText,
@@ -78,6 +85,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
       const provenanceMeta = {
         requestedEmbeddingModel: context.resolvedConfig.measurement.embedding_model,
         actualEmbeddingModel: null,
+        embeddingModelConflict: false,
         generationIds,
         embedTextStrategy: context.resolvedConfig.measurement.embed_text_strategy,
         normalization: EMBED_TEXT_NORMALIZATION
@@ -96,6 +104,7 @@ export const runMock = async (options: MockRunOptions): Promise<MockRunResult> =
             note: "No successful embeddings; arrow file not generated",
             requested_embedding_model: provenanceMeta.requestedEmbeddingModel,
             actual_embedding_model: provenanceMeta.actualEmbeddingModel,
+            embedding_model_conflict: provenanceMeta.embeddingModelConflict,
             generation_ids: generationIds.length > 0 ? generationIds : undefined,
             embed_text_strategy: provenanceMeta.embedTextStrategy,
             normalization: provenanceMeta.normalization

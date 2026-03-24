@@ -50,3 +50,24 @@ test("listModels wraps fetch failures in OpenRouterError", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test("listModels attaches a defensive timeout signal when caller omits one", async () => {
+  resetOpenRouterRateLimiterForTests();
+  const originalFetch = globalThis.fetch;
+  let capturedSignal;
+  globalThis.fetch = async (_url, init) => {
+    capturedSignal = init?.signal ?? null;
+    return new Response(JSON.stringify({ data: [] }), { status: 200 });
+  };
+
+  try {
+    await listModels({
+      apiKey: "test-key",
+      baseUrl: "https://openrouter.ai/api/v1"
+    });
+    assert.equal(capturedSignal instanceof AbortSignal, true);
+    assert.equal(capturedSignal.aborted, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

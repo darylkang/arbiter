@@ -68,6 +68,8 @@ export const executeMockDebateTrial = async (input: {
       if (!rolePrompt) {
         throw new Error(`Missing resolved debate prompt for ${rolePromptKey}`);
       }
+      const personaPrompt =
+        assignment.persona_id ? context.personaMap.get(assignment.persona_id) : undefined;
       const turnInstructionKey = debateTurnInstructionPromptKey(assignment.role_kind, false);
       const turnInstruction = resolvedConfig.protocol.turn_instructions?.[turnInstructionKey];
       if (!turnInstruction) {
@@ -92,6 +94,16 @@ export const executeMockDebateTrial = async (input: {
         response_payload: { content },
         system_prompt_components: [
           { source: "role_prompt", id: rolePrompt.id, sha256: rolePrompt.sha256, text: rolePrompt.text },
+          ...(personaPrompt?.text
+            ? [
+                {
+                  source: "persona_prompt" as const,
+                  id: assignment.persona_id ?? null,
+                  sha256: personaPrompt.sha256 ?? null,
+                  text: personaPrompt.text
+                }
+              ]
+            : []),
           {
             source: "protocol_invariant",
             id: null,
@@ -143,6 +155,8 @@ export const executeMockDebateTrial = async (input: {
         : `Raw final content ${entry.trial_id}`;
 
   const slotAFinalAssignment = roleAssignments[slotA] ?? roleAssignments[slots[0]];
+  const finalPersonaPrompt =
+    slotAFinalAssignment.persona_id ? context.personaMap.get(slotAFinalAssignment.persona_id) : undefined;
   const finalTurnInstruction = resolvedConfig.protocol.turn_instructions?.lead_final_turn;
   if (!finalTurnInstruction) {
     throw new Error("Missing resolved debate turn instruction for lead_final_turn");
@@ -173,6 +187,16 @@ export const executeMockDebateTrial = async (input: {
           resolvedConfig.protocol.prompts?.lead_final_system.sha256 ?? slotAFinalAssignment.role_prompt_sha256,
         text: resolvedConfig.protocol.prompts?.lead_final_system.text ?? ""
       },
+      ...(finalPersonaPrompt?.text
+        ? [
+            {
+              source: "persona_prompt" as const,
+              id: slotAFinalAssignment.persona_id ?? null,
+              sha256: finalPersonaPrompt.sha256 ?? null,
+              text: finalPersonaPrompt.text
+            }
+          ]
+        : []),
       {
         source: "protocol_invariant",
         id: null,

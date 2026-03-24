@@ -92,6 +92,12 @@ It is not an algorithmic claim of model correctness.
 - `hat(P)_Q(y | x)`: empirical distribution estimated from executed trials.
 - `M`: measurement procedure, including extraction, embedding model, preprocessing, and any semantic-normalization or grouping settings.
 
+Protocol-specific interpretation note:
+
+1. for `independent`, `Q(c)` may explicitly sample protocol templates through `pi`,
+2. for `debate`, the protocol family and debate parameters are fixed by the selected config, while slot-level model, persona, and decode sampling remain the active heterogeneity axes,
+3. debate study definitions must not carry dead protocol-sampling fields that execution ignores.
+
 Design commitments:
 
 1. changing `Q(c)` changes the estimand,
@@ -398,7 +404,8 @@ Per-trial provenance expectations:
 1. log requested generation model,
 2. log actual generation model from the OpenRouter response body `model` field when available,
 3. for embeddings, log requested and actual embedding model,
-4. record `generation_id` when the provider returns it.
+4. record whether multiple actual embedding models were observed during the run,
+5. record `generation_id` when the provider returns it.
 
 Provenance is required for reproducibility, provider drift audit, and paper support.
 
@@ -412,7 +419,13 @@ Monitoring records:
 
 1. describe batch-level novelty behavior under the configured measurement procedure,
 2. may drive advisory or enforced stopping depending on stop mode,
-3. are recorded in `monitoring.jsonl`.
+3. are recorded in `monitoring.jsonl`,
+4. must be auditable against the number of completed batches through manifest-level completeness fields.
+
+Operational integrity note:
+
+1. monitoring and artifact subscribers intentionally use safe event-bus isolation in some paths,
+2. therefore monitoring completeness must be recorded explicitly in artifacts rather than inferred from a successful flush alone.
 
 ### 6.2) Novelty-Saturation Stopping
 
@@ -493,7 +506,7 @@ Canonical artifact rules:
 
 1. `trials.jsonl` is the canonical per-trial record and includes parse and embedding summaries,
 2. Debate intermediate turns live inside per-trial `transcript` records in `trials.jsonl`,
-3. final stable runtime summary metrics and embedding provenance summary live in `manifest.json`,
+3. final stable runtime summary metrics, monitoring completeness, and embedding provenance summary live in `manifest.json`,
 4. paper-facing downstream analysis artifacts are separate from `manifest.json` and may use dedicated schema-validated contracts,
 5. this contract supersedes legacy names such as `parsed.jsonl`, `convergence_trace.jsonl`, `aggregates.json`, `embeddings.provenance.json`, and `clusters/*`.
 
@@ -527,9 +540,10 @@ Before trusting a run:
 
 1. validate run artifacts and schema conformance,
 2. inspect `manifest.json` for policy and provenance snapshot,
-3. inspect `monitoring.jsonl` for stopping context,
-4. confirm requested versus actual model identifiers,
-5. distinguish measurement outcomes from correctness claims.
+3. confirm `monitoring_complete` and monitoring record counts before relying on online monitoring traces,
+4. inspect `monitoring.jsonl` for stopping context,
+5. confirm requested versus actual model identifiers, including any embedding-model conflict flag,
+6. distinguish measurement outcomes from correctness claims.
 
 ### 8.2) Before Merging Behavior Changes
 

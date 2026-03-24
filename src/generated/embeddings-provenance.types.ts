@@ -13,6 +13,7 @@ export type ArbiterEmbeddingsProvenance =
       generation_ids?: string[];
       requested_embedding_model?: string;
       actual_embedding_model?: string | null;
+      embedding_model_conflict: boolean;
       embed_text_strategy?: string;
       normalization?: string;
     }
@@ -36,6 +37,7 @@ export type ArbiterEmbeddingsProvenance =
       generation_ids?: string[];
       requested_embedding_model?: string;
       actual_embedding_model?: string | null;
+      embedding_model_conflict: boolean;
       jsonl_encoding?: "float32le_base64";
     }
   | {
@@ -51,6 +53,7 @@ export type ArbiterEmbeddingsProvenance =
       generation_ids?: string[];
       requested_embedding_model?: string;
       actual_embedding_model?: string | null;
+      embedding_model_conflict: boolean;
       embed_text_strategy?: string;
       normalization?: string;
       counts?: {

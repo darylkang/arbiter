@@ -98,6 +98,9 @@ export class EventBus {
     handler: EventHandler<T>,
     onError?: ErrorHandler
   ): () => void {
+    // Safe subscribers deliberately isolate handler failures from flush().
+    // Their errors are routed to onError/warning surfaces instead of asyncErrors,
+    // so orchestrators must record any downstream completeness signals explicitly.
     const wrapped: AnyHandler = (payload): void => {
       try {
         const result = handler(payload as EventPayloadMap[T]);
@@ -199,6 +202,8 @@ export class EventBus {
   }
 
   async flush(): Promise<void> {
+    // flush() only raises asyncErrors collected from unsafe subscribers.
+    // Errors handled via subscribeSafe(onError) are intentionally excluded.
     while (this.pending.size > 0) {
       await Promise.allSettled(Array.from(this.pending));
     }

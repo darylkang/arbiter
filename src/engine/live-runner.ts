@@ -45,7 +45,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
     ])
   );
   const protocolMap = new Map(
-    options.resolvedConfig.sampling.protocols.map((protocol) => [protocol.protocol, protocol])
+    (options.resolvedConfig.sampling.protocols ?? []).map((protocol) => [protocol.protocol, protocol])
   );
 
   return runOrchestration<LiveTrialExecutionState>({
@@ -83,9 +83,22 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
         state: context.state
       }),
     finalizeEmbeddings: async (context) => {
+      if (context.state.embeddingModelConflict) {
+        options.bus.emit({
+          type: "warning.raised",
+          payload: {
+            message:
+              "Multiple actual embedding models were observed during this run; manifest provenance records the conflict.",
+            source: "embeddings",
+            recorded_at: new Date().toISOString()
+          }
+        });
+      }
+
       const provenanceMeta = {
         requestedEmbeddingModel: context.resolvedConfig.measurement.embedding_model,
         actualEmbeddingModel: context.state.actualEmbeddingModel,
+        embeddingModelConflict: context.state.embeddingModelConflict,
         generationIds: Array.from(context.state.embeddingGenerationIds),
         embedTextStrategy: context.resolvedConfig.measurement.embed_text_strategy,
         normalization: EMBED_TEXT_NORMALIZATION
@@ -104,6 +117,7 @@ export const runLive = async (options: LiveRunOptions): Promise<LiveRunResult> =
             note: "No successful embeddings; arrow file not generated",
             requested_embedding_model: provenanceMeta.requestedEmbeddingModel,
             actual_embedding_model: provenanceMeta.actualEmbeddingModel ?? null,
+            embedding_model_conflict: provenanceMeta.embeddingModelConflict,
             generation_ids:
               provenanceMeta.generationIds.length > 0 ? provenanceMeta.generationIds : undefined,
             embed_text_strategy: provenanceMeta.embedTextStrategy,

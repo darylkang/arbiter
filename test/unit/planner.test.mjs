@@ -38,7 +38,6 @@ const buildDebateConfig = (seed = "debate-seed") => ({
       { persona: "persona-a", weight: 1 },
       { persona: "persona-b", weight: 1 }
     ],
-    protocols: [{ protocol: "debate", weight: 1 }],
     decode: {
       max_tokens: { min: 10, max: 20 }
     }

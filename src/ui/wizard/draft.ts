@@ -245,13 +245,17 @@ export const buildConfigFromDraft = (input: {
     draft.personaIds.map((personaId) => ({ persona: personaId, weight: 1 })),
     "sampling.personas"
   );
-  config.sampling.protocols = [
-    {
-      protocol: "protocol_independent_system",
-      weight: 1
-    }
-  ];
   config.protocol.type = draft.protocolType;
+  if (draft.protocolType === "independent") {
+    config.sampling.protocols = [
+      {
+        protocol: "protocol_independent_system",
+        weight: 1
+      }
+    ];
+  } else {
+    delete config.sampling.protocols;
+  }
   config.protocol.participants = draft.protocolType === "debate" ? draft.participants : undefined;
   config.protocol.rounds = draft.protocolType === "debate" ? draft.rounds : undefined;
 

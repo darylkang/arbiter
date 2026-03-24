@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 import { resolveConfig } from "../../src/config/resolve-config.ts";
-import { buildIndependentSmokeConfig } from "../helpers/scenarios.mjs";
+import { buildDebateSmokeConfig, buildIndependentSmokeConfig } from "../helpers/scenarios.mjs";
 import { REPO_ROOT, withTempWorkspace, writeJson } from "../helpers/workspace.mjs";
 
 test("resolveConfig hydrates stable measurement defaults and decision-contract label space", async () => {
@@ -74,6 +74,33 @@ test("resolveConfig rejects inverted decode ranges", async () => {
           assetRoot: REPO_ROOT
         }),
       /sampling\/decode\/temperature\/max/
+    );
+  });
+});
+
+test("resolveConfig strips legacy sampling.protocols from debate configs", async () => {
+  await withTempWorkspace("arbiter-resolve-config-", async (cwd) => {
+    const configPath = resolve(cwd, "arbiter.config.json");
+    const config = buildDebateSmokeConfig({
+      questionText: "Debate protocol cleanup",
+      questionId: "resolve_debate_protocol_q1"
+    });
+    config.sampling.protocols = [{ protocol: "protocol_independent_system", weight: 1 }];
+
+    writeJson(configPath, config);
+
+    const result = resolveConfig({
+      configPath,
+      configRoot: cwd,
+      assetRoot: REPO_ROOT
+    });
+
+    assert.equal(result.resolvedConfig.protocol.type, "debate");
+    assert.equal("protocols" in result.resolvedConfig.sampling, false);
+    assert.ok(
+      result.warnings.some((warning) =>
+        warning.includes("Debate configs ignore sampling.protocols")
+      )
     );
   });
 });

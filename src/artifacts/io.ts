@@ -11,10 +11,60 @@ export const createJsonlWriter = (path: string): JsonlWriter => {
   const stream = createWriteStream(path, { flags: "a" });
   let streamError: Error | null = null;
   let closed = false;
+  let waitingForDrain = false;
+  const pendingChunks: string[] = [];
+  let drainPromise: Promise<void> | null = null;
+  let resolveDrain: (() => void) | null = null;
 
   stream.on("error", (error) => {
     streamError = error;
   });
+
+  stream.on("drain", () => {
+    waitingForDrain = false;
+    const resolve = resolveDrain;
+    resolveDrain = null;
+    drainPromise = null;
+    if (resolve) {
+      resolve();
+    }
+    flushPending();
+  });
+
+  const flushPending = (): void => {
+    if (streamError) {
+      return;
+    }
+
+    while (!waitingForDrain && pendingChunks.length > 0) {
+      const chunk = pendingChunks.shift();
+      if (chunk === undefined) {
+        return;
+      }
+      if (!stream.write(chunk)) {
+        waitingForDrain = true;
+        if (!drainPromise) {
+          drainPromise = new Promise<void>((resolve) => {
+            resolveDrain = resolve;
+          });
+        }
+      }
+    }
+  };
+
+  const waitForPendingWrites = async (): Promise<void> => {
+    flushPending();
+    while (waitingForDrain || pendingChunks.length > 0) {
+      if (drainPromise) {
+        await drainPromise;
+      } else {
+        flushPending();
+      }
+      if (streamError) {
+        throw streamError;
+      }
+    }
+  };
 
   return {
     path,
@@ -25,17 +75,19 @@ export const createJsonlWriter = (path: string): JsonlWriter => {
       if (streamError) {
         throw streamError;
       }
-      stream.write(`${JSON.stringify(record)}\n`);
+      pendingChunks.push(`${JSON.stringify(record)}\n`);
+      flushPending();
     },
-    close: () => {
+    close: async () => {
       if (closed) {
-        return Promise.resolve();
+        return;
       }
       closed = true;
       if (streamError) {
-        return Promise.reject(streamError);
+        throw streamError;
       }
-      return new Promise((resolve, reject) => {
+      await waitForPendingWrites();
+      await new Promise<void>((resolve, reject) => {
         const onError = (error: Error): void => {
           streamError = error;
           cleanup();

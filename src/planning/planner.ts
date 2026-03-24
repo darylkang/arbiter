@@ -142,6 +142,9 @@ export const generateTrialPlan = (
       const model = sampleWeighted(config.sampling.models, planRng);
       const decode = resolveDecodeParams(config.sampling.decode, decodeRng);
       const persona = sampleWeighted(config.sampling.personas, planRng);
+      if (!config.sampling.protocols || config.sampling.protocols.length === 0) {
+        throw new Error("Independent trial planning requires sampling.protocols");
+      }
       const protocol = sampleWeighted(config.sampling.protocols, planRng);
       plan.push({
         trial_id: trialId,

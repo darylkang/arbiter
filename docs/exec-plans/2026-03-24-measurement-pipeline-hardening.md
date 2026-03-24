@@ -1,8 +1,8 @@
 # Measurement Pipeline Hardening
 
-Status: proposed
-Owner: TBD
-Last updated: 2026-03-24 03:34Z
+Status: completed
+Owner: Codex
+Last updated: 2026-03-23
 
 ## Purpose / Big Picture
 
@@ -73,13 +73,13 @@ Temporary coexistence rule:
 
 ## Progress
 
-- [ ] M0: Reconfirm baseline and stale findings
-- [ ] M1: Remove the dead debate protocol-sampling axis from `Q(c)` surfaces
-- [ ] M2: Fix configuration-space accounting and policy warnings
-- [ ] M3: Surface embedding-model drift explicitly in provenance
-- [ ] M4: Record monitoring completeness and remaining provenance parity
-- [ ] M5: Low-risk infrastructure robustness guards
-- [ ] M6: Canonical doc sync and closure
+- [x] M0: Reconfirm baseline and stale findings
+- [x] M1: Remove the dead debate protocol-sampling axis from `Q(c)` surfaces
+- [x] M2: Fix configuration-space accounting and policy warnings
+- [x] M3: Surface embedding-model drift explicitly in provenance
+- [x] M4: Record monitoring completeness and remaining provenance parity
+- [x] M5: Low-risk infrastructure robustness guards
+- [x] M6: Canonical doc sync and closure
 
 ## Surprises & Discoveries
 
@@ -89,6 +89,8 @@ Temporary coexistence rule:
 2. The more important open issue is not in the debate executor. It is in study-definition truth: debate configs still carry a required `sampling.protocols` pool that execution ignores.
 3. Embedding-model drift is already partially implemented as in-memory state. The missing piece is artifact surfacing, not detection logic.
 4. The infrastructure findings are real but lower priority than the `Q(c)` and provenance mismatches; they should not displace the research-contract fixes.
+5. Legacy debate configs that still carry `sampling.protocols` are stripped at resolve time with a warning rather than hard-failing, which keeps old configs recoverable while restoring truthful resolved artifacts.
+6. One intermediate integration failure during implementation was caused by stale `dist/` output, not source behavior; rebuild-backed validation is required before judging CLI integration regressions after schema changes.
 
 ## Decision Log
 
@@ -243,6 +245,12 @@ Exit evidence:
 3. debate templates no longer carry a dead `sampling.protocols` field,
 4. no debate runtime path depends on it.
 
+Completed:
+
+1. Debate configs no longer require `sampling.protocols` in schema.
+2. Debate resolution strips legacy `sampling.protocols` with a warning so resolved artifacts remain truthful.
+3. Wizard draft generation and debate templates no longer emit the dead field.
+
 ### M2: Fix configuration-space accounting and policy warnings
 
 What:
@@ -276,6 +284,12 @@ Exit evidence:
 1. policy warnings no longer materially understate debate configuration-space breadth,
 2. tests cover both independent and debate warning behavior,
 3. terminology in warnings is defensible against the methodological contract.
+
+Completed:
+
+1. Coverage messaging now reports discrete sampled configurations rather than misleading "configuration cells."
+2. Debate coverage accounting now scales with independent per-slot draws.
+3. Warning text explicitly notes decode variation as an additional thinning factor.
 
 ### M3: Surface embedding-model drift explicitly in provenance
 
@@ -311,6 +325,12 @@ Exit evidence:
 2. warning surfaces make the issue visible during or after the run,
 3. the manifest remains schema-valid and backward-compatible where feasible.
 
+Completed:
+
+1. `embedding_model_conflict` is now persisted in embeddings provenance and summarized in the manifest.
+2. Live runs emit a warning event when drift is observed.
+3. Verification checks now treat the new provenance fields as part of the contract.
+
 ### M4: Record monitoring completeness and remaining provenance parity
 
 What:
@@ -344,6 +364,12 @@ Exit evidence:
 1. manifest records whether monitoring coverage was complete,
 2. integrity behavior is covered by tests,
 3. any retained mock/live differences are intentional and documented.
+
+Completed:
+
+1. Manifests now record `monitoring_complete`, expected monitoring records, and recorded monitoring records.
+2. Verification checks compare those manifest counts against the actual `monitoring.jsonl` rows.
+3. Mock debate provenance now includes persona-prompt components so the main merge-gate path more closely mirrors live execution.
 
 ### M5: Low-risk infrastructure robustness guards
 
@@ -381,6 +407,13 @@ Exit evidence:
 4. the handler-isolation boundary is documented in code and/or canonical docs,
 5. targeted tests cover the new guards where practical.
 
+Completed:
+
+1. JSONL writing now respects stream backpressure before close completes.
+2. Canonical JSON now rejects circular structures with a clear error.
+3. OpenRouter requests now add a defensive timeout when the caller omits one.
+4. The `subscribeSafe` / `flush()` boundary is documented in code and canonical docs.
+
 ### M6: Canonical doc sync and closure
 
 What:
@@ -404,6 +437,12 @@ Exit evidence:
 1. all durable semantics are represented in canonical docs,
 2. plan can truthfully be marked `completed`,
 3. residual risks are documented.
+
+Completed:
+
+1. `docs/DESIGN.md` now reflects debate `Q(c)` truth, embedding drift provenance, and monitoring completeness semantics.
+2. `docs/RESEARCH-METHOD.md` now reflects debate `Q(c)` interpretation and coverage-warning heuristics.
+3. This plan can now be closed truthfully.
 
 ## Milestones and Gates
 

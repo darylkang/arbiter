@@ -51,6 +51,9 @@ export const buildResolveManifest = (inputs: ManifestInputs): ArbiterRunManifest
     k_eligible: 0,
     k_min: inputs.resolvedConfig.execution.k_min,
     k_min_count_rule: inputs.resolvedConfig.execution.k_min_count_rule,
+    monitoring_complete: true,
+    monitoring_expected_records: 0,
+    monitoring_recorded_records: 0,
     stop_policy: {
       novelty_epsilon: stopPolicy.novelty_epsilon,
       similarity_threshold: stopPolicy.similarity_threshold,

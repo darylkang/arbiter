@@ -17,6 +17,9 @@ export interface ArbiterRunManifest {
   k_eligible: number;
   k_min: number;
   k_min_count_rule: "k_eligible" | "k_attempted";
+  monitoring_complete: boolean;
+  monitoring_expected_records: number;
+  monitoring_recorded_records: number;
   stop_policy?: {
     novelty_epsilon?: number;
     similarity_threshold?: number;
@@ -74,6 +77,7 @@ export interface ManifestMeasurementSummary {
   embedding: {
     requested_model: string;
     actual_model: string | null;
+    model_conflict: boolean;
     embed_text_strategy: "outcome_only" | "outcome_or_raw_assistant";
     normalization: string;
     status: "not_generated" | "arrow_generated" | "jsonl_fallback";

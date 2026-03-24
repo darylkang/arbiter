@@ -144,6 +144,9 @@ test("buildInitialManifest includes policy snapshot and default stop policy", ()
     assert.equal(manifest.policy.contract_failure_policy, "warn");
     assert.equal(manifest.plan_sha256, "f".repeat(64));
     assert.equal(manifest.k_planned, 12);
+    assert.equal(manifest.monitoring_complete, true);
+    assert.equal(manifest.monitoring_expected_records, 0);
+    assert.equal(manifest.monitoring_recorded_records, 0);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

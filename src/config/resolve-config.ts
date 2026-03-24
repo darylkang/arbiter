@@ -157,6 +157,7 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
   const contractMap = new Map(
     contractManifest?.entries.map((entry) => [entry.id, entry]) ?? []
   );
+  const warnings: string[] = [];
 
   const resolvedConfig: ArbiterResolvedConfig = JSON.parse(JSON.stringify(config));
 
@@ -228,22 +229,33 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
   });
   resolvedConfig.sampling.personas = asNonEmptyArray(resolvedPersonas, "sampling.personas");
 
-  const resolvedProtocols = resolvedConfig.sampling.protocols.map((protocol) => {
-    const resolved = resolvePromptEntry(
-      promptMap,
-      protocol.protocol,
-      "participant_protocol_template",
-      assetRoot
-    );
+  if (resolvedConfig.protocol.type === "independent") {
+    if (!resolvedConfig.sampling.protocols || resolvedConfig.sampling.protocols.length === 0) {
+      throw new Error("Independent configs require sampling.protocols");
+    }
 
-    return {
-      protocol: protocol.protocol,
-      weight: protocol.weight,
-      sha256: resolved.sha256,
-      text: resolved.text
-    };
-  });
-  resolvedConfig.sampling.protocols = asNonEmptyArray(resolvedProtocols, "sampling.protocols");
+    const resolvedProtocols = resolvedConfig.sampling.protocols.map((protocol) => {
+      const resolved = resolvePromptEntry(
+        promptMap,
+        protocol.protocol,
+        "participant_protocol_template",
+        assetRoot
+      );
+
+      return {
+        protocol: protocol.protocol,
+        weight: protocol.weight,
+        sha256: resolved.sha256,
+        text: resolved.text
+      };
+    });
+    resolvedConfig.sampling.protocols = asNonEmptyArray(resolvedProtocols, "sampling.protocols");
+  } else if (resolvedConfig.sampling.protocols) {
+    warnings.push(
+      "Debate configs ignore sampling.protocols; removing the legacy field from the resolved config."
+    );
+    delete resolvedConfig.sampling.protocols;
+  }
 
   if (resolvedConfig.sampling.instruments) {
     resolvedConfig.sampling.instruments = resolvedConfig.sampling.instruments.map((instrument) => {
@@ -420,7 +432,6 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
   }
 
   const knownModels = new Set(catalog.models.map((model) => model.slug));
-  const warnings: string[] = [];
 
   const resolvedModels = resolvedConfig.sampling.models.map((model) => {
     if (!knownModels.has(model.model)) {

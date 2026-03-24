@@ -5,6 +5,7 @@ import type { EventBus } from "../events/event-bus.js";
 import type {
   AggregatesComputedPayload,
   ArtifactWrittenPayload,
+  BatchCompletedPayload,
   GroupAssignedPayload,
   GroupStatePayload,
   MonitoringRecordPayload,
@@ -123,6 +124,7 @@ export class ArtifactWriter {
     embeddingSkipped: 0,
     groupAssignments: 0
   };
+  private expectedMonitoringRecords = 0;
   private readonly usageTracker = new UsageTracker();
   private readonly trialStatusById = new Map<number, TrialCompletedPayload["trial_record"]["status"]>();
   private readonly contractParseCounts = {
@@ -173,6 +175,11 @@ export class ArtifactWriter {
         "trial.planned",
         (payload) => this.onTrialPlanned(payload),
         (error) => this.onSubscriberError(bus, "trial.planned", error)
+      ),
+      bus.subscribeSafe(
+        "batch.completed",
+        (payload) => this.onBatchCompleted(payload),
+        (error) => this.onSubscriberError(bus, "batch.completed", error)
       ),
       bus.subscribeSafe(
         "trial.completed",
@@ -310,6 +317,10 @@ export class ArtifactWriter {
 
     this.trialPlanWriter.append(record);
     this.counts.trialPlan += 1;
+  }
+
+  private onBatchCompleted(_payload: BatchCompletedPayload): void {
+    this.expectedMonitoringRecords += 1;
   }
 
   private onTrialCompleted(payload: TrialCompletedPayload): void {
@@ -455,6 +466,7 @@ export class ArtifactWriter {
       dimensions: null,
       requested_embedding_model: this.resolvedConfig.measurement.embedding_model,
       actual_embedding_model: null,
+      embedding_model_conflict: false,
       embed_text_strategy: this.resolvedConfig.measurement.embed_text_strategy,
       normalization: EMBED_TEXT_NORMALIZATION,
       generation_ids: []
@@ -556,6 +568,16 @@ export class ArtifactWriter {
 
     this.manifest.k_attempted = this.counts.trials;
     this.manifest.k_eligible = this.counts.embeddingSuccess;
+    this.manifest.monitoring_expected_records = this.expectedMonitoringRecords;
+    this.manifest.monitoring_recorded_records = this.counts.monitoring;
+    this.manifest.monitoring_complete =
+      this.expectedMonitoringRecords === this.counts.monitoring;
+    if (!this.manifest.monitoring_complete) {
+      const message = `Monitoring coverage incomplete: expected=${this.expectedMonitoringRecords}, recorded=${this.counts.monitoring}`;
+      this.manifest.notes = this.manifest.notes
+        ? `${this.manifest.notes}; ${message}`
+        : message;
+    }
 
     const usage = this.usageTracker.buildSummary();
     if (usage) {
@@ -566,6 +588,7 @@ export class ArtifactWriter {
       embedding: {
         requested_model: this.resolvedConfig.measurement.embedding_model,
         actual_model: this.embeddingsProvenance?.actual_embedding_model ?? null,
+        model_conflict: this.embeddingsProvenance?.embedding_model_conflict ?? false,
         embed_text_strategy: this.resolvedConfig.measurement.embed_text_strategy,
         normalization: this.resolvedConfig.measurement.normalization,
         status: this.embeddingsProvenance?.status ?? "not_generated",

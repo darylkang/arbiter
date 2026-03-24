@@ -16,6 +16,7 @@
           "required": [
             "requested_model",
             "actual_model",
+            "model_conflict",
             "embed_text_strategy",
             "normalization",
             "status",
@@ -27,6 +28,7 @@
           "properties": {
             "requested_model": { "type": "string", "minLength": 1 },
             "actual_model": { "type": ["string", "null"] },
+            "model_conflict": { "type": "boolean" },
             "embed_text_strategy": {
               "type": "string",
               "enum": ["outcome_only", "outcome_or_raw_assistant"]
@@ -121,7 +123,10 @@
     "k_attempted",
     "k_eligible",
     "k_min",
-    "k_min_count_rule"
+    "k_min_count_rule",
+    "monitoring_complete",
+    "monitoring_expected_records",
+    "monitoring_recorded_records"
   ],
   "properties": {
     "schema_version": {
@@ -191,6 +196,17 @@
         "k_eligible",
         "k_attempted"
       ]
+    },
+    "monitoring_complete": {
+      "type": "boolean"
+    },
+    "monitoring_expected_records": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "monitoring_recorded_records": {
+      "type": "integer",
+      "minimum": 0
     },
     "stop_policy": {
       "type": "object",

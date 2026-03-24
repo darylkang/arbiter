@@ -184,7 +184,7 @@ export const verifyRunDir = (runDir: string): VerifyReport => {
     resolve(runDir, "trials.jsonl"),
     validateTrial
   );
-  verifyJsonl(
+  const monitoringRows = verifyJsonl(
     results,
     "monitoring.jsonl",
     resolve(runDir, "monitoring.jsonl"),
@@ -206,6 +206,42 @@ export const verifyRunDir = (runDir: string): VerifyReport => {
   const attempted = manifest.k_attempted;
   if (typeof attempted === "number" && attempted !== trialRows.length) {
     addResult(results, "FAIL", "attempted count", `manifest=${attempted}, trials=${trialRows.length}`);
+  }
+
+  const monitoringExpected = (manifest as { monitoring_expected_records?: number }).monitoring_expected_records;
+  const monitoringRecorded = (manifest as { monitoring_recorded_records?: number }).monitoring_recorded_records;
+  const monitoringComplete = (manifest as { monitoring_complete?: boolean }).monitoring_complete;
+  if (
+    typeof monitoringExpected === "number" &&
+    monitoringExpected !== monitoringRows.length
+  ) {
+    addResult(
+      results,
+      "FAIL",
+      "monitoring expected count",
+      `manifest=${monitoringExpected}, monitoring.jsonl=${monitoringRows.length}`
+    );
+  }
+  if (
+    typeof monitoringRecorded === "number" &&
+    monitoringRecorded !== monitoringRows.length
+  ) {
+    addResult(
+      results,
+      "FAIL",
+      "monitoring recorded count",
+      `manifest=${monitoringRecorded}, monitoring.jsonl=${monitoringRows.length}`
+    );
+  }
+  if (monitoringComplete === false) {
+    addResult(
+      results,
+      "FAIL",
+      "monitoring completeness",
+      "manifest reports incomplete monitoring coverage"
+    );
+  } else if (monitoringComplete === true) {
+    addResult(results, "OK", "monitoring completeness");
   }
 
   const planTrialIds = planRows

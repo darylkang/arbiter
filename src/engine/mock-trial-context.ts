@@ -16,6 +16,7 @@ export type MockTrialExecutionState = {
 export type MockTrialExecutionContext = {
   bus: EventBus;
   resolvedConfig: ArbiterResolvedConfig;
+  personaMap: Map<string, { text?: string | null; sha256?: string | null }>;
   embeddingDimensions: number;
   embeddingMaxChars: number;
   forceEmptyEmbedText: boolean;

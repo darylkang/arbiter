@@ -41,6 +41,9 @@ test("verifyRunDir passes for a completed mock run", { concurrency: false }, asy
 
     const report = verifyRunDir(result.runDir);
     assert.equal(report.ok, true, formatVerifyReport(report));
+    const manifest = JSON.parse(readFileSync(resolve(result.runDir, "manifest.json"), "utf8"));
+    assert.equal(manifest.monitoring_complete, true);
+    assert.equal(manifest.monitoring_expected_records, manifest.monitoring_recorded_records);
   });
 });
 
@@ -60,5 +63,8 @@ test("verifyRunDir passes for resolve-only runs", { concurrency: false }, async 
     assert.equal(report.ok, true, formatVerifyReport(report));
     const manifest = JSON.parse(readFileSync(resolve(result.runDir, "manifest.json"), "utf8"));
     assert.equal(manifest.stopping_mode, "resolve_only");
+    assert.equal(manifest.monitoring_complete, true);
+    assert.equal(manifest.monitoring_expected_records, 0);
+    assert.equal(manifest.monitoring_recorded_records, 0);
   });
 });

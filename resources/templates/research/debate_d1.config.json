@@ -33,12 +33,6 @@
         "weight": 0.5
       }
     ],
-    "protocols": [
-      {
-        "protocol": "protocol_independent_system",
-        "weight": 1
-      }
-    ],
     "decode": {
       "temperature": 0.7,
       "top_p": 0.95,

@@ -98,6 +98,8 @@ export class OpenRouterError extends Error {
   }
 }
 
+const DEFAULT_OPENROUTER_REQUEST_TIMEOUT_MS = 120_000;
+
 const resolveBaseUrl = (baseUrl?: string): string =>
   (baseUrl ?? process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1").replace(/\/$/, "");
 
@@ -131,6 +133,11 @@ const isAbortError = (error: unknown): boolean => {
   return "name" in error && (error as { name?: string }).name === "AbortError";
 };
 
+const withRequestTimeout = (signal?: AbortSignal): AbortSignal => {
+  const timeoutSignal = AbortSignal.timeout(DEFAULT_OPENROUTER_REQUEST_TIMEOUT_MS);
+  return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+};
+
 const requestGet = async (
   path: string,
   options: OpenRouterRequestOptions
@@ -144,15 +151,17 @@ const requestGet = async (
     });
   }
   const baseUrl = resolveBaseUrl(options.baseUrl);
+  const requestSignal = withRequestTimeout(options.signal);
+  // Latency includes local rate-limiter wait as well as network/request time.
   const started = Date.now();
   try {
-    await waitForOpenRouterToken(options.signal);
+    await waitForOpenRouterToken(requestSignal);
     const response = await fetch(`${baseUrl}${path}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${apiKey}`
       },
-      signal: options.signal
+      signal: requestSignal
     });
     const latencyMs = Date.now() - started;
     const responseBody = await parseJsonBody(response);
@@ -334,6 +343,7 @@ const requestWithRetry = async (
   }
   const baseUrl = resolveBaseUrl(options.baseUrl);
   const retry = options.retry ?? { maxRetries: 0, backoffMs: 0 };
+  const requestSignal = withRequestTimeout(options.signal);
   let attempt = 0;
   const waitBackoff = async (retryAfterMs: number | null = null): Promise<void> => {
     const computedBackoffMs = computeBackoffMs(retry, attempt);
@@ -345,14 +355,15 @@ const requestWithRetry = async (
     await delay(
       effectiveBackoffMs,
       undefined,
-      options.signal ? { signal: options.signal } : undefined
+      { signal: requestSignal }
     );
   };
 
   while (true) {
+    // Latency includes local rate-limiter wait as well as network/request time.
     const started = Date.now();
     try {
-      await waitForOpenRouterToken(options.signal);
+      await waitForOpenRouterToken(requestSignal);
       const response = await fetch(`${baseUrl}${path}`, {
         method: "POST",
         headers: {
@@ -360,7 +371,7 @@ const requestWithRetry = async (
           "Content-Type": "application/json"
         },
         body: JSON.stringify(requestPayload),
-        signal: options.signal
+        signal: requestSignal
       });
       const latencyMs = Date.now() - started;
       const responseBody = await parseJsonBody(response);

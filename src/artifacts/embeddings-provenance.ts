@@ -18,6 +18,7 @@ export const buildResolveOnlyProvenance = (
   note: "resolve_only run; embeddings not computed",
   requested_embedding_model: options?.requestedEmbeddingModel,
   actual_embedding_model: null,
+  embedding_model_conflict: false,
   embed_text_strategy: options?.embedTextStrategy,
   normalization: options?.normalization
 });
