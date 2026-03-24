@@ -28,20 +28,11 @@ import {
 } from "../../engine/live-trial-context.js";
 import { sha256Hex } from "../../utils/hash.js";
 import {
+  DEBATE_PROTOCOL_INVARIANTS,
   debateRolePromptKey,
+  debateSortedSlots,
   debateTurnInstructionPromptKey
 } from "./roles.js";
-
-const sortedSlots = (roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]>): string[] =>
-  Object.keys(roleAssignments).sort((a, b) => {
-    if (a === "A") {
-      return -1;
-    }
-    if (b === "A") {
-      return 1;
-    }
-    return a.localeCompare(b);
-  });
 
 const buildDebatePrompt = (input: {
   question: string;
@@ -65,9 +56,6 @@ const buildDebatePrompt = (input: {
 
   return `Question:\n${input.question}\n\n${currentTurn}\n\n${task}\n\nPrior turns:\n${transcriptText}`;
 };
-const DEBATE_PROTOCOL_INVARIANTS =
-  "Engage prior turns directly. Add new information instead of repeating the full debate.";
-
 const buildFailureTrialRecord = (input: {
   entry: TrialPlanEntry;
   roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]>;
@@ -149,7 +137,7 @@ export const executeLiveDebateTrial = async (input: {
     throw new Error("Debate prompts are missing from resolved config");
   }
 
-  const slots = sortedSlots(roleAssignments);
+  const slots = debateSortedSlots(roleAssignments);
   const slotA = slots.includes("A") ? "A" : slots[0];
   if (!slotA) {
     throw new Error(`Debate trial ${entry.trial_id} has no participant slots`);
@@ -220,6 +208,12 @@ export const executeLiveDebateTrial = async (input: {
             }
           ]
         : []),
+      {
+        source: "protocol_invariant" as const,
+        id: null,
+        sha256: sha256Hex(DEBATE_PROTOCOL_INVARIANTS),
+        text: DEBATE_PROTOCOL_INVARIANTS
+      },
       ...(callInput.isFinal && contractClause
         ? [{ source: "contract_clause" as const, id: resolvedConfig.protocol.decision_contract?.id ?? null, sha256: null, text: contractClause }]
         : [])
@@ -302,6 +296,7 @@ export const executeLiveDebateTrial = async (input: {
         },
         error_message: null
       });
+      // Keep role/turn duplicated for backward-compatible artifacts; slot+role_kind and turn_index are canonical.
       transcript.push({
         turn: callInput.turn,
         turn_index: callInput.turn,

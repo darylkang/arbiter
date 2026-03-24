@@ -102,7 +102,7 @@ export interface CallRecord {
     [k: string]: unknown;
   } | null;
   system_prompt_components?: {
-    source: "role_prompt" | "persona_prompt" | "contract_clause";
+    source: "role_prompt" | "persona_prompt" | "protocol_invariant" | "contract_clause";
     id?: string | null;
     sha256?: string | null;
     text: string;

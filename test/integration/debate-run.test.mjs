@@ -115,3 +115,51 @@ test("debate mock runs assign the full role taxonomy at P=4", { concurrency: fal
     }
   });
 });
+
+test("debate mock runs preserve multi-round sequencing at P=2 R=2", { concurrency: false }, async () => {
+  await withTempWorkspace("arbiter-debate-run-r2-", async (cwd) => {
+    const configPath = resolve(cwd, "arbiter.config.json");
+    writeJson(
+      configPath,
+      buildDebateSmokeConfig({
+        questionText: "Debate mock prompt R2",
+        questionId: "mock_debate_q3",
+        kMax: 2,
+        batchSize: 1,
+        workers: 1,
+        participants: 2,
+        rounds: 2
+      })
+    );
+
+    const result = await runMockService({
+      configPath,
+      assetRoot: REPO_ROOT,
+      runsDir: resolve(cwd, "runs"),
+      quiet: true,
+      debug: false,
+      warningSink: noopWarningSink
+    });
+
+    const trials = readJsonl(resolve(result.runDir, "trials.jsonl"));
+    for (const record of trials) {
+      assert.equal(record.protocol, "debate_v1");
+      assert.equal(record.calls?.length, 5);
+      assert.equal(record.transcript?.length, 5);
+      assert.deepEqual(
+        record.transcript?.map((entry) => ({
+          slot: entry.slot,
+          role_kind: entry.role_kind,
+          round: entry.round
+        })),
+        [
+          { slot: "A", role_kind: "lead", round: 1 },
+          { slot: "B", role_kind: "challenger", round: 1 },
+          { slot: "A", role_kind: "lead", round: 2 },
+          { slot: "B", role_kind: "challenger", round: 2 },
+          { slot: "A", role_kind: "lead", round: 2 }
+        ]
+      );
+    }
+  });
+});

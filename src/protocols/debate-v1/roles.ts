@@ -8,6 +8,19 @@ export type DebateMatrixOption = {
 };
 
 export const DEBATE_RESPONDER_ROLE_CYCLE: DebateRoleKind[] = ["challenger", "counter", "auditor"];
+export const DEBATE_PROTOCOL_INVARIANTS =
+  "Engage prior turns directly. Add new information instead of repeating the full debate.";
+
+export const debateSortedSlots = (roleAssignments: Record<string, unknown>): string[] =>
+  Object.keys(roleAssignments).sort((a, b) => {
+    if (a === "A") {
+      return -1;
+    }
+    if (b === "A") {
+      return 1;
+    }
+    return a.localeCompare(b);
+  });
 
 export const resolveDebateSlotId = (index: number): string => {
   if (index < 26) {
@@ -149,7 +162,7 @@ export const debateConfigRationale = (participants: number, rounds: number): str
 };
 
 export const debateParticipantsLabel = (participants: number): string =>
-  `${participants} ${participants === 1 ? "participant" : "participants"}`;
+  `${participants} participants`;
 
 export const debateRoundsLabel = (rounds: number): string =>
   `${rounds} ${rounds === 1 ? "round" : "rounds"}`;

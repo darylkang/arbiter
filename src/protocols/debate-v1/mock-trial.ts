@@ -5,6 +5,7 @@ import { canonicalStringify } from "../../utils/canonical-json.js";
 import { encodeFloat32Base64 } from "../../utils/float32-base64.js";
 import { sha256Hex } from "../../utils/hash.js";
 import { buildDebateParsedOutput } from "./parser.js";
+import { formatDecisionContractClause } from "../contract/extraction.js";
 import { prepareEmbedText } from "../../engine/embed-text.js";
 import type { TrialExecutionResult } from "../../engine/trial-executor.js";
 import {
@@ -13,21 +14,12 @@ import {
   type MockTrialExecutionContext
 } from "../../engine/mock-trial-context.js";
 import {
+  DEBATE_PROTOCOL_INVARIANTS,
   debateRolePromptKey,
+  debateSortedSlots,
   debateTurnInstructionPromptKey,
   resolveDebateRoleKind
 } from "./roles.js";
-
-const sortedSlots = (roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]>): string[] =>
-  Object.keys(roleAssignments).sort((a, b) => {
-    if (a === "A") {
-      return -1;
-    }
-    if (b === "A") {
-      return 1;
-    }
-    return a.localeCompare(b);
-  });
 
 export const executeMockDebateTrial = async (input: {
   context: MockTrialExecutionContext;
@@ -55,9 +47,12 @@ export const executeMockDebateTrial = async (input: {
           })()
       }
     };
-  const slots = sortedSlots(roleAssignments);
+  const slots = debateSortedSlots(roleAssignments);
   const slotA = slots.includes("A") ? "A" : slots[0];
   const rounds = entry.debate?.rounds ?? resolvedConfig.protocol.rounds ?? 1;
+  const contractClause = resolvedConfig.protocol.decision_contract
+    ? formatDecisionContractClause(resolvedConfig.protocol.decision_contract.schema)
+    : undefined;
 
   const calls: NonNullable<ArbiterTrialRecord["calls"]> = [];
   const transcript: NonNullable<ArbiterTrialRecord["transcript"]> = [];
@@ -96,7 +91,13 @@ export const executeMockDebateTrial = async (input: {
         },
         response_payload: { content },
         system_prompt_components: [
-          { source: "role_prompt", id: rolePrompt.id, sha256: rolePrompt.sha256, text: rolePrompt.text }
+          { source: "role_prompt", id: rolePrompt.id, sha256: rolePrompt.sha256, text: rolePrompt.text },
+          {
+            source: "protocol_invariant",
+            id: null,
+            sha256: sha256Hex(DEBATE_PROTOCOL_INVARIANTS),
+            text: DEBATE_PROTOCOL_INVARIANTS
+          }
         ],
         turn_instruction_id: turnInstruction.id,
         turn_instruction_sha256: turnInstruction.sha256,
@@ -109,6 +110,7 @@ export const executeMockDebateTrial = async (input: {
         },
         error_message: null
       });
+      // Keep role/turn duplicated for backward-compatible artifacts; slot+role_kind and turn_index are canonical.
       transcript.push({
         turn,
         turn_index: turn,
@@ -170,7 +172,23 @@ export const executeMockDebateTrial = async (input: {
         sha256:
           resolvedConfig.protocol.prompts?.lead_final_system.sha256 ?? slotAFinalAssignment.role_prompt_sha256,
         text: resolvedConfig.protocol.prompts?.lead_final_system.text ?? ""
-      }
+      },
+      {
+        source: "protocol_invariant",
+        id: null,
+        sha256: sha256Hex(DEBATE_PROTOCOL_INVARIANTS),
+        text: DEBATE_PROTOCOL_INVARIANTS
+      },
+      ...(contractClause
+        ? [
+            {
+              source: "contract_clause" as const,
+              id: resolvedConfig.protocol.decision_contract?.id ?? null,
+              sha256: null,
+              text: contractClause
+            }
+          ]
+        : [])
     ],
     turn_instruction_id: finalTurnInstruction.id,
     turn_instruction_sha256: finalTurnInstruction.sha256,
@@ -183,6 +201,7 @@ export const executeMockDebateTrial = async (input: {
     },
     error_message: null
   });
+  // Keep role/turn duplicated for backward-compatible artifacts; slot+role_kind and turn_index are canonical.
   transcript.push({
     turn,
     turn_index: turn,

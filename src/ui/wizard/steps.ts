@@ -101,7 +101,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
       prompt: "Protocol",
       choices: [
         { id: "independent", label: "Independent" },
-        { id: "debate_v1", label: "Debate", activeSuffix: "P and R" }
+        { id: "debate_v1", label: "Debate" }
       ],
       defaultIndex: state.draft.protocolType === "debate_v1" ? 1 : 0,
       frame: protocolFrame,

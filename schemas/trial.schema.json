@@ -128,7 +128,7 @@
             "properties": {
               "source": {
                 "type": "string",
-                "enum": ["role_prompt", "persona_prompt", "contract_clause"]
+                "enum": ["role_prompt", "persona_prompt", "protocol_invariant", "contract_clause"]
               },
               "id": {
                 "type": ["string", "null"]
