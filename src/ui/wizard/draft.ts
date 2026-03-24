@@ -10,7 +10,7 @@ import {
   truncate,
   type RailStep
 } from "../wizard-theme.js";
-import { debateConfigSummary, debateRoleReviewSummary } from "../../protocols/debate-v1/roles.js";
+import { debateConfigSummary, debateRoleReviewSummary } from "../../protocols/debate/roles.js";
 import { RAIL_ITEMS, type EntryPath, type RunMode, type WizardDraft } from "./types.js";
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -23,12 +23,12 @@ const asNonEmptyArray = <T>(items: T[], label: string): [T, ...T[]] => {
 };
 
 export const formatProtocol = (draft: WizardDraft): string =>
-  draft.protocolType === "debate_v1"
+  draft.protocolType === "debate"
     ? debateConfigSummary(draft.participants, draft.rounds)
     : "Independent";
 
 const formatDebateRoleSummary = (draft: WizardDraft): string =>
-  draft.protocolType === "debate_v1" ? debateRoleReviewSummary(draft.participants) : "";
+  draft.protocolType === "debate" ? debateRoleReviewSummary(draft.participants) : "";
 
 export const toDecodeSummary = (draft: WizardDraft): string => {
   const tempSummary =
@@ -92,7 +92,7 @@ export const toRailSummaries = (input: {
   }
   if (input.currentStep >= 2) {
     summaries[3] =
-      draft.protocolType === "debate_v1"
+      draft.protocolType === "debate"
         ? debateConfigSummary(draft.participants, draft.rounds)
         : "Independent";
   }
@@ -252,8 +252,8 @@ export const buildConfigFromDraft = (input: {
     }
   ];
   config.protocol.type = draft.protocolType;
-  config.protocol.participants = draft.protocolType === "debate_v1" ? draft.participants : undefined;
-  config.protocol.rounds = draft.protocolType === "debate_v1" ? draft.rounds : undefined;
+  config.protocol.participants = draft.protocolType === "debate" ? draft.participants : undefined;
+  config.protocol.rounds = draft.protocolType === "debate" ? draft.rounds : undefined;
 
   config.sampling.decode = {
     ...(config.sampling.decode ?? {}),
@@ -302,7 +302,7 @@ export const buildReviewLines = (input: {
     "Config Summary",
     formatReviewRow("Question", `"${truncate(draft.question.trim(), 72)}"`),
     formatReviewRow("Protocol", formatProtocol(draft)),
-    ...(draft.protocolType === "debate_v1" ? [formatReviewRow("", formatDebateRoleSummary(draft))] : []),
+    ...(draft.protocolType === "debate" ? [formatReviewRow("", formatDebateRoleSummary(draft))] : []),
     formatReviewRow(
       "Models",
       `${summarizeDisplaySelection(draft.modelSlugs, modelLabels)} (${draft.modelSlugs.length} selected)`

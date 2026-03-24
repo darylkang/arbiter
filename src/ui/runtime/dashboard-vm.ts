@@ -50,7 +50,7 @@ const toQuestionExcerpt = (text: string, maxChars: number): string => {
 
 const formatProtocolLabel = (payload: EventPayloadMap["run.started"]): string => {
   const protocol = payload.resolved_config.protocol;
-  if (protocol.type === "debate_v1") {
+  if (protocol.type === "debate") {
     const participants = protocol.participants ?? 2;
     const rounds = protocol.rounds ?? 1;
     return `Debate (${participants}p x ${rounds}r + A)`;

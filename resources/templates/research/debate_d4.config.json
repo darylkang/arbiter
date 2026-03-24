@@ -1,5 +1,5 @@
 {
-  "_readme": "Arbiter debate_d4 template (debate_v1 Debate D4 (P4 R1)). Edit then run: arbiter run.",
+  "_readme": "Arbiter debate_d4 template (Debate D4, P4 R1). Edit then run: arbiter run.",
   "template_id": "debate_d4",
   "display_name": "Debate D4 (P4 R1)",
   "description": "Full role-saturation condition adding counter and auditor.",
@@ -46,7 +46,7 @@
     }
   },
   "protocol": {
-    "type": "debate_v1",
+    "type": "debate",
     "participants": 4,
     "rounds": 1,
     "timeouts": {

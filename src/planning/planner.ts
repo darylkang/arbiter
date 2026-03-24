@@ -8,13 +8,13 @@ import {
   resolveDebateCondition,
   resolveDebateRoleKind,
   resolveDebateSlotId
-} from "../protocols/debate-v1/roles.js";
+} from "../protocols/debate/roles.js";
 
 type WeightedItem<T> = { weight: number } & T;
 
 export type TrialPlanEntry = {
   trial_id: number;
-  protocol: "independent" | "debate_v1";
+  protocol: "independent" | "debate";
   assigned_config: ArbiterTrialRecord["assigned_config"];
   role_assignments?: ArbiterTrialRecord["role_assignments"];
   debate?: {
@@ -89,7 +89,7 @@ export const generateTrialPlan = (
   for (let trialId = 0; trialId < config.execution.k_max; trialId += 1) {
     const planRng = createRngForTrial(config.run.seed, "plan", trialId);
 
-    if (config.protocol.type === "debate_v1") {
+    if (config.protocol.type === "debate") {
       const participants = config.protocol.participants ?? 2;
       const rounds = config.protocol.rounds ?? 1;
       const roleAssignments: NonNullable<ArbiterTrialRecord["role_assignments"]> = {};
@@ -123,11 +123,11 @@ export const generateTrialPlan = (
 
       plan.push({
         trial_id: trialId,
-        protocol: "debate_v1",
+        protocol: "debate",
         assigned_config: {
           model: slotA.model_slug,
           persona: slotA.persona_id ?? "persona_neutral",
-          protocol: "debate_v1",
+          protocol: "debate",
           decode: slotA.decode
         },
         role_assignments: roleAssignments,

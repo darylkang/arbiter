@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "debate",
+  "roles": ["lead", "challenger", "counter", "auditor"],
+  "role_cycle": ["challenger", "counter", "auditor"],
+  "finalizer_slot": "A",
+  "prompts": {
+    "lead_system": "protocol_debate_lead_system",
+    "challenger_system": "protocol_debate_challenger_system",
+    "counter_system": "protocol_debate_counter_system",
+    "auditor_system": "protocol_debate_auditor_system",
+    "lead_final_system": "protocol_debate_lead_final_system"
+  },
+  "turn_instructions": {
+    "lead_turn": "protocol_debate_lead_turn",
+    "challenger_turn": "protocol_debate_challenger_turn",
+    "counter_turn": "protocol_debate_counter_turn",
+    "auditor_turn": "protocol_debate_auditor_turn",
+    "lead_final_turn": "protocol_debate_lead_final_turn"
+  },
+  "outcome_extraction": {
+    "method": "debate_decision_contract"
+  }
+}

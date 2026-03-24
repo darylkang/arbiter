@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildDebateParsedOutput, extractDebateDecision } from "../../src/protocols/debate-v1/parser.ts";
+import { buildDebateParsedOutput, extractDebateDecision } from "../../src/protocols/debate/parser.ts";
 
 test("extractDebateDecision parses fenced structured output", () => {
   const parsed = extractDebateDecision(

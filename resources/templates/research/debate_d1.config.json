@@ -1,5 +1,5 @@
 {
-  "_readme": "Arbiter debate_d1 template (debate_v1 Debate D1 (P2 R1)). Edit then run: arbiter run.",
+  "_readme": "Arbiter debate_d1 template (Debate D1, P2 R1). Edit then run: arbiter run.",
   "template_id": "debate_d1",
   "display_name": "Debate D1 (P2 R1)",
   "description": "Minimal interaction baseline (lead + challenger).",
@@ -46,7 +46,7 @@
     }
   },
   "protocol": {
-    "type": "debate_v1",
+    "type": "debate",
     "participants": 2,
     "rounds": 1,
     "timeouts": {

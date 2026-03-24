@@ -205,7 +205,7 @@
       "additionalProperties": false,
       "required": ["type", "timeouts"],
       "properties": {
-        "type": { "type": "string", "enum": ["independent", "debate_v1"] },
+        "type": { "type": "string", "enum": ["independent", "debate"] },
         "participants": { "type": "integer", "minimum": 2 },
         "rounds": { "type": "integer", "minimum": 1 },
         "roles": {
@@ -411,7 +411,7 @@
           "protocol": {
             "type": "object",
             "properties": {
-              "type": { "const": "debate_v1" }
+              "type": { "const": "debate" }
             },
             "required": ["type"]
           }

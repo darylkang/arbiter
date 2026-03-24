@@ -252,7 +252,7 @@ Locked debate mechanics:
 
 1. Total turns per trial = `P * R + 1`.
 2. Round order is participant slots `A..P` repeated `R` times, then slot `A` final.
-3. `debate_v1` is a lead/finalizer protocol: slot `A` proposes and finalizes.
+3. `debate` is a lead/finalizer protocol: slot `A` proposes and finalizes.
 4. Slot roles are fixed by position:
    - `A = lead`
    - `B = challenger`

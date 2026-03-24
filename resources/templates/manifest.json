@@ -11,37 +11,37 @@
       "description": "Baseline public starter config used by arbiter init."
     },
     {
-      "id": "debate_v1",
-      "path": "resources/templates/research/debate_v1.config.json",
-      "sha256": "e1fd304fe6b4161605534f0b113822ce149c539320eaf0b4d1f6136f5b26b778",
+      "id": "debate",
+      "path": "resources/templates/research/debate.config.json",
+      "sha256": "989920d92205d4161a175f52757520f0127f05da68c231417eacdd23ae4db405",
       "role": "research",
-      "description": "Generic debate_v1 research starter config."
+      "description": "Generic debate research starter config."
     },
     {
       "id": "debate_d1",
       "path": "resources/templates/research/debate_d1.config.json",
-      "sha256": "39d398f3e7d76c9eda37ba8f30b8027252a61a4d626461c7b0aa126c1db1d727",
+      "sha256": "b9ba1ffd5bf177a36bc18d4581523bcab17a35077b3a6f331b117c3c3e4f5a8d",
       "role": "research",
       "description": "Primary H4 matrix D1: minimal interaction baseline (P2 R1)."
     },
     {
       "id": "debate_d2",
       "path": "resources/templates/research/debate_d2.config.json",
-      "sha256": "c1e4ee69ef3dcbb52f0cf05dee0822ed9656cf1a2e43025bf3ebc9a243270c05",
+      "sha256": "1a99b1fcf9e6ea2a48db668a1a3c5f4c0d6a930803f8174ba33c4509ad5e41f5",
       "role": "research",
       "description": "Primary H4 matrix D2: add counter role diversity (P3 R1)."
     },
     {
       "id": "debate_d3",
       "path": "resources/templates/research/debate_d3.config.json",
-      "sha256": "38c91782c428c925d09eba22d70e245c9a124129192f64bf0f8d9c8964d3eceb",
+      "sha256": "95ef03518879b386a21ef0950f0225a74b2452db5051ade408db50ea5bfc6639",
       "role": "research",
       "description": "Primary H4 matrix D3: add round depth (P2 R2)."
     },
     {
       "id": "debate_d4",
       "path": "resources/templates/research/debate_d4.config.json",
-      "sha256": "3bfcdad690e1fd84a568e1ac5ed9423fb3813b24dce6fa9e24e7b69b3506a1ff",
+      "sha256": "17f4791684260ad711a8ffebb73949e3fa9e8a5e126363f0793922babfb3c3fb",
       "role": "research",
       "description": "Primary H4 matrix D4: full role saturation (P4 R1)."
     },

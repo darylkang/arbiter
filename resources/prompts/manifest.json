@@ -46,72 +46,72 @@
       "description": "Independent protocol system prompt."
     },
     {
-      "id": "protocol_debate_v1_lead_system",
+      "id": "protocol_debate_lead_system",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/lead_system.md",
+      "path": "resources/prompts/protocols/debate/lead_system.md",
       "sha256": "3ca39fa973a7c514c3ecd3e09d3bb81bcf3262b661ad30299ec524b5714efd36",
       "description": "Debate lead system prompt."
     },
     {
-      "id": "protocol_debate_v1_challenger_system",
+      "id": "protocol_debate_challenger_system",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/challenger_system.md",
+      "path": "resources/prompts/protocols/debate/challenger_system.md",
       "sha256": "e7dc6c0b6bfeed85511a62b2937663bc3f5c8fcf0636bb964f620616b87c2776",
       "description": "Debate challenger system prompt."
     },
     {
-      "id": "protocol_debate_v1_counter_system",
+      "id": "protocol_debate_counter_system",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/counter_system.md",
+      "path": "resources/prompts/protocols/debate/counter_system.md",
       "sha256": "ce2bdd3f9ec71b4140a4f44eab8ff4b5970cba458e278312df5b5f0b9b9b1a93",
       "description": "Debate counter system prompt."
     },
     {
-      "id": "protocol_debate_v1_auditor_system",
+      "id": "protocol_debate_auditor_system",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/auditor_system.md",
+      "path": "resources/prompts/protocols/debate/auditor_system.md",
       "sha256": "e0ed7c96a61200011297822b1c34761907b04472f1711b59a9fada9b256d7175",
       "description": "Debate auditor system prompt."
     },
     {
-      "id": "protocol_debate_v1_lead_final_system",
+      "id": "protocol_debate_lead_final_system",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/lead_final_system.md",
+      "path": "resources/prompts/protocols/debate/lead_final_system.md",
       "sha256": "45ddf6405e753dfa843ffa4965d0489f8978fec8bd5e049b826410a4b97c4176",
       "description": "Debate lead final system prompt."
     },
     {
-      "id": "protocol_debate_v1_lead_turn",
+      "id": "protocol_debate_lead_turn",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/lead_turn.md",
+      "path": "resources/prompts/protocols/debate/lead_turn.md",
       "sha256": "a8ae0aff2023d12fff59db675c341a776595f5efa8a4c4a2082d62b25d5463b3",
       "description": "Debate lead turn instruction."
     },
     {
-      "id": "protocol_debate_v1_challenger_turn",
+      "id": "protocol_debate_challenger_turn",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/challenger_turn.md",
+      "path": "resources/prompts/protocols/debate/challenger_turn.md",
       "sha256": "08cf61bf27799cf0fffd7fc443d0ac99da6c824618a26e444801d0b5e8d25aab",
       "description": "Debate challenger turn instruction."
     },
     {
-      "id": "protocol_debate_v1_counter_turn",
+      "id": "protocol_debate_counter_turn",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/counter_turn.md",
+      "path": "resources/prompts/protocols/debate/counter_turn.md",
       "sha256": "962840b0034afab3d66188dc27efc258dd008d719551152e3e671916db111c94",
       "description": "Debate counter turn instruction."
     },
     {
-      "id": "protocol_debate_v1_auditor_turn",
+      "id": "protocol_debate_auditor_turn",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/auditor_turn.md",
+      "path": "resources/prompts/protocols/debate/auditor_turn.md",
       "sha256": "5b2f255f5022d629060f61c917e2e5e1a54f164b9a462755d79989dd977db5bf",
       "description": "Debate auditor turn instruction."
     },
     {
-      "id": "protocol_debate_v1_lead_final_turn",
+      "id": "protocol_debate_lead_final_turn",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/debate_v1/lead_final_turn.md",
+      "path": "resources/prompts/protocols/debate/lead_final_turn.md",
       "sha256": "29b2813e9d957e344ed279217da4f889acce6fc613af4247d7da07ac8924aac9",
       "description": "Debate lead final turn instruction."
     }

@@ -73,7 +73,7 @@ const buildFailureTrialRecord = (input: {
     trial_id: input.entry.trial_id,
     requested_model_slug: input.entry.assigned_config.model,
     actual_model: null,
-    protocol: "debate_v1",
+    protocol: "debate",
     status,
     assigned_config: input.entry.assigned_config,
     role_assignments: input.roleAssignments,
@@ -88,7 +88,7 @@ const buildFailureTrialRecord = (input: {
     error_code: input.errorCode,
     parsed: {
       parse_status: "failed",
-      parser_version: "debate-v1"
+      parser_version: "debate"
     },
     embedding: {
       status: "skipped",
@@ -381,7 +381,7 @@ export const executeLiveDebateTrial = async (input: {
         const parsedRecord: ArbiterParsedOutputRecord = {
           trial_id: entry.trial_id,
           parse_status: "failed",
-          parser_version: "debate-v1"
+          parser_version: "debate"
         };
         attachParseSummary(trialRecord, parsedRecord);
 
@@ -421,7 +421,7 @@ export const executeLiveDebateTrial = async (input: {
     const parsedRecord: ArbiterParsedOutputRecord = {
       trial_id: entry.trial_id,
       parse_status: "failed",
-      parser_version: "debate-v1"
+      parser_version: "debate"
     };
     attachParseSummary(trialRecord, parsedRecord);
 
@@ -469,7 +469,7 @@ export const executeLiveDebateTrial = async (input: {
     trial_id: entry.trial_id,
     requested_model_slug: entry.assigned_config.model,
     actual_model: finalModel,
-    protocol: "debate_v1",
+    protocol: "debate",
     status: "success",
     assigned_config: entry.assigned_config,
     role_assignments: roleAssignments,

@@ -16,7 +16,7 @@
   ],
   "properties": {
     "schema_version": { "const": "1.0.0" },
-    "protocol_id": { "const": "debate_v1" },
+    "protocol_id": { "const": "debate" },
     "roles": {
       "type": "array",
       "minItems": 4,
@@ -73,7 +73,7 @@
       "additionalProperties": false,
       "required": ["method"],
       "properties": {
-        "method": { "const": "debate_v1_decision_contract" }
+        "method": { "const": "debate_decision_contract" }
       }
     }
   }

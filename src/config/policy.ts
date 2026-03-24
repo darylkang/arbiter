@@ -92,7 +92,7 @@ export const evaluatePolicy = (input: {
       ? resolvedConfig.sampling.protocols.length
       : 1;
   const cellCount =
-    resolvedConfig.protocol.type === "debate_v1"
+    resolvedConfig.protocol.type === "debate"
       ? modelCount * personaCount * personaCount
       : modelCount * personaCount * protocolCount;
 

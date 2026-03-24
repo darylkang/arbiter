@@ -481,7 +481,7 @@ export class ArtifactWriter {
       : "Usage tokens: not available";
 
     const protocolSummary =
-      this.resolvedConfig.protocol.type === "debate_v1"
+      this.resolvedConfig.protocol.type === "debate"
         ? `Debate (${this.resolvedConfig.protocol.participants ?? 2} participants, ${this.resolvedConfig.protocol.rounds ?? 1} rounds)`
         : "Independent";
 

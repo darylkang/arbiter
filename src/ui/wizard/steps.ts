@@ -101,13 +101,13 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
       prompt: "Protocol",
       choices: [
         { id: "independent", label: "Independent" },
-        { id: "debate_v1", label: "Debate" }
+        { id: "debate", label: "Debate" }
       ],
-      defaultIndex: state.draft.protocolType === "debate_v1" ? 1 : 0,
+      defaultIndex: state.draft.protocolType === "debate" ? 1 : 0,
       frame: protocolFrame,
       focusedLines: (index) => {
-        const choice = index === 1 ? "debate_v1" : "independent";
-        if (choice === "debate_v1") {
+        const choice = index === 1 ? "debate" : "independent";
+        if (choice === "debate") {
           return [
             fmt.bold(fmt.success("Debate")),
             fmt.text("Multiple participants speak in order, then the lead gives the final answer."),
@@ -129,7 +129,7 @@ export const createWizardStepControllers = (context: WizardStepContext): Record<
       return { kind: "goto", step: 1 };
     }
     state.draft.protocolType = protocolSelection as ProtocolType;
-    if (state.draft.protocolType === "debate_v1") {
+    if (state.draft.protocolType === "debate") {
       const debateConfigResult = await configureDebateProtocol({
         draft: state.draft,
         buildStepFrame: context.buildStepFrame,

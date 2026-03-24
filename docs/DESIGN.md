@@ -349,7 +349,7 @@ For Debate runs:
 2. `rounds = R` with `R >= 1`,
 3. total turns per trial are `P * R + 1`,
 4. turn order is slots `A..P` repeated for each round, then slot `A` final,
-5. `debate_v1` is a judge-less lead/finalizer protocol; slot `A` is the lead and finalizer,
+5. `debate` is a judge-less lead/finalizer protocol; slot `A` is the lead and finalizer,
 6. slot roles are fixed by position, not sampled:
    - `A = lead`
    - `B = challenger`

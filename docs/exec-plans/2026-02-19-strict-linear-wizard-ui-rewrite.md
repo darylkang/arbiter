@@ -35,8 +35,8 @@ Scope guardrails:
 - [x] (2026-03-01 14:36Z) milestone 7 complete: tests and acceptance evidence captured (`completed`)
 
 ## Surprises & Discoveries
-- Observation: current protocol implementation is `debate_v1` with fixed 3-turn proposer/critic/proposer flow; no generalized participants/rounds.
-  Evidence: `schemas/config.schema.json`, `schemas/protocol.schema.json`, `src/planning/planner.ts`, `src/protocols/debate-v1/*`.
+- Observation: current protocol implementation is `debate` with fixed 3-turn proposer/critic/proposer flow; no generalized participants/rounds.
+  Evidence: `schemas/config.schema.json`, `schemas/protocol.schema.json`, `src/planning/planner.ts`, `src/protocols/debate/*`.
 - Observation: current default TUI is transcript/slash-command driven and coupled to legacy command registry.
   Evidence: `src/ui/transcript/app.ts`, `src/ui/transcript/commands/*`, `scripts/tui-command-smoke.mjs`.
 - Observation: current UI test scripts and e2e tests assert transcript semantics and overlay workflow.
@@ -125,7 +125,7 @@ Working directory: repository root.
    Expected evidence: implementation checklist keyed to explicit spec clauses.
 2. Implement required schema/protocol changes first where needed for Debate parameterization.
    Commands:
-   - `rg -n "debate_v1|protocol\.type|role_assignments|turns" schemas src/planning src/protocols -S`
+   - `rg -n "debate|protocol\.type|role_assignments|turns" schemas src/planning src/protocols -S`
    - `npm run gen:types`
    - `npm run check:schemas`
    Expected evidence: contracts can represent `P`/`R` semantics, final-output rules, and canonical intermediate-turn persistence in `trials.jsonl.transcript`.

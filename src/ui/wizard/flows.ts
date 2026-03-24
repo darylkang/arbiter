@@ -12,7 +12,7 @@ import {
   debateRoleConfigSummary,
   debateParticipantsLabel,
   debateRoleReviewSummary
-} from "../../protocols/debate-v1/roles.js";
+} from "../../protocols/debate/roles.js";
 import { createStdoutFormatter } from "../fmt.js";
 import {
   askFloatInput,

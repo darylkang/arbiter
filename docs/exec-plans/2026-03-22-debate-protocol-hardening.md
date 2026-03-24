@@ -6,7 +6,7 @@ Last updated: 2026-03-22
 
 ## Purpose / Big Picture
 
-Arbiter's current `debate_v1` implementation already supports the two paper-critical parameters the user called out:
+Arbiter's current `debate` implementation already supports the two paper-critical parameters the user called out:
 
 1. `participants = P`,
 2. `rounds = R`,
@@ -17,7 +17,7 @@ That part is already durable system truth in:
 
 1. [docs/DESIGN.md](../DESIGN.md)
 2. [src/planning/planner.ts](../../src/planning/planner.ts)
-3. [src/protocols/debate-v1/live-trial.ts](../../src/protocols/debate-v1/live-trial.ts)
+3. [src/protocols/debate/live-trial.ts](../../src/protocols/debate/live-trial.ts)
 4. [src/ui/wizard/flows.ts](../../src/ui/wizard/flows.ts)
 
 What is still hollow is the *semantic structure* of the debate:
@@ -45,12 +45,12 @@ In scope:
 3. define how role prompts and sampled personas interact,
 4. define how `P` and `R` should be interpreted in the paper and in implementation,
 5. define what metadata/artifacts need to change for research-grade provenance,
-6. identify what is worth implementing in the existing `debate_v1` family versus what deserves a new protocol family.
+6. identify what is worth implementing in the existing `debate` family versus what deserves a new protocol family.
 
 Out of scope:
 
 1. implementing code changes in this round,
-2. introducing a judge-mediated protocol into the current `debate_v1` contract,
+2. introducing a judge-mediated protocol into the current `debate` contract,
 3. changing the final-output measurement rule that parse/embed semantics apply to slot `A` final output only,
 4. changing model/persona sampling semantics outside debate-specific role structure,
 5. changing the paper's broader claims outside the debate/H4 rung.
@@ -152,9 +152,9 @@ Reviewed first:
 3. [docs/DESIGN.md](../DESIGN.md)
 4. [docs/RESEARCH-METHOD.md](../RESEARCH-METHOD.md)
 5. [src/planning/planner.ts](../../src/planning/planner.ts)
-6. [src/protocols/debate-v1/live-trial.ts](../../src/protocols/debate-v1/live-trial.ts)
-7. [src/protocols/debate-v1/mock-trial.ts](../../src/protocols/debate-v1/mock-trial.ts)
-8. [resources/prompts/protocols/debate_v1](../../resources/prompts/protocols/debate_v1)
+6. [src/protocols/debate/live-trial.ts](../../src/protocols/debate/live-trial.ts)
+7. [src/protocols/debate/mock-trial.ts](../../src/protocols/debate/mock-trial.ts)
+8. [resources/prompts/protocols/debate](../../resources/prompts/protocols/debate)
 9. [docs/product-specs/tui-wizard.md](../product-specs/tui-wizard.md)
 
 External references reviewed:
@@ -176,7 +176,7 @@ Current implementation summary:
 The work should proceed in this order:
 
 1. freeze what the current debate family *is*,
-2. define a richer slot-role taxonomy for `debate_v1`-style lead/finalizer debate,
+2. define a richer slot-role taxonomy for `debate`-style lead/finalizer debate,
 3. define role-prompt templates and their interaction with personas,
 4. define schema/artifact deltas needed for provenance,
 5. decide what belongs in a future separate `debate_judge_v1` family,
@@ -225,7 +225,7 @@ Exit criteria:
 Recommended interpretation of the current debate family:
 
 - name: `lead_finalizer_debate`
-- protocol id: keep `debate_v1` until a future migration
+- protocol id: later migrated to `debate`
 - semantics:
   1. slot `A` is the lead/finalizer,
   2. slots `B..` are responders with fixed role types,
@@ -368,7 +368,7 @@ Recommended schema/artifact additions:
 
 This is necessary if role structure is part of the paper-facing protocol definition.
 
-### 7. What Not To Add To `debate_v1`
+### 7. What Not To Add To `debate`
 
 Do not fold these into the current family:
 
@@ -412,16 +412,16 @@ This design round is complete when:
 
 1. This plan is docs-only and reversible.
 2. If implementation reveals prompt-level ambiguity between `challenger` and `auditor` at `R = 1`, preserve the role set but document `P = 4, R = 1` as exploratory rather than primary.
-3. If judge-mediated debate is later desired, implement it as a separate protocol family rather than rewriting `debate_v1` in place.
+3. If judge-mediated debate is later desired, implement it as a separate protocol family rather than rewriting `debate` in place.
 
 ## Interfaces and Dependencies
 
 Implementation will eventually touch:
 
 1. [src/planning/planner.ts](../../src/planning/planner.ts)
-2. [src/protocols/debate-v1/live-trial.ts](../../src/protocols/debate-v1/live-trial.ts)
-3. [src/protocols/debate-v1/mock-trial.ts](../../src/protocols/debate-v1/mock-trial.ts)
-4. [resources/prompts/protocols/debate_v1](../../resources/prompts/protocols/debate_v1)
+2. [src/protocols/debate/live-trial.ts](../../src/protocols/debate/live-trial.ts)
+3. [src/protocols/debate/mock-trial.ts](../../src/protocols/debate/mock-trial.ts)
+4. [resources/prompts/protocols/debate](../../resources/prompts/protocols/debate)
 5. debate-related schemas and generated types
 6. [docs/DESIGN.md](../DESIGN.md)
 7. [docs/RESEARCH-METHOD.md](../RESEARCH-METHOD.md)

@@ -44,7 +44,7 @@ export type ArbiterResolvedConfig = {
     };
   };
   protocol: {
-    type: "independent" | "debate_v1";
+    type: "independent" | "debate";
     participants?: number;
     rounds?: number;
     roles?: ("lead" | "challenger" | "counter" | "auditor")[];

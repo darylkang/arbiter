@@ -76,7 +76,7 @@ export const buildReceiptModel = (runDir: string): ReceiptModel => {
     completed_at: manifest.completed_at ?? manifest.timestamps?.completed_at,
     question: config?.question?.text ? truncate(config.question.text) : undefined,
     protocol:
-      config?.protocol.type === "debate_v1"
+      config?.protocol.type === "debate"
         ? `Debate (${config.protocol.participants ?? 2} participants, ${config.protocol.rounds ?? 1} rounds)`
         : config?.protocol.type === "independent"
           ? "Independent"

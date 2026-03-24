@@ -95,7 +95,7 @@ export const buildDebateSmokeConfig = (options = {}) => {
   });
 
   config.protocol = {
-    type: "debate_v1",
+    type: "debate",
     participants: options.participants ?? 2,
     rounds: options.rounds ?? 1,
     timeouts: config.protocol.timeouts

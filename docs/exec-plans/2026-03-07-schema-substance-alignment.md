@@ -111,7 +111,7 @@ Relevant sources reviewed before planning:
    - current AJV configuration and validator compilation surface.
 11. `src/artifacts/artifact-writer.ts`
    - actual manifest summary shape emitted today.
-12. `src/protocols/debate-v1/parser.ts`
+12. `src/protocols/debate/parser.ts`
    - debate decision contract expectations.
 
 High-risk surfaces:
@@ -249,7 +249,7 @@ Expected evidence:
 3. `src/config/schema-validation.ts`
 4. `src/config/resolve-config.ts`
 5. `src/artifacts/artifact-writer.ts`
-6. `src/protocols/debate-v1/parser.ts`
+6. `src/protocols/debate/parser.ts`
 7. `resources/contracts/binary_decision_v1.json`
 8. `src/generated/*`
 

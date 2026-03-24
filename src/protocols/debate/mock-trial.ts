@@ -239,7 +239,7 @@ export const executeMockDebateTrial = async (input: {
     trial_id: entry.trial_id,
     requested_model_slug: entry.assigned_config.model,
     actual_model: slotAFinalAssignment.model_slug,
-    protocol: "debate_v1",
+    protocol: "debate",
     status: "success",
     assigned_config: entry.assigned_config,
     role_assignments: roleAssignments,

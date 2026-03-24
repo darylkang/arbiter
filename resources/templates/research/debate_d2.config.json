@@ -1,5 +1,5 @@
 {
-  "_readme": "Arbiter debate_d2 template (debate_v1 Debate D2 (P3 R1)). Edit then run: arbiter run.",
+  "_readme": "Arbiter debate_d2 template (Debate D2, P3 R1). Edit then run: arbiter run.",
   "template_id": "debate_d2",
   "display_name": "Debate D2 (P3 R1)",
   "description": "Role-diversity condition adding the counter role.",
@@ -46,7 +46,7 @@
     }
   },
   "protocol": {
-    "type": "debate_v1",
+    "type": "debate",
     "participants": 3,
     "rounds": 1,
     "timeouts": {

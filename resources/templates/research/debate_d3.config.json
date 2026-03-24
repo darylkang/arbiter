@@ -1,5 +1,5 @@
 {
-  "_readme": "Arbiter debate_d3 template (debate_v1 Debate D3 (P2 R2)). Edit then run: arbiter run.",
+  "_readme": "Arbiter debate_d3 template (Debate D3, P2 R2). Edit then run: arbiter run.",
   "template_id": "debate_d3",
   "display_name": "Debate D3 (P2 R2)",
   "description": "Round-depth condition with a second lead/challenger cycle.",
@@ -46,7 +46,7 @@
     }
   },
   "protocol": {
-    "type": "debate_v1",
+    "type": "debate",
     "participants": 2,
     "rounds": 2,
     "timeouts": {

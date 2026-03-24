@@ -1,6 +1,6 @@
 {
-  "_readme": "Arbiter debate_v1 template (lead/challenger/counter/auditor). Edit then run: arbiter run.",
-  "template_id": "debate_v1",
+  "_readme": "Arbiter debate template (lead/challenger/counter/auditor). Edit then run: arbiter run.",
+  "template_id": "debate",
   "display_name": "Debate protocol (lead/challenger/counter/auditor)",
   "description": "Multi-call protocol with critique and revision; lower concurrency recommended.",
   "schema_version": "1.0.0",
@@ -10,7 +10,7 @@
   },
   "question": {
     "text": "Should cities prioritize housing affordability over job growth?",
-    "question_id": "debate_v1_q1"
+    "question_id": "debate_q1"
   },
   "sampling": {
     "models": [
@@ -31,7 +31,7 @@
     }
   },
   "protocol": {
-    "type": "debate_v1",
+    "type": "debate",
     "participants": 2,
     "rounds": 1,
     "timeouts": {

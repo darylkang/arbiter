@@ -1,6 +1,6 @@
 export type EntryPath = "existing" | "new";
 export type RunMode = "live" | "mock";
-export type ProtocolType = "independent" | "debate_v1";
+export type ProtocolType = "independent" | "debate";
 export type TemperatureMode = "single" | "range";
 export type SeedMode = "random" | "fixed";
 

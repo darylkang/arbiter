@@ -2,7 +2,7 @@
 
 export interface ArbiterProtocolSpec {
   schema_version: "1.0.0";
-  protocol_id: "debate_v1";
+  protocol_id: "debate";
   /**
    * @minItems 4
    */
@@ -38,6 +38,6 @@ export interface ArbiterProtocolSpec {
     lead_final_turn: string;
   };
   outcome_extraction: {
-    method: "debate_v1_decision_contract";
+    method: "debate_decision_contract";
   };
 }

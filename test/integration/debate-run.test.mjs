@@ -40,7 +40,7 @@ test("debate mock runs produce debate trials, transcripts, and embedding rows", 
     const trials = readJsonl(resolve(result.runDir, "trials.jsonl"));
     for (const record of trials) {
       assert.equal(validateTrial(record), true);
-      assert.equal(record.protocol, "debate_v1");
+      assert.equal(record.protocol, "debate");
       if (record.status === "success") {
         assert.equal(Array.isArray(record.calls), true);
         assert.equal(record.calls.length, 3);
@@ -101,7 +101,7 @@ test("debate mock runs assign the full role taxonomy at P=4", { concurrency: fal
 
     const trials = readJsonl(resolve(result.runDir, "trials.jsonl"));
     for (const record of trials) {
-      assert.equal(record.protocol, "debate_v1");
+      assert.equal(record.protocol, "debate");
       assert.equal(record.role_assignments?.A?.role_kind, "lead");
       assert.equal(record.role_assignments?.B?.role_kind, "challenger");
       assert.equal(record.role_assignments?.C?.role_kind, "counter");
@@ -143,7 +143,7 @@ test("debate mock runs preserve multi-round sequencing at P=2 R=2", { concurrenc
 
     const trials = readJsonl(resolve(result.runDir, "trials.jsonl"));
     for (const record of trials) {
-      assert.equal(record.protocol, "debate_v1");
+      assert.equal(record.protocol, "debate");
       assert.equal(record.calls?.length, 5);
       assert.equal(record.transcript?.length, 5);
       assert.deepEqual(

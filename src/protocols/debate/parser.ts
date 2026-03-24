@@ -88,7 +88,7 @@ export const buildDebateParsedOutput = (
       trialId,
       content: finalContent,
       contract: decisionContract,
-      parserVersion: "debate-v1"
+      parserVersion: "debate"
     });
   }
   const extracted = extractDebateDecision(finalContent);
@@ -102,7 +102,7 @@ export const buildDebateParsedOutput = (
     rationale: extracted.rationale,
     raw_assistant_text: finalContent,
     embed_text: extracted.embed_text,
-    parser_version: "debate-v1",
+    parser_version: "debate",
     parse_error:
       extracted.parse_status === "failed"
         ? { message: "Debate output empty or unusable" }

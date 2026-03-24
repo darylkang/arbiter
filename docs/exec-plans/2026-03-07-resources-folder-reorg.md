@@ -146,7 +146,7 @@ Exit evidence:
    - `resources/decision-contracts/manifest.json`
    - `resources/decision-contracts/binary_decision_v1.json`
    - `resources/templates/public/default.config.json`
-   - `resources/templates/research/debate_v1.config.json`
+   - `resources/templates/research/debate.config.json`
    - `resources/templates/research/heterogeneity_mix.config.json`
    - `resources/templates/canary/free_quickstart.config.json`
 5. Update runtime path resolution in:

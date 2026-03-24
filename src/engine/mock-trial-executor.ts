@@ -1,6 +1,6 @@
 import { createRngForTrial } from "../utils/seeded-rng.js";
 import type { TrialPlanEntry } from "../planning/planner.js";
-import { executeMockDebateTrial } from "../protocols/debate-v1/mock-trial.js";
+import { executeMockDebateTrial } from "../protocols/debate/mock-trial.js";
 import { executeMockIndependentTrial } from "../protocols/independent/mock-trial.js";
 import type { TrialExecutor } from "./trial-executor.js";
 import type { MockTrialExecutionContext } from "./mock-trial-context.js";
@@ -22,7 +22,7 @@ export const createMockTrialExecutor = (
 
     const embedRng = createRngForTrial(context.resolvedConfig.run.seed, "embedding", entry.trial_id);
 
-    if (entry.protocol === "debate_v1") {
+    if (entry.protocol === "debate") {
       return executeMockDebateTrial({ context, entry, embedRng });
     }
 

@@ -38,13 +38,13 @@ const buildDebateConfig = (seed = "debate-seed") => ({
       { persona: "persona-a", weight: 1 },
       { persona: "persona-b", weight: 1 }
     ],
-    protocols: [{ protocol: "debate_v1", weight: 1 }],
+    protocols: [{ protocol: "debate", weight: 1 }],
     decode: {
       max_tokens: { min: 10, max: 20 }
     }
   },
   protocol: {
-    type: "debate_v1",
+    type: "debate",
     participants: 2,
     rounds: 1,
     prompts: {
@@ -98,7 +98,7 @@ test("generateTrialPlan emits debate role assignments", () => {
   const { plan } = generateTrialPlan(buildDebateConfig());
 
   for (const entry of plan) {
-    assert.equal(entry.protocol, "debate_v1");
+    assert.equal(entry.protocol, "debate");
     assert.ok(entry.role_assignments);
     assert.ok(entry.role_assignments.A);
     assert.ok(entry.role_assignments.B);

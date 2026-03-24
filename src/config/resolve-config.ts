@@ -19,7 +19,7 @@ import type { ArbiterProtocolSpec } from "../generated/protocol.types.js";
 import { EMBED_TEXT_NORMALIZATION } from "../core/constants.js";
 import { sha256Hex } from "../utils/hash.js";
 import { DEFAULT_EMBEDDING_MAX_CHARS, DEFAULT_STOP_POLICY } from "./defaults.js";
-import type { DebateRoleKind } from "../protocols/debate-v1/roles.js";
+import type { DebateRoleKind } from "../protocols/debate/roles.js";
 
 export interface ResolveConfigOptions {
   configPath?: string;
@@ -193,7 +193,7 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
     };
   }
 
-  if (resolvedConfig.protocol.type === "debate_v1") {
+  if (resolvedConfig.protocol.type === "debate") {
     resolvedConfig.protocol.participants = resolvedConfig.protocol.participants ?? 2;
     resolvedConfig.protocol.rounds = resolvedConfig.protocol.rounds ?? 1;
   }
@@ -262,8 +262,8 @@ export const resolveConfig = (options: ResolveConfigOptions = {}): ResolveConfig
     });
   }
 
-  if (resolvedConfig.protocol.type === "debate_v1") {
-    const protocolPath = resolve(assetRoot, "resources/prompts/protocols/debate_v1/protocol.json");
+  if (resolvedConfig.protocol.type === "debate") {
+    const protocolPath = resolve(assetRoot, "resources/prompts/protocols/debate/protocol.json");
     const protocolSpec = readJsonFile<ArbiterProtocolSpec>(protocolPath);
     assertValid("protocol spec", validateProtocolSpec(protocolSpec), validateProtocolSpec.errors);
 
