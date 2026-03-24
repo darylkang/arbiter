@@ -2,7 +2,7 @@
 
 Status: proposed
 Owner: TBD
-Last updated: 2026-03-24 03:08Z
+Last updated: 2026-03-24 03:34Z
 
 ## Purpose / Big Picture
 
@@ -24,6 +24,13 @@ A first-principles audit against `docs/DESIGN.md` and `docs/RESEARCH-METHOD.md` 
 4. monitoring completeness is not explicitly recorded in artifacts,
 5. a small amount of mock/live provenance parity and doc sync remains to be hardened.
 
+A secondary audit of core infrastructure found a separate class of lower-risk issues that are worth absorbing into the same round once the research-contract mismatches are addressed:
+
+1. JSONL append writes ignore stream backpressure even though close semantics are otherwise correct,
+2. canonical JSON assumes acyclic input and would recurse indefinitely on a circular object,
+3. `subscribeSafe` intentionally isolates handler errors from `flush()`, but that coupling is under-documented,
+4. the OpenRouter client relies entirely on caller-supplied abort signals and has no defensive default timeout.
+
 This plan hardens those gaps without changing Arbiter's scientific posture:
 
 1. no new claims of correctness,
@@ -31,7 +38,7 @@ This plan hardens those gaps without changing Arbiter's scientific posture:
 3. no UI redesign,
 4. no expansion of the paper's estimand beyond what the docs already claim.
 
-The goal is to make the harness materially stronger for methodology review: a researcher or reviewer should be able to inspect run artifacts and determine what `Q(c)` and `M` actually were, whether provider-side drift occurred, and whether online monitoring artifacts are complete enough to trust operationally.
+The goal is to make the harness materially stronger for methodology review: a researcher or reviewer should be able to inspect run artifacts and determine what `Q(c)` and `M` actually were, whether provider-side drift occurred, whether online monitoring artifacts are complete enough to trust operationally, and whether the supporting I/O/runtime utilities fail in auditable rather than opaque ways.
 
 ## Scope Guardrails
 
@@ -42,7 +49,8 @@ In scope:
 3. surface embedding-model drift explicitly in persisted provenance and warning surfaces,
 4. record monitoring completeness in run artifacts,
 5. tighten remaining mock/live provenance parity where it affects auditability,
-6. sync any new durable semantics into canonical docs.
+6. add low-risk infrastructure guards for JSONL writes, canonical JSON, and client-side request timeouts,
+7. sync any new durable semantics into canonical docs.
 
 Out of scope:
 
@@ -70,7 +78,8 @@ Temporary coexistence rule:
 - [ ] M2: Fix configuration-space accounting and policy warnings
 - [ ] M3: Surface embedding-model drift explicitly in provenance
 - [ ] M4: Record monitoring completeness and remaining provenance parity
-- [ ] M5: Canonical doc sync and closure
+- [ ] M5: Low-risk infrastructure robustness guards
+- [ ] M6: Canonical doc sync and closure
 
 ## Surprises & Discoveries
 
@@ -79,6 +88,7 @@ Temporary coexistence rule:
    - the `P=2, R=2` debate integration test already exists.
 2. The more important open issue is not in the debate executor. It is in study-definition truth: debate configs still carry a required `sampling.protocols` pool that execution ignores.
 3. Embedding-model drift is already partially implemented as in-memory state. The missing piece is artifact surfacing, not detection logic.
+4. The infrastructure findings are real but lower priority than the `Q(c)` and provenance mismatches; they should not displace the research-contract fixes.
 
 ## Decision Log
 
@@ -98,6 +108,11 @@ Temporary coexistence rule:
 4. Treat monitoring completeness as an operational integrity signal, not a paper-facing primary measurement.
    Why:
    - this aligns with `RESEARCH-METHOD.md`'s online-monitoring boundary.
+5. Fold the infrastructure findings into this plan only as a secondary hardening slice.
+   Why:
+   - they are worth fixing,
+   - but they do not redefine the estimand or the paper contract,
+   - so they should land after the higher-priority study-definition and provenance work.
 
 ## Context and Orientation
 
@@ -163,6 +178,9 @@ Validation and reporting surfaces:
 3. `src/config/policy.ts` computes debate "cell count" as `modelCount * personaCount * personaCount`, which is not the full executed debate configuration space and does not reflect decode heterogeneity either.
 4. `src/engine/live-trial-context.ts` already detects embedding model conflicts, but `src/engine/live-runner.ts` and `src/artifacts/artifact-writer.ts` only persist `actual_embedding_model: null`, losing the reason for ambiguity.
 5. `src/clustering/monitor.ts` and `src/engine/run-orchestrator.ts` rely on batch-boundary synchronous handling, but run artifacts do not currently say whether monitoring coverage is complete.
+6. `src/artifacts/io.ts` waits for `finish` on close, so pending JSONL writes are flushed correctly, but it ignores `stream.write()` backpressure and therefore has weaker correctness hygiene than it should.
+7. `src/utils/canonical-json.ts` assumes acyclic input and would fail opaquely if a circular structure leaked into canonicalization.
+8. `src/openrouter/client.ts` relies entirely on caller-supplied abort signals; it has no defensive default timeout if a caller forgets to provide one.
 
 ## Plan of Work
 
@@ -303,7 +321,8 @@ Why:
 
 1. online monitoring is operationally important even if it is not a primary scientific output,
 2. a silent missing monitoring record should be visible in artifacts,
-3. mock/live parity matters because merge-gate confidence comes mostly from mock runs.
+3. mock/live parity matters because merge-gate confidence comes mostly from mock runs,
+4. the orchestrator's `subscribeSafe` boundary is part of why monitoring completeness must be explicit rather than inferred.
 
 Implementation targets:
 
@@ -317,7 +336,8 @@ Concrete goals:
 
 1. record `monitoring_complete: boolean` or equivalent manifest-level integrity signal,
 2. ensure expected monitoring record count can be checked against batch count,
-3. assess whether missing `persona_prompt` provenance in mock debate should be mirrored for fidelity.
+3. assess whether missing `persona_prompt` provenance in mock debate should be mirrored for fidelity,
+4. document the intentional consequence that `subscribeSafe` errors do not surface through `EventBus.flush()`.
 
 Exit evidence:
 
@@ -325,11 +345,47 @@ Exit evidence:
 2. integrity behavior is covered by tests,
 3. any retained mock/live differences are intentional and documented.
 
-### M5: Canonical doc sync and closure
+### M5: Low-risk infrastructure robustness guards
 
 What:
 
-Move any durable semantics introduced by M1-M4 into canonical docs and close the loop cleanly.
+Address the low-risk but real infrastructure issues from the secondary audit without expanding scope into speculative rewrites.
+
+Why:
+
+1. these issues are not currently causing research-significant corruption,
+2. but a research-grade harness should fail in explainable ways and not rely on fragile assumptions where cheap guards exist,
+3. landing them in the same round avoids leaving known hygiene debt immediately next to the measurement hardening work.
+
+Implementation targets:
+
+1. `src/artifacts/io.ts`
+2. `src/utils/canonical-json.ts`
+3. `src/openrouter/client.ts`
+4. `src/events/event-bus.ts` or `docs/DESIGN.md` / comments, depending on how the `subscribeSafe` boundary is documented
+5. relevant unit tests
+
+Concrete goals:
+
+1. handle JSONL stream backpressure correctly or document why the chosen implementation is sufficient,
+2. add circular-reference detection to canonical JSON,
+3. add a defensive default timeout to OpenRouter requests while preserving caller override,
+4. document latency semantics clearly if they continue to exclude rate-limiter wait,
+5. document the `subscribeSafe`/`flush()` boundary rather than pretending it does not exist.
+
+Exit evidence:
+
+1. JSONL writing has explicit backpressure handling or an intentional, documented alternative,
+2. canonical JSON fails fast with a clear error on cyclic input,
+3. OpenRouter requests have a safety-net timeout even when callers omit a signal,
+4. the handler-isolation boundary is documented in code and/or canonical docs,
+5. targeted tests cover the new guards where practical.
+
+### M6: Canonical doc sync and closure
+
+What:
+
+Move any durable semantics introduced by M1-M5 into canonical docs and close the loop cleanly.
 
 Why:
 
@@ -358,14 +414,16 @@ Exit evidence:
 | M2 | M1 complete | coverage warning is honest for the executed protocol space | unit/integration evidence for policy behavior |
 | M3 | M2 complete | embedding drift is explicitly surfaced in artifacts | schema-valid manifest/provenance evidence |
 | M4 | M3 complete | monitoring completeness and remaining provenance parity are explicit | manifest/test evidence |
-| M5 | M4 complete | durable docs updated and residual risk captured | canonical doc sync complete |
+| M5 | M4 complete | low-risk infrastructure guards land without altering scientific posture | targeted unit/integration evidence for guards |
+| M6 | M5 complete | durable docs updated and residual risk captured | canonical doc sync complete |
 
 Ordering principle:
 
 1. fix the estimand-definition mismatch first,
 2. then fix study-space accounting,
 3. then harden provenance and monitoring integrity,
-4. then sync durable docs.
+4. then land the low-risk infrastructure guards,
+5. then sync durable docs.
 
 ## Concrete Steps
 
@@ -377,8 +435,10 @@ Ordering principle:
 6. Emit a warning event when embedding-model conflict is detected.
 7. Add monitoring completeness tracking at manifest finalization time.
 8. Decide and implement any necessary mock/live provenance parity improvement that materially affects auditability.
-9. Update canonical docs with the new durable semantics.
-10. Re-run merge-gate validation and record residual risks.
+9. Add the infrastructure guards for JSONL backpressure, canonical JSON cycle detection, and defensive request timeout handling.
+10. Document any retained event-bus / latency semantics that remain intentional.
+11. Update canonical docs with the new durable semantics.
+12. Re-run merge-gate validation and record residual risks.
 
 ## Validation and Acceptance
 
@@ -398,7 +458,8 @@ Acceptance criteria:
 4. Embedding-model conflict is explicitly persisted and distinguishable from "no actual embedding model available."
 5. Manifest artifacts record whether monitoring coverage was complete.
 6. Any retained mock/live provenance differences are documented and justified.
-7. `docs/DESIGN.md` and any other affected canonical docs reflect the new durable semantics.
+7. JSONL writing, canonical JSON, and OpenRouter timeout behavior have explicit guards or explicit documented rationale.
+8. `docs/DESIGN.md` and any other affected canonical docs reflect the new durable semantics.
 
 Residual validation gap that would block truthful completion:
 
@@ -433,6 +494,10 @@ Likely implementation dependencies:
 4. `live-runner.ts`
 5. `artifact-writer.ts`
 6. `verify-run.ts`
+7. `io.ts`
+8. `canonical-json.ts`
+9. `openrouter/client.ts`
+10. `event-bus.ts`
 
 ## Handoffs and Ownership
 
@@ -442,7 +507,8 @@ Before implementation handoff, the implementer should be able to state:
 2. how policy accounting was reframed or corrected,
 3. how embedding-model conflict is now represented in artifacts,
 4. how monitoring completeness is determined,
-5. which durable docs were updated.
+5. which low-risk infrastructure guards landed and which were only documented,
+6. which durable docs were updated.
 
 Required handoff artifacts:
 
@@ -470,3 +536,10 @@ This plan intentionally supersedes stale earlier hardening assumptions without c
 3. Added the higher-priority `Q(c)` contract issue around dead debate `sampling.protocols`.
 4. Elevated policy-space accounting to a first-class hardening target.
 5. Kept embedding drift and monitoring completeness hardening, but reframed them around the actual remaining gaps.
+
+2026-03-24 03:34Z
+
+1. Folded in the secondary audit's low-risk infrastructure findings without letting them displace the research-contract fixes.
+2. Added explicit scope for JSONL backpressure, canonical JSON cycle detection, and defensive OpenRouter timeout handling.
+3. Expanded the monitoring milestone to document the `subscribeSafe` / `flush()` boundary rather than leaving it implicit.
+4. Renumbered doc sync to preserve dependency order: estimand honesty first, infrastructure cleanup later.
