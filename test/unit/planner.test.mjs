@@ -16,8 +16,8 @@ const buildIndependentConfig = (seed = "planner-seed") => ({
       { persona: "persona-b", weight: 1 }
     ],
     protocols: [
-      { protocol: "independent_v1", weight: 1 },
-      { protocol: "independent_v2", weight: 1 }
+      { protocol: "independent", weight: 1 },
+      { protocol: "independent_alt", weight: 1 }
     ],
     decode: {
       temperature: { min: 0.1, max: 0.9 },

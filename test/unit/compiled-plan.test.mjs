@@ -14,7 +14,7 @@ const buildConfig = () => ({
   sampling: {
     models: [{ model: "openai/gpt-4o-mini-2024-07-18", weight: 1 }],
     personas: [{ persona: "neutral", weight: 1 }],
-    protocols: [{ protocol: "independent_v1", weight: 1 }],
+    protocols: [{ protocol: "independent", weight: 1 }],
     decode: {
       temperature: { min: 0.2, max: 0.6 },
       max_tokens: { min: 10, max: 20 }

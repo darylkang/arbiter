@@ -35,7 +35,7 @@ export const executeMockIndependentTrial = async (input: {
         trialId: entry.trial_id,
         content: rawAssistantText,
         contract: resolvedConfig.protocol.decision_contract,
-        parserVersion: "independent-v1"
+        parserVersion: "independent"
       })
     : buildMockIndependentParsedOutput(entry.trial_id, outcome, rawAssistantText, embedTextValue);
 

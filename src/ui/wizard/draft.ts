@@ -247,7 +247,7 @@ export const buildConfigFromDraft = (input: {
   );
   config.sampling.protocols = [
     {
-      protocol: "protocol_independent_v1_system",
+      protocol: "protocol_independent_system",
       weight: 1
     }
   ];

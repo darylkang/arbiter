@@ -134,7 +134,7 @@ export const executeLiveIndependentTrial = async (input: {
         trialId: entry.trial_id,
         content: rawAssistantText,
         contract: resolvedConfig.protocol.decision_contract,
-        parserVersion: "independent-v1"
+        parserVersion: "independent"
       })
     : buildIndependentParsedOutput(entry.trial_id, outcome, rawAssistantText, embedTextValue, parseError);
 

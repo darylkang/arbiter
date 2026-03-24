@@ -5,7 +5,7 @@
     {
       "id": "default",
       "path": "resources/templates/public/default.config.json",
-      "sha256": "641302e63a5ea283bdc7653284b722900dbc42aa1072be72d2cd50463999b9de",
+      "sha256": "27b444bc69a115c4b964f61e286a0fabde92d4085862481639386dc6c4e22aca",
       "role": "public",
       "init_default": true,
       "description": "Baseline public starter config used by arbiter init."
@@ -13,49 +13,49 @@
     {
       "id": "debate",
       "path": "resources/templates/research/debate.config.json",
-      "sha256": "989920d92205d4161a175f52757520f0127f05da68c231417eacdd23ae4db405",
+      "sha256": "fcd8e6e52c053df24bd27cd5c9a7762316660277a982f7529fb0b6e64062193e",
       "role": "research",
       "description": "Generic debate research starter config."
     },
     {
       "id": "debate_d1",
       "path": "resources/templates/research/debate_d1.config.json",
-      "sha256": "b9ba1ffd5bf177a36bc18d4581523bcab17a35077b3a6f331b117c3c3e4f5a8d",
+      "sha256": "a19353024cd884c1610baa64de5389a3fe4762bbca764cc9d600648738b8c687",
       "role": "research",
       "description": "Primary H4 matrix D1: minimal interaction baseline (P2 R1)."
     },
     {
       "id": "debate_d2",
       "path": "resources/templates/research/debate_d2.config.json",
-      "sha256": "1a99b1fcf9e6ea2a48db668a1a3c5f4c0d6a930803f8174ba33c4509ad5e41f5",
+      "sha256": "c802040caa6843c81d5bd4b89e40d3a0be2027fcfe207499170718a1b142f479",
       "role": "research",
       "description": "Primary H4 matrix D2: add counter role diversity (P3 R1)."
     },
     {
       "id": "debate_d3",
       "path": "resources/templates/research/debate_d3.config.json",
-      "sha256": "95ef03518879b386a21ef0950f0225a74b2452db5051ade408db50ea5bfc6639",
+      "sha256": "1cfb7f4fc9a144ea78484eaf39edbb8af39b161cecc37cc92dc7bf3b0c3afbbf",
       "role": "research",
       "description": "Primary H4 matrix D3: add round depth (P2 R2)."
     },
     {
       "id": "debate_d4",
       "path": "resources/templates/research/debate_d4.config.json",
-      "sha256": "17f4791684260ad711a8ffebb73949e3fa9e8a5e126363f0793922babfb3c3fb",
+      "sha256": "1067e34fdb1a1a85f1cdb6c15319dbaf6d302d2acabfbf2d64e1f6d44eaf24e4",
       "role": "research",
       "description": "Primary H4 matrix D4: full role saturation (P4 R1)."
     },
     {
       "id": "heterogeneity_mix",
       "path": "resources/templates/research/heterogeneity_mix.config.json",
-      "sha256": "7f428f2b142e36f3a96ffae94ee7ba4882e4ceebcf6188f4eb22458b2768199a",
+      "sha256": "440145860df88cf12974c5a92e7d8f62847df7d924e9bd318ced480bf2f614f8",
       "role": "research",
       "description": "Curated multi-model and multi-persona distributional profile."
     },
     {
       "id": "free_quickstart",
       "path": "resources/templates/canary/free_quickstart.config.json",
-      "sha256": "728e9b71c9a4f2c758af5988c6af5ba7e77d04bc58213f202a3de09d15eddebc",
+      "sha256": "92f243517c05c21aa8fd17fb74fb7c3a1e3894e5dbeb126b1bc31d97c905bf04",
       "role": "canary",
       "description": "Free-tier canary template used for guarded live smoke checks."
     }

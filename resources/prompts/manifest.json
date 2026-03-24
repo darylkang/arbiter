@@ -39,9 +39,9 @@
       "description": "Single-best-answer commitment."
     },
     {
-      "id": "protocol_independent_v1_system",
+      "id": "protocol_independent_system",
       "type": "participant_protocol_template",
-      "path": "resources/prompts/protocols/independent_v1/system.md",
+      "path": "resources/prompts/protocols/independent/system.md",
       "sha256": "3b155fb025a075471501f4bf9a151368a4e18a0a0c9ee451bd02e8b66a38dd67",
       "description": "Independent protocol system prompt."
     },

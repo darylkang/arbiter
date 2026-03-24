@@ -23,7 +23,7 @@
       { "persona": "persona_skeptical", "weight": 0.5 }
     ],
     "protocols": [
-      { "protocol": "protocol_independent_v1_system", "weight": 1 }
+      { "protocol": "protocol_independent_system", "weight": 1 }
     ],
     "decode": {
       "temperature": { "min": 0.5, "max": 0.8 },
